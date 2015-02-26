@@ -22,12 +22,12 @@ import (
 type FileSystem interface {
 	// Look up a child by name within a parent directory. The kernel calls this
 	// when resolving user paths to dentry structs, which are then cached.
-	Lookup(
+	LookUpInode(
 		ctx context.Context,
-		req *LookupRequest) (*LookupResponse, error)
+		req *LookUpInodeRequest) (*LookUpInodeResponse, error)
 
-	// Forget an inode ID previously issued (e.g. by Lookup). The kernel calls
-	// this when removing an inode from its internal caches.
+	// Forget an inode ID previously issued (e.g. by LookUpInode). The kernel
+	// calls this when removing an inode from its internal caches.
 	//
 	// The kernel guarantees that the node ID will not be used in further calls
 	// to the file system (unless it is reissued by the file system).
@@ -61,9 +61,10 @@ type FileSystem interface {
 type InodeID uint64
 
 // A distinguished inode ID that identifies the root of the file system, e.g.
-// in a request to OpenDir or Lookup. Unlike all other inode IDs, which are
-// minted by the file system, the FUSE VFS layer may send a request for this ID
-// without the file system ever having referenced it in a previous response.
+// in a request to OpenDir or LookUpInode. Unlike all other inode IDs, which
+// are minted by the file system, the FUSE VFS layer may send a request for
+// this ID without the file system ever having referenced it in a previous
+// response.
 const RootInodeID InodeID = InodeID(bazilfuse.RootID)
 
 // A generation number for an inode. Irrelevant for file systems that won't be
@@ -94,7 +95,7 @@ type InodeAttributes struct {
 // Requests and responses
 ////////////////////////////////////////////////////////////////////////
 
-type LookupRequest struct {
+type LookUpInodeRequest struct {
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
 
@@ -110,7 +111,7 @@ type LookupRequest struct {
 	Name string
 }
 
-type LookupResponse struct {
+type LookUpInodeResponse struct {
 	// The ID of the child inode. The file system must ensure that the returned
 	// inode ID remains valid until a later call to ForgetInode.
 	Child InodeID
@@ -164,8 +165,8 @@ type LookupResponse struct {
 	// FUSE file systems may spontaneously change their name -> inode mapping.
 	// Therefore the FUSE VFS layer uses dentry_operations::d_revalidate
 	// (http://goo.gl/dVea0h) to intercept lookups and revalidate by calling the
-	// user-space Lookup method. However the latter may be slow, so it caches the
-	// entries until the time defined by this field.
+	// user-space LookUpInode method. However the latter may be slow, so it
+	// caches the entries until the time defined by this field.
 	//
 	// Example code walk:
 	//
