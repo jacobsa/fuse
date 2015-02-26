@@ -12,20 +12,26 @@ type NotImplementedFileSystem struct {
 
 var _ FileSystem = &NotImplementedFileSystem{}
 
-func (fs *NotImplementedFileSystem) Open(
+func (fs *NotImplementedFileSystem) LookUpInode(
 	ctx context.Context,
-	req *OpenRequest) (*OpenResponse, error) {
+	req *LookUpInodeRequest) (*LookUpInodeResponse, error) {
 	return nil, ENOSYS
 }
 
-func (fs *NotImplementedFileSystem) Lookup(
+func (fs *NotImplementedFileSystem) ForgetInode(
 	ctx context.Context,
-	req *LookupRequest) (*LookupResponse, error) {
+	req *ForgetInodeRequest) (*ForgetInodeResponse, error) {
 	return nil, ENOSYS
 }
 
-func (fs *NotImplementedFileSystem) Forget(
+func (fs *NotImplementedFileSystem) OpenDir(
 	ctx context.Context,
-	req *ForgetRequest) (*ForgetResponse, error) {
+	req *OpenDirRequest) (*OpenDirResponse, error) {
+	return nil, ENOSYS
+}
+
+func (fs *NotImplementedFileSystem) ReleaseHandle(
+	ctx context.Context,
+	req *ReleaseHandleRequest) (*ReleaseHandleResponse, error) {
 	return nil, ENOSYS
 }
