@@ -60,6 +60,12 @@ type FileSystem interface {
 // (Cf. http://goo.gl/tvYyQt)
 type InodeID uint64
 
+// An opaque 64-bit number used to identify a particular open handle to a file
+// or directory.
+//
+// This corresponds to fuse_file_info::fh.
+type HandleID uint64
+
 // A distinguished inode ID that identifies the root of the file system, e.g.
 // in a request to OpenDir or LookUpInode. Unlike all other inode IDs, which
 // are minted by the file system, the FUSE VFS layer may send a request for
