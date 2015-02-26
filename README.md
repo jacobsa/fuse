@@ -2,7 +2,7 @@
 
 This package allows for writing and mounting user-space file systems from Go. It
 is a wrapper around [bazil.org/fuse][bazil], which does the heavy lifting. It
-does not make use the [bazil.org/fuse/fs][bazil-fs] sub-package, which allows
+does not make use of the [bazil.org/fuse/fs][bazil-fs] sub-package, which allows
 for something like an object-orientend representation of files and directories,
 and contains a decent amount of canned behavior.
 
