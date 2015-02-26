@@ -20,14 +20,6 @@ import (
 //
 // Must be safe for concurrent access via all methods.
 type FileSystem interface {
-	// Open a file or directory identified by an inode ID. The kernel calls this
-	// method when setting up a struct file for a particular inode, usually in
-	// response to an open(2) call from a user-space process. This may have side
-	// effects, depending on the flags passed.
-	Open(
-		ctx context.Context,
-		req *OpenRequest) (*OpenResponse, error)
-
 	// Look up a child by name within a parent directory. The kernel calls this
 	// when resolving user paths to dentry structs, which are then cached.
 	Lookup(
@@ -39,9 +31,21 @@ type FileSystem interface {
 	//
 	// The kernel guarantees that the node ID will not be used in further calls
 	// to the file system (unless it is reissued by the file system).
-	Forget(
+	ForgetInode(
 		ctx context.Context,
-		req *ForgetRequest) (*ForgetResponse, error)
+		req *ForgetInodeRequest) (*ForgetInodeResponse, error)
+
+	// Open a directory inode. The kernel calls this method when setting up a
+	// struct file for a particular inode with type directory, usually in
+	// response to an open(2) call from a user-space process.
+	OpenDir(
+		ctx context.Context,
+		req *OpenDirRequest) (*OpenDirResponse, error)
+
+	// XXX: Comments
+	ReleaseHandle(
+		ctx context.Context,
+		req *ReleaseHandleRequest) (*ReleaseHandleResponse, error)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -57,8 +61,8 @@ type FileSystem interface {
 type InodeID uint64
 
 // A distinguished inode ID that identifies the root of the file system, e.g.
-// in a request to Open or Lookup. Unlike all other inode IDs, which are minted
-// by the file system, the FUSE VFS layer may send a request for this ID
+// in a request to OpenDir or Lookup. Unlike all other inode IDs, which are
+// minted by the file system, the FUSE VFS layer may send a request for this ID
 // without the file system ever having referenced it in a previous response.
 const RootInodeID InodeID = InodeID(bazilfuse.RootID)
 
@@ -90,7 +94,7 @@ type InodeAttributes struct {
 // Requests and responses
 ////////////////////////////////////////////////////////////////////////
 
-type OpenRequest struct {
+type OpenDirRequest struct {
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -98,10 +102,14 @@ type OpenRequest struct {
 	Flags bazilfuse.OpenFlags
 }
 
-// Currently nothing interesting here. The file system should perform any
-// checking and side effects necessary as part of FileSystem.Open, and return
-// an error if appropriate.
-type OpenResponse struct {
+type OpenDirResponse struct {
+	// An opaque ID that will be echoed in follow-up calls for this directory
+	// using the same struct file in the kernel. In practice this usually means
+	// follow-up calls using the file descriptor returned by open(2).
+	//
+	// The file system must ensure this ID remains valid until a later call to
+	// ReleaseHandle.
+	Handle HandleID
 }
 
 type LookupRequest struct {
@@ -122,7 +130,7 @@ type LookupRequest struct {
 
 type LookupResponse struct {
 	// The ID of the child inode. The file system must ensure that the returned
-	// inode ID remains valid until a later call to Forget.
+	// inode ID remains valid until a later call to ForgetInode.
 	Child InodeID
 
 	// A generation number for this incarnation of the inode with the given ID.
@@ -188,12 +196,12 @@ type LookupResponse struct {
 	EntryExpiration time.Time
 }
 
-type ForgetRequest struct {
+type ForgetInodeRequest struct {
 	// The inode to be forgotten. The kernel guarantees that the node ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	ID InodeID
 }
 
-type ForgetResponse struct {
+type ForgetInodeResponse struct {
 }
