@@ -8,9 +8,9 @@
 //  *  The FileSystem interface, which defines the methods a file system must
 //     implement.
 //
-//  *  NotImplementedFileSystem, which may be embedded to obtain default
-//     implementations for all methods that are not of interest to a particular
-//     file system.
+//  *  fuseutil.NotImplementedFileSystem, which may be embedded to obtain
+//     default implementations for all methods that are not of interest to a
+//     particular file system.
 //
 //  *  Mount, a function that allows for mounting a file system.
 //
