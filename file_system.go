@@ -15,8 +15,8 @@ import (
 // FUSE. See also the comments on request and response structs.
 //
 // Not all methods need to have interesting implementations. Embed a field of
-// type NotImplementedFileSystem to inherit defaults that return ENOSYS to the
-// kernel.
+// type fuseutil.NotImplementedFileSystem to inherit defaults that return
+// ENOSYS to the kernel.
 //
 // Must be safe for concurrent access via all methods.
 type FileSystem interface {

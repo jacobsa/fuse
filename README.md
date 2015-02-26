@@ -8,13 +8,13 @@ and contains a decent amount of canned behavior.
 
 The chief improvements and/or differences from the bazil.org packages are:
 
- *  A single interface (`FileSystem`) for all of the methods that you might care
-    about.
+ *  A single interface (`fuse.FileSystem`) for all of the methods that you might
+    care about.
 
  *  No surprises in the form of magic/default behaviors. You must provide an
     implementation for every method in the interface. Embed a
-    `NotImplementedFileSystem` struct to have default implementations that
-    return `ENOSYS`.
+    `fuseutil.NotImplementedFileSystem` struct to have default implementations
+    that return `ENOSYS`.
 
  *  Every method, struct, and field is thoroughly documented. This may help you
     get your bearings in the world of FUSE, the Linux VFS, traditional file

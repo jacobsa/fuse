@@ -5,6 +5,7 @@ package samples
 
 import (
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 )
@@ -17,7 +18,7 @@ import (
 //
 // Each file contains the string "Hello, world!".
 type HelloFS struct {
-	fuse.NotImplementedFileSystem
+	fuseutil.NotImplementedFileSystem
 	Clock timeutil.Clock
 }
 
