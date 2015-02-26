@@ -6,7 +6,7 @@ package fuse
 import (
 	"time"
 
-	"bazil.org/fuse"
+	bazilfuse "bazil.org/fuse"
 
 	"golang.org/x/net/context"
 )
@@ -60,7 +60,7 @@ type InodeID uint64
 // in a request to Open or Lookup. Unlike all other inode IDs, which are minted
 // by the file system, the FUSE VFS layer may send a request for this ID
 // without the file system ever having referenced it in a previous response.
-const RootInodeID InodeID = InodeID(fuse.RootID)
+const RootInodeID InodeID = InodeID(bazilfuse.RootID)
 
 // A generation number for an inode. Irrelevant for file systems that won't be
 // exported over NFS. For those that will and that reuse inode IDs when they
@@ -95,7 +95,7 @@ type OpenRequest struct {
 	Inode InodeID
 
 	// Mode and options flags.
-	Flags fuse.OpenFlags
+	Flags bazilfuse.OpenFlags
 }
 
 // Currently nothing interesting here. The file system should perform any

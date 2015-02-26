@@ -6,7 +6,7 @@ package fuse
 import (
 	"errors"
 
-	"bazil.org/fuse"
+	bazilfuse "bazil.org/fuse"
 	"golang.org/x/net/context"
 )
 
@@ -61,20 +61,20 @@ func (mfs *MountedFileSystem) Join(ctx context.Context) error {
 // unmounted. You must first call WaitForReady to ensure there is no race with
 // mounting.
 func (mfs *MountedFileSystem) Unmount() error {
-	return fuse.Unmount(mfs.dir)
+	return bazilfuse.Unmount(mfs.dir)
 }
 
 // Runs in the background.
 func (mfs *MountedFileSystem) mountAndServe(
 	server *server,
-	options []fuse.MountOption) {
+	options []bazilfuse.MountOption) {
 	logger := getLogger()
 
 	// Open a FUSE connection.
 	logger.Println("Opening a FUSE connection.")
-	c, err := fuse.Mount(mfs.dir, options...)
+	c, err := bazilfuse.Mount(mfs.dir, options...)
 	if err != nil {
-		mfs.readyStatus = errors.New("fuse.Mount: " + err.Error())
+		mfs.readyStatus = errors.New("bazilfuse.Mount: " + err.Error())
 		close(mfs.readyStatusAvailable)
 		return
 	}
@@ -110,7 +110,7 @@ func (mfs *MountedFileSystem) mountAndServe(
 func Mount(
 	dir string,
 	fs FileSystem,
-	options ...fuse.MountOption) (mfs *MountedFileSystem, err error) {
+	options ...bazilfuse.MountOption) (mfs *MountedFileSystem, err error) {
 	// Create a server object.
 	server, err := newServer(fs)
 	if err != nil {

@@ -3,10 +3,10 @@
 
 package fuse
 
-import "bazil.org/fuse"
+import bazilfuse "bazil.org/fuse"
 
 const (
 	// Errors corresponding to kernel error numbers. These may be treated
 	// specially when returned by a FileSystem method.
-	ENOSYS = fuse.ENOSYS
+	ENOSYS = bazilfuse.ENOSYS
 )

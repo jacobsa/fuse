@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"bazil.org/fuse"
+	bazilfuse "bazil.org/fuse"
 )
 
 // An object that terminates one end of the userspace <-> FUSE VFS connection.
@@ -32,11 +32,11 @@ func newServer(fs FileSystem) (s *server, err error) {
 // Serve the fuse connection by repeatedly reading requests from the supplied
 // FUSE connection, responding as dictated by the file system. Return when the
 // connection is closed or an unexpected error occurs.
-func (s *server) Serve(c *fuse.Conn) (err error) {
+func (s *server) Serve(c *bazilfuse.Conn) (err error) {
 	// Read a message at a time, dispatching to goroutines doing the actual
 	// processing.
 	for {
-		var fuseReq fuse.Request
+		var fuseReq bazilfuse.Request
 		fuseReq, err = c.ReadRequest()
 
 		// ReadRequest returns EOF when the connection has been closed.
@@ -57,7 +57,7 @@ func (s *server) Serve(c *fuse.Conn) (err error) {
 	}
 }
 
-func (s *server) handleFuseRequest(fuseReq fuse.Request) {
+func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 	// Log the request.
 	s.logger.Println("Received:", fuseReq)
 
@@ -67,23 +67,23 @@ func (s *server) handleFuseRequest(fuseReq fuse.Request) {
 
 	// Attempt to handle it.
 	switch typed := fuseReq.(type) {
-	case *fuse.InitRequest:
+	case *bazilfuse.InitRequest:
 		// Responding to this is required to make mounting work, at least on OS X.
 		// We don't currently expose the capability for the file system to
 		// intercept this.
-		fuseResp := &fuse.InitResponse{}
+		fuseResp := &bazilfuse.InitResponse{}
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
-	case *fuse.StatfsRequest:
+	case *bazilfuse.StatfsRequest:
 		// Responding to this is required to make mounting work, at least on OS X.
 		// We don't currently expose the capability for the file system to
 		// intercept this.
-		fuseResp := &fuse.StatfsResponse{}
+		fuseResp := &bazilfuse.StatfsResponse{}
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
-	case *fuse.OpenRequest:
+	case *bazilfuse.OpenRequest:
 		// Convert the request.
 		req := &OpenRequest{
 			Inode: InodeID(typed.Header.Node),
@@ -98,7 +98,7 @@ func (s *server) handleFuseRequest(fuseReq fuse.Request) {
 		}
 
 		// There is nothing interesting to convert in the response.
-		fuseResp := &fuse.OpenResponse{}
+		fuseResp := &bazilfuse.OpenResponse{}
 		s.logger.Print("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
