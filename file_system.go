@@ -67,18 +67,19 @@ type FileSystem interface {
 // (Cf. http://goo.gl/tvYyQt)
 type InodeID uint64
 
-// An opaque 64-bit number used to identify a particular open handle to a file
-// or directory.
-//
-// This corresponds to fuse_file_info::fh.
-type HandleID uint64
-
 // A distinguished inode ID that identifies the root of the file system, e.g.
 // in a request to OpenDir or LookUpInode. Unlike all other inode IDs, which
 // are minted by the file system, the FUSE VFS layer may send a request for
 // this ID without the file system ever having referenced it in a previous
 // response.
 const RootInodeID InodeID = InodeID(bazilfuse.RootID)
+
+// Attributes for a file or directory inode. Corresponds to struct inode (cf.
+// http://goo.gl/tvYyQt).
+type InodeAttributes struct {
+	// The size of the file in bytes.
+	Size uint64
+}
 
 // A generation number for an inode. Irrelevant for file systems that won't be
 // exported over NFS. For those that will and that reuse inode IDs when they
@@ -97,12 +98,11 @@ const RootInodeID InodeID = InodeID(bazilfuse.RootID)
 //
 type GenerationNumber uint64
 
-// Attributes for a file or directory inode. Corresponds to struct inode (cf.
-// http://goo.gl/tvYyQt).
-type InodeAttributes struct {
-	// The size of the file in bytes.
-	Size uint64
-}
+// An opaque 64-bit number used to identify a particular open handle to a file
+// or directory.
+//
+// This corresponds to fuse_file_info::fh.
+type HandleID uint64
 
 ////////////////////////////////////////////////////////////////////////
 // Requests and responses
