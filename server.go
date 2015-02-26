@@ -84,21 +84,32 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		typed.Respond(fuseResp)
 
 	case *bazilfuse.OpenRequest:
+		// We support only directories at this point.
+		if !typed.Dir {
+			s.logger.Println("We don't yet support files. Returning ENOSYS.")
+			typed.RespondError(ENOSYS)
+			return
+		}
+
 		// Convert the request.
-		req := &OpenRequest{
+		req := &OpenDirRequest{
 			Inode: InodeID(typed.Header.Node),
 			Flags: typed.Flags,
 		}
 
 		// Call the file system.
-		if _, err := s.fs.Open(ctx, req); err != nil {
+		resp, err := s.fs.OpenDir(ctx, req)
+		if err != nil {
 			s.logger.Print("Responding:", err)
 			typed.RespondError(err)
 			return
 		}
 
-		// There is nothing interesting to convert in the response.
-		fuseResp := &bazilfuse.OpenResponse{}
+		// Convert the response.
+		fuseResp := &bazilfuse.OpenResponse{
+			Handle: bazilfuse.HandleID(resp.Handle),
+		}
+
 		s.logger.Print("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
