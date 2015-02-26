@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jacobsa/gcsfuse/fuseutil"
-	"github.com/jacobsa/gcsfuse/fuseutil/samples"
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
@@ -26,7 +26,7 @@ func TestHelloFS(t *testing.T) { RunTests(t) }
 
 type HelloFSTest struct {
 	clock timeutil.SimulatedClock
-	mfs   *fuseutil.MountedFileSystem
+	mfs   *fuse.MountedFileSystem
 }
 
 var _ SetUpInterface = &HelloFSTest{}
@@ -51,7 +51,7 @@ func (t *HelloFSTest) SetUp(ti *TestInfo) {
 		Clock: &t.clock,
 	}
 
-	if t.mfs, err = fuseutil.Mount(mountPoint, fs); err != nil {
+	if t.mfs, err = fuse.Mount(mountPoint, fs); err != nil {
 		panic("Mount: " + err.Error())
 	}
 

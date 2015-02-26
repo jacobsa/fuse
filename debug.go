@@ -1,7 +1,7 @@
 // Copyright 2015 Google Inc. All Rights Reserved.
 // Author: jacobsa@google.com (Aaron Jacobs)
 
-package fuseutil
+package fuse
 
 import (
 	"flag"
@@ -12,7 +12,7 @@ import (
 )
 
 var fEnableDebug = flag.Bool(
-	"fuseutil.debug",
+	"fuse.debug",
 	false,
 	"Write FUSE debugging messages to stderr.")
 
@@ -23,5 +23,5 @@ func getLogger() *log.Logger {
 		writer = os.Stderr
 	}
 
-	return log.New(writer, "fuseutil: ", log.LstdFlags)
+	return log.New(writer, "fuse: ", log.LstdFlags)
 }

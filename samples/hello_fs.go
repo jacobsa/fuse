@@ -4,7 +4,7 @@
 package samples
 
 import (
-	"github.com/jacobsa/gcsfuse/fuseutil"
+	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 )
@@ -17,21 +17,21 @@ import (
 //
 // Each file contains the string "Hello, world!".
 type HelloFS struct {
-	fuseutil.NotImplementedFileSystem
+	fuse.NotImplementedFileSystem
 	Clock timeutil.Clock
 }
 
-var _ fuseutil.FileSystem = &HelloFS{}
+var _ fuse.FileSystem = &HelloFS{}
 
 func (fs *HelloFS) Open(
 	ctx context.Context,
-	req *fuseutil.OpenRequest) (resp *fuseutil.OpenResponse, err error) {
+	req *fuse.OpenRequest) (resp *fuse.OpenResponse, err error) {
 	// We always allow opening the root directory.
-	if req.Inode == fuseutil.RootInodeID {
+	if req.Inode == fuse.RootInodeID {
 		return
 	}
 
 	// TODO(jacobsa): Handle others.
-	err = fuseutil.ENOSYS
+	err = fuse.ENOSYS
 	return
 }
