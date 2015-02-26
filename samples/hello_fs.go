@@ -23,9 +23,9 @@ type HelloFS struct {
 
 var _ fuse.FileSystem = &HelloFS{}
 
-func (fs *HelloFS) Open(
+func (fs *HelloFS) OpenDir(
 	ctx context.Context,
-	req *fuse.OpenRequest) (resp *fuse.OpenResponse, err error) {
+	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
 	// We always allow opening the root directory.
 	if req.Inode == fuse.RootInodeID {
 		return
