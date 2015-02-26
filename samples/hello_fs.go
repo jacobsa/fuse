@@ -28,6 +28,7 @@ func (fs *HelloFS) OpenDir(
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
 	// We always allow opening the root directory.
 	if req.Inode == fuse.RootInodeID {
+		resp = &fuse.OpenDirResponse{}
 		return
 	}
 
