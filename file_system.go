@@ -94,24 +94,6 @@ type InodeAttributes struct {
 // Requests and responses
 ////////////////////////////////////////////////////////////////////////
 
-type OpenDirRequest struct {
-	// The ID of the inode to be opened.
-	Inode InodeID
-
-	// Mode and options flags.
-	Flags bazilfuse.OpenFlags
-}
-
-type OpenDirResponse struct {
-	// An opaque ID that will be echoed in follow-up calls for this directory
-	// using the same struct file in the kernel. In practice this usually means
-	// follow-up calls using the file descriptor returned by open(2).
-	//
-	// The file system must ensure this ID remains valid until a later call to
-	// ReleaseHandle.
-	Handle HandleID
-}
-
 type LookupRequest struct {
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
@@ -204,4 +186,22 @@ type ForgetInodeRequest struct {
 }
 
 type ForgetInodeResponse struct {
+}
+
+type OpenDirRequest struct {
+	// The ID of the inode to be opened.
+	Inode InodeID
+
+	// Mode and options flags.
+	Flags bazilfuse.OpenFlags
+}
+
+type OpenDirResponse struct {
+	// An opaque ID that will be echoed in follow-up calls for this directory
+	// using the same struct file in the kernel. In practice this usually means
+	// follow-up calls using the file descriptor returned by open(2).
+	//
+	// The file system must ensure this ID remains valid until a later call to
+	// ReleaseHandle.
+	Handle HandleID
 }
