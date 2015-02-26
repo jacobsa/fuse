@@ -28,9 +28,6 @@ type FileSystem interface {
 
 	// Forget an inode ID previously issued (e.g. by LookUpInode). The kernel
 	// calls this when removing an inode from its internal caches.
-	//
-	// The kernel guarantees that the node ID will not be used in further calls
-	// to the file system (unless it is reissued by the file system).
 	ForgetInode(
 		ctx context.Context,
 		req *ForgetInodeRequest) (*ForgetInodeResponse, error)
@@ -42,7 +39,12 @@ type FileSystem interface {
 		ctx context.Context,
 		req *OpenDirRequest) (*OpenDirResponse, error)
 
-	// XXX: Comments
+	// Release a previously-minted handle. The kernel calls this when there are
+	// no more references to an open file: all file descriptors are closed and
+	// all memory mappings are unmapped.
+	//
+	// The kernel guarantees that the handle ID will not be used in further calls
+	// to the file system (unless it is reissued by the file system).
 	ReleaseHandle(
 		ctx context.Context,
 		req *ReleaseHandleRequest) (*ReleaseHandleResponse, error)
@@ -211,4 +213,14 @@ type OpenDirResponse struct {
 	// The file system must ensure this ID remains valid until a later call to
 	// ReleaseHandle.
 	Handle HandleID
+}
+
+type ReleaseHandleRequest struct {
+	// The handle ID to be released. The kernel guarantees that this ID will not
+	// be used in further calls to the file system (unless it is reissued by the
+	// file system).
+	Handle HandleID
+}
+
+type ReleaseHandleResponse struct {
 }
