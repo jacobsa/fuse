@@ -32,6 +32,8 @@ const (
 )
 
 type inodeInfo struct {
+	attributes fuse.InodeAttributes
+
 	// File or directory?
 	dir bool
 
@@ -43,7 +45,8 @@ type inodeInfo struct {
 var gInodeInfo = map[fuse.InodeID]inodeInfo{
 	// root
 	rootInode: inodeInfo{
-		dir: true,
+		attributes: fuse.InodeAttributes{},
+		dir:        true,
 		children: []fuseutil.Dirent{
 			fuseutil.Dirent{
 				Offset: 1,
