@@ -4,6 +4,8 @@
 package fuseutil
 
 import (
+	"unsafe"
+
 	bazilfuse "bazil.org/fuse"
 	"github.com/jacobsa/fuse"
 )
@@ -28,10 +30,11 @@ type Dirent struct {
 
 // Append the supplied directory entry to the given buffer in the format
 // expected in fuse.ReadResponse.Data, returning the resulting buffer.
-func AppendDirent(buf []byte, d Dirent) []byte {
+func AppendDirent(input []byte, d Dirent) (output []byte) {
 	// We want to append bytes with the layout of fuse_dirent
-	// (http://goo.gl/BmFxob) in host order. Its layout is reproduced here for
-	// documentation purposes:
+	// (http://goo.gl/BmFxob) in host order. The struct must be aligned according
+	// to FUSE_DIRENT_ALIGN (http://goo.gl/UziWvH), which dictates 8-byte
+	// alignment.
 	type fuse_dirent struct {
 		ino     uint64
 		off     uint64
@@ -39,4 +42,30 @@ func AppendDirent(buf []byte, d Dirent) []byte {
 		type_   uint32
 		name    [0]byte
 	}
+
+	const alignment = 8
+	const nameOffset = 8 + 8 + 4 + 4
+
+	// Write the header into the buffer.
+	de := fuse_dirent{
+		ino:     uint64(d.Inode),
+		off:     uint64(d.Offset),
+		namelen: uint32(len(d.Name)),
+		type_:   uint32(d.Type),
+	}
+
+	output = append(input, (*[nameOffset]byte)(unsafe.Pointer(&de))[:]...)
+
+	// Write the name afterward.
+	output = append(output, d.Name...)
+
+	// Add any necessary padding.
+	if len(d.Name)%alignment != 0 {
+		padLen := alignment - (len(d.Name) % alignment)
+
+		var padding [alignment]byte
+		output = append(output, padding[:padLen]...)
+	}
+
+	return
 }
