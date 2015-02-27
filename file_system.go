@@ -104,6 +104,11 @@ type GenerationNumber uint64
 // This corresponds to fuse_file_info::fh.
 type HandleID uint64
 
+// An offset into an open directory handle. This is opaque to FUSE, and can be
+// used for whatever purpose the file system desires. See notes on
+// ReadDirRequest.Offset for details.
+type DirOffset uint64
+
 // XXX: Comments for all
 type Dirent struct {
 	Inode  InodeID
