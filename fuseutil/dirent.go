@@ -4,13 +4,24 @@
 package fuseutil
 
 import (
+	"syscall"
 	"unsafe"
 
-	bazilfuse "bazil.org/fuse"
 	"github.com/jacobsa/fuse"
 )
 
-type DirentType bazilfuse.DirentType
+type DirentType uint32
+
+const (
+	DT_Unknown   DirentType = 0
+	DT_Socket    DirentType = syscall.DT_SOCK
+	DT_Link      DirentType = syscall.DT_LNK
+	DT_File      DirentType = syscall.DT_REG
+	DT_Block     DirentType = syscall.DT_BLK
+	DT_Directory DirentType = syscall.DT_DIR
+	DT_Char      DirentType = syscall.DT_CHR
+	DT_FIFO      DirentType = syscall.DT_FIFO
+)
 
 // A struct representing an entry within a directory file, describing a child.
 // See notes on fuse.ReadDirResponse and on AppendDirent for details.

@@ -46,7 +46,23 @@ func (fs *HelloFS) OpenDir(
 }
 
 // We have a fixed directory structure.
-var gDirectoryEntries = map[fuse.InodeID][]fuseutil.Dirent{}
+var gDirectoryEntries = map[fuse.InodeID][]fuseutil.Dirent{
+	// root
+	rootInode: []fuseutil.Dirent{
+		fuseutil.Dirent{
+			Offset: 1,
+			Inode:  helloInode,
+			Name:   "hello",
+			Type:   fuseutil.DT_File,
+		},
+		fuseutil.Dirent{
+			Offset: 2,
+			Inode:  dirInode,
+			Name:   "dir",
+			Type:   fuseutil.DT_Directory,
+		},
+	},
+}
 
 func (fs *HelloFS) ReadDir(
 	ctx context.Context,
