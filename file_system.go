@@ -4,6 +4,7 @@
 package fuse
 
 import (
+	"os"
 	"time"
 
 	bazilfuse "bazil.org/fuse"
@@ -89,8 +90,8 @@ const RootInodeID InodeID = InodeID(bazilfuse.RootID)
 // Attributes for a file or directory inode. Corresponds to struct inode (cf.
 // http://goo.gl/tvYyQt).
 type InodeAttributes struct {
-	// The size of the file in bytes.
 	Size uint64
+	Mode os.FileMode
 }
 
 // A generation number for an inode. Irrelevant for file systems that won't be

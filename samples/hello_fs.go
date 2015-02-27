@@ -4,6 +4,8 @@
 package samples
 
 import (
+	"os"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
@@ -45,8 +47,10 @@ type inodeInfo struct {
 var gInodeInfo = map[fuse.InodeID]inodeInfo{
 	// root
 	rootInode: inodeInfo{
-		attributes: fuse.InodeAttributes{},
-		dir:        true,
+		attributes: fuse.InodeAttributes{
+			Mode: 0700 | os.ModeDir,
+		},
+		dir: true,
 		children: []fuseutil.Dirent{
 			fuseutil.Dirent{
 				Offset: 1,

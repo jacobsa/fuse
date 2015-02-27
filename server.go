@@ -181,5 +181,6 @@ func convertAttributes(inode InodeID, attr InodeAttributes) bazilfuse.Attr {
 	return bazilfuse.Attr{
 		Inode: uint64(inode),
 		Size:  attr.Size,
+		Mode:  attr.Mode,
 	}
 }
