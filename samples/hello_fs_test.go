@@ -137,8 +137,19 @@ func (t *HelloFSTest) ReadDir_NonExistent() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *HelloFSTest) Stat_Hello() {
+func (t *HelloFSTest) Stat_Root() {
 	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) Stat_Hello() {
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "hello"))
+	AssertEq(nil, err)
+
+	ExpectEq("hello", fi.Name())
+	ExpectEq(len("Hello, world!"), fi.Size())
+	ExpectEq(0400, fi.Mode())
+	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
+	ExpectFalse(fi.IsDir())
 }
 
 func (t *HelloFSTest) Stat_Dir() {
