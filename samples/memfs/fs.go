@@ -10,10 +10,6 @@ import (
 	"github.com/jacobsa/gcsfuse/timeutil"
 )
 
-// Create a file system that stores data and metadata in memory.
-func NewMemFS(
-	clock timeutil.Clock) fuse.FileSystem
-
 type memFS struct {
 	fuseutil.NotImplementedFileSystem
 
@@ -44,3 +40,7 @@ type memFS struct {
 	// INVARIANT: For all dirs d, all of d's children are in the map.
 	inodeIndex map[fuse.InodeID]interface{} // GUARDED_BY(mu)
 }
+
+// Create a file system that stores data and metadata in memory.
+func NewMemFS(
+	clock timeutil.Clock) fuse.FileSystem
