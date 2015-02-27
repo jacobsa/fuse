@@ -235,3 +235,11 @@ func (fs *HelloFS) ReadDir(
 
 	return
 }
+
+func (fs *HelloFS) OpenFile(
+	ctx context.Context,
+	req *fuse.OpenFileRequest) (resp *fuse.OpenFileResponse, err error) {
+	// Allow opening any file.
+	resp = &fuse.OpenFileResponse{}
+	return
+}
