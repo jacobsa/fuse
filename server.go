@@ -86,6 +86,33 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
+	case *bazilfuse.LookupRequest:
+		// Convert the request.
+		req := &LookUpInodeRequest{
+			Parent: InodeID(typed.Header.Node),
+			Name:   typed.Name,
+		}
+
+		// Call the file system.
+		resp, err := s.fs.LookUpInode(ctx, req)
+		if err != nil {
+			s.logger.Print("Responding:", err)
+			typed.RespondError(err)
+			return
+		}
+
+		// Convert the response.
+		fuseResp := &bazilfuse.LookupResponse{
+			Node:       bazilfuse.NodeID(resp.Child),
+			Generation: uint64(resp.Generation),
+			Attr:       convertAttributes(resp.Child, resp.Attributes),
+			AttrValid:  resp.AttributesExpiration.Sub(s.clock.Now()),
+			EntryValid: resp.EntryExpiration.Sub(s.clock.Now()),
+		}
+
+		s.logger.Print("Responding:", fuseResp)
+		typed.Respond(fuseResp)
+
 	case *bazilfuse.GetattrRequest:
 		// Convert the request.
 		req := &GetInodeAttributesRequest{
