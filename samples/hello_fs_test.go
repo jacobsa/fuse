@@ -185,7 +185,10 @@ func (t *HelloFSTest) ReadFile_Hello() {
 }
 
 func (t *HelloFSTest) ReadFile_Dir() {
-	AssertTrue(false, "TODO")
+	_, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "dir"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("is a directory")))
 }
 
 func (t *HelloFSTest) ReadFile_World() {
