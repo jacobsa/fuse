@@ -296,7 +296,8 @@ type ReadDirRequest struct {
 	// offset, and return array offsets into that cached listing.
 	Offset DirOffset
 
-	// The maximum number of bytes to return in ReadDirResponse.Data.
+	// The maximum number of bytes to return in ReadDirResponse.Data. A smaller
+	// number is acceptable.
 	Size uint64
 }
 
@@ -313,6 +314,8 @@ type ReadDirResponse struct {
 	// Each entry returned exposes a directory offset to the user that may later
 	// show up in ReadDirRequest.Offset. See notes on that field for more
 	// information.
+	//
+	// An empty buffer indicates the end of the directory has been reached.
 	Data []byte
 }
 
