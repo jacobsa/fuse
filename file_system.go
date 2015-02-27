@@ -90,8 +90,11 @@ const RootInodeID InodeID = InodeID(bazilfuse.RootID)
 // Attributes for a file or directory inode. Corresponds to struct inode (cf.
 // http://goo.gl/tvYyQt).
 type InodeAttributes struct {
-	Size uint64
-	Mode os.FileMode
+	Size   uint64
+	Mode   os.FileMode
+	Atime  time.Time
+	Mtime  time.Time
+	Crtime time.Time
 }
 
 // A generation number for an inode. Irrelevant for file systems that won't be

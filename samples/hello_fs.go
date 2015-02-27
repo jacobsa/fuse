@@ -139,6 +139,12 @@ func (fs *HelloFS) LookUpInode(
 	resp.Child = childInode
 	resp.Attributes = gInodeInfo[childInode].attributes
 
+	// Patch attributes.
+	now := fs.Clock.Now()
+	resp.Attributes.Atime = now
+	resp.Attributes.Mtime = now
+	resp.Attributes.Crtime = now
+
 	return
 }
 
@@ -157,6 +163,12 @@ func (fs *HelloFS) GetInodeAttributes(
 
 	// Copy over its attributes.
 	resp.Attributes = info.attributes
+
+	// Patch attributes.
+	now := fs.Clock.Now()
+	resp.Attributes.Atime = now
+	resp.Attributes.Mtime = now
+	resp.Attributes.Crtime = now
 
 	return
 }

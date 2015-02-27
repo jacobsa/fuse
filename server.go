@@ -206,8 +206,11 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 
 func convertAttributes(inode InodeID, attr InodeAttributes) bazilfuse.Attr {
 	return bazilfuse.Attr{
-		Inode: uint64(inode),
-		Size:  attr.Size,
-		Mode:  attr.Mode,
+		Inode:  uint64(inode),
+		Size:   attr.Size,
+		Mode:   attr.Mode,
+		Atime:  attr.Atime,
+		Mtime:  attr.Mtime,
+		Crtime: attr.Crtime,
 	}
 }
