@@ -4,7 +4,9 @@
 package samples
 
 import (
+	"io"
 	"os"
+	"strings"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -241,5 +243,25 @@ func (fs *HelloFS) OpenFile(
 	req *fuse.OpenFileRequest) (resp *fuse.OpenFileResponse, err error) {
 	// Allow opening any file.
 	resp = &fuse.OpenFileResponse{}
+	return
+}
+
+func (fs *HelloFS) ReadFile(
+	ctx context.Context,
+	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
+	resp = &fuse.ReadFileResponse{}
+
+	// Let io.ReaderAt deal with the semantics.
+	reader := strings.NewReader("Hello, world!")
+
+	resp.Data = make([]byte, req.Size)
+	n, err := reader.ReadAt(resp.Data, req.Offset)
+	resp.Data = resp.Data[:n]
+
+	// Special case: FUSE doesn't expect us to return io.EOF.
+	if err == io.EOF {
+		err = nil
+	}
+
 	return
 }
