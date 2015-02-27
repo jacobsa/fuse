@@ -27,6 +27,10 @@ type FileSystem interface {
 		ctx context.Context,
 		req *InitRequest) (*InitResponse, error)
 
+	///////////////////////////////////
+	// Inodes
+	///////////////////////////////////
+
 	// Look up a child by name within a parent directory. The kernel calls this
 	// when resolving user paths to dentry structs, which are then cached.
 	LookUpInode(
