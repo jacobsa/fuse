@@ -75,6 +75,22 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 			Mode: 0400,
 		},
 	},
+
+	// dir
+	dirInode: inodeInfo{
+		attributes: fuse.InodeAttributes{
+			Mode: 0500 | os.ModeDir,
+		},
+		dir: true,
+		children: []fuseutil.Dirent{
+			fuseutil.Dirent{
+				Offset: 1,
+				Inode:  worldInode,
+				Name:   "world",
+				Type:   fuseutil.DT_File,
+			},
+		},
+	},
 }
 
 func findChildInode(
