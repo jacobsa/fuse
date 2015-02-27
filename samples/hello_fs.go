@@ -48,7 +48,9 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 	// root
 	rootInode: inodeInfo{
 		attributes: fuse.InodeAttributes{
-			Mode: 0700 | os.ModeDir,
+			// TODO(jacobsa): Why do we get premission denied errors when this is
+			// 0500?
+			Mode: 0555 | os.ModeDir,
 		},
 		dir: true,
 		children: []fuseutil.Dirent{
@@ -64,6 +66,13 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 				Name:   "dir",
 				Type:   fuseutil.DT_Directory,
 			},
+		},
+	},
+
+	// hello
+	helloInode: inodeInfo{
+		attributes: fuse.InodeAttributes{
+			Mode: 0400,
 		},
 	},
 }
