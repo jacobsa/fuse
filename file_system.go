@@ -27,7 +27,9 @@ type FileSystem interface {
 		req *LookUpInodeRequest) (*LookUpInodeResponse, error)
 
 	// Refresh the attributes for an inode whose ID was previously returned by
-	// LookUpInode.
+	// LookUpInode. The kernel calls this when the FUSE VFS layer's cache of
+	// inode attributes is stale. This is controlled by the AttributesExpiration
+	// field of responses to LookUp, etc.
 	GetInodeAttributes(
 		ctx context.Context,
 		req *GetInodeAttributesRequest) (*GetInodeAttributesResponse, error)
