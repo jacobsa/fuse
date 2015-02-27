@@ -253,5 +253,8 @@ func (t *HelloFSTest) OpenAndRead() {
 }
 
 func (t *HelloFSTest) Open_NonExistent() {
-	AssertTrue(false, "TODO")
+	_, err := os.Open(path.Join(t.mfs.Dir(), "foobar"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
