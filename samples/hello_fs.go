@@ -76,11 +76,13 @@ func (fs *HelloFS) ReadDir(
 		return
 	}
 
-	// Check the offset.
-	if req.Offset >= fuse.DirOffset(len(entries)) {
+	// Grab the range of interest.
+	if req.Offset > fuse.DirOffset(len(entries)) {
 		err = fuse.EIO
 		return
 	}
+
+	entries = entries[req.Offset:]
 
 	// Resume at the specified offset into the array.
 	for _, e := range entries {
