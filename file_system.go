@@ -76,6 +76,17 @@ type FileSystem interface {
 	ReleaseDirHandle(
 		ctx context.Context,
 		req *ReleaseDirHandleRequest) (*ReleaseDirHandleResponse, error)
+
+	///////////////////////////////////
+	// File handles
+	///////////////////////////////////
+
+	// Open a file inode. The kernel calls this method when setting up a struct
+	// file for a particular inode with type file, usually in response to an
+	// open(2) call from a user-space process.
+	OpenFile(
+		ctx context.Context,
+		req *OpenFileRequest) (*OpenFileResponse, error)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -380,4 +391,27 @@ type ReleaseDirHandleRequest struct {
 }
 
 type ReleaseDirHandleResponse struct {
+}
+
+type OpenFileRequest struct {
+	// The ID of the inode to be opened.
+	Inode InodeID
+
+	// Mode and options flags.
+	Flags bazilfuse.OpenFlags
+}
+
+type OpenFileResponse struct {
+	// An opaque ID that will be echoed in follow-up calls for this file using
+	// the same struct file in the kernel. In practice this usually means
+	// follow-up calls using the file descriptor returned by open(2).
+	//
+	// The handle may be supplied to the following methods:
+	//
+	//  *  ReadFile
+	//  *  ReleaseFileHandle
+	//
+	// The file system must ensure this ID remains valid until a later call to
+	// ReleaseFileHandle.
+	Handle HandleID
 }
