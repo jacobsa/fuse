@@ -31,6 +31,36 @@ const (
 	worldInode
 )
 
+type inodeInfo struct {
+	// File or directory?
+	dir bool
+
+	// For directories, children.
+	children []fuseutil.Dirent
+}
+
+// We have a fixed directory structure.
+var gInodeInfo = map[fuse.InodeID]inodeInfo{
+	// root
+	rootInode: inodeInfo{
+		dir: true,
+		children: []fuseutil.Dirent{
+			fuseutil.Dirent{
+				Offset: 1,
+				Inode:  helloInode,
+				Name:   "hello",
+				Type:   fuseutil.DT_File,
+			},
+			fuseutil.Dirent{
+				Offset: 2,
+				Inode:  dirInode,
+				Name:   "dir",
+				Type:   fuseutil.DT_Directory,
+			},
+		},
+	},
+}
+
 func (fs *HelloFS) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
@@ -45,36 +75,24 @@ func (fs *HelloFS) OpenDir(
 	return
 }
 
-// We have a fixed directory structure.
-var gDirectoryEntries = map[fuse.InodeID][]fuseutil.Dirent{
-	// root
-	rootInode: []fuseutil.Dirent{
-		fuseutil.Dirent{
-			Offset: 1,
-			Inode:  helloInode,
-			Name:   "hello",
-			Type:   fuseutil.DT_File,
-		},
-		fuseutil.Dirent{
-			Offset: 2,
-			Inode:  dirInode,
-			Name:   "dir",
-			Type:   fuseutil.DT_Directory,
-		},
-	},
-}
-
 func (fs *HelloFS) ReadDir(
 	ctx context.Context,
 	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
 	resp = &fuse.ReadDirResponse{}
 
-	// Find the entries for this inode.
-	entries, ok := gDirectoryEntries[req.Inode]
+	// Find the info for this inode.
+	info, ok := gInodeInfo[req.Inode]
 	if !ok {
 		err = fuse.ENOENT
 		return
 	}
+
+	if !info.dir {
+		err = fuse.EIO
+		return
+	}
+
+	entries := info.children
 
 	// Grab the range of interest.
 	if req.Offset > fuse.DirOffset(len(entries)) {
