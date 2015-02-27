@@ -39,8 +39,8 @@ func (fs *NotImplementedFileSystem) ReadDir(
 	return nil, fuse.ENOSYS
 }
 
-func (fs *NotImplementedFileSystem) ReleaseHandle(
+func (fs *NotImplementedFileSystem) ReleaseDirHandle(
 	ctx context.Context,
-	req *fuse.ReleaseHandleRequest) (*fuse.ReleaseHandleResponse, error) {
+	req *fuse.ReleaseDirHandleRequest) (*fuse.ReleaseDirHandleResponse, error) {
 	return nil, fuse.ENOSYS
 }

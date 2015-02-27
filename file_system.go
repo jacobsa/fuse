@@ -32,6 +32,10 @@ type FileSystem interface {
 		ctx context.Context,
 		req *ForgetInodeRequest) (*ForgetInodeResponse, error)
 
+	///////////////////////////////////
+	// Directory handles
+	///////////////////////////////////
+
 	// Open a directory inode. The kernel calls this method when setting up a
 	// struct file for a particular inode with type directory, usually in
 	// response to an open(2) call from a user-space process.
@@ -44,15 +48,15 @@ type FileSystem interface {
 		ctx context.Context,
 		req *ReadDirRequest) (*ReadDirResponse, error)
 
-	// Release a previously-minted handle. The kernel calls this when there are
-	// no more references to an open file: all file descriptors are closed and
-	// all memory mappings are unmapped.
+	// Release a previously-minted directory handle. The kernel calls this when
+	// there are no more references to an open directory: all file descriptors
+	// are closed and all memory mappings are unmapped.
 	//
 	// The kernel guarantees that the handle ID will not be used in further calls
 	// to the file system (unless it is reissued by the file system).
-	ReleaseHandle(
+	ReleaseDirHandle(
 		ctx context.Context,
-		req *ReleaseHandleRequest) (*ReleaseHandleResponse, error)
+		req *ReleaseDirHandleRequest) (*ReleaseDirHandleResponse, error)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -223,10 +227,10 @@ type OpenDirResponse struct {
 	// The handle may be supplied to the following methods:
 	//
 	//  *  ReadDir
-	//  *  ReleaseHandle
+	//  *  ReleaseDirHandle
 	//
 	// The file system must ensure this ID remains valid until a later call to
-	// ReleaseHandle.
+	// ReleaseDirHandle.
 	Handle HandleID
 }
 
@@ -319,12 +323,12 @@ type ReadDirResponse struct {
 	Data []byte
 }
 
-type ReleaseHandleRequest struct {
+type ReleaseDirHandleRequest struct {
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	Handle HandleID
 }
 
-type ReleaseHandleResponse struct {
+type ReleaseDirHandleResponse struct {
 }
