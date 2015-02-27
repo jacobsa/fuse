@@ -33,6 +33,12 @@ func (fs *NotImplementedFileSystem) OpenDir(
 	return nil, fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) ReadDir(
+	ctx context.Context,
+	req *fuse.ReadDirRequest) (*fuse.ReadDirResponse, error) {
+	return nil, fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) ReleaseHandle(
 	ctx context.Context,
 	req *fuse.ReleaseHandleRequest) (*fuse.ReleaseHandleResponse, error) {
