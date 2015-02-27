@@ -147,34 +147,52 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		typed.Respond(fuseResp)
 
 	case *bazilfuse.OpenRequest:
-		// We support only directories at this point.
-		if !typed.Dir {
-			s.logger.Println("We don't yet support files. Returning ENOSYS.")
-			typed.RespondError(ENOSYS)
-			return
-		}
+		// File or directory?
+		if typed.Dir {
+			// Convert the request.
+			req := &OpenDirRequest{
+				Inode: InodeID(typed.Header.Node),
+				Flags: typed.Flags,
+			}
 
-		// Convert the request.
-		req := &OpenDirRequest{
-			Inode: InodeID(typed.Header.Node),
-			Flags: typed.Flags,
-		}
+			// Call the file system.
+			resp, err := s.fs.OpenDir(ctx, req)
+			if err != nil {
+				s.logger.Print("Responding:", err)
+				typed.RespondError(err)
+				return
+			}
 
-		// Call the file system.
-		resp, err := s.fs.OpenDir(ctx, req)
-		if err != nil {
-			s.logger.Print("Responding:", err)
-			typed.RespondError(err)
-			return
-		}
+			// Convert the response.
+			fuseResp := &bazilfuse.OpenResponse{
+				Handle: bazilfuse.HandleID(resp.Handle),
+			}
 
-		// Convert the response.
-		fuseResp := &bazilfuse.OpenResponse{
-			Handle: bazilfuse.HandleID(resp.Handle),
-		}
+			s.logger.Print("Responding:", fuseResp)
+			typed.Respond(fuseResp)
+		} else {
+			// Convert the request.
+			req := &OpenFileRequest{
+				Inode: InodeID(typed.Header.Node),
+				Flags: typed.Flags,
+			}
 
-		s.logger.Print("Responding:", fuseResp)
-		typed.Respond(fuseResp)
+			// Call the file system.
+			resp, err := s.fs.OpenFile(ctx, req)
+			if err != nil {
+				s.logger.Print("Responding:", err)
+				typed.RespondError(err)
+				return
+			}
+
+			// Convert the response.
+			fuseResp := &bazilfuse.OpenResponse{
+				Handle: bazilfuse.HandleID(resp.Handle),
+			}
+
+			s.logger.Print("Responding:", fuseResp)
+			typed.Respond(fuseResp)
+		}
 
 	case *bazilfuse.ReadRequest:
 		// We support only directories at this point.
