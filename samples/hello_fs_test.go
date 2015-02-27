@@ -4,6 +4,7 @@
 package samples_test
 
 import (
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -198,16 +199,57 @@ func (t *HelloFSTest) ReadFile_World() {
 	ExpectEq("Hello, world!", string(slice))
 }
 
-func (t *HelloFSTest) Read_Hello() {
-	AssertTrue(false, "TODO")
-}
+func (t *HelloFSTest) OpenAndRead() {
+	var buf []byte = make([]byte, 1024)
+	var n int
+	var off int64
+	var err error
 
-func (t *HelloFSTest) Read_Dir() {
-	AssertTrue(false, "TODO")
-}
+	// Open the file.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "hello"))
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
 
-func (t *HelloFSTest) Read_World() {
-	AssertTrue(false, "TODO")
+	AssertEq(nil, err)
+
+	// Seeking shouldn't affect the random access reads below.
+	_, err = f.Seek(7, 0)
+	AssertEq(nil, err)
+
+	// Random access reads
+	n, err = f.ReadAt(buf[:2], 0)
+	AssertEq(nil, err)
+	ExpectEq(2, n)
+	ExpectEq("He", string(buf[:n]))
+
+	n, err = f.ReadAt(buf[:2], int64(len("Hel")))
+	AssertEq(nil, err)
+	ExpectEq(2, n)
+	ExpectEq("lo", string(buf[:n]))
+
+	n, err = f.ReadAt(buf[:3], int64(len("Hello, wo")))
+	AssertEq(nil, err)
+	ExpectEq(3, n)
+	ExpectEq("rld", string(buf[:n]))
+
+	// Read beyond end.
+	n, err = f.ReadAt(buf[:3], int64(len("Hello, world")))
+	AssertEq(io.EOF, err)
+	ExpectEq(1, n)
+	ExpectEq("!", string(buf[:n]))
+
+	// Seek then read the rest.
+	off, err = f.Seek(int64(len("Hel")), 0)
+	AssertEq(nil, err)
+	AssertEq(len("Hel"), off)
+
+	n, err = io.ReadFull(f, buf[:len("lo, world!")])
+	AssertEq(nil, err)
+	ExpectEq(len("lo, world!"), n)
+	ExpectEq("lo, world!", string(buf[:n]))
 }
 
 func (t *HelloFSTest) Open_NonExistent() {
