@@ -43,8 +43,6 @@ func (s *server) Serve(c *bazilfuse.Conn) (err error) {
 		fuseReq, err = c.ReadRequest()
 
 		// ReadRequest returns EOF when the connection has been closed.
-		//
-		// TODO(jacobsa): Remove this and verify it's actually needed.
 		if err == io.EOF {
 			err = nil
 			return
