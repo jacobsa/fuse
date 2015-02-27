@@ -24,11 +24,18 @@ type HelloFS struct {
 
 var _ fuse.FileSystem = &HelloFS{}
 
+const (
+	rootInode fuse.InodeID = fuse.RootInodeID + iota
+	helloInode
+	dirInode
+	worldInode
+)
+
 func (fs *HelloFS) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
 	// We always allow opening the root directory.
-	if req.Inode == fuse.RootInodeID {
+	if req.Inode == rootInode {
 		resp = &fuse.OpenDirResponse{}
 		return
 	}
