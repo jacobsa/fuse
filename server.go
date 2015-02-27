@@ -113,6 +113,38 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		s.logger.Print("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
+	case *bazilfuse.ReadRequest:
+		// We support only directories at this point.
+		if !typed.Dir {
+			s.logger.Println("We don't yet support files. Returning ENOSYS.")
+			typed.RespondError(ENOSYS)
+			return
+		}
+
+		// Convert the request.
+		req := &ReadDirRequest{
+			Inode:  InodeID(typed.Header.Node),
+			Handle: HandleID(typed.Handle),
+			Offset: DirOffset(typed.Offset),
+			Size:   typed.Size,
+		}
+
+		// Call the file system.
+		resp, err := s.fs.ReadDir(ctx, req)
+		if err != nil {
+			s.logger.Print("Responding:", err)
+			typed.RespondError(err)
+			return
+		}
+
+		// Convert the response.
+		fuseResp := &bazilfuse.ReadResponse{
+			Data: resp.Data,
+		}
+
+		s.logger.Print("Responding:", fuseResp)
+		typed.Respond(fuseResp)
+
 	default:
 		s.logger.Println("Unhandled type. Returning ENOSYS.")
 		typed.RespondError(ENOSYS)
