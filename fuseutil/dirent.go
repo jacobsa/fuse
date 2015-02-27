@@ -28,4 +28,15 @@ type Dirent struct {
 
 // Append the supplied directory entry to the given buffer in the format
 // expected in fuse.ReadResponse.Data, returning the resulting buffer.
-func AppendDirent(buf []byte, d Dirent) []byte
+func AppendDirent(buf []byte, d Dirent) []byte {
+	// We want to append bytes with the layout of fuse_dirent
+	// (http://goo.gl/BmFxob) in host order. Its layout is reproduced here for
+	// documentation purposes:
+	type fuse_dirent struct {
+		ino     uint64
+		off     uint64
+		namelen uint32
+		type_   uint32
+		name    [0]byte
+	}
+}
