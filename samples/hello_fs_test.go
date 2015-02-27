@@ -15,6 +15,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/gcsfuse/timeutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -130,7 +131,10 @@ func (t *HelloFSTest) ReadDir_Dir() {
 }
 
 func (t *HelloFSTest) ReadDir_NonExistent() {
-	AssertTrue(false, "TODO")
+	_, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "foobar"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *HelloFSTest) Stat_Hello() {
