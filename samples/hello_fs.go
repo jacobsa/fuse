@@ -44,3 +44,36 @@ func (fs *HelloFS) OpenDir(
 	err = fuse.ENOSYS
 	return
 }
+
+// We have a fixed directory structure.
+var gDirectoryEntries = map[fuse.InodeID][]fuseutil.Dirent{}
+
+func (fs *HelloFS) ReadDir(
+	ctx context.Context,
+	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
+	resp = &fuse.ReadDirResponse{}
+
+	// Find the entries for this inode.
+	entries, ok := gDirectoryEntries[req.Inode]
+	if !ok {
+		err = fuse.ENOENT
+		return
+	}
+
+	// Check the offset.
+	if req.Offset >= fuse.DirOffset(len(entries)) {
+		err = fuse.EIO
+		return
+	}
+
+	// Resume at the specified offset into the array.
+	for _, e := range entries {
+		resp.Data = fuseutil.AppendDirent(resp.Data, e)
+		if uint64(len(resp.Data)) > req.Size {
+			resp.Data = resp.Data[:req.Size]
+			break
+		}
+	}
+
+	return
+}

@@ -9,4 +9,6 @@ const (
 	// Errors corresponding to kernel error numbers. These may be treated
 	// specially when returned by a FileSystem method.
 	ENOSYS = bazilfuse.ENOSYS
+	ENOENT = bazilfuse.ENOENT
+	EIO    = bazilfuse.EIO
 )
