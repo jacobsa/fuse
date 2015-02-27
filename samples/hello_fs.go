@@ -73,6 +73,7 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 	helloInode: inodeInfo{
 		attributes: fuse.InodeAttributes{
 			Mode: 0400,
+			Size: uint64(len("Hello, world!")),
 		},
 	},
 
@@ -89,6 +90,14 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 				Name:   "world",
 				Type:   fuseutil.DT_File,
 			},
+		},
+	},
+
+	// world
+	worldInode: inodeInfo{
+		attributes: fuse.InodeAttributes{
+			Mode: 0400,
+			Size: uint64(len("Hello, world!")),
 		},
 	},
 }
