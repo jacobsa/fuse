@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -113,7 +114,19 @@ func (t *HelloFSTest) ReadDir_Root() {
 }
 
 func (t *HelloFSTest) ReadDir_Dir() {
-	AssertTrue(false, "TODO")
+	entries, err := ioutil.ReadDir(path.Join(t.mfs.Dir(), "dir"))
+
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	var fi os.FileInfo
+
+	// world
+	fi = entries[1]
+	ExpectEq("world", fi.Name())
+	ExpectEq(len("Hello, world!"), fi.Size())
+	ExpectEq(0400, fi.Mode())
+	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
+	ExpectFalse(fi.IsDir())
 }
 
 func (t *HelloFSTest) ReadDir_NonExistent() {
