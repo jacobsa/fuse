@@ -100,7 +100,7 @@ func (t *HelloFSTest) ReadDir_Root() {
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(os.ModeDir|0500, fi.Mode())
-	ExpectEq(t.clock.Now(), fi.ModTime())
+	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectTrue(fi.IsDir())
 
 	// hello
@@ -108,7 +108,7 @@ func (t *HelloFSTest) ReadDir_Root() {
 	ExpectEq("hello", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
 	ExpectEq(0400, fi.Mode())
-	ExpectEq(t.clock.Now(), fi.ModTime())
+	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectFalse(fi.IsDir())
 }
 
