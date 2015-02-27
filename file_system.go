@@ -39,7 +39,7 @@ type FileSystem interface {
 		ctx context.Context,
 		req *OpenDirRequest) (*OpenDirResponse, error)
 
-	// XXX: Comments
+	// Read entries from a directory previously opened with OpenDir.
 	ReadDir(
 		ctx context.Context,
 		req *ReadDirRequest) (*ReadDirResponse, error)
