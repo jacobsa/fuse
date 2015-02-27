@@ -189,7 +189,10 @@ func (t *HelloFSTest) ReadFile_Dir() {
 }
 
 func (t *HelloFSTest) ReadFile_World() {
-	AssertTrue(false, "TODO")
+	slice, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "dir/world"))
+
+	AssertEq(nil, err)
+	ExpectEq("Hello, world!", string(slice))
 }
 
 func (t *HelloFSTest) Read_Hello() {
