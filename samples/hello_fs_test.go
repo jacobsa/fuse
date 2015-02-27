@@ -38,7 +38,7 @@ func (t *HelloFSTest) SetUp(ti *TestInfo) {
 	var err error
 
 	// Set up a fixed, non-zero time.
-	t.clock.AdvanceTime(time.Now().Sub(t.clock.Now()))
+	t.clock.SetTime(time.Now())
 
 	// Set up a temporary directory for mounting.
 	mountPoint, err := ioutil.TempDir("", "hello_fs_test")
