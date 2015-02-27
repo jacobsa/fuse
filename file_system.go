@@ -109,14 +109,6 @@ type HandleID uint64
 // ReadDirRequest.Offset for details.
 type DirOffset uint64
 
-// XXX: Comments for all
-type Dirent struct {
-	Inode  InodeID
-	Offset DirOffset
-	Name   string
-	Type   DirentType
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Requests and responses
 ////////////////////////////////////////////////////////////////////////
