@@ -121,7 +121,7 @@ func (t *HelloFSTest) ReadDir_Dir() {
 	var fi os.FileInfo
 
 	// world
-	fi = entries[1]
+	fi = entries[0]
 	ExpectEq("world", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
 	ExpectEq(0400, fi.Mode())

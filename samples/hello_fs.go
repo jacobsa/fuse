@@ -192,14 +192,8 @@ func (fs *HelloFS) GetInodeAttributes(
 func (fs *HelloFS) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
-	// We always allow opening the root directory.
-	if req.Inode == rootInode {
-		resp = &fuse.OpenDirResponse{}
-		return
-	}
-
-	// TODO(jacobsa): Handle others.
-	err = fuse.ENOSYS
+	// Allow opening any directory.
+	resp = &fuse.OpenDirResponse{}
 	return
 }
 
