@@ -171,7 +171,10 @@ func (t *HelloFSTest) Stat_World() {
 }
 
 func (t *HelloFSTest) Stat_NonExistent() {
-	AssertTrue(false, "TODO")
+	_, err := os.Stat(path.Join(t.mfs.Dir(), "foobar"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *HelloFSTest) Read_Hello() {
