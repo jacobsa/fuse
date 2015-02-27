@@ -147,7 +147,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		typed.Respond(fuseResp)
 
 	case *bazilfuse.OpenRequest:
-		// File or directory?
+		// Directory or file?
 		if typed.Dir {
 			// Convert the request.
 			req := &OpenDirRequest{
@@ -195,36 +195,56 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		}
 
 	case *bazilfuse.ReadRequest:
-		// We support only directories at this point.
-		if !typed.Dir {
-			s.logger.Println("We don't yet support files. Returning ENOSYS.")
-			typed.RespondError(ENOSYS)
-			return
-		}
+		// Directory or file?
+		if typed.Dir {
+			// Convert the request.
+			req := &ReadDirRequest{
+				Inode:  InodeID(typed.Header.Node),
+				Handle: HandleID(typed.Handle),
+				Offset: DirOffset(typed.Offset),
+				Size:   typed.Size,
+			}
 
-		// Convert the request.
-		req := &ReadDirRequest{
-			Inode:  InodeID(typed.Header.Node),
-			Handle: HandleID(typed.Handle),
-			Offset: DirOffset(typed.Offset),
-			Size:   typed.Size,
-		}
+			// Call the file system.
+			resp, err := s.fs.ReadDir(ctx, req)
+			if err != nil {
+				s.logger.Print("Responding:", err)
+				typed.RespondError(err)
+				return
+			}
 
-		// Call the file system.
-		resp, err := s.fs.ReadDir(ctx, req)
-		if err != nil {
-			s.logger.Print("Responding:", err)
-			typed.RespondError(err)
-			return
-		}
+			// Convert the response.
+			fuseResp := &bazilfuse.ReadResponse{
+				Data: resp.Data,
+			}
 
-		// Convert the response.
-		fuseResp := &bazilfuse.ReadResponse{
-			Data: resp.Data,
-		}
+			s.logger.Print("Responding:", fuseResp)
+			typed.Respond(fuseResp)
+		} else {
+			// Convert the request.
+			req := &ReadFileRequest{
+				Inode:  InodeID(typed.Header.Node),
+				Handle: HandleID(typed.Handle),
+				Offset: typed.Offset,
+				Size:   typed.Size,
+			}
 
-		s.logger.Print("Responding:", fuseResp)
-		typed.Respond(fuseResp)
+			// Call the file system.
+			resp, err := s.fs.ReadFile(ctx, req)
+			if err != nil {
+				s.logger.Print("Responding:", err)
+				typed.RespondError(err)
+				return
+			}
+
+			// Convert the response.
+			fuseResp := &bazilfuse.ReadResponse{
+				Data: resp.Data,
+			}
+
+			s.logger.Print("Responding:", fuseResp)
+			typed.Respond(fuseResp)
+		}
 
 	default:
 		s.logger.Println("Unhandled type. Returning ENOSYS.")
