@@ -298,7 +298,7 @@ type ReadDirRequest struct {
 
 	// The maximum number of bytes to return in ReadDirResponse.Data. A smaller
 	// number is acceptable.
-	Size uint64
+	Size int
 }
 
 type ReadDirResponse struct {

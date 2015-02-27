@@ -69,7 +69,7 @@ func (fs *HelloFS) ReadDir(
 	// Resume at the specified offset into the array.
 	for _, e := range entries {
 		resp.Data = fuseutil.AppendDirent(resp.Data, e)
-		if uint64(len(resp.Data)) > req.Size {
+		if len(resp.Data) > req.Size {
 			resp.Data = resp.Data[:req.Size]
 			break
 		}
