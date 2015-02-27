@@ -15,8 +15,8 @@ type DirentType bazilfuse.DirentType
 // A struct representing an entry within a directory file, describing a child.
 // See notes on fuse.ReadDirResponse and on AppendDirent for details.
 type Dirent struct {
-	// The (opaque) offset within the directory file of this entry. See notes on
-	// fuse.ReadDirRequest.Offset for details.
+	// The (opaque) offset within the directory file of the entry following this
+	// one. See notes on fuse.ReadDirRequest.Offset for details.
 	Offset fuse.DirOffset
 
 	// The inode of the child file or directory, and its name within the parent.
