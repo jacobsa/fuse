@@ -22,6 +22,10 @@ import (
 type HelloFS struct {
 	fuseutil.NotImplementedFileSystem
 	Clock timeutil.Clock
+
+	// Set by Init.
+	Uid uint32
+	Gid uint32
 }
 
 var _ fuse.FileSystem = &HelloFS{}
@@ -48,8 +52,6 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 	// root
 	rootInode: inodeInfo{
 		attributes: fuse.InodeAttributes{
-			// TODO(jacobsa): Why do we get premission denied errors when this is
-			// 0500?
 			Mode: 0500 | os.ModeDir,
 		},
 		dir: true,
@@ -119,6 +121,8 @@ func findChildInode(
 func (fs *HelloFS) patchAttributes(
 	attr *fuse.InodeAttributes) {
 	now := fs.Clock.Now()
+	attr.Uid = fs.Uid
+	attr.Gid = fs.Gid
 	attr.Atime = now
 	attr.Mtime = now
 	attr.Crtime = now
@@ -129,6 +133,8 @@ func (fs *HelloFS) Init(
 	req *fuse.InitRequest) (
 	resp *fuse.InitResponse, err error) {
 	resp = &fuse.InitResponse{}
+	fs.Uid = req.Uid
+	fs.Gid = req.Gid
 	return
 }
 

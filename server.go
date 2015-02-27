@@ -224,5 +224,7 @@ func convertAttributes(inode InodeID, attr InodeAttributes) bazilfuse.Attr {
 		Atime:  attr.Atime,
 		Mtime:  attr.Mtime,
 		Crtime: attr.Crtime,
+		Uid:    attr.Uid,
+		Gid:    attr.Gid,
 	}
 }
