@@ -77,6 +77,46 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 	},
 }
 
+func findChildInode(
+	name string,
+	children []fuseutil.Dirent) (inode fuse.InodeID, err error) {
+	for _, e := range children {
+		if e.Name == name {
+			inode = e.Inode
+			return
+		}
+	}
+
+	err = fuse.ENOENT
+	return
+}
+
+func (fs *HelloFS) LookUpInode(
+	ctx context.Context,
+	req *fuse.LookUpInodeRequest) (
+	resp *fuse.LookUpInodeResponse, err error) {
+	resp = &fuse.LookUpInodeResponse{}
+
+	// Find the info for the parent.
+	parentInfo, ok := gInodeInfo[req.Parent]
+	if !ok {
+		err = fuse.ENOENT
+		return
+	}
+
+	// Find the child within the parent.
+	childInode, err := findChildInode(req.Name, parentInfo.children)
+	if err != nil {
+		return
+	}
+
+	// Copy over information.
+	resp.Child = childInode
+	resp.Attributes = gInodeInfo[childInode].attributes
+
+	return
+}
+
 func (fs *HelloFS) GetInodeAttributes(
 	ctx context.Context,
 	req *fuse.GetInodeAttributesRequest) (
