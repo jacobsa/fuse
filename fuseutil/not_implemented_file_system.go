@@ -57,3 +57,21 @@ func (fs *NotImplementedFileSystem) ReleaseDirHandle(
 	req *fuse.ReleaseDirHandleRequest) (*fuse.ReleaseDirHandleResponse, error) {
 	return nil, fuse.ENOSYS
 }
+
+func (fs *NotImplementedFileSystem) OpenFile(
+	ctx context.Context,
+	req *fuse.OpenFileRequest) (*fuse.OpenFileResponse, error) {
+	return nil, fuse.ENOSYS
+}
+
+func (fs *NotImplementedFileSystem) ReadFile(
+	ctx context.Context,
+	req *fuse.ReadFileRequest) (*fuse.ReadFileResponse, error) {
+	return nil, fuse.ENOSYS
+}
+
+func (fs *NotImplementedFileSystem) ReleaseFileHandle(
+	ctx context.Context,
+	req *fuse.ReleaseFileHandleRequest) (*fuse.ReleaseFileHandleResponse, error) {
+	return nil, fuse.ENOSYS
+}
