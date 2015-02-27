@@ -83,6 +83,29 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
+	case *bazilfuse.GetattrRequest:
+		// Convert the request.
+		req := &GetInodeAttributesRequest{
+			Inode: InodeID(typed.Header.Node),
+		}
+
+		// Call the file system.
+		resp, err := s.fs.GetInodeAttributes(ctx, req)
+		if err != nil {
+			s.logger.Print("Responding:", err)
+			typed.RespondError(err)
+			return
+		}
+
+		// Convert the response.
+		fuseResp := &bazilfuse.GetattrResponse{
+			Attr:      resp.Attributes,
+			AttrValid: resp.AttributesExpiration.Sub(s.clock.Now()),
+		}
+
+		s.logger.Print("Responding:", fuseResp)
+		typed.Respond(fuseResp)
+
 	case *bazilfuse.OpenRequest:
 		// We support only directories at this point.
 		if !typed.Dir {
