@@ -124,6 +124,14 @@ func (fs *HelloFS) patchAttributes(
 	attr.Crtime = now
 }
 
+func (fs *HelloFS) Init(
+	ctx context.Context,
+	req *fuse.InitRequest) (
+	resp *fuse.InitResponse, err error) {
+	resp = &fuse.InitResponse{}
+	return
+}
+
 func (fs *HelloFS) LookUpInode(
 	ctx context.Context,
 	req *fuse.LookUpInodeRequest) (
