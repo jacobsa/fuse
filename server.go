@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 
+	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 
 	bazilfuse "bazil.org/fuse"
@@ -16,6 +17,7 @@ import (
 // An object that terminates one end of the userspace <-> FUSE VFS connection.
 type server struct {
 	logger *log.Logger
+	clock  timeutil.Clock
 	fs     FileSystem
 }
 
@@ -23,6 +25,7 @@ type server struct {
 func newServer(fs FileSystem) (s *server, err error) {
 	s = &server{
 		logger: getLogger(),
+		clock:  timeutil.RealClock(),
 		fs:     fs,
 	}
 
@@ -99,7 +102,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 
 		// Convert the response.
 		fuseResp := &bazilfuse.GetattrResponse{
-			Attr:      resp.Attributes,
+			Attr:      convertAttributes(req.Inode, resp.Attributes),
 			AttrValid: resp.AttributesExpiration.Sub(s.clock.Now()),
 		}
 
@@ -171,5 +174,12 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 	default:
 		s.logger.Println("Unhandled type. Returning ENOSYS.")
 		typed.RespondError(ENOSYS)
+	}
+}
+
+func convertAttributes(inode InodeID, attr InodeAttributes) bazilfuse.Attr {
+	return bazilfuse.Attr{
+		Inode: uint64(inode),
+		Size:  attr.Size,
 	}
 }
