@@ -21,6 +21,12 @@ import (
 //
 // Must be safe for concurrent access via all methods.
 type FileSystem interface {
+	// This method is called once when mounting the file system. It must succeed
+	// in order for the mount to succeed.
+	Init(
+		ctx context.Context,
+		req *InitRequest) (*InitResponse, error)
+
 	// Look up a child by name within a parent directory. The kernel calls this
 	// when resolving user paths to dentry structs, which are then cached.
 	LookUpInode(
@@ -128,6 +134,15 @@ type DirOffset uint64
 ////////////////////////////////////////////////////////////////////////
 // Requests and responses
 ////////////////////////////////////////////////////////////////////////
+
+type InitRequest struct {
+	// User and group IDs for the process that is mounting the file system.
+	Uid uint32
+	Gid uint32
+}
+
+type InitResponse struct {
+}
 
 type LookUpInodeRequest struct {
 	// The ID of the directory inode to which the child belongs.

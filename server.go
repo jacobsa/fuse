@@ -71,11 +71,23 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 	// Attempt to handle it.
 	switch typed := fuseReq.(type) {
 	case *bazilfuse.InitRequest:
-		// Responding to this is required to make mounting work, at least on OS X.
-		// We don't currently expose the capability for the file system to
-		// intercept this.
+		// Convert the request.
+		req := &InitRequest{
+			Uid: typed.Header.Uid,
+			Gid: typed.Header.Gid,
+		}
+
+		// Call the file system.
+		_, err := s.fs.Init(ctx, req)
+		if err != nil {
+			s.logger.Print("Responding:", err)
+			typed.RespondError(err)
+			return
+		}
+
+		// Convert the response.
 		fuseResp := &bazilfuse.InitResponse{}
-		s.logger.Println("Responding:", fuseResp)
+		s.logger.Print("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
 	case *bazilfuse.StatfsRequest:

@@ -50,7 +50,7 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 		attributes: fuse.InodeAttributes{
 			// TODO(jacobsa): Why do we get premission denied errors when this is
 			// 0500?
-			Mode: 0555 | os.ModeDir,
+			Mode: 0500 | os.ModeDir,
 		},
 		dir: true,
 		children: []fuseutil.Dirent{

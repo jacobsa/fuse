@@ -15,6 +15,12 @@ type NotImplementedFileSystem struct {
 
 var _ fuse.FileSystem = &NotImplementedFileSystem{}
 
+func (fs *NotImplementedFileSystem) Init(
+	ctx context.Context,
+	req *fuse.InitRequest) (*fuse.InitResponse, error) {
+	return nil, fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) LookUpInode(
 	ctx context.Context,
 	req *fuse.LookUpInodeRequest) (*fuse.LookUpInodeResponse, error) {
