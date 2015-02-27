@@ -21,6 +21,9 @@ The chief improvements and/or differences from the bazil.org packages are:
     system implementations, etc., all of which tend to be very poorly
     documented.
 
+ *  Support for arbitrary offsets in directory entries returned by `ReadDir`.
+    (The bazil.org package assumes that offsets must be counts of bytes.)
+
 The very large disadvantage over using the bazil.org packages is that many
 features have not yet been exposed.
 
