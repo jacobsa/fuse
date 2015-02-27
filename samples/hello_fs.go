@@ -64,6 +64,25 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 	},
 }
 
+func (fs *HelloFS) GetInodeAttributes(
+	ctx context.Context,
+	req *fuse.GetInodeAttributesRequest) (
+	resp *fuse.GetInodeAttributesResponse, err error) {
+	resp = &fuse.GetInodeAttributesResponse{}
+
+	// Find the info for this inode.
+	info, ok := gInodeInfo[req.Inode]
+	if !ok {
+		err = fuse.ENOENT
+		return
+	}
+
+	// Copy over its attributes.
+	resp.Attributes = info.attributes
+
+	return
+}
+
 func (fs *HelloFS) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
