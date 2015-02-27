@@ -21,6 +21,13 @@ func (fs *NotImplementedFileSystem) LookUpInode(
 	return nil, fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) GetInodeAttributes(
+	ctx context.Context,
+	req *fuse.GetInodeAttributesRequest) (
+	*fuse.GetInodeAttributesResponse, error) {
+	return nil, fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) ForgetInode(
 	ctx context.Context,
 	req *fuse.ForgetInodeRequest) (*fuse.ForgetInodeResponse, error) {

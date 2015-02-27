@@ -26,6 +26,12 @@ type FileSystem interface {
 		ctx context.Context,
 		req *LookUpInodeRequest) (*LookUpInodeResponse, error)
 
+	// Refresh the attributes for an inode whose ID was previously returned by
+	// LookUpInode.
+	GetInodeAttributes(
+		ctx context.Context,
+		req *GetInodeAttributesRequest) (*GetInodeAttributesResponse, error)
+
 	// Forget an inode ID previously issued (e.g. by LookUpInode). The kernel
 	// calls this when removing an inode from its internal caches.
 	ForgetInode(
@@ -199,6 +205,18 @@ type LookUpInodeResponse struct {
 	//
 	// Leave at the zero value to disable caching.
 	EntryExpiration time.Time
+}
+
+type GetInodeAttributesRequest struct {
+	// The inode of interest.
+	Inode InodeID
+}
+
+type GetInodeAttributesResponse struct {
+	// Attributes for the inode, and the time at which they should expire. See
+	// notes on LookUpInodeResponse.AttributesExpiration for more.
+	Attributes           InodeAttributes
+	AttributesExpiration time.Time
 }
 
 type ForgetInodeRequest struct {
