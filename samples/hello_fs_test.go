@@ -177,7 +177,26 @@ func (t *HelloFSTest) Stat_NonExistent() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
+func (t *HelloFSTest) ReadFile_Hello() {
+	slice, err := ioutil.ReadFile(path.Join(t.mfs.Dir(), "hello"))
+
+	AssertEq(nil, err)
+	ExpectEq("Hello, world!", string(slice))
+}
+
+func (t *HelloFSTest) ReadFile_Dir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) ReadFile_World() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *HelloFSTest) Read_Hello() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *HelloFSTest) Read_Dir() {
 	AssertTrue(false, "TODO")
 }
 
