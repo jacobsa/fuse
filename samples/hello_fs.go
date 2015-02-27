@@ -116,6 +116,14 @@ func findChildInode(
 	return
 }
 
+func (fs *HelloFS) patchAttributes(
+	attr *fuse.InodeAttributes) {
+	now := fs.Clock.Now()
+	attr.Atime = now
+	attr.Mtime = now
+	attr.Crtime = now
+}
+
 func (fs *HelloFS) LookUpInode(
 	ctx context.Context,
 	req *fuse.LookUpInodeRequest) (
@@ -140,10 +148,7 @@ func (fs *HelloFS) LookUpInode(
 	resp.Attributes = gInodeInfo[childInode].attributes
 
 	// Patch attributes.
-	now := fs.Clock.Now()
-	resp.Attributes.Atime = now
-	resp.Attributes.Mtime = now
-	resp.Attributes.Crtime = now
+	fs.patchAttributes(&resp.Attributes)
 
 	return
 }
@@ -165,10 +170,7 @@ func (fs *HelloFS) GetInodeAttributes(
 	resp.Attributes = info.attributes
 
 	// Patch attributes.
-	now := fs.Clock.Now()
-	resp.Attributes.Atime = now
-	resp.Attributes.Mtime = now
-	resp.Attributes.Crtime = now
+	fs.patchAttributes(&resp.Attributes)
 
 	return
 }
