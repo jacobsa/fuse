@@ -87,6 +87,21 @@ type FileSystem interface {
 	OpenFile(
 		ctx context.Context,
 		req *OpenFileRequest) (*OpenFileResponse, error)
+
+	// Read data from a file previously opened with OpenFile.
+	ReadFile(
+		ctx context.Context,
+		req *ReadFileRequest) (*ReadFileResponse, error)
+
+	// Release a previously-minted file handle. The kernel calls this when there
+	// are no more references to an open file: all file descriptors are closed
+	// and all memory mappings are unmapped.
+	//
+	// The kernel guarantees that the handle ID will not be used in further calls
+	// to the file system (unless it is reissued by the file system).
+	ReleaseFileHandle(
+		ctx context.Context,
+		req *ReleaseFileHandleRequest) (*ReleaseFileHandleResponse, error)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -414,4 +429,37 @@ type OpenFileResponse struct {
 	// The file system must ensure this ID remains valid until a later call to
 	// ReleaseFileHandle.
 	Handle HandleID
+}
+
+type ReadFileRequest struct {
+	// The file inode that we are reading, and the handle previously returned by
+	// OpenFile when opening that inode.
+	Inode  InodeID
+	Handle HandleID
+
+	// The range of the file to read.
+	//
+	// The FUSE documentation requires that exactly the number of bytes be
+	// returned, except in the case of EOF or error (http://goo.gl/ZgfBkF). This
+	// appears to be because it uses file mmapping machinery
+	// (http://goo.gl/SGxnaN) to read a page at a time. It appears to understand
+	// where EOF is by checking the inode size (http://goo.gl/0BkqKD), returned
+	// by a previous call to LookUpInode, GetInodeAttributes, etc.
+	Offset int64
+	Size   int
+}
+
+type ReadFileResponse struct {
+	// The data read.
+	Data []byte
+}
+
+type ReleaseFileHandleRequest struct {
+	// The handle ID to be released. The kernel guarantees that this ID will not
+	// be used in further calls to the file system (unless it is reissued by the
+	// file system).
+	Handle HandleID
+}
+
+type ReleaseFileHandleResponse struct {
 }
