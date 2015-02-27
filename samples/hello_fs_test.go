@@ -137,10 +137,6 @@ func (t *HelloFSTest) ReadDir_NonExistent() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *HelloFSTest) Stat_Root() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *HelloFSTest) Stat_Hello() {
 	fi, err := os.Stat(path.Join(t.mfs.Dir(), "hello"))
 	AssertEq(nil, err)
@@ -153,11 +149,25 @@ func (t *HelloFSTest) Stat_Hello() {
 }
 
 func (t *HelloFSTest) Stat_Dir() {
-	AssertTrue(false, "TODO")
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(0500|os.ModeDir, fi.Mode())
+	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
+	ExpectTrue(fi.IsDir())
 }
 
 func (t *HelloFSTest) Stat_World() {
-	AssertTrue(false, "TODO")
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "dir/world"))
+	AssertEq(nil, err)
+
+	ExpectEq("world", fi.Name())
+	ExpectEq(len("Hello, world!"), fi.Size())
+	ExpectEq(0400, fi.Mode())
+	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
+	ExpectFalse(fi.IsDir())
 }
 
 func (t *HelloFSTest) Stat_NonExistent() {
