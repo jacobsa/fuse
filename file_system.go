@@ -198,6 +198,13 @@ type HandleID uint64
 // ReadDirRequest.Offset for details.
 type DirOffset uint64
 
+// A header that is included with every request.
+type RequestHeader struct {
+	// Credentials information for the process making the request.
+	Uid uint32
+	Gid uint32
+}
+
 // Information about a child inode within its parent directory. Shared by the
 // responses for LookUpInode, MkDir, etc. Consumed by the kernel in order to
 // set up a dcache entry.
@@ -274,15 +281,15 @@ type ChildInodeEntry struct {
 ////////////////////////////////////////////////////////////////////////
 
 type InitRequest struct {
-	// User and group IDs for the process that is mounting the file system.
-	Uid uint32
-	Gid uint32
+	Header RequestHeader
 }
 
 type InitResponse struct {
 }
 
 type LookUpInodeRequest struct {
+	Header RequestHeader
+
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
 
@@ -303,6 +310,8 @@ type LookUpInodeResponse struct {
 }
 
 type GetInodeAttributesRequest struct {
+	Header RequestHeader
+
 	// The inode of interest.
 	Inode InodeID
 }
@@ -315,6 +324,8 @@ type GetInodeAttributesResponse struct {
 }
 
 type ForgetInodeRequest struct {
+	Header RequestHeader
+
 	// The inode to be forgotten. The kernel guarantees that the node ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
@@ -325,6 +336,8 @@ type ForgetInodeResponse struct {
 }
 
 type MkDirRequest struct {
+	Header RequestHeader
+
 	// The ID of parent directory inode within which to create the child.
 	Parent InodeID
 
@@ -348,6 +361,8 @@ type MkDirResponse struct {
 }
 
 type OpenDirRequest struct {
+	Header RequestHeader
+
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -371,6 +386,8 @@ type OpenDirResponse struct {
 }
 
 type ReadDirRequest struct {
+	Header RequestHeader
+
 	// The directory inode that we are reading, and the handle previously
 	// returned by OpenDir when opening that inode.
 	Inode  InodeID
@@ -460,6 +477,8 @@ type ReadDirResponse struct {
 }
 
 type ReleaseDirHandleRequest struct {
+	Header RequestHeader
+
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
@@ -470,6 +489,8 @@ type ReleaseDirHandleResponse struct {
 }
 
 type OpenFileRequest struct {
+	Header RequestHeader
+
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -493,6 +514,8 @@ type OpenFileResponse struct {
 }
 
 type ReadFileRequest struct {
+	Header RequestHeader
+
 	// The file inode that we are reading, and the handle previously returned by
 	// OpenFile when opening that inode.
 	Inode  InodeID
@@ -516,6 +539,8 @@ type ReadFileResponse struct {
 }
 
 type ReleaseFileHandleRequest struct {
+	Header RequestHeader
+
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
