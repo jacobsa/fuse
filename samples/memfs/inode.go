@@ -58,9 +58,12 @@ type inode struct {
 	contents []byte // GUARDED_BY(mu)
 }
 
-func newInode(dir bool) (in *inode) {
+func newInode(mode os.FileMode) (in *inode) {
 	in = &inode{
-		dir: dir,
+		dir: (mode&os.ModeDir != 0),
+		attributes: fuse.InodeAttributes{
+			Mode: mode,
+		},
 	}
 
 	in.mu = syncutil.NewInvariantMutex(in.checkInvariants)
@@ -75,7 +78,11 @@ func (inode *inode) checkInvariants() {
 
 	// Check os.ModeDir.
 	if inode.dir != (inode.attributes.Mode&os.ModeDir == os.ModeDir) {
-		panic(fmt.Sprintf("Unexpected mode: %v", inode.attributes.Mode))
+		panic(
+			fmt.Sprintf(
+				"Unexpected mode: %v, dir: %v",
+				inode.attributes.Mode,
+				inode.dir))
 	}
 
 	// Check directory-specific stuff.

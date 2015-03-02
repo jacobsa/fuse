@@ -5,6 +5,7 @@ package memfs
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/jacobsa/fuse"
@@ -57,7 +58,7 @@ func NewMemFS(
 	}
 
 	// Set up the root inode.
-	fs.inodes[fuse.RootInodeID] = newInode(true) // dir
+	fs.inodes[fuse.RootInodeID] = newInode(os.ModeDir)
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
