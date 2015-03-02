@@ -149,8 +149,9 @@ func (fs *memFS) getInodeForReadingOrDie(id fuse.InodeID) (inode *inode) {
 // EXCLUSIVE_LOCK_FUNCTION(inode.mu)
 func (fs *memFS) allocateInode(
 	mode os.FileMode) (id fuse.InodeID, inode *inode) {
-	// Create the inode.
+	// Create and lock the inode.
 	inode = newInode(mode)
+	inode.mu.Lock()
 
 	// Re-use a free ID if possible. Otherwise mint a new one.
 	numFree := len(fs.freeInodes)
