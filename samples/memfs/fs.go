@@ -192,7 +192,26 @@ func (fs *memFS) MkDir(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	panic("TODO")
+	// Grab the parent, which we will update shortly.
+	parent := fs.getInodeForModifying(req.Parent)
+	defer parent.mu.Unlock()
+
+	// Allocate a child.
+	childID, child := fs.allocateInode(req.Mode)
+	defer child.mu.Unlock()
+
+	// Add an entry in the parent.
+	parent.AddEntry(childID, req.Name, fuseutil.DT_Directory)
+
+	// Fill in the response.
+	resp.Entry.Attributes = child.attributes
+
+	// We don't spontaneously mutate, so the kernel can cache as long as it wants
+	// (since it also handles invalidation).
+	resp.Entry.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+	resp.Entry.EntryExpiration = resp.Entry.EntryExpiration
+
+	return
 }
 
 func (fs *memFS) OpenDir(
