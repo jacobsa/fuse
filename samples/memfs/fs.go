@@ -47,13 +47,20 @@ type memFS struct {
 
 // Create a file system that stores data and metadata in memory.
 func NewMemFS(
-	clock timeutil.Clock) (fs fuse.FileSystem) {
-	fs = &memFS{
-		clock: clock,
+	clock timeutil.Clock) fuse.FileSystem {
+	// Set up the basic struct.
+	fs := &memFS{
+		clock:  clock,
+		inodes: make([]inode, fuse.RootInodeID+1),
 	}
 
-	fs.(*memFS).mu = syncutil.NewInvariantMutex(fs.(*memFS).checkInvariants)
-	return
+	// Set up the root inode.
+	fs.inodes[fuse.RootInodeID].impl = newDir()
+
+	// Set up invariant checking.
+	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
+
+	return fs
 }
 
 func (fs *memFS) checkInvariants() {

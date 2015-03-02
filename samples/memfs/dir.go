@@ -31,5 +31,11 @@ type memDir struct {
 	//
 	// TODO(jacobsa): Add good tests exercising concurrent modifications while
 	// doing readdir, seekdir, etc. calls.
+	//
+	// INVIARANT: For each i < len(entries)-1, entries[i].Offset = i+1
 	entries []fuseutil.Dirent
 }
+
+func newDir() *memDir
+
+func (d *memDir) checkInvariants()
