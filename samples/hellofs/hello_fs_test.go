@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/samples"
+	"github.com/jacobsa/fuse/samples/hellofs"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -50,7 +50,7 @@ func (t *HelloFSTest) SetUp(ti *TestInfo) {
 	}
 
 	// Mount a file system.
-	fs := &samples.HelloFS{
+	fs := &hellofs.HelloFS{
 		Clock: &t.clock,
 	}
 
