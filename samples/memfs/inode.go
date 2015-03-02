@@ -55,7 +55,14 @@ type inode struct {
 	contents []byte // GUARDED_BY(mu)
 }
 
-func newInode(dir bool) (inode *inode)
+func newInode(dir bool) (in *inode) {
+	in = &inode{
+		dir: dir,
+	}
+
+	in.mu = syncutil.NewInvariantMutex(in.checkInvariants)
+	return
+}
 
 func (inode *inode) checkInvariants()
 
@@ -63,4 +70,32 @@ func (inode *inode) checkInvariants()
 //
 // REQUIRES: inode.dir
 // SHARED_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool)
+func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool) {
+	if !inode.dir {
+		panic("LookUpChild called on non-directory.")
+	}
+
+	panic("TODO")
+}
+
+// Serve a ReadDir request.
+//
+// REQUIRED: inode.dir
+// SHARED_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) ReadDir(offset int, size int) (data []byte, err error) {
+	if !inode.dir {
+		panic("ReadDir called on non-directory.")
+	}
+
+	for i := offset; i < len(inode.entries); i++ {
+		data = fuseutil.AppendDirent(data, inode.entries[i])
+
+		// Trim and stop early if we've exceeded the requested size.
+		if len(data) > size {
+			data = data[:size]
+			break
+		}
+	}
+
+	return
+}

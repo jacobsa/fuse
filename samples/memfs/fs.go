@@ -137,10 +137,6 @@ func (fs *memFS) LookUpInode(
 	inode := fs.getInodeForReadingOrDie(req.Parent)
 	defer inode.mu.RUnlock()
 
-	if !inode.dir {
-		panic("Found non-dir.")
-	}
-
 	// Does the directory have an entry with the given name?
 	childID, ok := inode.LookUpChild(req.Name)
 	if !ok {
@@ -223,15 +219,11 @@ func (fs *memFS) ReadDir(
 		panic("Found non-dir.")
 	}
 
-	// Return the entries requested.
-	for i := int(req.Offset); i < len(inode.entries); i++ {
-		resp.Data = fuseutil.AppendDirent(resp.Data, inode.entries[i])
-
-		// Trim and stop early if we've exceeded the requested size.
-		if len(resp.Data) > req.Size {
-			resp.Data = resp.Data[:req.Size]
-			break
-		}
+	// Serve the request.
+	resp.Data, err = inode.ReadDir(int(req.Offset), req.Size)
+	if err != nil {
+		err = fmt.Errorf("inode.ReadDir: %v", err)
+		return
 	}
 
 	return
