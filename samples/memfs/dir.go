@@ -4,18 +4,14 @@
 package memfs
 
 import (
+	"fmt"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
 )
 
 type memDir struct {
-	/////////////////////////
-	// Constant data
-	/////////////////////////
-
-	inode fuse.InodeID
-
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
@@ -32,10 +28,21 @@ type memDir struct {
 	// TODO(jacobsa): Add good tests exercising concurrent modifications while
 	// doing readdir, seekdir, etc. calls.
 	//
-	// INVIARANT: For each i < len(entries)-1, entries[i].Offset = i+1
+	// INVARIANT: For each i, entries[i].Offset == i+1
 	entries []fuseutil.Dirent
 }
 
-func newDir() *memDir
+func newDir() (d *memDir) {
+	d = &memDir{}
+	d.mu = syncutil.NewInvariantMutex(d.checkInvariants)
 
-func (d *memDir) checkInvariants()
+	return
+}
+
+func (d *memDir) checkInvariants() {
+	for i, e := range d.entries {
+		if e.Offset != fuse.DirOffset(i+1) {
+			panic(fmt.Sprintf("Unexpected offset in entry: %v", e))
+		}
+	}
+}
