@@ -75,7 +75,15 @@ func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool) {
 		panic("LookUpChild called on non-directory.")
 	}
 
-	panic("TODO")
+	for _, e := range inode.entries {
+		if e.Name == name {
+			id = e.Inode
+			ok = true
+			return
+		}
+	}
+
+	return
 }
 
 // Serve a ReadDir request.
