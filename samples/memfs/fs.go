@@ -4,6 +4,8 @@
 package memfs
 
 import (
+	"fmt"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -62,5 +64,27 @@ func (fs *memFS) Init(
 	ctx context.Context,
 	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
 	resp = &fuse.InitResponse{}
+	return
+}
+
+func (fs *memFS) OpenDir(
+	ctx context.Context,
+	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// We don't mutate spontaneosuly, so if the VFS layer has asked for an
+	// inode that doesn't exist, something screwed up earlier (a lookup, a
+	// cache invalidation, etc.).
+	if req.Inode >= fuse.InodeID(len(fs.inodes)) {
+		panic(fmt.Sprintf("Inode out of range: %v vs. %v", req.Inode, len(fs.inodes)))
+	}
+
+	var inode *inode = &fs.inodes[req.Inode]
+	if inode.impl == nil {
+		panic(fmt.Sprintf("Dead inode requested: %v", req.Inode))
+	}
+
+	// All is good.
 	return
 }
