@@ -105,7 +105,7 @@ func (t *MemFSTest) ContentsOfEmptyFileSystem() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *MemFSTest) Mkdir() {
+func (t *MemFSTest) Mkdir_OneLevel() {
 	var err error
 	var fi os.FileInfo
 	var stat *syscall.Stat_t
@@ -144,6 +144,10 @@ func (t *MemFSTest) Mkdir() {
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
+}
+
+func (t *MemFSTest) Mkdir_TwoLevels() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *MemFSTest) Mkdir_AlreadyExists() {
