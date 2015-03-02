@@ -242,8 +242,12 @@ func (fs *memFS) MkDir(
 	defer parent.mu.Unlock()
 
 	// Allocate a child.
+	now := fs.clock.Now()
 	childAttrs := fuse.InodeAttributes{
-		Mode: req.Mode,
+		Mode:   req.Mode,
+		Atime:  now,
+		Mtime:  now,
+		Crtime: now,
 	}
 
 	childID, child := fs.allocateInode(childAttrs)
