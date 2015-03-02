@@ -58,7 +58,7 @@ func NewMemFS(
 	}
 
 	// Set up the root inode.
-	fs.inodes[fuse.RootInodeID] = newInode(os.ModeDir)
+	fs.inodes[fuse.RootInodeID] = newInode(0777 | os.ModeDir)
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
