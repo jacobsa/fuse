@@ -20,7 +20,7 @@ type inode struct {
 	/////////////////////////
 
 	// Is this a directory? If not, it is a file.
-	bool dir
+	dir bool
 
 	/////////////////////////
 	// Mutable state
