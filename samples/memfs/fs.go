@@ -215,10 +215,6 @@ func (fs *memFS) ReadDir(
 	inode := fs.getInodeForReadingOrDie(req.Inode)
 	defer inode.mu.RUnlock()
 
-	if !inode.dir {
-		panic("Found non-dir.")
-	}
-
 	// Serve the request.
 	resp.Data, err = inode.ReadDir(int(req.Offset), req.Size)
 	if err != nil {
