@@ -114,7 +114,7 @@ func (t *MemFSTest) Mkdir() {
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(os.ModeDir|0754, fi.Mode())
-	ExpectEq(createTime, fi.ModTime())
+	ExpectEq(0, fi.ModTime().Sub(createTime))
 	ExpectTrue(fi.IsDir())
 
 	// Read the directory.
