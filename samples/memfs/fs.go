@@ -113,26 +113,57 @@ func (fs *memFS) Init(
 	return
 }
 
+// Panic if not a live dir.
+//
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *memFS) getDirOrDie(inodeID fuse.InodeID) (d *memDir) {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	if inodeID >= fuse.InodeID(len(fs.inodes)) {
+		panic(fmt.Sprintf("Inode out of range: %v vs. %v", inodeID, len(fs.inodes)))
+	}
+
+	var inode *inode = &fs.inodes[inodeID]
+	d = inode.impl.(*memDir)
+
+	return
+}
+
 func (fs *memFS) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
 	resp = &fuse.OpenDirResponse{}
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
-
 	// We don't mutate spontaneosuly, so if the VFS layer has asked for an
 	// inode that doesn't exist, something screwed up earlier (a lookup, a
 	// cache invalidation, etc.).
-	if req.Inode >= fuse.InodeID(len(fs.inodes)) {
-		panic(fmt.Sprintf("Inode out of range: %v vs. %v", req.Inode, len(fs.inodes)))
+	_ = fs.getDirOrDie(req.Inode)
+
+	return
+}
+
+func (fs *memFS) ReadDir(
+	ctx context.Context,
+	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
+	resp = &fuse.ReadDirResponse{}
+
+	// Grab the directory.
+	d := fs.getDirOrDie(req.Inode)
+
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	// Return the entries requested.
+	for i := int(req.Offset); i < len(d.entries); i++ {
+		resp.Data = fuseutil.AppendDirent(resp.Data, d.entries[i])
+
+		// Trim and stop early if we've exceeded the requested size.
+		if len(resp.Data) > req.Size {
+			resp.Data = resp.Data[:req.Size]
+			break
+		}
 	}
 
-	var inode *inode = &fs.inodes[req.Inode]
-	if inode.impl == nil {
-		panic(fmt.Sprintf("Dead inode requested: %v", req.Inode))
-	}
-
-	// All is good.
 	return
 }
