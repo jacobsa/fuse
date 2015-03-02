@@ -134,6 +134,15 @@ func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool) {
 	return
 }
 
+// Add an entry for a child.
+//
+// REQUIRES: inode.dir
+// EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) AddChild(
+	id fuse.InodeID,
+	name string,
+	dt fuseutil.DirentType)
+
 // Serve a ReadDir request.
 //
 // REQUIRED: inode.dir

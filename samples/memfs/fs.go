@@ -112,8 +112,23 @@ func (fs *memFS) Init(
 	return
 }
 
-// Find the supplied inode and return it with its lock held for reading. Panic
-// if it doesn't exist.
+// Find the given inode and return it with its lock held. Panic if it doesn't
+// exist.
+//
+// SHARED_LOCKS_REQUIRED(fs.mu)
+// EXCLUSIVE_LOCK_FUNCTION(inode.mu)
+func (fs *memFS) getInodeForModifyingOrDie(id fuse.InodeID) (inode *inode) {
+	inode = fs.inodes[id]
+	if inode == nil {
+		panic(fmt.Sprintf("Unknown inode: %v", id))
+	}
+
+	inode.mu.Lock()
+	return
+}
+
+// Find the given inode and return it with its lock held for reading. Panic if
+// it doesn't exist.
 //
 // SHARED_LOCKS_REQUIRED(fs.mu)
 // SHARED_LOCK_FUNCTION(inode.mu)
@@ -126,6 +141,13 @@ func (fs *memFS) getInodeForReadingOrDie(id fuse.InodeID) (inode *inode) {
 	inode.mu.RLock()
 	return
 }
+
+// Allocate a new inode, assigning it an ID that is not in use. Return it with
+// its lock held.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+// EXCLUSIVE_LOCK_FUNCTION(inode.mu)
+func (fs *memFS) allocateInode(mode os.FileMode) (id fuse.InodeID, inode *inode)
 
 func (fs *memFS) LookUpInode(
 	ctx context.Context,
@@ -193,7 +215,7 @@ func (fs *memFS) MkDir(
 	defer fs.mu.Unlock()
 
 	// Grab the parent, which we will update shortly.
-	parent := fs.getInodeForModifying(req.Parent)
+	parent := fs.getInodeForModifyingOrDie(req.Parent)
 	defer parent.mu.Unlock()
 
 	// Allocate a child.
@@ -201,7 +223,7 @@ func (fs *memFS) MkDir(
 	defer child.mu.Unlock()
 
 	// Add an entry in the parent.
-	parent.AddEntry(childID, req.Name, fuseutil.DT_Directory)
+	parent.AddChild(childID, req.Name, fuseutil.DT_Directory)
 
 	// Fill in the response.
 	resp.Entry.Attributes = child.attributes
