@@ -6,6 +6,8 @@ package memfs_test
 import (
 	"io/ioutil"
 	"log"
+	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -93,10 +95,44 @@ func (t *MemFSTest) ContentsOfEmptyFileSystem() {
 }
 
 func (t *MemFSTest) Mkdir() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+	dirName := path.Join(t.mfs.Dir(), "dir")
+
+	// Create a directory within the root.
+	createTime := t.clock.Now()
+	err = os.Mkdir(dirName, 0754)
+	AssertEq(nil, err)
+
+	// Simulate time proceeding.
+	t.clock.AdvanceTime(time.Second)
+
+	// Stat the directory.
+	fi, err = os.Stat(dirName)
+
+	AssertEq(nil, err)
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0754, fi.Mode())
+	ExpectEq(createTime, fi.ModTime())
+	ExpectTrue(fi.IsDir())
+
+	// Read the directory.
+	entries, err := ioutil.ReadDir(dirName)
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *MemFSTest) Mkdir_AlreadyExists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) Mkdir_IntermediateIsFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) Mkdir_IntermediateIsNonExistent() {
 	AssertTrue(false, "TODO")
 }
 
