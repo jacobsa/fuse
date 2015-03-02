@@ -53,6 +53,16 @@ type FileSystem interface {
 		req *ForgetInodeRequest) (*ForgetInodeResponse, error)
 
 	///////////////////////////////////
+	// Inode creation
+	///////////////////////////////////
+
+	// Create a directory inode as a child of an existing directory inode. The
+	// kernel sends this in response to a mkdir(2) call.
+	MkDir(
+		ctx context.Context,
+		req *MkDirRequest) (*MkDirResponse, error)
+
+	///////////////////////////////////
 	// Directory handles
 	///////////////////////////////////
 
@@ -304,6 +314,19 @@ type ForgetInodeRequest struct {
 }
 
 type ForgetInodeResponse struct {
+}
+
+type MkDirRequest struct {
+	// The ID of parent directory inode within which to create the child.
+	Parent InodeID
+
+	// The name of the child to create, and the mode with which to create it.
+	Name string
+	Mode os.FileMode
+}
+
+type MkDirResponse struct {
+	// TODO(jacobsa): Create a structure and share it with LookUpInodeResponse.
 }
 
 type OpenDirRequest struct {
