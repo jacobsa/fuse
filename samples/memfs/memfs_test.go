@@ -92,6 +92,54 @@ func (t *MemFSTest) ContentsOfEmptyFileSystem() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *MemFSTest) DoesFoo() {
+func (t *MemFSTest) Mkdir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) Mkdir_AlreadyExists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) CreateNewFile_InRoot() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) CreateNewFile_InSubDir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) ModifyExistingFile_InRoot() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) ModifyExistingFile_InSubDir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) UnlinkFile_Exists() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) UnlinkFile_NotAFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) UnlinkFile_NonExistent() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) Rmdir_NonEmpty() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) Rmdir_Empty() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) Rmdir_NotADirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) Rmdir_NonExistent() {
 	AssertTrue(false, "TODO")
 }
