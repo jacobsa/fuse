@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -21,6 +22,16 @@ import (
 )
 
 func TestMemFS(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func currentUid() uint32
+
+func currentGid() uint32
+
+func timespecToTime(ts syscall.Timespec) time.Time
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -97,6 +108,8 @@ func (t *MemFSTest) ContentsOfEmptyFileSystem() {
 func (t *MemFSTest) Mkdir() {
 	var err error
 	var fi os.FileInfo
+	var stat *syscall.Stat_t
+
 	dirName := path.Join(t.mfs.Dir(), "dir")
 
 	// Create a directory within the root.
@@ -109,6 +122,7 @@ func (t *MemFSTest) Mkdir() {
 
 	// Stat the directory.
 	fi, err = os.Stat(dirName)
+	stat = fi.Sys().(*syscall.Stat_t)
 
 	AssertEq(nil, err)
 	ExpectEq("dir", fi.Name())
@@ -116,6 +130,14 @@ func (t *MemFSTest) Mkdir() {
 	ExpectEq(os.ModeDir|0754, fi.Mode())
 	ExpectEq(0, fi.ModTime().Sub(createTime))
 	ExpectTrue(fi.IsDir())
+
+	ExpectEq(1, stat.Nlink)
+	ExpectEq(currentUid(), stat.Uid)
+	ExpectEq(currentGid(), stat.Gid)
+	ExpectEq(0, stat.Size)
+	ExpectEq(createTime, timespecToTime(stat.Atimespec))
+	ExpectEq(createTime, timespecToTime(stat.Mtimespec))
+	ExpectEq(createTime, timespecToTime(stat.Ctimespec))
 
 	// Read the directory.
 	entries, err := ioutil.ReadDir(dirName)
