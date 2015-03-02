@@ -8,6 +8,7 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
+	"golang.org/x/net/context"
 )
 
 type memFS struct {
@@ -55,4 +56,11 @@ func NewMemFS(
 
 func (fs *memFS) checkInvariants() {
 	panic("TODO")
+}
+
+func (fs *memFS) Init(
+	ctx context.Context,
+	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
+	resp = &fuse.InitResponse{}
+	return
 }
