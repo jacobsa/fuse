@@ -171,6 +171,25 @@ func (fs *memFS) LookUpInode(
 	return
 }
 
+func (fs *memFS) GetInodeAttributes(
+	ctx context.Context,
+	req *fuse.GetInodeAttributesRequest) (
+	resp *fuse.GetInodeAttributesResponse, err error) {
+	resp = &fuse.GetInodeAttributesResponse{}
+
+	// Look up the inode.
+	inode := fs.getInodeOrDie(req.Inode)
+
+	// Fill in the response.
+	resp.Attributes = inode.Attributes()
+
+	// We don't spontaneously mutate, so the kernel can cache as long as it wants
+	// (since it also handles invalidation).
+	resp.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+
+	return
+}
+
 func (fs *memFS) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
