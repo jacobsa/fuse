@@ -50,4 +50,17 @@ func (d *memDir) checkInvariants() {
 // Find the inode ID of the child with the given name.
 //
 // LOCKS_EXCLUDED(d.mu)
-func (d *memDir) LookUpInode(name string) (id fuse.InodeID, ok bool)
+func (d *memDir) LookUpInode(name string) (id fuse.InodeID, ok bool) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	for _, e := range d.entries {
+		if e.Name == name {
+			ok = true
+			id = e.Inode
+			return
+		}
+	}
+
+	return
+}
