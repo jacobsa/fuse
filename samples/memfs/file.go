@@ -4,6 +4,7 @@
 package memfs
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/jacobsa/fuse"
@@ -29,4 +30,7 @@ type memFile struct {
 // TODO(jacobsa): Add a test that various WriteAt calls with a real on-disk
 // file to verify what the behavior should be here, particularly when starting
 // a write well beyond EOF. Leave the test around for documentation purposes.
-func (f *memFile) WriteAt(p []byte, off int64) (n int, err error)
+func (f *memFile) WriteAt(p []byte, off int64) (n int, err error) {
+	err = errors.New("TODO(jacobsa): Implement memFile.WriteAt.")
+	return
+}

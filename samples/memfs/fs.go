@@ -43,4 +43,6 @@ type memFS struct {
 
 // Create a file system that stores data and metadata in memory.
 func NewMemFS(
-	clock timeutil.Clock) fuse.FileSystem
+	clock timeutil.Clock) fuse.FileSystem {
+	panic("TODO(jacobsa): Implement NewMemFS.")
+}
