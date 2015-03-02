@@ -6,6 +6,8 @@ package memfs
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/jacobsa/fuse"
 )
 
 // Common attributes for files and directories.
@@ -31,3 +33,5 @@ func (inode *inode) checkInvariants() {
 			fmt.Sprintf("Unexpected inode impl type: %v", reflect.TypeOf(inode.impl)))
 	}
 }
+
+func (inode *inode) Attributes() fuse.InodeAttributes

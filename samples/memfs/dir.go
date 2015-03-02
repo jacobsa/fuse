@@ -46,3 +46,8 @@ func (d *memDir) checkInvariants() {
 		}
 	}
 }
+
+// Find the inode ID of the child with the given name.
+//
+// LOCKS_EXCLUDED(d.mu)
+func (d *memDir) LookUpInode(name string) (id fuse.InodeID, ok bool)

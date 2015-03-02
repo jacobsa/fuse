@@ -5,6 +5,7 @@ package memfs
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -113,6 +114,17 @@ func (fs *memFS) Init(
 	return
 }
 
+// Panic if out of range.
+//
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *memFS) getInodeOrDie(inodeID fuse.InodeID) (inode *inode) {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	inode = &fs.inodes[inodeID]
+	return
+}
+
 // Panic if not a live dir.
 //
 // LOCKS_EXCLUDED(fs.mu)
@@ -126,6 +138,35 @@ func (fs *memFS) getDirOrDie(inodeID fuse.InodeID) (d *memDir) {
 
 	var inode *inode = &fs.inodes[inodeID]
 	d = inode.impl.(*memDir)
+
+	return
+}
+
+func (fs *memFS) LookUpInode(
+	ctx context.Context,
+	req *fuse.LookUpInodeRequest) (resp *fuse.LookUpInodeResponse, err error) {
+	resp = &fuse.LookUpInodeResponse{}
+
+	// Grab the parent directory.
+	d := fs.getDirOrDie(req.Parent)
+
+	// Does the directory have an entry with the given name?
+	childID, ok := d.LookUpInode(req.Name)
+	if !ok {
+		err = fuse.ENOENT
+		return
+	}
+
+	// Look up the child.
+	child := fs.getInodeOrDie(childID)
+
+	// Fill in the response.
+	resp.Attributes = child.Attributes()
+
+	// We don't spontaneously mutate, so the kernel can cache as long as it wants
+	// (since it also handles invalidation).
+	resp.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+	resp.EntryExpiration = resp.EntryExpiration
 
 	return
 }
