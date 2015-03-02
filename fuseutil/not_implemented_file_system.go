@@ -40,6 +40,12 @@ func (fs *NotImplementedFileSystem) ForgetInode(
 	return nil, fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) MkDir(
+	ctx context.Context,
+	req *fuse.MkDirRequest) (*fuse.MkDirResponse, error) {
+	return nil, fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (*fuse.OpenDirResponse, error) {

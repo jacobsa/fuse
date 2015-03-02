@@ -53,6 +53,16 @@ type FileSystem interface {
 		req *ForgetInodeRequest) (*ForgetInodeResponse, error)
 
 	///////////////////////////////////
+	// Inode creation
+	///////////////////////////////////
+
+	// Create a directory inode as a child of an existing directory inode. The
+	// kernel sends this in response to a mkdir(2) call.
+	MkDir(
+		ctx context.Context,
+		req *MkDirRequest) (*MkDirResponse, error)
+
+	///////////////////////////////////
 	// Directory handles
 	///////////////////////////////////
 
@@ -187,36 +197,10 @@ type HandleID uint64
 // ReadDirRequest.Offset for details.
 type DirOffset uint64
 
-////////////////////////////////////////////////////////////////////////
-// Requests and responses
-////////////////////////////////////////////////////////////////////////
-
-type InitRequest struct {
-	// User and group IDs for the process that is mounting the file system.
-	Uid uint32
-	Gid uint32
-}
-
-type InitResponse struct {
-}
-
-type LookUpInodeRequest struct {
-	// The ID of the directory inode to which the child belongs.
-	Parent InodeID
-
-	// The name of the child of interest, relative to the parent. For example, in
-	// this directory structure:
-	//
-	//     foo/
-	//         bar/
-	//             baz
-	//
-	// the file system may receive a request to look up the child named "bar" for
-	// the parent foo/.
-	Name string
-}
-
-type LookUpInodeResponse struct {
+// Information about a child inode within its parent directory. Shared by the
+// responses for LookUpInode, MkDir, etc. Consumed by the kernel in order to
+// set up a dcache entry.
+type ChildInodeEntry struct {
 	// The ID of the child inode. The file system must ensure that the returned
 	// inode ID remains valid until a later call to ForgetInode.
 	Child InodeID
@@ -284,6 +268,39 @@ type LookUpInodeResponse struct {
 	EntryExpiration time.Time
 }
 
+////////////////////////////////////////////////////////////////////////
+// Requests and responses
+////////////////////////////////////////////////////////////////////////
+
+type InitRequest struct {
+	// User and group IDs for the process that is mounting the file system.
+	Uid uint32
+	Gid uint32
+}
+
+type InitResponse struct {
+}
+
+type LookUpInodeRequest struct {
+	// The ID of the directory inode to which the child belongs.
+	Parent InodeID
+
+	// The name of the child of interest, relative to the parent. For example, in
+	// this directory structure:
+	//
+	//     foo/
+	//         bar/
+	//             baz
+	//
+	// the file system may receive a request to look up the child named "bar" for
+	// the parent foo/.
+	Name string
+}
+
+type LookUpInodeResponse struct {
+	Entry ChildInodeEntry
+}
+
 type GetInodeAttributesRequest struct {
 	// The inode of interest.
 	Inode InodeID
@@ -304,6 +321,19 @@ type ForgetInodeRequest struct {
 }
 
 type ForgetInodeResponse struct {
+}
+
+type MkDirRequest struct {
+	// The ID of parent directory inode within which to create the child.
+	Parent InodeID
+
+	// The name of the child to create, and the mode with which to create it.
+	Name string
+	Mode os.FileMode
+}
+
+type MkDirResponse struct {
+	Entry ChildInodeEntry
 }
 
 type OpenDirRequest struct {
