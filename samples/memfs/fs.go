@@ -5,6 +5,7 @@ package memfs
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -57,6 +58,35 @@ func NewMemFS(
 }
 
 func (fs *memFS) checkInvariants() {
+	// Check reserved inodes.
+	for i := 0; i < fuse.RootInodeID; i++ {
+		var inode *inode = &fs.inodes[i]
+		if inode.impl != nil {
+			panic(fmt.Sprintf("Non-nil impl for ID: %v", i))
+		}
+	}
+
+	// Check the root inode.
+	fs.inodes[fuse.RootInodeID].impl.(*dir)
+
+	// Check inodes, building our own set of free IDs.
+	freeIDsEncountered := make(map[fuse.InodeID]struct{})
+	for i := range fs.inodes {
+		var inode *inode = &fs.inodes[i]
+		if inode.impl == nil {
+			freeIDsEncountered[i] = struct{}{}
+			continue
+		}
+
+		// Check for known types.
+		switch inode.impl.(type) {
+		case *memFile:
+		case *memDir:
+		default:
+			panic(fmt.Sprintf("Unknown inode type: %v", reflect.TypeOf(inode.impl)))
+		}
+	}
+
 	panic("TODO")
 }
 
