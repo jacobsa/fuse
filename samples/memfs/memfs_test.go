@@ -163,9 +163,9 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(0, stat.Size)
-	ExpectEq(createTime, timespecToTime(stat.Atimespec))
-	ExpectEq(createTime, timespecToTime(stat.Mtimespec))
-	ExpectEq(createTime, timespecToTime(stat.Ctimespec))
+	ExpectEq(0, timespecToTime(stat.Atimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
 
 	// Read the directory.
 	entries, err := ioutil.ReadDir(dirName)
