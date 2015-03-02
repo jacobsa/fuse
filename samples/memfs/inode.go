@@ -34,4 +34,6 @@ func (inode *inode) checkInvariants() {
 	}
 }
 
-func (inode *inode) Attributes() fuse.InodeAttributes
+func (inode *inode) Attributes() fuse.InodeAttributes {
+	return fuse.InodeAttributes{}
+}
