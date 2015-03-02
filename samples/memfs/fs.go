@@ -184,6 +184,17 @@ func (fs *memFS) GetInodeAttributes(
 	return
 }
 
+func (fs *memFS) MkDir(
+	ctx context.Context,
+	req *fuse.MkDirRequest) (resp *fuse.MkDirResponse, err error) {
+	resp = &fuse.MkDirResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	panic("TODO")
+}
+
 func (fs *memFS) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
