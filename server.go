@@ -89,14 +89,14 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		// Call the file system.
 		_, err := s.fs.Init(ctx, req)
 		if err != nil {
-			s.logger.Print("Responding:", err)
+			s.logger.Println("Responding:", err)
 			typed.RespondError(err)
 			return
 		}
 
 		// Convert the response.
 		fuseResp := &bazilfuse.InitResponse{}
-		s.logger.Print("Responding:", fuseResp)
+		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
 	case *bazilfuse.StatfsRequest:
@@ -117,7 +117,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		// Call the file system.
 		resp, err := s.fs.LookUpInode(ctx, req)
 		if err != nil {
-			s.logger.Print("Responding:", err)
+			s.logger.Println("Responding:", err)
 			typed.RespondError(err)
 			return
 		}
@@ -126,7 +126,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		fuseResp := &bazilfuse.LookupResponse{}
 		convertChildInodeEntry(s.clock, &resp.Entry, fuseResp)
 
-		s.logger.Print("Responding:", fuseResp)
+		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
 	case *bazilfuse.GetattrRequest:
@@ -138,7 +138,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		// Call the file system.
 		resp, err := s.fs.GetInodeAttributes(ctx, req)
 		if err != nil {
-			s.logger.Print("Responding:", err)
+			s.logger.Println("Responding:", err)
 			typed.RespondError(err)
 			return
 		}
@@ -149,7 +149,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 			AttrValid: resp.AttributesExpiration.Sub(s.clock.Now()),
 		}
 
-		s.logger.Print("Responding:", fuseResp)
+		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
 	case *bazilfuse.MkdirRequest:
@@ -163,7 +163,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		// Call the file system.
 		resp, err := s.fs.MkDir(ctx, req)
 		if err != nil {
-			s.logger.Print("Responding:", err)
+			s.logger.Println("Responding:", err)
 			typed.RespondError(err)
 			return
 		}
@@ -172,7 +172,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		fuseResp := &bazilfuse.MkdirResponse{}
 		convertChildInodeEntry(s.clock, &resp.Entry, &fuseResp.LookupResponse)
 
-		s.logger.Print("Responding:", fuseResp)
+		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
 	case *bazilfuse.OpenRequest:
@@ -187,7 +187,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 			// Call the file system.
 			resp, err := s.fs.OpenDir(ctx, req)
 			if err != nil {
-				s.logger.Print("Responding:", err)
+				s.logger.Println("Responding:", err)
 				typed.RespondError(err)
 				return
 			}
@@ -197,7 +197,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 				Handle: bazilfuse.HandleID(resp.Handle),
 			}
 
-			s.logger.Print("Responding:", fuseResp)
+			s.logger.Println("Responding:", fuseResp)
 			typed.Respond(fuseResp)
 		} else {
 			// Convert the request.
@@ -209,7 +209,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 			// Call the file system.
 			resp, err := s.fs.OpenFile(ctx, req)
 			if err != nil {
-				s.logger.Print("Responding:", err)
+				s.logger.Println("Responding:", err)
 				typed.RespondError(err)
 				return
 			}
@@ -219,7 +219,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 				Handle: bazilfuse.HandleID(resp.Handle),
 			}
 
-			s.logger.Print("Responding:", fuseResp)
+			s.logger.Println("Responding:", fuseResp)
 			typed.Respond(fuseResp)
 		}
 
@@ -237,7 +237,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 			// Call the file system.
 			resp, err := s.fs.ReadDir(ctx, req)
 			if err != nil {
-				s.logger.Print("Responding:", err)
+				s.logger.Println("Responding:", err)
 				typed.RespondError(err)
 				return
 			}
@@ -247,7 +247,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 				Data: resp.Data,
 			}
 
-			s.logger.Print("Responding:", fuseResp)
+			s.logger.Println("Responding:", fuseResp)
 			typed.Respond(fuseResp)
 		} else {
 			// Convert the request.
@@ -261,7 +261,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 			// Call the file system.
 			resp, err := s.fs.ReadFile(ctx, req)
 			if err != nil {
-				s.logger.Print("Responding:", err)
+				s.logger.Println("Responding:", err)
 				typed.RespondError(err)
 				return
 			}
@@ -271,7 +271,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 				Data: resp.Data,
 			}
 
-			s.logger.Print("Responding:", fuseResp)
+			s.logger.Println("Responding:", fuseResp)
 			typed.Respond(fuseResp)
 		}
 
