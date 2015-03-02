@@ -123,6 +123,7 @@ func (fs *memFS) getInodeForReadingOrDie(id fuse.InodeID) (inode *inode) {
 		panic(fmt.Sprintf("Unknown inode: %v", id))
 	}
 
+	inode.mu.RLock()
 	return
 }
 
