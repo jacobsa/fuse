@@ -58,3 +58,9 @@ type inode struct {
 func newInode(dir bool) (inode *inode)
 
 func (inode *inode) checkInvariants()
+
+// Find an entry for the given child name and return its inode ID.
+//
+// REQUIRES: inode.dir
+// SHARED_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool)

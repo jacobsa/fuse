@@ -27,22 +27,23 @@ type memFS struct {
 	// Mutable state
 	/////////////////////////
 
+	// When acquiring this lock, the caller must hold no inode locks.
 	mu syncutil.InvariantMutex
 
-	// The collection of all inodes that have ever been created, indexed by inode
-	// ID. Some inodes are not in use if they have been unlinked, and no inode
-	// with ID less than fuse.RootInodeID is ever used.
+	// The collection of live inodes, indexed by ID. IDs of free inodes that may
+	// be re-used have nil entries. No ID less than fuse.RootInodeID is ever used.
 	//
 	// INVARIANT: len(inodes) > fuse.RootInodeID
-	// INVARIANT: For all i < fuse.RootInodeID, inodes[i].impl == nil
-	// INVARIANT: inodes[fuse.RootInodeID].impl is of type *memDir
-	inodes []inode // GUARDED_BY(mu)
+	// INVARIANT: For all i < fuse.RootInodeID, inodes[i] == nil
+	// INVARIANT: inodes[fuse.RootInodeID] != nil
+	// INVARIANT: inodes[fuse.RootInodeID].dir is true
+	inodes []*inode // GUARDED_BY(mu)
 
 	// A list of inode IDs within inodes available for reuse, not including the
 	// reserved IDs less than fuse.RootInodeID.
 	//
-	// INVARIANT: This is all and only indices i of inodes such that i >
-	// fuse.RootInodeID and inodes[i].impl == nil
+	// INVARIANT: This is all and only indices i of 'inodes' such that i >
+	// fuse.RootInodeID and inodes[i] == nil
 	freeInodes []fuse.InodeID // GUARDED_BY(mu)
 }
 
@@ -52,11 +53,11 @@ func NewMemFS(
 	// Set up the basic struct.
 	fs := &memFS{
 		clock:  clock,
-		inodes: make([]inode, fuse.RootInodeID+1),
+		inodes: make([]*inode, fuse.RootInodeID+1),
 	}
 
 	// Set up the root inode.
-	fs.inodes[fuse.RootInodeID].impl = newDir()
+	fs.inodes[fuse.RootInodeID] = newInode(true) // dir
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
@@ -65,27 +66,23 @@ func NewMemFS(
 }
 
 func (fs *memFS) checkInvariants() {
-	// Check general inode invariants.
-	for i := range fs.inodes {
-		fs.inodes[i].checkInvariants()
-	}
-
 	// Check reserved inodes.
 	for i := 0; i < fuse.RootInodeID; i++ {
-		var inode *inode = &fs.inodes[i]
-		if inode.impl != nil {
-			panic(fmt.Sprintf("Non-nil impl for ID: %v", i))
+		if fs.inodes[i] != nil {
+			panic(fmt.Sprintf("Non-nil inode for ID: %v", i))
 		}
 	}
 
 	// Check the root inode.
-	_ = fs.inodes[fuse.RootInodeID].impl.(*memDir)
+	if !fs.inodes[fuse.RootInodeID].dir {
+		panic("Expected root to be a directory.")
+	}
 
-	// Check inodes, building our own set of free IDs.
+	// Build our own list of free IDs.
 	freeIDsEncountered := make(map[fuse.InodeID]struct{})
 	for i := fuse.RootInodeID + 1; i < len(fs.inodes); i++ {
-		var inode *inode = &fs.inodes[i]
-		if inode.impl == nil {
+		inode := fs.inodes[i]
+		if inode == nil {
 			freeIDsEncountered[fuse.InodeID(i)] = struct{}{}
 			continue
 		}
@@ -114,30 +111,16 @@ func (fs *memFS) Init(
 	return
 }
 
-// Panic if out of range.
+// Find the supplied inode and return it with its lock held for reading. Panic
+// if it doesn't exist.
 //
-// LOCKS_EXCLUDED(fs.mu)
-func (fs *memFS) getInodeOrDie(inodeID fuse.InodeID) (inode *inode) {
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
-
-	inode = &fs.inodes[inodeID]
-	return
-}
-
-// Panic if not a live dir.
-//
-// LOCKS_EXCLUDED(fs.mu)
-func (fs *memFS) getDirOrDie(inodeID fuse.InodeID) (d *memDir) {
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
-
-	if inodeID >= fuse.InodeID(len(fs.inodes)) {
-		panic(fmt.Sprintf("Inode out of range: %v vs. %v", inodeID, len(fs.inodes)))
+// SHARED_LOCKS_REQUIRED(fs.mu)
+// SHARED_LOCK_FUNCTION(inode.mu)
+func (fs *memFS) getInodeForReadingOrDie(id fuse.InodeID) (inode *inode) {
+	inode = fs.inodes[id]
+	if inode == nil {
+		panic(fmt.Sprintf("Unknown inode: %v", id))
 	}
-
-	var inode *inode = &fs.inodes[inodeID]
-	d = inode.impl.(*memDir)
 
 	return
 }
@@ -147,21 +130,30 @@ func (fs *memFS) LookUpInode(
 	req *fuse.LookUpInodeRequest) (resp *fuse.LookUpInodeResponse, err error) {
 	resp = &fuse.LookUpInodeResponse{}
 
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
 	// Grab the parent directory.
-	d := fs.getDirOrDie(req.Parent)
+	inode := fs.getInodeForReadingOrDie(req.Parent)
+	defer inode.mu.RUnlock()
+
+	if !inode.dir {
+		panic("Found non-dir.")
+	}
 
 	// Does the directory have an entry with the given name?
-	childID, ok := d.LookUpInode(req.Name)
+	childID, ok := inode.LookUpChild(req.Name)
 	if !ok {
 		err = fuse.ENOENT
 		return
 	}
 
-	// Look up the child.
-	child := fs.getInodeOrDie(childID)
+	// Grab the child.
+	child := fs.getInodeForReadingOrDie(childID)
+	defer child.mu.RUnlock()
 
 	// Fill in the response.
-	resp.Attributes = child.Attributes()
+	resp.Attributes = child.attributes
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -177,11 +169,15 @@ func (fs *memFS) GetInodeAttributes(
 	resp *fuse.GetInodeAttributesResponse, err error) {
 	resp = &fuse.GetInodeAttributesResponse{}
 
-	// Look up the inode.
-	inode := fs.getInodeOrDie(req.Inode)
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Grab the inode.
+	inode := fs.getInodeForReadingOrDie(req.Inode)
+	defer inode.mu.RUnlock()
 
 	// Fill in the response.
-	resp.Attributes = inode.Attributes()
+	resp.Attributes = inode.attributes
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -195,10 +191,18 @@ func (fs *memFS) OpenDir(
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
 	resp = &fuse.OpenDirResponse{}
 
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
 	// We don't mutate spontaneosuly, so if the VFS layer has asked for an
 	// inode that doesn't exist, something screwed up earlier (a lookup, a
 	// cache invalidation, etc.).
-	_ = fs.getDirOrDie(req.Inode)
+	inode := fs.getInodeForReadingOrDie(req.Inode)
+	defer inode.mu.RUnlock()
+
+	if !inode.dir {
+		panic("Found non-dir.")
+	}
 
 	return
 }
@@ -208,15 +212,20 @@ func (fs *memFS) ReadDir(
 	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
 	resp = &fuse.ReadDirResponse{}
 
-	// Grab the directory.
-	d := fs.getDirOrDie(req.Inode)
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
 
-	d.mu.RLock()
-	defer d.mu.RUnlock()
+	// Grab the directory.
+	inode := fs.getInodeForReadingOrDie(req.Inode)
+	defer inode.mu.RUnlock()
+
+	if !inode.dir {
+		panic("Found non-dir.")
+	}
 
 	// Return the entries requested.
-	for i := int(req.Offset); i < len(d.entries); i++ {
-		resp.Data = fuseutil.AppendDirent(resp.Data, d.entries[i])
+	for i := int(req.Offset); i < len(inode.entries); i++ {
+		resp.Data = fuseutil.AppendDirent(resp.Data, inode.entries[i])
 
 		// Trim and stop early if we've exceeded the requested size.
 		if len(resp.Data) > req.Size {
