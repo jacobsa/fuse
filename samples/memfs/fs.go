@@ -4,10 +4,13 @@
 package memfs
 
 import (
+	"fmt"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
 	"github.com/jacobsa/gcsfuse/timeutil"
+	"golang.org/x/net/context"
 )
 
 type memFS struct {
@@ -45,5 +48,122 @@ type memFS struct {
 // Create a file system that stores data and metadata in memory.
 func NewMemFS(
 	clock timeutil.Clock) fuse.FileSystem {
-	panic("TODO(jacobsa): Implement NewMemFS.")
+	// Set up the basic struct.
+	fs := &memFS{
+		clock:  clock,
+		inodes: make([]inode, fuse.RootInodeID+1),
+	}
+
+	// Set up the root inode.
+	fs.inodes[fuse.RootInodeID].impl = newDir()
+
+	// Set up invariant checking.
+	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
+
+	return fs
+}
+
+func (fs *memFS) checkInvariants() {
+	// Check general inode invariants.
+	for i := range fs.inodes {
+		fs.inodes[i].checkInvariants()
+	}
+
+	// Check reserved inodes.
+	for i := 0; i < fuse.RootInodeID; i++ {
+		var inode *inode = &fs.inodes[i]
+		if inode.impl != nil {
+			panic(fmt.Sprintf("Non-nil impl for ID: %v", i))
+		}
+	}
+
+	// Check the root inode.
+	_ = fs.inodes[fuse.RootInodeID].impl.(*memDir)
+
+	// Check inodes, building our own set of free IDs.
+	freeIDsEncountered := make(map[fuse.InodeID]struct{})
+	for i := fuse.RootInodeID + 1; i < len(fs.inodes); i++ {
+		var inode *inode = &fs.inodes[i]
+		if inode.impl == nil {
+			freeIDsEncountered[fuse.InodeID(i)] = struct{}{}
+			continue
+		}
+	}
+
+	// Check fs.freeInodes.
+	if len(fs.freeInodes) != len(freeIDsEncountered) {
+		panic(
+			fmt.Sprintf(
+				"Length mismatch: %v vs. %v",
+				len(fs.freeInodes),
+				len(freeIDsEncountered)))
+	}
+
+	for _, id := range fs.freeInodes {
+		if _, ok := freeIDsEncountered[id]; !ok {
+			panic(fmt.Sprintf("Unexected free inode ID: %v", id))
+		}
+	}
+}
+
+func (fs *memFS) Init(
+	ctx context.Context,
+	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
+	resp = &fuse.InitResponse{}
+	return
+}
+
+// Panic if not a live dir.
+//
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *memFS) getDirOrDie(inodeID fuse.InodeID) (d *memDir) {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	if inodeID >= fuse.InodeID(len(fs.inodes)) {
+		panic(fmt.Sprintf("Inode out of range: %v vs. %v", inodeID, len(fs.inodes)))
+	}
+
+	var inode *inode = &fs.inodes[inodeID]
+	d = inode.impl.(*memDir)
+
+	return
+}
+
+func (fs *memFS) OpenDir(
+	ctx context.Context,
+	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
+	resp = &fuse.OpenDirResponse{}
+
+	// We don't mutate spontaneosuly, so if the VFS layer has asked for an
+	// inode that doesn't exist, something screwed up earlier (a lookup, a
+	// cache invalidation, etc.).
+	_ = fs.getDirOrDie(req.Inode)
+
+	return
+}
+
+func (fs *memFS) ReadDir(
+	ctx context.Context,
+	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
+	resp = &fuse.ReadDirResponse{}
+
+	// Grab the directory.
+	d := fs.getDirOrDie(req.Inode)
+
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	// Return the entries requested.
+	for i := int(req.Offset); i < len(d.entries); i++ {
+		resp.Data = fuseutil.AppendDirent(resp.Data, d.entries[i])
+
+		// Trim and stop early if we've exceeded the requested size.
+		if len(resp.Data) > req.Size {
+			resp.Data = resp.Data[:req.Size]
+			break
+		}
+	}
+
+	return
 }
