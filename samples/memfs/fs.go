@@ -191,6 +191,7 @@ func (fs *memFS) LookUpInode(
 	defer child.mu.RUnlock()
 
 	// Fill in the response.
+	resp.Entry.Child = childID
 	resp.Entry.Attributes = child.attributes
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
@@ -244,6 +245,7 @@ func (fs *memFS) MkDir(
 	parent.AddChild(childID, req.Name, fuseutil.DT_Directory)
 
 	// Fill in the response.
+	resp.Entry.Child = childID
 	resp.Entry.Attributes = child.attributes
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
