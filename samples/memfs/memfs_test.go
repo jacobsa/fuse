@@ -13,6 +13,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples/memfs"
 	"github.com/jacobsa/gcsfuse/timeutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -85,7 +86,10 @@ func (t *MemFSTest) TearDown() {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *MemFSTest) ContentsOfEmptyFileSystem() {
-	AssertTrue(false, "TODO")
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *MemFSTest) DoesFoo() {
