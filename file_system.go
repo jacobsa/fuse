@@ -159,10 +159,11 @@ type InodeAttributes struct {
 	Size uint64
 	Mode os.FileMode
 
-	// Time information
-	Atime  time.Time
-	Mtime  time.Time
-	Crtime time.Time
+	// Time information. See `man 2 stat` for full details.
+	Atime  time.Time // Time of last access
+	Mtime  time.Time // Time of last modification
+	Ctime  time.Time // Time of last modification to inode
+	Crtime time.Time // Time of creation (OS X only)
 
 	// Owner information
 	Uid uint32

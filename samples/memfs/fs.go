@@ -247,6 +247,7 @@ func (fs *memFS) MkDir(
 		Mode:   req.Mode,
 		Atime:  now,
 		Mtime:  now,
+		Ctime:  now,
 		Crtime: now,
 	}
 
