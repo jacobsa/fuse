@@ -32,6 +32,17 @@ func newServer(fs FileSystem) (s *server, err error) {
 	return
 }
 
+func convertChildInodeEntry(
+	clock timeutil.Clock,
+	in *ChildInodeEntry,
+	out *bazilfuse.LookupResponse) {
+	out.Node = bazilfuse.NodeID(in.Child)
+	out.Generation = uint64(in.Generation)
+	out.Attr = convertAttributes(in.Child, in.Attributes)
+	out.AttrValid = in.AttributesExpiration.Sub(clock.Now())
+	out.EntryValid = in.EntryExpiration.Sub(clock.Now())
+}
+
 // Serve the fuse connection by repeatedly reading requests from the supplied
 // FUSE connection, responding as dictated by the file system. Return when the
 // connection is closed or an unexpected error occurs.
@@ -112,14 +123,8 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		}
 
 		// Convert the response.
-		e := &resp.Entry
-		fuseResp := &bazilfuse.LookupResponse{
-			Node:       bazilfuse.NodeID(e.Child),
-			Generation: uint64(e.Generation),
-			Attr:       convertAttributes(e.Child, e.Attributes),
-			AttrValid:  e.AttributesExpiration.Sub(s.clock.Now()),
-			EntryValid: e.EntryExpiration.Sub(s.clock.Now()),
-		}
+		fuseResp := &bazilfuse.LookupResponse{}
+		convertChildInodeEntry(s.clock, &resp.Entry, fuseResp)
 
 		s.logger.Print("Responding:", fuseResp)
 		typed.Respond(fuseResp)
