@@ -4,6 +4,7 @@
 package fuse
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -121,7 +122,26 @@ type InodeID uint64
 // are minted by the file system, the FUSE VFS layer may send a request for
 // this ID without the file system ever having referenced it in a previous
 // response.
-const RootInodeID InodeID = InodeID(bazilfuse.RootID)
+const RootInodeID = 1
+
+func init() {
+	// Make sure the constant above is correct. We do this at runtime rather than
+	// defining the constant in terms of bazilfuse.RootID for two reasons:
+	//
+	//  1. Users can more clearly see that the root ID is low and can therefore
+	//     be used as e.g. an array index, with space reserved up to the root.
+	//
+	//  2. The constant can be untyped and can therefore more easily be used as
+	//     an array index.
+	//
+	if RootInodeID != bazilfuse.RootID {
+		panic(
+			fmt.Sprintf(
+				"Oops, RootInodeID is wrong: %v vs. %v",
+				RootInodeID,
+				bazilfuse.RootID))
+	}
+}
 
 // Attributes for a file or directory inode. Corresponds to struct inode (cf.
 // http://goo.gl/tvYyQt).
