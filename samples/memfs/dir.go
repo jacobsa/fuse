@@ -28,5 +28,8 @@ type memDir struct {
 	// we use its indices for Dirent.Offset, which is exposed to the user who
 	// might be calling readdir in a loop while concurrently modifying the
 	// directory. Unused entries can, however, be reused.
+	//
+	// TODO(jacobsa): Add good tests exercising concurrent modifications while
+	// doing readdir, seekdir, etc. calls.
 	entries []fuseutil.Dirent
 }
