@@ -152,6 +152,29 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		s.logger.Print("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
+	case *bazilfuse.MkdirRequest:
+		// Convert the request.
+		req := &MkDirRequest{
+			Parent: InodeID(typed.Header.Node),
+			Name:   typed.Name,
+			Mode:   typed.Mode,
+		}
+
+		// Call the file system.
+		resp, err := s.fs.MkDir(ctx, req)
+		if err != nil {
+			s.logger.Print("Responding:", err)
+			typed.RespondError(err)
+			return
+		}
+
+		// Convert the response.
+		fuseResp := &bazilfuse.MkdirResponse{}
+		convertChildInodeEntry(s.clock, &resp.Entry, &fuseResp.LookupResponse)
+
+		s.logger.Print("Responding:", fuseResp)
+		typed.Respond(fuseResp)
+
 	case *bazilfuse.OpenRequest:
 		// Directory or file?
 		if typed.Dir {
