@@ -141,7 +141,16 @@ func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool) {
 func (inode *inode) AddChild(
 	id fuse.InodeID,
 	name string,
-	dt fuseutil.DirentType)
+	dt fuseutil.DirentType) {
+	e := fuseutil.Dirent{
+		Offset: fuse.DirOffset(len(inode.entries) + 1),
+		Inode:  id,
+		Name:   name,
+		Type:   dt,
+	}
+
+	inode.entries = append(inode.entries, e)
+}
 
 // Serve a ReadDir request.
 //
