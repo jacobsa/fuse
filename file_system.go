@@ -165,7 +165,7 @@ type InodeAttributes struct {
 	Ctime  time.Time // Time of last modification to inode
 	Crtime time.Time // Time of creation (OS X only)
 
-	// Owner information
+	// Ownership information
 	Uid uint32
 	Gid uint32
 }
@@ -210,7 +210,7 @@ type ChildInodeEntry struct {
 	// See comments on type GenerationNumber for more.
 	Generation GenerationNumber
 
-	// Current ttributes for the child inode.
+	// Current attributes for the child inode.
 	Attributes InodeAttributes
 
 	// The FUSE VFS layer in the kernel maintains a cache of file attributes,
@@ -334,6 +334,16 @@ type MkDirRequest struct {
 }
 
 type MkDirResponse struct {
+	// Information about the inode that was created.
+	//
+	// The file system is responsible for initializing and recording (where
+	// supported) attributes like time information, ownership information, etc.
+	//
+	// Ownership information in particular must be set to something reasonable or
+	// by default root will own everything and unprivileged users won't be able
+	// to do anything useful. In traditional file systems in the kernel, the
+	// function inode_init_owner (http://goo.gl/5qavg8) contains the
+	// standards-compliant logic for this.
 	Entry ChildInodeEntry
 }
 
