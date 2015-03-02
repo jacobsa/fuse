@@ -4,6 +4,9 @@
 package memfs
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -64,7 +67,37 @@ func newInode(dir bool) (in *inode) {
 	return
 }
 
-func (inode *inode) checkInvariants()
+func (inode *inode) checkInvariants() {
+	// No non-permission mode bits should be set besides os.ModeDir.
+	if inode.attributes.Mode & ^(os.ModePerm|os.ModeDir) != 0 {
+		panic(fmt.Sprintf("Unexpected mode: %v", inode.attributes.Mode))
+	}
+
+	// Check os.ModeDir.
+	if inode.dir != (inode.attributes.Mode&os.ModeDir == os.ModeDir) {
+		panic(fmt.Sprintf("Unexpected mode: %v", inode.attributes.Mode))
+	}
+
+	// Check directory-specific stuff.
+	if inode.dir {
+		if inode.contents != nil {
+			panic("Non-nil contents in a directory.")
+		}
+
+		for i, e := range inode.entries {
+			if e.Offset != fuse.DirOffset(i+1) {
+				panic(fmt.Sprintf("Unexpected offset: %v", e.Offset))
+			}
+		}
+	}
+
+	// Check file-specific stuff.
+	if !inode.dir {
+		if inode.entries != nil {
+			panic("Non-nil entries in a file.")
+		}
+	}
+}
 
 // Find an entry for the given child name and return its inode ID.
 //
