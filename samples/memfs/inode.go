@@ -50,6 +50,7 @@ type inode struct {
 	//
 	// INVARIANT: If dir is false, this is nil.
 	// INVARIANT: For each i, entries[i].Offset == i+1
+	// INVARIANT: Contains no duplicate names.
 	entries []fuseutil.Dirent // GUARDED_BY(mu)
 
 	// For files, the current contents of the file.
@@ -91,10 +92,17 @@ func (inode *inode) checkInvariants() {
 			panic("Non-nil contents in a directory.")
 		}
 
+		childNames := make(map[string]struct{})
 		for i, e := range inode.entries {
 			if e.Offset != fuse.DirOffset(i+1) {
 				panic(fmt.Sprintf("Unexpected offset: %v", e.Offset))
 			}
+
+			if _, ok := childNames[e.Name]; ok {
+				panic(fmt.Sprintf("Duplicate name: %s", e.Name))
+			}
+
+			childNames[e.Name] = struct{}{}
 		}
 	}
 
