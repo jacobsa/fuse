@@ -116,6 +116,8 @@ func (fs *memFS) Init(
 func (fs *memFS) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
+	resp = &fuse.OpenDirResponse{}
+
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
