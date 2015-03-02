@@ -3,6 +3,11 @@
 
 package memfs
 
+import (
+	"fmt"
+	"reflect"
+)
+
 // Common attributes for files and directories.
 //
 // TODO(jacobsa): Add tests for interacting with a file/directory after it has
@@ -14,4 +19,15 @@ type inode struct {
 	//
 	// INVARIANT: impl is nil, or of type *memFile or *memDir
 	impl interface{}
+}
+
+func (inode *inode) checkInvariants() {
+	switch inode.impl.(type) {
+	case nil:
+	case *memFile:
+	case *memDir:
+	default:
+		panic(
+			fmt.Sprintf("Unexpected inode impl type: %v", reflect.TypeOf(inode.impl)))
+	}
 }
