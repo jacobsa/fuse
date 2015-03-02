@@ -112,12 +112,13 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		}
 
 		// Convert the response.
+		e := &resp.Entry
 		fuseResp := &bazilfuse.LookupResponse{
-			Node:       bazilfuse.NodeID(resp.Child),
-			Generation: uint64(resp.Generation),
-			Attr:       convertAttributes(resp.Child, resp.Attributes),
-			AttrValid:  resp.AttributesExpiration.Sub(s.clock.Now()),
-			EntryValid: resp.EntryExpiration.Sub(s.clock.Now()),
+			Node:       bazilfuse.NodeID(e.Child),
+			Generation: uint64(e.Generation),
+			Attr:       convertAttributes(e.Child, e.Attributes),
+			AttrValid:  e.AttributesExpiration.Sub(s.clock.Now()),
+			EntryValid: e.EntryExpiration.Sub(s.clock.Now()),
 		}
 
 		s.logger.Print("Responding:", fuseResp)

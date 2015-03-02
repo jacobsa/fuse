@@ -151,12 +151,12 @@ func (fs *memFS) LookUpInode(
 	defer child.mu.RUnlock()
 
 	// Fill in the response.
-	resp.Attributes = child.attributes
+	resp.Entry.Attributes = child.attributes
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
-	resp.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
-	resp.EntryExpiration = resp.EntryExpiration
+	resp.Entry.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+	resp.Entry.EntryExpiration = resp.Entry.EntryExpiration
 
 	return
 }
