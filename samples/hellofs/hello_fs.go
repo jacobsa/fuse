@@ -160,11 +160,11 @@ func (fs *HelloFS) LookUpInode(
 	}
 
 	// Copy over information.
-	resp.Child = childInode
-	resp.Attributes = gInodeInfo[childInode].attributes
+	resp.Entry.Child = childInode
+	resp.Entry.Attributes = gInodeInfo[childInode].attributes
 
 	// Patch attributes.
-	fs.patchAttributes(&resp.Attributes)
+	fs.patchAttributes(&resp.Entry.Attributes)
 
 	return
 }
