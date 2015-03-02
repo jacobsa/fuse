@@ -7,7 +7,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/user"
 	"path"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -27,9 +29,33 @@ func TestMemFS(t *testing.T) { RunTests(t) }
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func currentUid() uint32
+func currentUid() uint32 {
+	user, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
 
-func currentGid() uint32
+	uid, err := strconv.ParseUint(user.Uid, 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	return uint32(uid)
+}
+
+func currentGid() uint32 {
+	user, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+
+	gid, err := strconv.ParseUint(user.Gid, 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	return uint32(gid)
+}
 
 func timespecToTime(ts syscall.Timespec) time.Time
 
