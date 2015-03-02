@@ -57,7 +57,9 @@ func currentGid() uint32 {
 	return uint32(gid)
 }
 
-func timespecToTime(ts syscall.Timespec) time.Time
+func timespecToTime(ts syscall.Timespec) time.Time {
+	return time.Unix(ts.Sec, ts.Nsec)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
