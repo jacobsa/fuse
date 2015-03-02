@@ -59,12 +59,10 @@ type inode struct {
 	contents []byte // GUARDED_BY(mu)
 }
 
-func newInode(mode os.FileMode) (in *inode) {
+func newInode(attrs fuse.InodeAttributes) (in *inode) {
 	in = &inode{
-		dir: (mode&os.ModeDir != 0),
-		attributes: fuse.InodeAttributes{
-			Mode: mode,
-		},
+		dir:        (attrs.Mode&os.ModeDir != 0),
+		attributes: attrs,
 	}
 
 	in.mu = syncutil.NewInvariantMutex(in.checkInvariants)
