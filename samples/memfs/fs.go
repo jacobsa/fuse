@@ -147,7 +147,24 @@ func (fs *memFS) getInodeForReadingOrDie(id fuse.InodeID) (inode *inode) {
 //
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
 // EXCLUSIVE_LOCK_FUNCTION(inode.mu)
-func (fs *memFS) allocateInode(mode os.FileMode) (id fuse.InodeID, inode *inode)
+func (fs *memFS) allocateInode(
+	mode os.FileMode) (id fuse.InodeID, inode *inode) {
+	// Create the inode.
+	inode = newInode(mode)
+
+	// Re-use a free ID if possible. Otherwise mint a new one.
+	numFree := len(fs.freeInodes)
+	if numFree != 0 {
+		id = fs.freeInodes[numFree-1]
+		fs.freeInodes = fs.freeInodes[:numFree-1]
+		fs.inodes[id] = inode
+	} else {
+		id = fuse.InodeID(len(fs.inodes))
+		fs.inodes = append(fs.inodes, inode)
+	}
+
+	return
+}
 
 func (fs *memFS) LookUpInode(
 	ctx context.Context,
