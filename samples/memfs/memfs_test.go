@@ -125,7 +125,18 @@ func (t *MemFSTest) Mkdir() {
 }
 
 func (t *MemFSTest) Mkdir_AlreadyExists() {
-	AssertTrue(false, "TODO")
+	var err error
+	dirName := path.Join(t.mfs.Dir(), "dir")
+
+	// Create the directory once.
+	err = os.Mkdir(dirName, 0754)
+	AssertEq(nil, err)
+
+	// Attempt to create it again.
+	err = os.Mkdir(dirName, 0754)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("exists")))
 }
 
 func (t *MemFSTest) Mkdir_IntermediateIsFile() {
