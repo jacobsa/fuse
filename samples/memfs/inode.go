@@ -165,6 +165,7 @@ func (inode *inode) AddChild(
 	id fuse.InodeID,
 	name string,
 	dt fuseutil.DirentType) {
+	// Set up the entry.
 	e := fuseutil.Dirent{
 		Offset: fuse.DirOffset(len(inode.entries) + 1),
 		Inode:  id,
@@ -172,9 +173,16 @@ func (inode *inode) AddChild(
 		Type:   dt,
 	}
 
-	inode.entries = append(inode.entries, e)
+	// Look for a gap in which we can insert it.
+	for i := range inode.entries {
+		if inode.entries[i].Type == fuseutil.DT_Unknown {
+			inode.entries[i] = e
+			return
+		}
+	}
 
-	// TODO(jacobsa): Re-use gaps.
+	// Append it to the end.
+	inode.entries = append(inode.entries, e)
 }
 
 // Remove an entry for a child.
