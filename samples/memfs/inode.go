@@ -179,23 +179,31 @@ func (inode *inode) AddChild(
 	id fuse.InodeID,
 	name string,
 	dt fuseutil.DirentType) {
+	var index int
+
+	// No matter where we place the entry, make sure it has the correct Offset
+	// field.
+	defer func() {
+		inode.entries[index].Offset = fuse.DirOffset(index + 1)
+	}()
+
 	// Set up the entry.
 	e := fuseutil.Dirent{
-		Offset: fuse.DirOffset(len(inode.entries) + 1),
-		Inode:  id,
-		Name:   name,
-		Type:   dt,
+		Inode: id,
+		Name:  name,
+		Type:  dt,
 	}
 
 	// Look for a gap in which we can insert it.
-	for i := range inode.entries {
-		if inode.entries[i].Type == fuseutil.DT_Unknown {
-			inode.entries[i] = e
+	for index = range inode.entries {
+		if inode.entries[index].Type == fuseutil.DT_Unknown {
+			inode.entries[index] = e
 			return
 		}
 	}
 
 	// Append it to the end.
+	index = len(inode.entries)
 	inode.entries = append(inode.entries, e)
 }
 
