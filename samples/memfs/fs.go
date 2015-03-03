@@ -57,9 +57,10 @@ func NewMemFS(
 		inodes: make([]*inode, fuse.RootInodeID+1),
 	}
 
-	// Set up the root inode.
+	// Set up the root inode. Its ownership information will later be modified in
+	// Init.
 	rootAttrs := fuse.InodeAttributes{
-		Mode: 0777 | os.ModeDir,
+		Mode: 0700 | os.ModeDir,
 	}
 
 	fs.inodes[fuse.RootInodeID] = newInode(rootAttrs)
@@ -69,6 +70,10 @@ func NewMemFS(
 
 	return fs
 }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
 
 func (fs *memFS) checkInvariants() {
 	// Check reserved inodes.
@@ -107,13 +112,6 @@ func (fs *memFS) checkInvariants() {
 			panic(fmt.Sprintf("Unexected free inode ID: %v", id))
 		}
 	}
-}
-
-func (fs *memFS) Init(
-	ctx context.Context,
-	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
-	resp = &fuse.InitResponse{}
-	return
 }
 
 // Find the given inode and return it with its lock held. Panic if it doesn't
@@ -167,6 +165,29 @@ func (fs *memFS) allocateInode(
 		id = fuse.InodeID(len(fs.inodes))
 		fs.inodes = append(fs.inodes, inode)
 	}
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// FileSystem methods
+////////////////////////////////////////////////////////////////////////
+
+func (fs *memFS) Init(
+	ctx context.Context,
+	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
+	resp = &fuse.InitResponse{}
+
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Update the root inode's ownership information to match the credentials of
+	// the mounting process.
+	root := fs.getInodeForModifyingOrDie(fuse.RootInodeID)
+	defer root.mu.Unlock()
+
+	root.attributes.Uid = req.Header.Uid
+	root.attributes.Gid = req.Header.Gid
 
 	return
 }
