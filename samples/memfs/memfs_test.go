@@ -443,7 +443,10 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.ModTime().Sub(createTime))
-	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// TODO(jacobsa): Re-enable this assertion if the following issue is fixed:
+	//     https://github.com/bazillion/fuse/issues/66
+	// ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Attempt to read from the directory. This should succeed even though it has
 	// been unlinked, and we shouldn't see any junk from the new directory.
