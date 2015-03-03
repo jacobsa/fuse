@@ -356,12 +356,11 @@ func (t *MemFSTest) Rmdir_Empty() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *MemFSTest) Rmdir_NotADirectory() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *MemFSTest) Rmdir_NonExistent() {
-	AssertTrue(false, "TODO")
+	err := os.Remove(path.Join(t.mfs.Dir(), "blah"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file or directory")))
 }
 
 func (t *MemFSTest) Rmdir_OpenedForReading() {
