@@ -137,6 +137,7 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	var err error
 	var fi os.FileInfo
 	var stat *syscall.Stat_t
+	var entries []os.FileInfo
 
 	dirName := path.Join(t.mfs.Dir(), "dir")
 
@@ -145,7 +146,7 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	err = os.Mkdir(dirName, 0754)
 	AssertEq(nil, err)
 
-	// Simulate time proceeding.
+	// Simulate time advancing.
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat the directory.
@@ -168,14 +169,74 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
 
 	// Read the directory.
-	entries, err := ioutil.ReadDir(dirName)
+	entries, err = ioutil.ReadDir(dirName)
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
+
+	// Read the root.
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("dir", fi.Name())
+	ExpectEq(os.ModeDir|0754, fi.Mode())
 }
 
 func (t *MemFSTest) Mkdir_TwoLevels() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+	var stat *syscall.Stat_t
+	var entries []os.FileInfo
+
+	// Create a directory within the root.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent"), 0700)
+	AssertEq(nil, err)
+
+	// Create a child of that directory.
+	createTime := t.clock.Now()
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent/dir"), 0754)
+	AssertEq(nil, err)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
+	// Stat the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "parent/dir"))
+	stat = fi.Sys().(*syscall.Stat_t)
+
+	AssertEq(nil, err)
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0754, fi.Mode())
+	ExpectEq(0, fi.ModTime().Sub(createTime))
+	ExpectTrue(fi.IsDir())
+
+	ExpectEq(1, stat.Nlink)
+	ExpectEq(currentUid(), stat.Uid)
+	ExpectEq(currentGid(), stat.Gid)
+	ExpectEq(0, stat.Size)
+	ExpectEq(0, timespecToTime(stat.Atimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
+
+	// Read the directory.
+	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent/dir"))
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// Read the parent.
+	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent"))
+
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("dir", fi.Name())
+	ExpectEq(os.ModeDir|0754, fi.Mode())
 }
 
 func (t *MemFSTest) Mkdir_AlreadyExists() {
