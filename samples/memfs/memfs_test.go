@@ -400,5 +400,41 @@ func (t *MemFSTest) Rmdir_ReusesInodeID() {
 }
 
 func (t *MemFSTest) Rmdir_OpenedForReading() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a directory.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Open the directory for reading.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "dir"))
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	AssertEq(nil, err)
+
+	// Remove the directory.
+	err = os.Remove(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	// Create a new directory, with the same name even, and add some contents
+	// within it.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "bar"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "baz"), 0700)
+	AssertEq(nil, err)
+
+	// Attempt to read from the directory. This should succeed even though it has
+	// been unlinked, and we shouldn't see any junk from the new directory.
+	entries, err := f.Readdir(0)
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
