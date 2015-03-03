@@ -262,7 +262,8 @@ func (fs *memFS) MkDir(
 	parent := fs.getInodeForModifyingOrDie(req.Parent)
 	defer parent.mu.Unlock()
 
-	// Allocate a child.
+	// Set up attributes from the child, using the credientials of the calling
+	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
 	now := fs.clock.Now()
 	childAttrs := fuse.InodeAttributes{
 		Mode:   req.Mode,
@@ -270,8 +271,11 @@ func (fs *memFS) MkDir(
 		Mtime:  now,
 		Ctime:  now,
 		Crtime: now,
+		Uid:    req.Header.Uid,
+		Gid:    req.Header.Gid,
 	}
 
+	// Allocate a child.
 	childID, child := fs.allocateInode(childAttrs)
 	defer child.mu.Unlock()
 
