@@ -363,3 +363,7 @@ func (t *MemFSTest) Rmdir_NotADirectory() {
 func (t *MemFSTest) Rmdir_NonExistent() {
 	AssertTrue(false, "TODO")
 }
+
+func (t *MemFSTest) Rmdir_OpenedForReading() {
+	AssertTrue(false, "TODO")
+}
