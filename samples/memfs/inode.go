@@ -116,6 +116,26 @@ func (inode *inode) checkInvariants() {
 	}
 }
 
+// Return the index of the child within inode.entries, if it exists.
+//
+// REQUIRES: inode.dir
+// SHARED_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) findChild(name string) (i int, ok bool) {
+	if !inode.dir {
+		panic("findChild called on non-directory.")
+	}
+
+	var e fuseutil.Dirent
+	for i, e = range inode.entries {
+		if e.Name == name {
+			ok = true
+			return
+		}
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public methods
 ////////////////////////////////////////////////////////////////////////
@@ -125,16 +145,9 @@ func (inode *inode) checkInvariants() {
 // REQUIRES: inode.dir
 // SHARED_LOCKS_REQUIRED(inode.mu)
 func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool) {
-	if !inode.dir {
-		panic("LookUpChild called on non-directory.")
-	}
-
-	for _, e := range inode.entries {
-		if e.Name == name {
-			id = e.Inode
-			ok = true
-			return
-		}
+	index, ok := inode.findChild(name)
+	if ok {
+		id = inode.entries[index].Inode
 	}
 
 	return
@@ -167,7 +180,7 @@ func (inode *inode) RemoveChild(name string)
 
 // Serve a ReadDir request.
 //
-// REQUIRED: inode.dir
+// REQUIRES: inode.dir
 // SHARED_LOCKS_REQUIRED(inode.mu)
 func (inode *inode) ReadDir(offset int, size int) (data []byte, err error) {
 	if !inode.dir {
