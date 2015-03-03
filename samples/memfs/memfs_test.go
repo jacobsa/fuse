@@ -281,6 +281,20 @@ func (t *MemFSTest) Mkdir_IntermediateIsNonExistent() {
 	ExpectThat(err, Error(HasSubstr("no such file or directory")))
 }
 
+func (t *MemFSTest) Mkdir_PermissionDenied() {
+	var err error
+
+	// Create a directory within the root without write permissions.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent"), 0500)
+	AssertEq(nil, err)
+
+	// Attempt to create a child of that directory.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent/dir"), 0754)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("permission denied")))
+}
+
 func (t *MemFSTest) CreateNewFile_InRoot() {
 	AssertTrue(false, "TODO")
 }
