@@ -422,13 +422,13 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 
 	// Create a new directory, with the same name even, and add some contents
 	// within it.
-	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo"), 0700)
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/foo"), 0700)
 	AssertEq(nil, err)
 
-	err = os.MkdirAll(path.Join(t.mfs.Dir(), "bar"), 0700)
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/bar"), 0700)
 	AssertEq(nil, err)
 
-	err = os.MkdirAll(path.Join(t.mfs.Dir(), "baz"), 0700)
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/baz"), 0700)
 	AssertEq(nil, err)
 
 	// Attempt to read from the directory. This should succeed even though it has
