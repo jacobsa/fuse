@@ -135,8 +135,8 @@ func (fs *HelloFS) Init(
 	req *fuse.InitRequest) (
 	resp *fuse.InitResponse, err error) {
 	resp = &fuse.InitResponse{}
-	fs.Uid = req.Uid
-	fs.Gid = req.Gid
+	fs.Uid = req.Header.Uid
+	fs.Gid = req.Header.Gid
 	return
 }
 

@@ -7,8 +7,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/user"
 	"path"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -21,6 +24,42 @@ import (
 )
 
 func TestMemFS(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func currentUid() uint32 {
+	user, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+
+	uid, err := strconv.ParseUint(user.Uid, 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	return uint32(uid)
+}
+
+func currentGid() uint32 {
+	user, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+
+	gid, err := strconv.ParseUint(user.Gid, 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	return uint32(gid)
+}
+
+func timespecToTime(ts syscall.Timespec) time.Time {
+	return time.Unix(ts.Sec, ts.Nsec)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -94,9 +133,12 @@ func (t *MemFSTest) ContentsOfEmptyFileSystem() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *MemFSTest) Mkdir() {
+func (t *MemFSTest) Mkdir_OneLevel() {
 	var err error
 	var fi os.FileInfo
+	var stat *syscall.Stat_t
+	var entries []os.FileInfo
+
 	dirName := path.Join(t.mfs.Dir(), "dir")
 
 	// Create a directory within the root.
@@ -104,11 +146,12 @@ func (t *MemFSTest) Mkdir() {
 	err = os.Mkdir(dirName, 0754)
 	AssertEq(nil, err)
 
-	// Simulate time proceeding.
+	// Simulate time advancing.
 	t.clock.AdvanceTime(time.Second)
 
 	// Stat the directory.
 	fi, err = os.Stat(dirName)
+	stat = fi.Sys().(*syscall.Stat_t)
 
 	AssertEq(nil, err)
 	ExpectEq("dir", fi.Name())
@@ -117,11 +160,83 @@ func (t *MemFSTest) Mkdir() {
 	ExpectEq(0, fi.ModTime().Sub(createTime))
 	ExpectTrue(fi.IsDir())
 
+	ExpectEq(1, stat.Nlink)
+	ExpectEq(currentUid(), stat.Uid)
+	ExpectEq(currentGid(), stat.Gid)
+	ExpectEq(0, stat.Size)
+	ExpectEq(0, timespecToTime(stat.Atimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
+
 	// Read the directory.
-	entries, err := ioutil.ReadDir(dirName)
+	entries, err = ioutil.ReadDir(dirName)
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
+
+	// Read the root.
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("dir", fi.Name())
+	ExpectEq(os.ModeDir|0754, fi.Mode())
+}
+
+func (t *MemFSTest) Mkdir_TwoLevels() {
+	var err error
+	var fi os.FileInfo
+	var stat *syscall.Stat_t
+	var entries []os.FileInfo
+
+	// Create a directory within the root.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent"), 0700)
+	AssertEq(nil, err)
+
+	// Create a child of that directory.
+	createTime := t.clock.Now()
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent/dir"), 0754)
+	AssertEq(nil, err)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
+	// Stat the directory.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "parent/dir"))
+	stat = fi.Sys().(*syscall.Stat_t)
+
+	AssertEq(nil, err)
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0754, fi.Mode())
+	ExpectEq(0, fi.ModTime().Sub(createTime))
+	ExpectTrue(fi.IsDir())
+
+	ExpectEq(1, stat.Nlink)
+	ExpectEq(currentUid(), stat.Uid)
+	ExpectEq(currentGid(), stat.Gid)
+	ExpectEq(0, stat.Size)
+	ExpectEq(0, timespecToTime(stat.Atimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
+
+	// Read the directory.
+	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent/dir"))
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// Read the parent.
+	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent"))
+
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("dir", fi.Name())
+	ExpectEq(os.ModeDir|0754, fi.Mode())
 }
 
 func (t *MemFSTest) Mkdir_AlreadyExists() {
@@ -164,6 +279,20 @@ func (t *MemFSTest) Mkdir_IntermediateIsNonExistent() {
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file or directory")))
+}
+
+func (t *MemFSTest) Mkdir_PermissionDenied() {
+	var err error
+
+	// Create a directory within the root without write permissions.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent"), 0500)
+	AssertEq(nil, err)
+
+	// Attempt to create a child of that directory.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent/dir"), 0754)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("permission denied")))
 }
 
 func (t *MemFSTest) CreateNewFile_InRoot() {

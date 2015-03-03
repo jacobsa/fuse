@@ -43,6 +43,13 @@ func convertChildInodeEntry(
 	out.EntryValid = in.EntryExpiration.Sub(clock.Now())
 }
 
+func convertHeader(
+	in bazilfuse.Header) (out RequestHeader) {
+	out.Uid = in.Uid
+	out.Gid = in.Gid
+	return
+}
+
 // Serve the fuse connection by repeatedly reading requests from the supplied
 // FUSE connection, responding as dictated by the file system. Return when the
 // connection is closed or an unexpected error occurs.
@@ -82,8 +89,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 	case *bazilfuse.InitRequest:
 		// Convert the request.
 		req := &InitRequest{
-			Uid: typed.Header.Uid,
-			Gid: typed.Header.Gid,
+			Header: convertHeader(typed.Header),
 		}
 
 		// Call the file system.
@@ -110,6 +116,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 	case *bazilfuse.LookupRequest:
 		// Convert the request.
 		req := &LookUpInodeRequest{
+			Header: convertHeader(typed.Header),
 			Parent: InodeID(typed.Header.Node),
 			Name:   typed.Name,
 		}
@@ -132,7 +139,8 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 	case *bazilfuse.GetattrRequest:
 		// Convert the request.
 		req := &GetInodeAttributesRequest{
-			Inode: InodeID(typed.Header.Node),
+			Header: convertHeader(typed.Header),
+			Inode:  InodeID(typed.Header.Node),
 		}
 
 		// Call the file system.
@@ -155,6 +163,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 	case *bazilfuse.MkdirRequest:
 		// Convert the request.
 		req := &MkDirRequest{
+			Header: convertHeader(typed.Header),
 			Parent: InodeID(typed.Header.Node),
 			Name:   typed.Name,
 			Mode:   typed.Mode,
@@ -180,8 +189,9 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		if typed.Dir {
 			// Convert the request.
 			req := &OpenDirRequest{
-				Inode: InodeID(typed.Header.Node),
-				Flags: typed.Flags,
+				Header: convertHeader(typed.Header),
+				Inode:  InodeID(typed.Header.Node),
+				Flags:  typed.Flags,
 			}
 
 			// Call the file system.
@@ -202,8 +212,9 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		} else {
 			// Convert the request.
 			req := &OpenFileRequest{
-				Inode: InodeID(typed.Header.Node),
-				Flags: typed.Flags,
+				Header: convertHeader(typed.Header),
+				Inode:  InodeID(typed.Header.Node),
+				Flags:  typed.Flags,
 			}
 
 			// Call the file system.
@@ -228,6 +239,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		if typed.Dir {
 			// Convert the request.
 			req := &ReadDirRequest{
+				Header: convertHeader(typed.Header),
 				Inode:  InodeID(typed.Header.Node),
 				Handle: HandleID(typed.Handle),
 				Offset: DirOffset(typed.Offset),
@@ -252,6 +264,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		} else {
 			// Convert the request.
 			req := &ReadFileRequest{
+				Header: convertHeader(typed.Header),
 				Inode:  InodeID(typed.Header.Node),
 				Handle: HandleID(typed.Handle),
 				Offset: typed.Offset,
@@ -288,6 +301,7 @@ func convertAttributes(inode InodeID, attr InodeAttributes) bazilfuse.Attr {
 		Mode:   attr.Mode,
 		Atime:  attr.Atime,
 		Mtime:  attr.Mtime,
+		Ctime:  attr.Ctime,
 		Crtime: attr.Crtime,
 		Uid:    attr.Uid,
 		Gid:    attr.Gid,
