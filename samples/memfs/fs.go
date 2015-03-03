@@ -169,6 +169,12 @@ func (fs *memFS) allocateInode(
 	return
 }
 
+// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+func (fs *memFS) deallocateInode(id fuse.InodeID) {
+	fs.freeInodes = append(fs.freeInodes, id)
+	fs.inodes[id] = nil
+}
+
 ////////////////////////////////////////////////////////////////////////
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -290,6 +296,44 @@ func (fs *memFS) MkDir(
 	// (since it also handles invalidation).
 	resp.Entry.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
 	resp.Entry.EntryExpiration = resp.Entry.EntryExpiration
+
+	return
+}
+
+func (fs *memFS) RmDir(
+	ctx context.Context,
+	req *fuse.RmDirRequest) (resp *fuse.RmDirResponse, err error) {
+	resp = &fuse.RmDirResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Grab the parent, which we will update shortly.
+	parent := fs.getInodeForModifyingOrDie(req.Parent)
+	defer parent.mu.Unlock()
+
+	// Find the child within the parent.
+	childID, ok := parent.LookUpChild(req.Name)
+	if !ok {
+		err = fuse.ENOENT
+		return
+	}
+
+	// Grab the child.
+	child := fs.getInodeForModifyingOrDie(childID)
+	defer child.mu.Unlock()
+
+	// Make sure the child is empty.
+	if child.Len() != 0 {
+		err = fuse.ENOTEMPTY
+		return
+	}
+
+	// Remove the entry within the parent.
+	parent.RemoveChild(req.Name)
+
+	// Mark the child as unlinked.
+	child.linkCount--
 
 	return
 }

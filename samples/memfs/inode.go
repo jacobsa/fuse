@@ -31,6 +31,13 @@ type inode struct {
 
 	mu syncutil.InvariantMutex
 
+	// The number of times this inode is linked into a parent directory. This may
+	// be zero if the inode has been unlinked but not yet forgotten, because some
+	// process still has an  open file handle.
+	//
+	// INVARIANT: linkCount >= 0
+	linkCount int // GUARDED_BY(mu)
+
 	// The current attributes of this inode.
 	//
 	// INVARIANT: No non-permission mode bits are set besides os.ModeDir
@@ -38,7 +45,8 @@ type inode struct {
 	// INVARIANT: If !dir, then os.ModeDir is not set
 	attributes fuse.InodeAttributes // GUARDED_BY(mu)
 
-	// For directories, entries describing the children of the directory.
+	// For directories, entries describing the children of the directory. Unused
+	// entries are of type DT_Unknown.
 	//
 	// This array can never be shortened, nor can its elements be moved, because
 	// we use its indices for Dirent.Offset, which is exposed to the user who
@@ -50,7 +58,7 @@ type inode struct {
 	//
 	// INVARIANT: If dir is false, this is nil.
 	// INVARIANT: For each i, entries[i].Offset == i+1
-	// INVARIANT: Contains no duplicate names.
+	// INVARIANT: Contains no duplicate names in used entries.
 	entries []fuseutil.Dirent // GUARDED_BY(mu)
 
 	// For files, the current contents of the file.
@@ -63,8 +71,10 @@ type inode struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+// Initially the link count is one.
 func newInode(attrs fuse.InodeAttributes) (in *inode) {
 	in = &inode{
+		linkCount:  1,
 		dir:        (attrs.Mode&os.ModeDir != 0),
 		attributes: attrs,
 	}
@@ -74,6 +84,11 @@ func newInode(attrs fuse.InodeAttributes) (in *inode) {
 }
 
 func (inode *inode) checkInvariants() {
+	// Check the link count.
+	if inode.linkCount < 0 {
+		panic(fmt.Sprintf("Negative link count: %v", inode.linkCount))
+	}
+
 	// No non-permission mode bits should be set besides os.ModeDir.
 	if inode.attributes.Mode & ^(os.ModePerm|os.ModeDir) != 0 {
 		panic(fmt.Sprintf("Unexpected mode: %v", inode.attributes.Mode))
@@ -100,11 +115,13 @@ func (inode *inode) checkInvariants() {
 				panic(fmt.Sprintf("Unexpected offset: %v", e.Offset))
 			}
 
-			if _, ok := childNames[e.Name]; ok {
-				panic(fmt.Sprintf("Duplicate name: %s", e.Name))
-			}
+			if e.Type != fuseutil.DT_Unknown {
+				if _, ok := childNames[e.Name]; ok {
+					panic(fmt.Sprintf("Duplicate name: %s", e.Name))
+				}
 
-			childNames[e.Name] = struct{}{}
+				childNames[e.Name] = struct{}{}
+			}
 		}
 	}
 
@@ -116,22 +133,18 @@ func (inode *inode) checkInvariants() {
 	}
 }
 
-////////////////////////////////////////////////////////////////////////
-// Public methods
-////////////////////////////////////////////////////////////////////////
-
-// Find an entry for the given child name and return its inode ID.
+// Return the index of the child within inode.entries, if it exists.
 //
 // REQUIRES: inode.dir
 // SHARED_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool) {
+func (inode *inode) findChild(name string) (i int, ok bool) {
 	if !inode.dir {
-		panic("LookUpChild called on non-directory.")
+		panic("findChild called on non-directory.")
 	}
 
-	for _, e := range inode.entries {
+	var e fuseutil.Dirent
+	for i, e = range inode.entries {
 		if e.Name == name {
-			id = e.Inode
 			ok = true
 			return
 		}
@@ -140,27 +153,96 @@ func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool) {
 	return
 }
 
+////////////////////////////////////////////////////////////////////////
+// Public methods
+////////////////////////////////////////////////////////////////////////
+
+// Return the number of children of the directory.
+//
+// REQUIRES: inode.dir
+// SHARED_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) Len() (n int) {
+	for _, e := range inode.entries {
+		if e.Type != fuseutil.DT_Unknown {
+			n++
+		}
+	}
+
+	return
+}
+
+// Find an entry for the given child name and return its inode ID.
+//
+// REQUIRES: inode.dir
+// SHARED_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool) {
+	index, ok := inode.findChild(name)
+	if ok {
+		id = inode.entries[index].Inode
+	}
+
+	return
+}
+
 // Add an entry for a child.
 //
 // REQUIRES: inode.dir
+// REQUIRES: dt != fuseutil.DT_Unknown
 // EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
 func (inode *inode) AddChild(
 	id fuse.InodeID,
 	name string,
 	dt fuseutil.DirentType) {
+	var index int
+
+	// No matter where we place the entry, make sure it has the correct Offset
+	// field.
+	defer func() {
+		inode.entries[index].Offset = fuse.DirOffset(index + 1)
+	}()
+
+	// Set up the entry.
 	e := fuseutil.Dirent{
-		Offset: fuse.DirOffset(len(inode.entries) + 1),
-		Inode:  id,
-		Name:   name,
-		Type:   dt,
+		Inode: id,
+		Name:  name,
+		Type:  dt,
 	}
 
+	// Look for a gap in which we can insert it.
+	for index = range inode.entries {
+		if inode.entries[index].Type == fuseutil.DT_Unknown {
+			inode.entries[index] = e
+			return
+		}
+	}
+
+	// Append it to the end.
+	index = len(inode.entries)
 	inode.entries = append(inode.entries, e)
+}
+
+// Remove an entry for a child.
+//
+// REQUIRES: inode.dir
+// REQUIRES: An entry for the given name exists.
+// EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) RemoveChild(name string) {
+	// Find the entry.
+	i, ok := inode.findChild(name)
+	if !ok {
+		panic(fmt.Sprintf("Unknown child: %s", name))
+	}
+
+	// Mark it as unused.
+	inode.entries[i] = fuseutil.Dirent{
+		Type:   fuseutil.DT_Unknown,
+		Offset: fuse.DirOffset(i + 1),
+	}
 }
 
 // Serve a ReadDir request.
 //
-// REQUIRED: inode.dir
+// REQUIRES: inode.dir
 // SHARED_LOCKS_REQUIRED(inode.mu)
 func (inode *inode) ReadDir(offset int, size int) (data []byte, err error) {
 	if !inode.dir {
@@ -168,6 +250,13 @@ func (inode *inode) ReadDir(offset int, size int) (data []byte, err error) {
 	}
 
 	for i := offset; i < len(inode.entries); i++ {
+		e := inode.entries[i]
+
+		// Skip unused entries.
+		if e.Type == fuseutil.DT_Unknown {
+			continue
+		}
+
 		data = fuseutil.AppendDirent(data, inode.entries[i])
 
 		// Trim and stop early if we've exceeded the requested size.

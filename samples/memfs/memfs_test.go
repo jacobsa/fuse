@@ -160,6 +160,7 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq(0, fi.ModTime().Sub(createTime))
 	ExpectTrue(fi.IsDir())
 
+	ExpectNe(0, stat.Ino)
 	ExpectEq(1, stat.Nlink)
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
@@ -214,6 +215,7 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	ExpectEq(0, fi.ModTime().Sub(createTime))
 	ExpectTrue(fi.IsDir())
 
+	ExpectNe(0, stat.Ino)
 	ExpectEq(1, stat.Nlink)
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
@@ -324,17 +326,106 @@ func (t *MemFSTest) UnlinkFile_NonExistent() {
 }
 
 func (t *MemFSTest) Rmdir_NonEmpty() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create two levels of directories.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo/bar"), 0754)
+	AssertEq(nil, err)
+
+	// Attempt to remove the parent.
+	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("not empty")))
 }
 
 func (t *MemFSTest) Rmdir_Empty() {
-	AssertTrue(false, "TODO")
-}
+	var err error
+	var entries []os.FileInfo
 
-func (t *MemFSTest) Rmdir_NotADirectory() {
-	AssertTrue(false, "TODO")
+	// Create two levels of directories.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo/bar"), 0754)
+	AssertEq(nil, err)
+
+	// Remove the leaf.
+	err = os.Remove(path.Join(t.mfs.Dir(), "foo/bar"))
+	AssertEq(nil, err)
+
+	// There should be nothing left in the parent.
+	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// Remove the parent.
+	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+
+	// Now the root directory should be empty, too.
+	entries, err = ioutil.ReadDir(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *MemFSTest) Rmdir_NonExistent() {
-	AssertTrue(false, "TODO")
+	err := os.Remove(path.Join(t.mfs.Dir(), "blah"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file or directory")))
+}
+
+func (t *MemFSTest) Rmdir_OpenedForReading() {
+	var err error
+
+	// Create a directory.
+	createTime := t.clock.Now()
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
+	// Open the directory for reading.
+	f, err := os.Open(path.Join(t.mfs.Dir(), "dir"))
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	AssertEq(nil, err)
+
+	// Remove the directory.
+	err = os.Remove(path.Join(t.mfs.Dir(), "dir"))
+	AssertEq(nil, err)
+
+	// Create a new directory, with the same name even, and add some contents
+	// within it.
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/foo"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/bar"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/baz"), 0700)
+	AssertEq(nil, err)
+
+	// We should still be able to stat the open file handle. It should show up as
+	// unlinked.
+	fi, err := f.Stat()
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.ModTime().Sub(createTime))
+
+	// TODO(jacobsa): Re-enable this assertion if the following issue is fixed:
+	//     https://github.com/bazillion/fuse/issues/66
+	// ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Attempt to read from the directory. This should succeed even though it has
+	// been unlinked, and we shouldn't see any junk from the new directory.
+	entries, err := f.Readdir(0)
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }

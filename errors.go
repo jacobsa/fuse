@@ -3,12 +3,17 @@
 
 package fuse
 
-import bazilfuse "bazil.org/fuse"
+import (
+	"syscall"
+
+	bazilfuse "bazil.org/fuse"
+)
 
 const (
 	// Errors corresponding to kernel error numbers. These may be treated
 	// specially when returned by a FileSystem method.
-	ENOSYS = bazilfuse.ENOSYS
-	ENOENT = bazilfuse.ENOENT
-	EIO    = bazilfuse.EIO
+	EIO       = bazilfuse.EIO
+	ENOENT    = bazilfuse.ENOENT
+	ENOSYS    = bazilfuse.ENOSYS
+	ENOTEMPTY = bazilfuse.Errno(syscall.ENOTEMPTY)
 )

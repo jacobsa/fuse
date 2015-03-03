@@ -46,8 +46,8 @@ type FileSystem interface {
 		ctx context.Context,
 		req *GetInodeAttributesRequest) (*GetInodeAttributesResponse, error)
 
-	// Forget an inode ID previously issued (e.g. by LookUpInode). The kernel
-	// calls this when removing an inode from its internal caches.
+	// Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
+	// kernel calls this when removing an inode from its internal caches.
 	ForgetInode(
 		ctx context.Context,
 		req *ForgetInodeRequest) (*ForgetInodeResponse, error)
@@ -61,6 +61,24 @@ type FileSystem interface {
 	MkDir(
 		ctx context.Context,
 		req *MkDirRequest) (*MkDirResponse, error)
+
+	///////////////////////////////////
+	// Inode destruction
+	///////////////////////////////////
+
+	// Unlink a directory from its parent. Because directories cannot have a link
+	// count above one, this means the directory inode should be deleted as well
+	// once the kernel calls ForgetInode.
+	//
+	// The file system is responsible for checking that the directory is empty.
+	//
+	// Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
+	//
+	// TODO(jacobsa): Add tests for the assertion about directory link counts
+	// above (on a real file system and on memfs).
+	RmDir(
+		ctx context.Context,
+		req *RmDirRequest) (*RmDirResponse, error)
 
 	///////////////////////////////////
 	// Directory handles
@@ -358,6 +376,18 @@ type MkDirResponse struct {
 	// function inode_init_owner (http://goo.gl/5qavg8) contains the
 	// standards-compliant logic for this.
 	Entry ChildInodeEntry
+}
+
+type RmDirRequest struct {
+	Header RequestHeader
+
+	// The ID of parent directory inode, and the name of the directory being
+	// removed within it.
+	Parent InodeID
+	Name   string
+}
+
+type RmDirResponse struct {
 }
 
 type OpenDirRequest struct {
