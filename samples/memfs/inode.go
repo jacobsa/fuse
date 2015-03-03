@@ -143,6 +143,20 @@ func (inode *inode) findChild(name string) (i int, ok bool) {
 // Public methods
 ////////////////////////////////////////////////////////////////////////
 
+// Return the number of children of the directory.
+//
+// REQUIRES: inode.dir
+// SHARED_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) Len() (n int) {
+	for _, e := range inode.entries {
+		if e.Type != fuseutil.DT_Unknown {
+			n++
+		}
+	}
+
+	return
+}
+
 // Find an entry for the given child name and return its inode ID.
 //
 // REQUIRES: inode.dir

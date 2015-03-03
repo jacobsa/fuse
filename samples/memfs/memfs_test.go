@@ -334,7 +334,7 @@ func (t *MemFSTest) Rmdir_NonEmpty() {
 	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("non-empty")))
+	ExpectThat(err, Error(HasSubstr("not empty")))
 }
 
 func (t *MemFSTest) Rmdir_Empty() {

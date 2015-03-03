@@ -306,7 +306,22 @@ func (fs *memFS) RmDir(
 	parent := fs.getInodeForModifyingOrDie(req.Parent)
 	defer parent.mu.Unlock()
 
-	// TODO(jacobsa): Check for empty. (Make sure we have a failing test first.)
+	// Find the child within the parent.
+	childID, ok := parent.LookUpChild(req.Name)
+	if !ok {
+		err = fuse.ENOENT
+		return
+	}
+
+	// Grab the child.
+	child := fs.getInodeForModifyingOrDie(childID)
+	defer child.mu.Unlock()
+
+	// Make sure the child is empty.
+	if child.Len() != 0 {
+		err = fuse.ENOTEMPTY
+		return
+	}
 
 	// Remove the entry within the parent.
 	parent.RemoveChild(req.Name)
