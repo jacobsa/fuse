@@ -160,6 +160,7 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq(0, fi.ModTime().Sub(createTime))
 	ExpectTrue(fi.IsDir())
 
+	ExpectNe(0, stat.Ino)
 	ExpectEq(1, stat.Nlink)
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
@@ -214,6 +215,7 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	ExpectEq(0, fi.ModTime().Sub(createTime))
 	ExpectTrue(fi.IsDir())
 
+	ExpectNe(0, stat.Ino)
 	ExpectEq(1, stat.Nlink)
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
@@ -403,8 +405,12 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 	var err error
 
 	// Create a directory.
+	createTime := t.clock.Now()
 	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
 	AssertEq(nil, err)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
 
 	// Open the directory for reading.
 	f, err := os.Open(path.Join(t.mfs.Dir(), "dir"))
@@ -430,6 +436,14 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 
 	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/baz"), 0700)
 	AssertEq(nil, err)
+
+	// We should still be able to stat the open file handle. It should show up as
+	// unlinked.
+	fi, err := f.Stat()
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.ModTime().Sub(createTime))
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Attempt to read from the directory. This should succeed even though it has
 	// been unlinked, and we shouldn't see any junk from the new directory.
