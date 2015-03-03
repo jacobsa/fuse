@@ -375,32 +375,6 @@ func (t *MemFSTest) Rmdir_NonExistent() {
 	ExpectThat(err, Error(HasSubstr("no such file or directory")))
 }
 
-func (t *MemFSTest) Rmdir_ReusesInodeID() {
-	var err error
-	var fi os.FileInfo
-
-	// Create a directory and record its inode ID.
-	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
-	AssertEq(nil, err)
-
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "dir"))
-	AssertEq(nil, err)
-	inodeID := fi.Sys().(*syscall.Stat_t).Ino
-
-	// Remove the directory.
-	err = os.Remove(path.Join(t.mfs.Dir(), "dir"))
-	AssertEq(nil, err)
-
-	// Create a new directory. It should receive the most recently de-allocated
-	// inode ID.
-	err = os.Mkdir(path.Join(t.mfs.Dir(), "blah"), 0700)
-	AssertEq(nil, err)
-
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "blah"))
-	AssertEq(nil, err)
-	ExpectEq(inodeID, fi.Sys().(*syscall.Stat_t).Ino)
-}
-
 func (t *MemFSTest) Rmdir_OpenedForReading() {
 	var err error
 
