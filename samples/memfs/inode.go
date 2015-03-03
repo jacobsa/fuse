@@ -38,7 +38,8 @@ type inode struct {
 	// INVARIANT: If !dir, then os.ModeDir is not set
 	attributes fuse.InodeAttributes // GUARDED_BY(mu)
 
-	// For directories, entries describing the children of the directory.
+	// For directories, entries describing the children of the directory. Unused
+	// entries are of type DT_Unknown.
 	//
 	// This array can never be shortened, nor can its elements be moved, because
 	// we use its indices for Dirent.Offset, which is exposed to the user who
@@ -50,7 +51,7 @@ type inode struct {
 	//
 	// INVARIANT: If dir is false, this is nil.
 	// INVARIANT: For each i, entries[i].Offset == i+1
-	// INVARIANT: Contains no duplicate names.
+	// INVARIANT: Contains no duplicate names in used entries.
 	entries []fuseutil.Dirent // GUARDED_BY(mu)
 
 	// For files, the current contents of the file.
@@ -100,11 +101,13 @@ func (inode *inode) checkInvariants() {
 				panic(fmt.Sprintf("Unexpected offset: %v", e.Offset))
 			}
 
-			if _, ok := childNames[e.Name]; ok {
-				panic(fmt.Sprintf("Duplicate name: %s", e.Name))
-			}
+			if e.Type != fuseutil.DT_Unknown {
+				if _, ok := childNames[e.Name]; ok {
+					panic(fmt.Sprintf("Duplicate name: %s", e.Name))
+				}
 
-			childNames[e.Name] = struct{}{}
+				childNames[e.Name] = struct{}{}
+			}
 		}
 	}
 
@@ -156,6 +159,7 @@ func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool) {
 // Add an entry for a child.
 //
 // REQUIRES: inode.dir
+// REQUIRES: dt != fuseutil.DT_Unknown
 // EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
 func (inode *inode) AddChild(
 	id fuse.InodeID,
@@ -169,6 +173,8 @@ func (inode *inode) AddChild(
 	}
 
 	inode.entries = append(inode.entries, e)
+
+	// TODO(jacobsa): Re-use gaps.
 }
 
 // Remove an entry for a child.
@@ -176,7 +182,18 @@ func (inode *inode) AddChild(
 // REQUIRES: inode.dir
 // REQUIRES: An entry for the given name exists.
 // EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) RemoveChild(name string)
+func (inode *inode) RemoveChild(name string) {
+	// Find the entry.
+	i, ok := inode.findChild(name)
+	if !ok {
+		panic(fmt.Sprintf("Unknown child: %s", name))
+	}
+
+	// Mark it as unused.
+	inode.entries[i] = fuseutil.Dirent{
+		Type: fuseutil.DT_Unknown,
+	}
+}
 
 // Serve a ReadDir request.
 //
@@ -188,6 +205,13 @@ func (inode *inode) ReadDir(offset int, size int) (data []byte, err error) {
 	}
 
 	for i := offset; i < len(inode.entries); i++ {
+		e := inode.entries[i]
+
+		// Skip unused entries.
+		if e.Type == fuseutil.DT_Unknown {
+			continue
+		}
+
 		data = fuseutil.AppendDirent(data, inode.entries[i])
 
 		// Trim and stop early if we've exceeded the requested size.
