@@ -31,6 +31,13 @@ type inode struct {
 
 	mu syncutil.InvariantMutex
 
+	// The number of times this inode is linked into a parent directory. This may
+	// be zero if the inode has been unlinked but not yet forgotten, because some
+	// process still has an  open file handle.
+	//
+	// INVARIANT: linkCount >= 0
+	linkCount int // GUARDED_BY(mu)
+
 	// The current attributes of this inode.
 	//
 	// INVARIANT: No non-permission mode bits are set besides os.ModeDir
@@ -64,8 +71,10 @@ type inode struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+// Initially the link count is one.
 func newInode(attrs fuse.InodeAttributes) (in *inode) {
 	in = &inode{
+		linkCount:  1,
 		dir:        (attrs.Mode&os.ModeDir != 0),
 		attributes: attrs,
 	}
@@ -75,6 +84,11 @@ func newInode(attrs fuse.InodeAttributes) (in *inode) {
 }
 
 func (inode *inode) checkInvariants() {
+	// Check the link count.
+	if inode.linkCount < 0 {
+		panic(fmt.Sprintf("Negative link count: %v", inode.linkCount))
+	}
+
 	// No non-permission mode bits should be set besides os.ModeDir.
 	if inode.attributes.Mode & ^(os.ModePerm|os.ModeDir) != 0 {
 		panic(fmt.Sprintf("Unexpected mode: %v", inode.attributes.Mode))

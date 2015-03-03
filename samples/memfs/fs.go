@@ -332,9 +332,8 @@ func (fs *memFS) RmDir(
 	// Remove the entry within the parent.
 	parent.RemoveChild(req.Name)
 
-	// TODO(jacobsa): Don't remove the child until it's forgotten. Can we get a
-	// failing test by continuing to read from an opened dir handle?
-	fs.deallocateInode(childID)
+	// Mark the child as unlinked.
+	child.linkCount--
 
 	return
 }
