@@ -294,6 +294,29 @@ func (fs *memFS) MkDir(
 	return
 }
 
+func (fs *memFS) RmDir(
+	ctx context.Context,
+	req *fuse.RmDirRequest) (resp *fuse.RmDirResponse, err error) {
+	resp = &fuse.RmDirResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Grab the parent, which we will update shortly.
+	parent := fs.getInodeForModifyingOrDie(req.Parent)
+	defer parent.mu.Unlock()
+
+	// TODO(jacobsa): Check for empty. (Make sure we have a failing test first.)
+
+	// Remove the entry within the parent.
+	parent.RemoveChild(req.Name)
+
+	// TODO(jacobsa): Remove the child when it's forgotten. (Can we get a failing
+	// test by looking at inode ID allocation?)
+
+	return
+}
+
 func (fs *memFS) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {

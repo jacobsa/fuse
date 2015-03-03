@@ -158,6 +158,13 @@ func (inode *inode) AddChild(
 	inode.entries = append(inode.entries, e)
 }
 
+// Remove an entry for a child.
+//
+// REQUIRES: inode.dir
+// REQUIRES: An entry for the given name exists.
+// EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) RemoveChild(name string)
+
 // Serve a ReadDir request.
 //
 // REQUIRED: inode.dir
