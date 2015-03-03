@@ -191,7 +191,8 @@ func (inode *inode) RemoveChild(name string) {
 
 	// Mark it as unused.
 	inode.entries[i] = fuseutil.Dirent{
-		Type: fuseutil.DT_Unknown,
+		Type:   fuseutil.DT_Unknown,
+		Offset: fuse.DirOffset(i + 1),
 	}
 }
 
