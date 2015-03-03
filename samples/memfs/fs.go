@@ -169,6 +169,12 @@ func (fs *memFS) allocateInode(
 	return
 }
 
+// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+func (fs *memFS) deallocateInode(id fuse.InodeID) {
+	fs.freeInodes = append(fs.freeInodes, id)
+	fs.inodes[id] = nil
+}
+
 ////////////////////////////////////////////////////////////////////////
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -326,8 +332,9 @@ func (fs *memFS) RmDir(
 	// Remove the entry within the parent.
 	parent.RemoveChild(req.Name)
 
-	// TODO(jacobsa): Remove the child when it's forgotten. (Can we get a failing
-	// test by looking at inode ID allocation?)
+	// TODO(jacobsa): Don't remove the child until it's forgotten. Can we get a
+	// failing test by continuing to read from an opened dir handle?
+	fs.deallocateInode(childID)
 
 	return
 }
