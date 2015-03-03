@@ -46,8 +46,8 @@ type FileSystem interface {
 		ctx context.Context,
 		req *GetInodeAttributesRequest) (*GetInodeAttributesResponse, error)
 
-	// Forget an inode ID previously issued (e.g. by LookUpInode). The kernel
-	// calls this when removing an inode from its internal caches.
+	// Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
+	// kernel calls this when removing an inode from its internal caches.
 	ForgetInode(
 		ctx context.Context,
 		req *ForgetInodeRequest) (*ForgetInodeResponse, error)
