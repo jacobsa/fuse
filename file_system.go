@@ -150,10 +150,15 @@ type FileSystem interface {
 		ctx context.Context,
 		req *OpenFileRequest) (*OpenFileResponse, error)
 
-	// Read data from a file previously opened with OpenFile.
+	// Read data from a file previously opened with CreateFile or OpenFile.
 	ReadFile(
 		ctx context.Context,
 		req *ReadFileRequest) (*ReadFileResponse, error)
+
+	// Write data to a file previously opened with CreateFile or OpenFile.
+	WriteFile(
+		ctx context.Context,
+		req *WriteFileRequest) (*WriteFileResponse, error)
 
 	// Release a previously-minted file handle. The kernel calls this when there
 	// are no more references to an open file: all file descriptors are closed
@@ -437,6 +442,7 @@ type CreateFileResponse struct {
 	// The handle may be supplied to the following methods:
 	//
 	//  *  ReadFile
+	//  *  WriteFile
 	//  *  ReleaseFileHandle
 	//
 	// The file system must ensure this ID remains valid until a later call to
@@ -602,6 +608,7 @@ type OpenFileResponse struct {
 	// The handle may be supplied to the following methods:
 	//
 	//  *  ReadFile
+	//  *  WriteFile
 	//  *  ReleaseFileHandle
 	//
 	// The file system must ensure this ID remains valid until a later call to
@@ -613,7 +620,7 @@ type ReadFileRequest struct {
 	Header RequestHeader
 
 	// The file inode that we are reading, and the handle previously returned by
-	// OpenFile when opening that inode.
+	// CreateFile or OpenFile when opening that inode.
 	Inode  InodeID
 	Handle HandleID
 
@@ -632,6 +639,30 @@ type ReadFileRequest struct {
 type ReadFileResponse struct {
 	// The data read.
 	Data []byte
+}
+
+type WriteFileRequest struct {
+	Header RequestHeader
+
+	// The file inode that we are modifying, and the handle previously returned
+	// by CreateFile or OpenFile when opening that inode.
+	Inode  InodeID
+	Handle HandleID
+
+	// The data to write, and the offset at which to write it.
+	//
+	// The FUSE documentation requires that exactly the number of bytes supplied
+	// be written, except on error (http://goo.gl/KUpwwn). This appears to be
+	// because it uses file mmapping machinery (http://goo.gl/SGxnaN) to write a
+	// page at a time.
+	//
+	// TODO(jacobsa): Figure out what the posix semantics are for extending the
+	// file, and document them here.
+	Data   []byte
+	Offset int64
+}
+
+type WriteFileResponse struct {
 }
 
 type ReleaseFileHandleRequest struct {
