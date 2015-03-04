@@ -279,7 +279,7 @@ func (fs *memFS) MkDir(
 	parent := fs.getInodeForModifyingOrDie(req.Parent)
 	defer parent.mu.Unlock()
 
-	// Set up attributes from the child, using the credientials of the calling
+	// Set up attributes from the child, using the credentials of the calling
 	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
 	now := fs.clock.Now()
 	childAttrs := fuse.InodeAttributes{
@@ -307,6 +307,52 @@ func (fs *memFS) MkDir(
 	// (since it also handles invalidation).
 	resp.Entry.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
 	resp.Entry.EntryExpiration = resp.Entry.EntryExpiration
+
+	return
+}
+
+func (fs *memFS) CreateFile(
+	ctx context.Context,
+	req *fuse.CreateFileRequest) (resp *fuse.CreateFileResponse, err error) {
+	resp = &fuse.CreateFileResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Grab the parent, which we will update shortly.
+	parent := fs.getInodeForModifyingOrDie(req.Parent)
+	defer parent.mu.Unlock()
+
+	// Set up attributes from the child, using the credentials of the calling
+	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
+	now := fs.clock.Now()
+	childAttrs := fuse.InodeAttributes{
+		Mode:   req.Mode,
+		Atime:  now,
+		Mtime:  now,
+		Ctime:  now,
+		Crtime: now,
+		Uid:    req.Header.Uid,
+		Gid:    req.Header.Gid,
+	}
+
+	// Allocate a child.
+	childID, child := fs.allocateInode(childAttrs)
+	defer child.mu.Unlock()
+
+	// Add an entry in the parent.
+	parent.AddChild(childID, req.Name, fuseutil.DT_File)
+
+	// Fill in the response entry.
+	resp.Entry.Child = childID
+	resp.Entry.Attributes = child.attributes
+
+	// We don't spontaneously mutate, so the kernel can cache as long as it wants
+	// (since it also handles invalidation).
+	resp.Entry.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+	resp.Entry.EntryExpiration = resp.Entry.EntryExpiration
+
+	// We have nothing interesting to put in the Handle field.
 
 	return
 }
