@@ -649,17 +649,35 @@ type WriteFileRequest struct {
 	Inode  InodeID
 	Handle HandleID
 
-	// The data to write, and the offset at which to write it.
+	// The offset at which to write the data below.
+	//
+	// The man page for pwrite(2) implies that aside from changing the file
+	// handle's offset, using pwrite is equivalent to using lseek(2) and then
+	// write(2). The man page for lseek(2) says the following:
+	//
+	// "The lseek() function allows the file offset to be set beyond the end of
+	// the file (but this does not change the size of the file). If data is later
+	// written at this point, subsequent reads of the data in the gap (a "hole")
+	// return null bytes (aq\0aq) until data is actually written into the gap."
+	//
+	// It is therefore reasonable to assume that the kernel is looking for
+	// the following semantics:
+	//
+	// *   If the offset is less than or equal to the current size, extend the
+	//     file as necessary to fit any data that goes past the end of the file.
+	//
+	// *   If the offset is greater than the current size, extend the file
+	//     with null bytes until it is not, then do the above.
+	//
+	Offset int64
+
+	// The data to write.
 	//
 	// The FUSE documentation requires that exactly the number of bytes supplied
 	// be written, except on error (http://goo.gl/KUpwwn). This appears to be
 	// because it uses file mmapping machinery (http://goo.gl/SGxnaN) to write a
 	// page at a time.
-	//
-	// TODO(jacobsa): Figure out what the posix semantics are for extending the
-	// file, and document them here.
-	Data   []byte
-	Offset int64
+	Data []byte
 }
 
 type WriteFileResponse struct {
