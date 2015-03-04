@@ -195,6 +195,35 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
+	case *bazilfuse.CreateRequest:
+		// Convert the request.
+		req := &CreateFileRequest{
+			Header: convertHeader(typed.Header),
+			Parent: InodeID(typed.Header.Node),
+			Name:   typed.Name,
+			Mode:   typed.Mode,
+			Flags:  typed.Flags,
+		}
+
+		// Call the file system.
+		resp, err := s.fs.CreateFile(ctx, req)
+		if err != nil {
+			s.logger.Println("Responding:", err)
+			typed.RespondError(err)
+			return
+		}
+
+		// Convert the response.
+		fuseResp := &bazilfuse.CreateResponse{
+			OpenResponse: bazilfuse.OpenResponse{
+				Handle: bazilfuse.HandleID(resp.Handle),
+			},
+		}
+		convertChildInodeEntry(s.clock, &resp.Entry, &fuseResp.LookupResponse)
+
+		s.logger.Println("Responding:", fuseResp)
+		typed.Respond(fuseResp)
+
 	case *bazilfuse.RemoveRequest:
 		// We don't yet support files.
 		if !typed.Dir {
