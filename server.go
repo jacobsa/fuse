@@ -355,6 +355,32 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 			typed.Respond(fuseResp)
 		}
 
+	case *bazilfuse.WriteRequest:
+		// Convert the request.
+		req := &WriteFileRequest{
+			Header: convertHeader(typed.Header),
+			Inode:  InodeID(typed.Header.Node),
+			Handle: HandleID(typed.Handle),
+			Data:   typed.Data,
+			Offset: typed.Offset,
+		}
+
+		// Call the file system.
+		_, err := s.fs.WriteFile(ctx, req)
+		if err != nil {
+			s.logger.Println("Responding:", err)
+			typed.RespondError(err)
+			return
+		}
+
+		// Convert the response.
+		fuseResp := &bazilfuse.WriteResponse{
+			Size: len(typed.Data),
+		}
+
+		s.logger.Println("Responding:", fuseResp)
+		typed.Respond(fuseResp)
+
 	default:
 		s.logger.Println("Unhandled type. Returning ENOSYS.")
 		typed.RespondError(ENOSYS)
