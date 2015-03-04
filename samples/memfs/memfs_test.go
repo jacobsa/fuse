@@ -280,7 +280,7 @@ func (t *MemFSTest) Mkdir_IntermediateIsFile() {
 	err = os.Mkdir(dirName, 0754)
 
 	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("TODO")))
+	ExpectThat(err, Error(HasSubstr("not a directory")))
 }
 
 func (t *MemFSTest) Mkdir_IntermediateIsNonExistent() {
