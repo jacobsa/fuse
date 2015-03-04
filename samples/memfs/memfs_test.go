@@ -336,6 +336,10 @@ func (t *MemFSTest) UnlinkFile_NonExistent() {
 	AssertTrue(false, "TODO")
 }
 
+func (t *MemFSTest) UnlinkFile_StillOpen() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *MemFSTest) Rmdir_NonEmpty() {
 	var err error
 
@@ -467,4 +471,12 @@ func (t *MemFSTest) CaseSensitive() {
 		AssertNe(nil, err, "Name: %s", name)
 		AssertThat(err, Error(HasSubstr("no such file or directory")))
 	}
+}
+
+func (t *MemFSTest) FileReadsAndWrites() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) FileReadsAndWrites_BeyondEOF() {
+	AssertTrue(false, "TODO")
 }
