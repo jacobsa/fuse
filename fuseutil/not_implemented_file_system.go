@@ -99,6 +99,12 @@ func (fs *NotImplementedFileSystem) ReadFile(
 	return nil, fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) WriteFile(
+	ctx context.Context,
+	req *fuse.WriteFileRequest) (*fuse.WriteFileResponse, error) {
+	return nil, fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	req *fuse.ReleaseFileHandleRequest) (*fuse.ReleaseFileHandleResponse, error) {
