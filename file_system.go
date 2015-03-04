@@ -257,8 +257,8 @@ type RequestHeader struct {
 }
 
 // Information about a child inode within its parent directory. Shared by the
-// responses for LookUpInode, MkDir, etc. Consumed by the kernel in order to
-// set up a dcache entry.
+// responses for LookUpInode, MkDir, CreateFile, etc. Consumed by the kernel in
+// order to set up a dcache entry.
 type ChildInodeEntry struct {
 	// The ID of the child inode. The file system must ensure that the returned
 	// inode ID remains valid until a later call to ForgetInode.
@@ -269,6 +269,16 @@ type ChildInodeEntry struct {
 	Generation GenerationNumber
 
 	// Current attributes for the child inode.
+	//
+	// When creating a new inode, the file system is responsible for initializing
+	// and recording (where supported) attributes like time information,
+	// ownership information, etc.
+	//
+	// Ownership information in particular must be set to something reasonable or
+	// by default root will own everything and unprivileged users won't be able
+	// to do anything useful. In traditional file systems in the kernel, the
+	// function inode_init_owner (http://goo.gl/5qavg8) contains the
+	// standards-compliant logic for this.
 	Attributes InodeAttributes
 
 	// The FUSE VFS layer in the kernel maintains a cache of file attributes,
@@ -399,15 +409,6 @@ type MkDirRequest struct {
 
 type MkDirResponse struct {
 	// Information about the inode that was created.
-	//
-	// The file system is responsible for initializing and recording (where
-	// supported) attributes like time information, ownership information, etc.
-	//
-	// Ownership information in particular must be set to something reasonable or
-	// by default root will own everything and unprivileged users won't be able
-	// to do anything useful. In traditional file systems in the kernel, the
-	// function inode_init_owner (http://goo.gl/5qavg8) contains the
-	// standards-compliant logic for this.
 	Entry ChildInodeEntry
 }
 
@@ -427,15 +428,6 @@ type CreateFileRequest struct {
 
 type CreateFileResponse struct {
 	// Information about the inode that was created.
-	//
-	// The file system is responsible for initializing and recording (where
-	// supported) attributes like time information, ownership information, etc.
-	//
-	// Ownership information in particular must be set to something reasonable or
-	// by default root will own everything and unprivileged users won't be able
-	// to do anything useful. In traditional file systems in the kernel, the
-	// function inode_init_owner (http://goo.gl/5qavg8) contains the
-	// standards-compliant logic for this.
 	Entry ChildInodeEntry
 
 	// An opaque ID that will be echoed in follow-up calls for this file using
