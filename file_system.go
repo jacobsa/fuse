@@ -69,9 +69,31 @@ type FileSystem interface {
 
 	// Create a directory inode as a child of an existing directory inode. The
 	// kernel sends this in response to a mkdir(2) call.
+	//
+	// The kernel appears to verify the name doesn't already exist (mkdir calls
+	// mkdirat calls user_path_create calls filename_create, which verifies:
+	// http://goo.gl/FZpLu5). But volatile file systems and paranoid non-volatile
+	// file systems should check for the reasons described below on CreateFile.
 	MkDir(
 		ctx context.Context,
 		req *MkDirRequest) (*MkDirResponse, error)
+
+	// Create a file inode and open it.
+	//
+	// The kernel calls this method when the user asks to open a file with the
+	// O_CREAT flag and the kernel has observed that the file doesn't exist. (See
+	// for example lookup_open, http://goo.gl/PlqE9d).
+	//
+	// However it's impossible to tell for sure that all kernels make this check
+	// in all cases and the official fuse documentation is less than encouraging
+	// (" the file does not exist, first create it with the specified mode, and
+	// then open it"). Therefore file systems would be smart to be paranoid and
+	// check themselves, returning EEXIST when the file already exists. This of
+	// course particularly applies to file systems that are volatile from the
+	// kernel's point of view.
+	CreateFile(
+		ctx context.Context,
+		req *CreateFileRequest) (*CreateFileResponse, error)
 
 	///////////////////////////////////
 	// Inode destruction
@@ -387,6 +409,47 @@ type MkDirResponse struct {
 	// function inode_init_owner (http://goo.gl/5qavg8) contains the
 	// standards-compliant logic for this.
 	Entry ChildInodeEntry
+}
+
+type CreateFileRequest struct {
+	Header RequestHeader
+
+	// The ID of parent directory inode within which to create the child file.
+	Parent InodeID
+
+	// The name of the child to create, and the mode with which to create it.
+	Name string
+	Mode os.FileMode
+
+	// Flags for the open operation.
+	Flags bazilfuse.OpenFlags
+}
+
+type CreateFileResponse struct {
+	// Information about the inode that was created.
+	//
+	// The file system is responsible for initializing and recording (where
+	// supported) attributes like time information, ownership information, etc.
+	//
+	// Ownership information in particular must be set to something reasonable or
+	// by default root will own everything and unprivileged users won't be able
+	// to do anything useful. In traditional file systems in the kernel, the
+	// function inode_init_owner (http://goo.gl/5qavg8) contains the
+	// standards-compliant logic for this.
+	Entry ChildInodeEntry
+
+	// An opaque ID that will be echoed in follow-up calls for this file using
+	// the same struct file in the kernel. In practice this usually means
+	// follow-up calls using the file descriptor returned by open(2).
+	//
+	// The handle may be supplied to the following methods:
+	//
+	//  *  ReadFile
+	//  *  ReleaseFileHandle
+	//
+	// The file system must ensure this ID remains valid until a later call to
+	// ReleaseFileHandle.
+	Handle HandleID
 }
 
 type RmDirRequest struct {
