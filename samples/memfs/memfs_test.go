@@ -440,3 +440,31 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 }
+
+func (t *MemFSTest) CaseSensitive() {
+	var err error
+
+	// Create a file.
+	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "file"), []byte{}, 0400)
+	AssertEq(nil, err)
+
+	// Create a directory.
+	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0400)
+	AssertEq(nil, err)
+
+	// Attempt to stat with the wrong case.
+	names := []string{
+		"FILE",
+		"File",
+		"filE",
+		"DIR",
+		"Dir",
+		"dIr",
+	}
+
+	for _, name := range names {
+		_, err = os.Stat(path.Join(t.mfs.Dir(), name))
+		AssertNe(nil, err, "Name: %s", name)
+		AssertThat(err, Error(HasSubstr("no such file or directory")))
+	}
+}
