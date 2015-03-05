@@ -30,6 +30,16 @@ import (
 func TestPosix(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func getFileOffset(f *os.File) (offset int64, err error) {
+	const relativeToCurrent = 1
+	offset, err = f.Seek(0, relativeToCurrent)
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
@@ -148,11 +158,35 @@ func (t *PosixTest) WriteStartsPastEndOfFile() {
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
-func (t *PosixTest) WriteAtEffectOnOffset_NotAppendMode() {
-	AssertTrue(false, "TODO")
+func (t *PosixTest) WriteAtDoesntChangeOffset_NotAppendMode() {
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.dir, "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 16 bytes long.
+	err = f.Truncate(16)
+	AssertEq(nil, err)
+
+	// Seek to offset 4.
+	_, err = f.Seek(4, 0)
+	AssertEq(nil, err)
+
+	// Write the range [10, 14).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// We should still be at offset 4.
+	offset, err := getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(4, offset)
 }
 
-func (t *PosixTest) WriteAtEffectOnOffset_AppendMode() {
+func (t *PosixTest) WriteAtDoesntChangeOffset_AppendMode() {
 	AssertTrue(false, "TODO")
 }
 
