@@ -373,7 +373,7 @@ func (inode *inode) WriteAt(p []byte, off int64) (n int, err error) {
 // Update attributes from non-nil parameters.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) SetAttributes(size *uint64) {
+func (inode *inode) SetAttributes(size *uint64, mode *os.FileMode) {
 	// Update the modification time.
 	inode.attributes.Mtime = inode.clock.Now()
 
@@ -391,5 +391,10 @@ func (inode *inode) SetAttributes(size *uint64) {
 
 		// Update attributes.
 		inode.attributes.Size = *size
+	}
+
+	// Change mode?
+	if mode != nil {
+		inode.attributes.Mode = *mode
 	}
 }
