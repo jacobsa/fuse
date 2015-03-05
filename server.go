@@ -171,6 +171,34 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
 
+	case *bazilfuse.SetattrRequest:
+		// Convert the request.
+		req := &SetInodeAttributesRequest{
+			Header: convertHeader(typed.Header),
+			Inode:  InodeID(typed.Header.Node),
+		}
+
+		if typed.Valid&bazilfuse.SetattrSize != 0 {
+			req.Size = &typed.Size
+		}
+
+		// Call the file system.
+		resp, err := s.fs.SetInodeAttributes(ctx, req)
+		if err != nil {
+			s.logger.Println("Responding:", err)
+			typed.RespondError(err)
+			return
+		}
+
+		// Convert the response.
+		fuseResp := &bazilfuse.SetattrResponse{
+			Attr:      convertAttributes(req.Inode, resp.Attributes),
+			AttrValid: resp.AttributesExpiration.Sub(s.clock.Now()),
+		}
+
+		s.logger.Println("Responding:", fuseResp)
+		typed.Respond(fuseResp)
+
 	case *bazilfuse.MkdirRequest:
 		// Convert the request.
 		req := &MkDirRequest{

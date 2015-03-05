@@ -267,6 +267,32 @@ func (fs *memFS) GetInodeAttributes(
 	return
 }
 
+func (fs *memFS) SetInodeAttributes(
+	ctx context.Context,
+	req *fuse.SetInodeAttributesRequest) (
+	resp *fuse.SetInodeAttributesResponse, err error) {
+	resp = &fuse.SetInodeAttributesResponse{}
+
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Grab the inode.
+	inode := fs.getInodeForModifyingOrDie(req.Inode)
+	defer inode.mu.Unlock()
+
+	// Handle the request.
+	inode.SetAttributes(req.Size)
+
+	// Fill in the response.
+	resp.Attributes = inode.attributes
+
+	// We don't spontaneously mutate, so the kernel can cache as long as it wants
+	// (since it also handles invalidation).
+	resp.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+
+	return
+}
+
 func (fs *memFS) MkDir(
 	ctx context.Context,
 	req *fuse.MkDirRequest) (resp *fuse.MkDirResponse, err error) {

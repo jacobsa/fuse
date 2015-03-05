@@ -57,6 +57,14 @@ type FileSystem interface {
 		ctx context.Context,
 		req *GetInodeAttributesRequest) (*GetInodeAttributesResponse, error)
 
+	// Change attributes for an inode.
+	//
+	// The kernel calls this for obvious cases like chmod(2), and for less
+	// obvious cases like ftrunctate(2).
+	SetInodeAttributes(
+		ctx context.Context,
+		req *SetInodeAttributesRequest) (*SetInodeAttributesResponse, error)
+
 	// Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
 	// kernel calls this when removing an inode from its internal caches.
 	ForgetInode(
@@ -413,7 +421,24 @@ type GetInodeAttributesRequest struct {
 
 type GetInodeAttributesResponse struct {
 	// Attributes for the inode, and the time at which they should expire. See
-	// notes on LookUpInodeResponse.AttributesExpiration for more.
+	// notes on ChildInodeEntry.AttributesExpiration for more.
+	Attributes           InodeAttributes
+	AttributesExpiration time.Time
+}
+
+type SetInodeAttributesRequest struct {
+	Header RequestHeader
+
+	// The inode of interest.
+	Inode InodeID
+
+	// The attributes to modify, or nil for attributes that don't need a change.
+	Size *uint64
+}
+
+type SetInodeAttributesResponse struct {
+	// The new attributes for the inode, and the time at which they should
+	// expire. See notes on ChildInodeEntry.AttributesExpiration for more.
 	Attributes           InodeAttributes
 	AttributesExpiration time.Time
 }
