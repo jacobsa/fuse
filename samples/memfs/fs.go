@@ -493,8 +493,6 @@ func (fs *memFS) ReadFile(
 	defer inode.mu.RUnlock()
 
 	// Serve the request.
-	//
-	// TODO(jacobsa): Add tests involving EOF matching posix_test.go.
 	resp.Data = make([]byte, req.Size)
 	n, err := inode.ReadAt(resp.Data, req.Offset)
 	resp.Data = resp.Data[:n]
@@ -515,8 +513,6 @@ func (fs *memFS) WriteFile(
 	defer inode.mu.Unlock()
 
 	// Serve the request.
-	//
-	// TODO(jacobsa): Add tests involving EOF matching posix_test.go.
 	_, err = inode.WriteAt(req.Data, req.Offset)
 
 	return
