@@ -434,6 +434,7 @@ type SetInodeAttributesRequest struct {
 
 	// The attributes to modify, or nil for attributes that don't need a change.
 	Size *uint64
+	Mode *os.FileMode
 }
 
 type SetInodeAttributesResponse struct {
