@@ -414,7 +414,58 @@ func (t *MemFSTest) CreateNewFile_InSubDir() {
 }
 
 func (t *MemFSTest) ModifyExistingFile_InRoot() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+	var fi os.FileInfo
+	var stat *syscall.Stat_t
+
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	createTime := t.clock.Now()
+	err = ioutil.WriteFile(fileName, []byte("Jello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
+	// Open the file and modify it.
+	f, err := os.OpenFile(fileName, os.O_WRONLY, 0400)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	modifyTime := t.clock.Now()
+	n, err = f.WriteAt([]byte("H"), 0)
+	AssertEq(nil, err)
+	AssertEq(1, n)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
+	// Stat the file.
+	fi, err = os.Stat(fileName)
+	stat = fi.Sys().(*syscall.Stat_t)
+
+	AssertEq(nil, err)
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len("Hello, world!"), fi.Size())
+	ExpectEq(0600, fi.Mode())
+	ExpectEq(0, fi.ModTime().Sub(modifyTime))
+	ExpectFalse(fi.IsDir())
+
+	ExpectNe(0, stat.Ino)
+	ExpectEq(1, stat.Nlink)
+	ExpectEq(currentUid(), stat.Uid)
+	ExpectEq(currentGid(), stat.Gid)
+	ExpectEq(len("Hello, world!"), stat.Size)
+	ExpectEq(0, timespecToTime(stat.Atimespec).Sub(modifyTime))
+	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(modifyTime))
+	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
+
+	// Read the file back.
+	slice, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	ExpectEq("Hello, world!", string(slice))
 }
 
 func (t *MemFSTest) ModifyExistingFile_InSubDir() {
