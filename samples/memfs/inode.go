@@ -100,7 +100,6 @@ func newInode(
 	// Update time info.
 	now := clock.Now()
 	attrs.Mtime = now
-	attrs.Ctime = now
 	attrs.Crtime = now
 
 	// Create the object.

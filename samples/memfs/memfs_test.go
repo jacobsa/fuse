@@ -196,7 +196,6 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(0, stat.Size)
 	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
-	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
 	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Check the root's mtime.
@@ -260,7 +259,6 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(0, stat.Size)
 	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
-	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
 	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Check the parent's mtime.
@@ -374,7 +372,6 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(len(contents), stat.Size)
 	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
-	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
 	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Read it back.
@@ -421,7 +418,6 @@ func (t *MemFSTest) CreateNewFile_InSubDir() {
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(len(contents), stat.Size)
 	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
-	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
 	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Read it back.
@@ -476,7 +472,6 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(len("Hello, world!"), stat.Size)
 	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(modifyTime))
-	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
 	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Read the file back.
