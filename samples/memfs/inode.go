@@ -99,7 +99,6 @@ func newInode(
 	attrs fuse.InodeAttributes) (in *inode) {
 	// Update time info.
 	now := clock.Now()
-	attrs.Atime = now
 	attrs.Mtime = now
 	attrs.Ctime = now
 	attrs.Crtime = now
