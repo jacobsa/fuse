@@ -369,3 +369,22 @@ func (inode *inode) WriteAt(p []byte, off int64) (n int, err error) {
 
 	return
 }
+
+// Update attributes from non-nil parameters.
+//
+// EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) SetAttributes(size *uint64) {
+	// Update the modification time.
+	inode.attributes.Mtime = inode.clock.Now()
+
+	// Do we need to truncate?
+	if size != nil {
+		intSize := int(*size)
+		if intSize <= len(inode.contents) {
+			inode.contents = inode.contents[:intSize]
+		} else {
+			padding := make([]byte, intSize-len(inode.contents))
+			inode.contents = append(inode.contents, padding...)
+		}
+	}
+}
