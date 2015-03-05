@@ -22,6 +22,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
+	"github.com/jacobsa/gcsfuse/timeutil"
 )
 
 // Common attributes for files and directories.
@@ -30,6 +31,12 @@ import (
 // been unlinked, including creating a new file. Make sure we don't screw up
 // and reuse an inode ID while it is still in use.
 type inode struct {
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	clock timeutil.Clock
+
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -84,9 +91,22 @@ type inode struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+// Create a new inode with the supplied attributes, which need not contain
+// time-related information (the inode object will take care of that).
 // Initially the link count is one.
-func newInode(attrs fuse.InodeAttributes) (in *inode) {
+func newInode(
+	clock timeutil.Clock,
+	attrs fuse.InodeAttributes) (in *inode) {
+	// Update time info.
+	now := clock.Now()
+	attrs.Atime = now
+	attrs.Mtime = now
+	attrs.Ctime = now
+	attrs.Crtime = now
+
+	// Create the object.
 	in = &inode{
+		clock:      clock,
 		linkCount:  1,
 		dir:        (attrs.Mode&os.ModeDir != 0),
 		attributes: attrs,
