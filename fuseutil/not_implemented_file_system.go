@@ -57,6 +57,12 @@ func (fs *NotImplementedFileSystem) MkDir(
 	return nil, fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) CreateFile(
+	ctx context.Context,
+	req *fuse.CreateFileRequest) (*fuse.CreateFileResponse, error) {
+	return nil, fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) RmDir(
 	ctx context.Context,
 	req *fuse.RmDirRequest) (*fuse.RmDirResponse, error) {
@@ -90,6 +96,12 @@ func (fs *NotImplementedFileSystem) OpenFile(
 func (fs *NotImplementedFileSystem) ReadFile(
 	ctx context.Context,
 	req *fuse.ReadFileRequest) (*fuse.ReadFileResponse, error) {
+	return nil, fuse.ENOSYS
+}
+
+func (fs *NotImplementedFileSystem) WriteFile(
+	ctx context.Context,
+	req *fuse.WriteFileRequest) (*fuse.WriteFileResponse, error) {
 	return nil, fuse.ENOSYS
 }
 

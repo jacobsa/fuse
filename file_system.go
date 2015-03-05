@@ -69,9 +69,31 @@ type FileSystem interface {
 
 	// Create a directory inode as a child of an existing directory inode. The
 	// kernel sends this in response to a mkdir(2) call.
+	//
+	// The kernel appears to verify the name doesn't already exist (mkdir calls
+	// mkdirat calls user_path_create calls filename_create, which verifies:
+	// http://goo.gl/FZpLu5). But volatile file systems and paranoid non-volatile
+	// file systems should check for the reasons described below on CreateFile.
 	MkDir(
 		ctx context.Context,
 		req *MkDirRequest) (*MkDirResponse, error)
+
+	// Create a file inode and open it.
+	//
+	// The kernel calls this method when the user asks to open a file with the
+	// O_CREAT flag and the kernel has observed that the file doesn't exist. (See
+	// for example lookup_open, http://goo.gl/PlqE9d).
+	//
+	// However it's impossible to tell for sure that all kernels make this check
+	// in all cases and the official fuse documentation is less than encouraging
+	// (" the file does not exist, first create it with the specified mode, and
+	// then open it"). Therefore file systems would be smart to be paranoid and
+	// check themselves, returning EEXIST when the file already exists. This of
+	// course particularly applies to file systems that are volatile from the
+	// kernel's point of view.
+	CreateFile(
+		ctx context.Context,
+		req *CreateFileRequest) (*CreateFileResponse, error)
 
 	///////////////////////////////////
 	// Inode destruction
@@ -128,10 +150,44 @@ type FileSystem interface {
 		ctx context.Context,
 		req *OpenFileRequest) (*OpenFileResponse, error)
 
-	// Read data from a file previously opened with OpenFile.
+	// Read data from a file previously opened with CreateFile or OpenFile.
+	//
+	// Note that this method is not called for every call to read(2) by the end
+	// user; some reads may be served by the page cache. See notes on Write for
+	// more.
 	ReadFile(
 		ctx context.Context,
 		req *ReadFileRequest) (*ReadFileResponse, error)
+
+	// Write data to a file previously opened with CreateFile or OpenFile.
+	//
+	// When the user writes data using write(2), the write goes into the page
+	// cache and the page is marked dirty. Later the kernel may write back the
+	// page via the FUSE VFS layer, causing this method to be called:
+	//
+	//  *  The kernel calls address_space_operations::writepage when a dirty page
+	//     needs to be written to backing store (see vfs.txt). Fuse sets this to
+	//     fuse_writepage (see file.c).
+	//
+	//  *  fuse_writepage calls fuse_writepage_locked.
+	//
+	//  *  fuse_writepage_locked makes a write request to the userspace server.
+	//
+	// Note that writes *will* be received before a call to Flush when closing
+	// the file descriptor to which they were written:
+	//
+	//  *  fuse_flush calls write_inode_now, which appears to start a writeback
+	//     in the background (it talks about a "flusher thread").
+	//
+	//  *  fuse_flush then calls fuse_sync_writes, which "[waits] for all pending
+	//     writepages on the inode to finish".
+	//
+	//  *  Only then does fuse_flush finally send the flush request.
+	//
+	// TODO(jacobsa): Add links for all of the references above.
+	WriteFile(
+		ctx context.Context,
+		req *WriteFileRequest) (*WriteFileResponse, error)
 
 	// Release a previously-minted file handle. The kernel calls this when there
 	// are no more references to an open file: all file descriptors are closed
@@ -235,8 +291,8 @@ type RequestHeader struct {
 }
 
 // Information about a child inode within its parent directory. Shared by the
-// responses for LookUpInode, MkDir, etc. Consumed by the kernel in order to
-// set up a dcache entry.
+// responses for LookUpInode, MkDir, CreateFile, etc. Consumed by the kernel in
+// order to set up a dcache entry.
 type ChildInodeEntry struct {
 	// The ID of the child inode. The file system must ensure that the returned
 	// inode ID remains valid until a later call to ForgetInode.
@@ -247,6 +303,16 @@ type ChildInodeEntry struct {
 	Generation GenerationNumber
 
 	// Current attributes for the child inode.
+	//
+	// When creating a new inode, the file system is responsible for initializing
+	// and recording (where supported) attributes like time information,
+	// ownership information, etc.
+	//
+	// Ownership information in particular must be set to something reasonable or
+	// by default root will own everything and unprivileged users won't be able
+	// to do anything useful. In traditional file systems in the kernel, the
+	// function inode_init_owner (http://goo.gl/5qavg8) contains the
+	// standards-compliant logic for this.
 	Attributes InodeAttributes
 
 	// The FUSE VFS layer in the kernel maintains a cache of file attributes,
@@ -377,16 +443,40 @@ type MkDirRequest struct {
 
 type MkDirResponse struct {
 	// Information about the inode that was created.
-	//
-	// The file system is responsible for initializing and recording (where
-	// supported) attributes like time information, ownership information, etc.
-	//
-	// Ownership information in particular must be set to something reasonable or
-	// by default root will own everything and unprivileged users won't be able
-	// to do anything useful. In traditional file systems in the kernel, the
-	// function inode_init_owner (http://goo.gl/5qavg8) contains the
-	// standards-compliant logic for this.
 	Entry ChildInodeEntry
+}
+
+type CreateFileRequest struct {
+	Header RequestHeader
+
+	// The ID of parent directory inode within which to create the child file.
+	Parent InodeID
+
+	// The name of the child to create, and the mode with which to create it.
+	Name string
+	Mode os.FileMode
+
+	// Flags for the open operation.
+	Flags bazilfuse.OpenFlags
+}
+
+type CreateFileResponse struct {
+	// Information about the inode that was created.
+	Entry ChildInodeEntry
+
+	// An opaque ID that will be echoed in follow-up calls for this file using
+	// the same struct file in the kernel. In practice this usually means
+	// follow-up calls using the file descriptor returned by open(2).
+	//
+	// The handle may be supplied to the following methods:
+	//
+	//  *  ReadFile
+	//  *  WriteFile
+	//  *  ReleaseFileHandle
+	//
+	// The file system must ensure this ID remains valid until a later call to
+	// ReleaseFileHandle.
+	Handle HandleID
 }
 
 type RmDirRequest struct {
@@ -547,6 +637,7 @@ type OpenFileResponse struct {
 	// The handle may be supplied to the following methods:
 	//
 	//  *  ReadFile
+	//  *  WriteFile
 	//  *  ReleaseFileHandle
 	//
 	// The file system must ensure this ID remains valid until a later call to
@@ -558,7 +649,7 @@ type ReadFileRequest struct {
 	Header RequestHeader
 
 	// The file inode that we are reading, and the handle previously returned by
-	// OpenFile when opening that inode.
+	// CreateFile or OpenFile when opening that inode.
 	Inode  InodeID
 	Handle HandleID
 
@@ -577,6 +668,48 @@ type ReadFileRequest struct {
 type ReadFileResponse struct {
 	// The data read.
 	Data []byte
+}
+
+type WriteFileRequest struct {
+	Header RequestHeader
+
+	// The file inode that we are modifying, and the handle previously returned
+	// by CreateFile or OpenFile when opening that inode.
+	Inode  InodeID
+	Handle HandleID
+
+	// The offset at which to write the data below.
+	//
+	// The man page for pwrite(2) implies that aside from changing the file
+	// handle's offset, using pwrite is equivalent to using lseek(2) and then
+	// write(2). The man page for lseek(2) says the following:
+	//
+	// "The lseek() function allows the file offset to be set beyond the end of
+	// the file (but this does not change the size of the file). If data is later
+	// written at this point, subsequent reads of the data in the gap (a "hole")
+	// return null bytes (aq\0aq) until data is actually written into the gap."
+	//
+	// It is therefore reasonable to assume that the kernel is looking for
+	// the following semantics:
+	//
+	// *   If the offset is less than or equal to the current size, extend the
+	//     file as necessary to fit any data that goes past the end of the file.
+	//
+	// *   If the offset is greater than the current size, extend the file
+	//     with null bytes until it is not, then do the above.
+	//
+	Offset int64
+
+	// The data to write.
+	//
+	// The FUSE documentation requires that exactly the number of bytes supplied
+	// be written, except on error (http://goo.gl/KUpwwn). This appears to be
+	// because it uses file mmapping machinery (http://goo.gl/SGxnaN) to write a
+	// page at a time.
+	Data []byte
+}
+
+type WriteFileResponse struct {
 }
 
 type ReleaseFileHandleRequest struct {

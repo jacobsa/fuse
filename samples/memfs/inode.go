@@ -54,6 +54,7 @@ type inode struct {
 	// INVARIANT: No non-permission mode bits are set besides os.ModeDir
 	// INVARIANT: If dir, then os.ModeDir is set
 	// INVARIANT: If !dir, then os.ModeDir is not set
+	// INVARIANT: attributes.Size == len(contents)
 	attributes fuse.InodeAttributes // GUARDED_BY(mu)
 
 	// For directories, entries describing the children of the directory. Unused
@@ -141,6 +142,15 @@ func (inode *inode) checkInvariants() {
 		if inode.entries != nil {
 			panic("Non-nil entries in a file.")
 		}
+	}
+
+	// Check the size.
+	if inode.attributes.Size != uint64(len(inode.contents)) {
+		panic(
+			fmt.Sprintf(
+				"Unexpected size: %v vs. %v",
+				inode.attributes.Size,
+				len(inode.contents)))
 	}
 }
 
@@ -275,6 +285,34 @@ func (inode *inode) ReadDir(offset int, size int) (data []byte, err error) {
 			data = data[:size]
 			break
 		}
+	}
+
+	return
+}
+
+// Write to the file's contents. See documentation for ioutil.WriterAt.
+//
+// REQUIRES: !inode.dir
+// EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) WriteAt(p []byte, off int64) (n int, err error) {
+	if inode.dir {
+		panic("WriteAt called on directory.")
+	}
+
+	// Ensure that the contents slice is long enough.
+	newLen := int(off) + len(p)
+	if len(inode.contents) < newLen {
+		padding := make([]byte, newLen-len(inode.contents))
+		inode.contents = append(inode.contents, padding...)
+		inode.attributes.Size = uint64(newLen)
+	}
+
+	// Copy in the data.
+	n = copy(inode.contents[off:], p)
+
+	// Sanity check.
+	if n != len(p) {
+		panic(fmt.Sprintf("Unexpected short copy: %v", n))
 	}
 
 	return
