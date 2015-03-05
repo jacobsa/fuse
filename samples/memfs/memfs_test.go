@@ -858,7 +858,27 @@ func (t *MemFSTest) ReadsPastEndOfFile() {
 }
 
 func (t *MemFSTest) Truncate_Smaller() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create a file.
+	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	// Open it for modification.
+	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Truncate it.
+	err = f.Truncate(2)
+	AssertEq(nil, err)
+
+	// Read the contents.
+	contents, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	ExpectEq("ta", string(contents))
 }
 
 func (t *MemFSTest) Truncate_SameSize() {
