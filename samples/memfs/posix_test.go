@@ -218,14 +218,36 @@ func (t *PosixTest) WriteAtDoesntChangeOffset_AppendMode() {
 	ExpectEq(4, offset)
 }
 
-func (t *PosixTest) ReadOverlapsEndOfFile() {
-	AssertTrue(false, "TODO")
-}
+func (t *PosixTest) ReadsPastEndOfFile() {
+	var err error
+	var n int
+	buf := make([]byte, 1024)
 
-func (t *PosixTest) ReadStartsAtEndOfFile() {
-	AssertTrue(false, "TODO")
-}
+	// Create a file.
+	f, err := os.Create(path.Join(t.dir, "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
 
-func (t *PosixTest) ReadStartsPastEndOfFile() {
-	AssertTrue(false, "TODO")
+	// Give it some contents.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read a range overlapping EOF.
+	n, err = f.ReadAt(buf[:4], 2)
+	AssertEq(io.EOF, err)
+	ExpectEq(2, n)
+	ExpectEq("co", string(buf[:n]))
+
+	// Read a range starting at EOF.
+	n, err = f.ReadAt(buf[:4], 4)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
+	ExpectEq("", string(buf[:n]))
+
+	// Read a range starting past EOF.
+	n, err = f.ReadAt(buf[:4], 100)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
+	ExpectEq("", string(buf[:n]))
 }
