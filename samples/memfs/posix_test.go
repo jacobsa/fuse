@@ -62,6 +62,34 @@ func (t *PosixTest) TearDown() {
 // Test functions
 ////////////////////////////////////////////////////////////////////////
 
-func (t *PosixTest) DoesFoo() {
+func (t *PosixTest) WriteOverlapsEndOfFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *PosixTest) WriteStartsAtEndOfFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *PosixTest) WriteStartsPastEndOfFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *PosixTest) WriteAtEffectOnOffset_NotAppendMode() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *PosixTest) WriteAtEffectOnOffset_AppendMode() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *PosixTest) ReadOverlapsEndOfFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *PosixTest) ReadStartsAtEndOfFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *PosixTest) ReadStartsPastEndOfFile() {
 	AssertTrue(false, "TODO")
 }
