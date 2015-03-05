@@ -54,6 +54,7 @@ type inode struct {
 	// INVARIANT: No non-permission mode bits are set besides os.ModeDir
 	// INVARIANT: If dir, then os.ModeDir is set
 	// INVARIANT: If !dir, then os.ModeDir is not set
+	// INVARIANT: attributes.Size == len(contents)
 	attributes fuse.InodeAttributes // GUARDED_BY(mu)
 
 	// For directories, entries describing the children of the directory. Unused
@@ -141,6 +142,15 @@ func (inode *inode) checkInvariants() {
 		if inode.entries != nil {
 			panic("Non-nil entries in a file.")
 		}
+	}
+
+	// Check the size.
+	if inode.attributes.Size != uint64(len(inode.contents)) {
+		panic(
+			fmt.Sprintf(
+				"Unexpected size: %v vs. %v",
+				inode.attributes.Size,
+				len(inode.contents)))
 	}
 }
 
