@@ -437,3 +437,21 @@ func (fs *memFS) ReadDir(
 
 	return
 }
+
+func (fs *memFS) WriteFile(
+	ctx context.Context,
+	req *fuse.WriteFileRequest) (resp *fuse.WriteFileResponse, err error) {
+	resp = &fuse.WriteFileResponse{}
+
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Find the inode in question.
+	inode := fs.getInodeForModifyingOrDie(req.Inode)
+	defer inode.mu.Unlock()
+
+	// Serve the request.
+	_, err = inode.WriteAt(req.Data, req.Offset)
+
+	return
+}
