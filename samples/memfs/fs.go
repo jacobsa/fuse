@@ -438,6 +438,27 @@ func (fs *memFS) ReadDir(
 	return
 }
 
+func (fs *memFS) OpenFile(
+	ctx context.Context,
+	req *fuse.OpenFileRequest) (resp *fuse.OpenFileResponse, err error) {
+	resp = &fuse.OpenFileResponse{}
+
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// We don't mutate spontaneosuly, so if the VFS layer has asked for an
+	// inode that doesn't exist, something screwed up earlier (a lookup, a
+	// cache invalidation, etc.).
+	inode := fs.getInodeForReadingOrDie(req.Inode)
+	defer inode.mu.RUnlock()
+
+	if inode.dir {
+		panic("Found directory.")
+	}
+
+	return
+}
+
 func (fs *memFS) WriteFile(
 	ctx context.Context,
 	req *fuse.WriteFileRequest) (resp *fuse.WriteFileResponse, err error) {
