@@ -18,8 +18,10 @@
 package memfs_test
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
@@ -32,7 +34,11 @@ func TestPosix(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type PosixTest struct {
+	// A temporary directory.
 	dir string
+
+	// Files to close when tearing down. Nil entries are skipped.
+	toClose []io.Closer
 }
 
 var _ SetUpInterface = &PosixTest{}
@@ -51,6 +57,18 @@ func (t *PosixTest) SetUp(ti *TestInfo) {
 }
 
 func (t *PosixTest) TearDown() {
+	// Close any files we opened.
+	for _, c := range t.toClose {
+		if c == nil {
+			continue
+		}
+
+		err := c.Close()
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	// Remove the temporary directory.
 	err := os.RemoveAll(t.dir)
 	if err != nil {
@@ -63,7 +81,27 @@ func (t *PosixTest) TearDown() {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *PosixTest) WriteOverlapsEndOfFile() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.dir, "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 4 bytes long.
+	err = f.Truncate(4)
+	AssertEq(nil, err)
+
+	// Write the range [2, 6).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("\x00\x00taco", string(contents))
 }
 
 func (t *PosixTest) WriteStartsAtEndOfFile() {
