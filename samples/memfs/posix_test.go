@@ -105,7 +105,27 @@ func (t *PosixTest) WriteOverlapsEndOfFile() {
 }
 
 func (t *PosixTest) WriteStartsAtEndOfFile() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.dir, "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 2 bytes long.
+	err = f.Truncate(2)
+	AssertEq(nil, err)
+
+	// Write the range [2, 6).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("\x00\x00taco", string(contents))
 }
 
 func (t *PosixTest) WriteStartsPastEndOfFile() {
