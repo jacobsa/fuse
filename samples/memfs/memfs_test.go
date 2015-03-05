@@ -857,6 +857,18 @@ func (t *MemFSTest) ReadsPastEndOfFile() {
 	ExpectEq("", string(buf[:n]))
 }
 
+func (t *MemFSTest) Truncate_Smaller() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) Truncate_SameSize() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) Truncate_Larger() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *MemFSTest) Chmod() {
 	AssertTrue(false, "TODO")
 }
