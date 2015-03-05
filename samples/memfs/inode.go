@@ -344,6 +344,9 @@ func (inode *inode) WriteAt(p []byte, off int64) (n int, err error) {
 		panic("WriteAt called on directory.")
 	}
 
+	// Update the modification time.
+	inode.attributes.Mtime = inode.clock.Now()
+
 	// Ensure that the contents slice is long enough.
 	newLen := int(off) + len(p)
 	if len(inode.contents) < newLen {
