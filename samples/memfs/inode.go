@@ -16,6 +16,7 @@ package memfs
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/jacobsa/fuse"
@@ -285,6 +286,30 @@ func (inode *inode) ReadDir(offset int, size int) (data []byte, err error) {
 			data = data[:size]
 			break
 		}
+	}
+
+	return
+}
+
+// Read from the file's contents. See documentation for ioutil.ReaderAt.
+//
+// REQUIRES: !inode.dir
+// SHARED_LOCKS_REQUIRED(inode.mu)
+func (inode *inode) ReadAt(p []byte, off int64) (n int, err error) {
+	if inode.dir {
+		panic("ReadAt called on directory.")
+	}
+
+	// Ensure the offset is in range.
+	if off > int64(len(inode.contents)) {
+		err = io.EOF
+		return
+	}
+
+	// Read what we can.
+	n = copy(p, inode.contents[off:])
+	if n < len(p) {
+		err = io.EOF
 	}
 
 	return

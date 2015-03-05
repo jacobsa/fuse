@@ -459,6 +459,28 @@ func (fs *memFS) OpenFile(
 	return
 }
 
+func (fs *memFS) ReadFile(
+	ctx context.Context,
+	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
+	resp = &fuse.ReadFileResponse{}
+
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
+	// Find the inode in question.
+	inode := fs.getInodeForReadingOrDie(req.Inode)
+	defer inode.mu.RUnlock()
+
+	// Serve the request.
+	//
+	// TODO(jacobsa): Add tests involving EOF matching posix_test.go.
+	resp.Data = make([]byte, req.Size)
+	n, err := inode.ReadAt(resp.Data, req.Offset)
+	resp.Data = resp.Data[:n]
+
+	return
+}
+
 func (fs *memFS) WriteFile(
 	ctx context.Context,
 	req *fuse.WriteFileRequest) (resp *fuse.WriteFileResponse, err error) {
@@ -472,6 +494,8 @@ func (fs *memFS) WriteFile(
 	defer inode.mu.Unlock()
 
 	// Serve the request.
+	//
+	// TODO(jacobsa): Add tests involving EOF matching posix_test.go.
 	_, err = inode.WriteAt(req.Data, req.Offset)
 
 	return
