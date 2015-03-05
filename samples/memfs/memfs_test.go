@@ -856,3 +856,11 @@ func (t *MemFSTest) ReadsPastEndOfFile() {
 	ExpectEq(0, n)
 	ExpectEq("", string(buf[:n]))
 }
+
+func (t *MemFSTest) Chmod() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) Chtimes() {
+	AssertTrue(false, "TODO")
+}
