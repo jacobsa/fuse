@@ -859,7 +859,6 @@ func (t *MemFSTest) ReadsPastEndOfFile() {
 
 func (t *MemFSTest) Truncate_Smaller() {
 	var err error
-
 	fileName := path.Join(t.mfs.Dir(), "foo")
 
 	// Create a file.
@@ -888,7 +887,6 @@ func (t *MemFSTest) Truncate_Smaller() {
 
 func (t *MemFSTest) Truncate_SameSize() {
 	var err error
-
 	fileName := path.Join(t.mfs.Dir(), "foo")
 
 	// Create a file.
@@ -917,7 +915,6 @@ func (t *MemFSTest) Truncate_SameSize() {
 
 func (t *MemFSTest) Truncate_Larger() {
 	var err error
-
 	fileName := path.Join(t.mfs.Dir(), "foo")
 
 	// Create a file.
@@ -945,9 +942,38 @@ func (t *MemFSTest) Truncate_Larger() {
 }
 
 func (t *MemFSTest) Chmod() {
-	AssertTrue(false, "TODO")
+	var err error
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create a file.
+	err = ioutil.WriteFile(fileName, []byte(""), 0600)
+	AssertEq(nil, err)
+
+	// Chmod it.
+	err = os.Chmod(fileName, 0754)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := os.Stat(fileName)
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0754), fi.Mode())
 }
 
 func (t *MemFSTest) Chtimes() {
-	AssertTrue(false, "TODO")
+	var err error
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create a file.
+	err = ioutil.WriteFile(fileName, []byte(""), 0600)
+	AssertEq(nil, err)
+
+	// Chtimes it.
+	expectedMtime := time.Now().Add(123 * time.Second).Round(time.Second)
+	err = os.Chtimes(fileName, time.Time{}, expectedMtime)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := os.Stat(fileName)
+	AssertEq(nil, err)
+	ExpectEq(0, fi.ModTime().Sub(expectedMtime))
 }

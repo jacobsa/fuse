@@ -281,7 +281,7 @@ func (fs *memFS) SetInodeAttributes(
 	defer inode.mu.Unlock()
 
 	// Handle the request.
-	inode.SetAttributes(req.Size)
+	inode.SetAttributes(req.Size, req.Mode, req.Mtime)
 
 	// Fill in the response.
 	resp.Attributes = inode.attributes

@@ -182,6 +182,18 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 			req.Size = &typed.Size
 		}
 
+		if typed.Valid&bazilfuse.SetattrMode != 0 {
+			req.Mode = &typed.Mode
+		}
+
+		if typed.Valid&bazilfuse.SetattrAtime != 0 {
+			req.Atime = &typed.Atime
+		}
+
+		if typed.Valid&bazilfuse.SetattrMtime != 0 {
+			req.Mtime = &typed.Mtime
+		}
+
 		// Call the file system.
 		resp, err := s.fs.SetInodeAttributes(ctx, req)
 		if err != nil {

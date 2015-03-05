@@ -433,7 +433,10 @@ type SetInodeAttributesRequest struct {
 	Inode InodeID
 
 	// The attributes to modify, or nil for attributes that don't need a change.
-	Size *uint64
+	Size  *uint64
+	Mode  *os.FileMode
+	Atime *time.Time
+	Mtime *time.Time
 }
 
 type SetInodeAttributesResponse struct {
