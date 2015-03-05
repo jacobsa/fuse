@@ -304,6 +304,7 @@ func (inode *inode) WriteAt(p []byte, off int64) (n int, err error) {
 	if len(inode.contents) < newLen {
 		padding := make([]byte, newLen-len(inode.contents))
 		inode.contents = append(inode.contents, padding...)
+		inode.attributes.Size = uint64(newLen)
 	}
 
 	// Copy in the data.
