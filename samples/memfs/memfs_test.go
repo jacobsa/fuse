@@ -887,11 +887,61 @@ func (t *MemFSTest) Truncate_Smaller() {
 }
 
 func (t *MemFSTest) Truncate_SameSize() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create a file.
+	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	// Open it for modification.
+	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Truncate it.
+	err = f.Truncate(4)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(4, fi.Size())
+
+	// Read the contents.
+	contents, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
 }
 
 func (t *MemFSTest) Truncate_Larger() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create a file.
+	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	// Open it for modification.
+	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Truncate it.
+	err = f.Truncate(6)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(6, fi.Size())
+
+	// Read the contents.
+	contents, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	ExpectEq("taco\x00\x00", string(contents))
 }
 
 func (t *MemFSTest) Chmod() {
