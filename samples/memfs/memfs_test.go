@@ -168,6 +168,9 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 
 	dirName := path.Join(t.mfs.Dir(), "dir")
 
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
 	// Create a directory within the root.
 	createTime := t.clock.Now()
 	err = os.Mkdir(dirName, 0754)
@@ -196,6 +199,12 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
 	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
+	// Check the root's mtime.
+	fi, err = os.Stat(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	ExpectEq(0, fi.ModTime().Sub(createTime))
+
 	// Read the directory.
 	entries, err = ioutil.ReadDir(dirName)
 
@@ -222,6 +231,9 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	// Create a directory within the root.
 	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent"), 0700)
 	AssertEq(nil, err)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
 
 	// Create a child of that directory.
 	createTime := t.clock.Now()
@@ -250,6 +262,11 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
 	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
 	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
+
+	// Check the parent's mtime.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "parent"))
+	AssertEq(nil, err)
+	ExpectEq(0, fi.ModTime().Sub(createTime))
 
 	// Read the directory.
 	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent/dir"))
@@ -510,15 +527,27 @@ func (t *MemFSTest) Rmdir_Empty() {
 	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo/bar"), 0754)
 	AssertEq(nil, err)
 
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
 	// Remove the leaf.
+	rmTime := t.clock.Now()
 	err = os.Remove(path.Join(t.mfs.Dir(), "foo/bar"))
 	AssertEq(nil, err)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
 
 	// There should be nothing left in the parent.
 	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
+
+	// Check the parent's mtime.
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+	ExpectEq(0, fi.ModTime().Sub(rmTime))
 
 	// Remove the parent.
 	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))

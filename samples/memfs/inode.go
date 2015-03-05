@@ -236,6 +236,9 @@ func (inode *inode) AddChild(
 	dt fuseutil.DirentType) {
 	var index int
 
+	// Update the modification time.
+	inode.attributes.Mtime = inode.clock.Now()
+
 	// No matter where we place the entry, make sure it has the correct Offset
 	// field.
 	defer func() {
@@ -268,6 +271,9 @@ func (inode *inode) AddChild(
 // REQUIRES: An entry for the given name exists.
 // EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
 func (inode *inode) RemoveChild(name string) {
+	// Update the modification time.
+	inode.attributes.Mtime = inode.clock.Now()
+
 	// Find the entry.
 	i, ok := inode.findChild(name)
 	if !ok {
