@@ -74,7 +74,7 @@ func NewMemFS(
 		Mode: 0700 | os.ModeDir,
 	}
 
-	fs.inodes[fuse.RootInodeID] = newInode(rootAttrs)
+	fs.inodes[fuse.RootInodeID] = newInode(clock, rootAttrs)
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
@@ -163,7 +163,7 @@ func (fs *memFS) getInodeForReadingOrDie(id fuse.InodeID) (inode *inode) {
 func (fs *memFS) allocateInode(
 	attrs fuse.InodeAttributes) (id fuse.InodeID, inode *inode) {
 	// Create and lock the inode.
-	inode = newInode(attrs)
+	inode = newInode(fs.clock, attrs)
 	inode.mu.Lock()
 
 	// Re-use a free ID if possible. Otherwise mint a new one.
@@ -281,15 +281,10 @@ func (fs *memFS) MkDir(
 
 	// Set up attributes from the child, using the credentials of the calling
 	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
-	now := fs.clock.Now()
 	childAttrs := fuse.InodeAttributes{
-		Mode:   req.Mode,
-		Atime:  now,
-		Mtime:  now,
-		Ctime:  now,
-		Crtime: now,
-		Uid:    req.Header.Uid,
-		Gid:    req.Header.Gid,
+		Mode: req.Mode,
+		Uid:  req.Header.Uid,
+		Gid:  req.Header.Gid,
 	}
 
 	// Allocate a child.

@@ -22,6 +22,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
+	"github.com/jacobsa/gcsfuse/timeutil"
 )
 
 // Common attributes for files and directories.
@@ -30,6 +31,12 @@ import (
 // been unlinked, including creating a new file. Make sure we don't screw up
 // and reuse an inode ID while it is still in use.
 type inode struct {
+	/////////////////////////
+	// Dependencies
+	/////////////////////////
+
+	clock timeutil.Clock
+
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -84,9 +91,20 @@ type inode struct {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+// Create a new inode with the supplied attributes, which need not contain
+// time-related information (the inode object will take care of that).
 // Initially the link count is one.
-func newInode(attrs fuse.InodeAttributes) (in *inode) {
+func newInode(
+	clock timeutil.Clock,
+	attrs fuse.InodeAttributes) (in *inode) {
+	// Update time info.
+	now := clock.Now()
+	attrs.Mtime = now
+	attrs.Crtime = now
+
+	// Create the object.
 	in = &inode{
+		clock:      clock,
 		linkCount:  1,
 		dir:        (attrs.Mode&os.ModeDir != 0),
 		attributes: attrs,
@@ -217,6 +235,9 @@ func (inode *inode) AddChild(
 	dt fuseutil.DirentType) {
 	var index int
 
+	// Update the modification time.
+	inode.attributes.Mtime = inode.clock.Now()
+
 	// No matter where we place the entry, make sure it has the correct Offset
 	// field.
 	defer func() {
@@ -249,6 +270,9 @@ func (inode *inode) AddChild(
 // REQUIRES: An entry for the given name exists.
 // EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
 func (inode *inode) RemoveChild(name string) {
+	// Update the modification time.
+	inode.attributes.Mtime = inode.clock.Now()
+
 	// Find the entry.
 	i, ok := inode.findChild(name)
 	if !ok {
@@ -323,6 +347,9 @@ func (inode *inode) WriteAt(p []byte, off int64) (n int, err error) {
 	if inode.dir {
 		panic("WriteAt called on directory.")
 	}
+
+	// Update the modification time.
+	inode.attributes.Mtime = inode.clock.Now()
 
 	// Ensure that the contents slice is long enough.
 	newLen := int(off) + len(p)

@@ -218,6 +218,52 @@ func (t *PosixTest) WriteAtDoesntChangeOffset_AppendMode() {
 	ExpectEq(4, offset)
 }
 
+func (t *PosixTest) AppendMode() {
+	var err error
+	var n int
+	var off int64
+	buf := make([]byte, 1024)
+
+	// Create a file with some contents.
+	fileName := path.Join(t.dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte("Jello, "), 0600)
+	AssertEq(nil, err)
+
+	// Open the file in append mode.
+	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_APPEND, 0600)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Seek to somewhere silly and then write.
+	off, err = f.Seek(2, 0)
+	AssertEq(nil, err)
+	AssertEq(2, off)
+
+	n, err = f.Write([]byte("world!"))
+	AssertEq(nil, err)
+	AssertEq(6, n)
+
+	// The offset should have been updated to point at the end of the file.
+	off, err = getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(13, off)
+
+	// A random write should still work, without updating the offset.
+	n, err = f.WriteAt([]byte("H"), 0)
+	AssertEq(nil, err)
+	AssertEq(1, n)
+
+	off, err = getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(13, off)
+
+	// Read back the contents of the file, which should be correct even though we
+	// seeked to a silly place before writing the world part.
+	n, err = f.ReadAt(buf, 0)
+	AssertEq(io.EOF, err)
+	ExpectEq("Hello, world!", string(buf[:n]))
+}
+
 func (t *PosixTest) ReadsPastEndOfFile() {
 	var err error
 	var n int

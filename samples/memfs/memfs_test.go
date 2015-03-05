@@ -15,6 +15,7 @@
 package memfs_test
 
 import (
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -79,6 +80,9 @@ func timespecToTime(ts syscall.Timespec) time.Time {
 type MemFSTest struct {
 	clock timeutil.SimulatedClock
 	mfs   *fuse.MountedFileSystem
+
+	// Files to close when tearing down. Nil entries are skipped.
+	toClose []io.Closer
 }
 
 var _ SetUpInterface = &MemFSTest{}
@@ -110,6 +114,18 @@ func (t *MemFSTest) SetUp(ti *TestInfo) {
 }
 
 func (t *MemFSTest) TearDown() {
+	// Close any files we opened.
+	for _, c := range t.toClose {
+		if c == nil {
+			continue
+		}
+
+		err := c.Close()
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
 	for {
@@ -152,6 +168,9 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 
 	dirName := path.Join(t.mfs.Dir(), "dir")
 
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
 	// Create a directory within the root.
 	createTime := t.clock.Now()
 	err = os.Mkdir(dirName, 0754)
@@ -176,9 +195,14 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(0, stat.Size)
-	ExpectEq(0, timespecToTime(stat.Atimespec).Sub(createTime))
 	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
-	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
+
+	// Check the root's mtime.
+	fi, err = os.Stat(t.mfs.Dir())
+
+	AssertEq(nil, err)
+	ExpectEq(0, fi.ModTime().Sub(createTime))
 
 	// Read the directory.
 	entries, err = ioutil.ReadDir(dirName)
@@ -207,6 +231,9 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent"), 0700)
 	AssertEq(nil, err)
 
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
 	// Create a child of that directory.
 	createTime := t.clock.Now()
 	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent/dir"), 0754)
@@ -231,9 +258,13 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(0, stat.Size)
-	ExpectEq(0, timespecToTime(stat.Atimespec).Sub(createTime))
 	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
-	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
+
+	// Check the parent's mtime.
+	fi, err = os.Stat(path.Join(t.mfs.Dir(), "parent"))
+	AssertEq(nil, err)
+	ExpectEq(0, fi.ModTime().Sub(createTime))
 
 	// Read the directory.
 	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent/dir"))
@@ -313,10 +344,10 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	var fi os.FileInfo
 	var stat *syscall.Stat_t
 
+	// Write a file.
 	fileName := path.Join(t.mfs.Dir(), "foo")
 	const contents = "Hello\x00world"
 
-	// Write a file.
 	createTime := t.clock.Now()
 	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
 	AssertEq(nil, err)
@@ -340,9 +371,8 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(len(contents), stat.Size)
-	ExpectEq(0, timespecToTime(stat.Atimespec).Sub(createTime))
 	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
-	ExpectEq(0, timespecToTime(stat.Ctimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Read it back.
 	slice, err := ioutil.ReadFile(fileName)
@@ -351,11 +381,103 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 }
 
 func (t *MemFSTest) CreateNewFile_InSubDir() {
-	AssertTrue(false, "TODO")
+	var err error
+	var fi os.FileInfo
+	var stat *syscall.Stat_t
+
+	// Create a sub-dir.
+	dirName := path.Join(t.mfs.Dir(), "dir")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Write a file.
+	fileName := path.Join(dirName, "foo")
+	const contents = "Hello\x00world"
+
+	createTime := t.clock.Now()
+	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
+	AssertEq(nil, err)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
+	// Stat it.
+	fi, err = os.Stat(fileName)
+	stat = fi.Sys().(*syscall.Stat_t)
+
+	AssertEq(nil, err)
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len(contents), fi.Size())
+	ExpectEq(0400, fi.Mode())
+	ExpectEq(0, fi.ModTime().Sub(createTime))
+	ExpectFalse(fi.IsDir())
+
+	ExpectNe(0, stat.Ino)
+	ExpectEq(1, stat.Nlink)
+	ExpectEq(currentUid(), stat.Uid)
+	ExpectEq(currentGid(), stat.Gid)
+	ExpectEq(len(contents), stat.Size)
+	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
+	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
+
+	// Read it back.
+	slice, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	ExpectEq(contents, string(slice))
 }
 
 func (t *MemFSTest) ModifyExistingFile_InRoot() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+	var fi os.FileInfo
+	var stat *syscall.Stat_t
+
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	createTime := t.clock.Now()
+	err = ioutil.WriteFile(fileName, []byte("Jello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
+	// Open the file and modify it.
+	f, err := os.OpenFile(fileName, os.O_WRONLY, 0400)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	modifyTime := t.clock.Now()
+	n, err = f.WriteAt([]byte("H"), 0)
+	AssertEq(nil, err)
+	AssertEq(1, n)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
+	// Stat the file.
+	fi, err = os.Stat(fileName)
+	stat = fi.Sys().(*syscall.Stat_t)
+
+	AssertEq(nil, err)
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len("Hello, world!"), fi.Size())
+	ExpectEq(0600, fi.Mode())
+	ExpectEq(0, fi.ModTime().Sub(modifyTime))
+	ExpectFalse(fi.IsDir())
+
+	ExpectNe(0, stat.Ino)
+	ExpectEq(1, stat.Nlink)
+	ExpectEq(currentUid(), stat.Uid)
+	ExpectEq(currentGid(), stat.Gid)
+	ExpectEq(len("Hello, world!"), stat.Size)
+	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(modifyTime))
+	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
+
+	// Read the file back.
+	slice, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	ExpectEq("Hello, world!", string(slice))
 }
 
 func (t *MemFSTest) ModifyExistingFile_InSubDir() {
@@ -400,15 +522,27 @@ func (t *MemFSTest) Rmdir_Empty() {
 	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo/bar"), 0754)
 	AssertEq(nil, err)
 
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
 	// Remove the leaf.
+	rmTime := t.clock.Now()
 	err = os.Remove(path.Join(t.mfs.Dir(), "foo/bar"))
 	AssertEq(nil, err)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
 
 	// There should be nothing left in the parent.
 	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "foo"))
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
+
+	// Check the parent's mtime.
+	fi, err := os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	AssertEq(nil, err)
+	ExpectEq(0, fi.ModTime().Sub(rmTime))
 
 	// Remove the parent.
 	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))
@@ -515,6 +649,210 @@ func (t *MemFSTest) FileReadsAndWrites() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *MemFSTest) FileReadsAndWrites_BeyondEOF() {
-	AssertTrue(false, "TODO")
+func (t *MemFSTest) WriteOverlapsEndOfFile() {
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 4 bytes long.
+	err = f.Truncate(4)
+	AssertEq(nil, err)
+
+	// Write the range [2, 6).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("\x00\x00taco", string(contents))
+}
+
+func (t *MemFSTest) WriteStartsAtEndOfFile() {
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 2 bytes long.
+	err = f.Truncate(2)
+	AssertEq(nil, err)
+
+	// Write the range [2, 6).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("\x00\x00taco", string(contents))
+}
+
+func (t *MemFSTest) WriteStartsPastEndOfFile() {
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Write the range [2, 6).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	ExpectEq("\x00\x00taco", string(contents))
+}
+
+func (t *MemFSTest) WriteAtDoesntChangeOffset_NotAppendMode() {
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 16 bytes long.
+	err = f.Truncate(16)
+	AssertEq(nil, err)
+
+	// Seek to offset 4.
+	_, err = f.Seek(4, 0)
+	AssertEq(nil, err)
+
+	// Write the range [10, 14).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// We should still be at offset 4.
+	offset, err := getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(4, offset)
+}
+
+func (t *MemFSTest) WriteAtDoesntChangeOffset_AppendMode() {
+	var err error
+	var n int
+
+	// Create a file in append mode.
+	f, err := os.OpenFile(
+		path.Join(t.mfs.Dir(), "foo"),
+		os.O_RDWR|os.O_APPEND|os.O_CREATE,
+		0600)
+
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Make it 16 bytes long.
+	err = f.Truncate(16)
+	AssertEq(nil, err)
+
+	// Seek to offset 4.
+	_, err = f.Seek(4, 0)
+	AssertEq(nil, err)
+
+	// Write the range [10, 14).
+	n, err = f.WriteAt([]byte("taco"), 2)
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// We should still be at offset 4.
+	offset, err := getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(4, offset)
+}
+
+func (t *MemFSTest) AppendMode() {
+	var err error
+	var n int
+	var off int64
+	buf := make([]byte, 1024)
+
+	// Create a file with some contents.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(fileName, []byte("Jello, "), 0600)
+	AssertEq(nil, err)
+
+	// Open the file in append mode.
+	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_APPEND, 0600)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Seek to somewhere silly and then write.
+	off, err = f.Seek(2, 0)
+	AssertEq(nil, err)
+	AssertEq(2, off)
+
+	n, err = f.Write([]byte("world!"))
+	AssertEq(nil, err)
+	AssertEq(6, n)
+
+	// The offset should have been updated to point at the end of the file.
+	off, err = getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(13, off)
+
+	// A random write should still work, without updating the offset.
+	n, err = f.WriteAt([]byte("H"), 0)
+	AssertEq(nil, err)
+	AssertEq(1, n)
+
+	off, err = getFileOffset(f)
+	AssertEq(nil, err)
+	ExpectEq(13, off)
+
+	// Read back the contents of the file, which should be correct even though we
+	// seeked to a silly place before writing the world part.
+	n, err = f.ReadAt(buf, 0)
+	AssertEq(io.EOF, err)
+	ExpectEq("Hello, world!", string(buf[:n]))
+}
+
+func (t *MemFSTest) ReadsPastEndOfFile() {
+	var err error
+	var n int
+	buf := make([]byte, 1024)
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Give it some contents.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Read a range overlapping EOF.
+	n, err = f.ReadAt(buf[:4], 2)
+	AssertEq(io.EOF, err)
+	ExpectEq(2, n)
+	ExpectEq("co", string(buf[:n]))
+
+	// Read a range starting at EOF.
+	n, err = f.ReadAt(buf[:4], 4)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
+	ExpectEq("", string(buf[:n]))
+
+	// Read a range starting past EOF.
+	n, err = f.ReadAt(buf[:4], 100)
+	AssertEq(io.EOF, err)
+	ExpectEq(0, n)
+	ExpectEq("", string(buf[:n]))
 }
