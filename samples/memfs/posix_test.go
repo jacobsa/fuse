@@ -18,6 +18,8 @@
 package memfs_test
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	. "github.com/jacobsa/ogletest"
@@ -38,9 +40,23 @@ var _ TearDownInterface = &PosixTest{}
 
 func init() { RegisterTestSuite(&PosixTest{}) }
 
-func (t *PosixTest) SetUp(ti *TestInfo)
+func (t *PosixTest) SetUp(ti *TestInfo) {
+	var err error
 
-func (t *PosixTest) TearDown()
+	// Create a temporary directory.
+	t.dir, err = ioutil.TempDir("", "posix_test")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (t *PosixTest) TearDown() {
+	// Remove the temporary directory.
+	err := os.RemoveAll(t.dir)
+	if err != nil {
+		panic(err)
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Test functions
