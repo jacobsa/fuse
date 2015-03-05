@@ -875,6 +875,11 @@ func (t *MemFSTest) Truncate_Smaller() {
 	err = f.Truncate(2)
 	AssertEq(nil, err)
 
+	// Stat it.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(2, fi.Size())
+
 	// Read the contents.
 	contents, err := ioutil.ReadFile(fileName)
 	AssertEq(nil, err)

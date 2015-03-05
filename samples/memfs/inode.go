@@ -377,14 +377,19 @@ func (inode *inode) SetAttributes(size *uint64) {
 	// Update the modification time.
 	inode.attributes.Mtime = inode.clock.Now()
 
-	// Do we need to truncate?
+	// Truncate?
 	if size != nil {
 		intSize := int(*size)
+
+		// Update contents.
 		if intSize <= len(inode.contents) {
 			inode.contents = inode.contents[:intSize]
 		} else {
 			padding := make([]byte, intSize-len(inode.contents))
 			inode.contents = append(inode.contents, padding...)
 		}
+
+		// Update attributes.
+		inode.attributes.Size = *size
 	}
 }
