@@ -977,3 +977,7 @@ func (t *MemFSTest) Chtimes() {
 	AssertEq(nil, err)
 	ExpectEq(0, fi.ModTime().Sub(expectedMtime))
 }
+
+func (t *MemFSTest) ReadDirWhileModifying() {
+	AssertTrue(false, "TODO")
+}

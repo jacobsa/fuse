@@ -27,10 +27,6 @@ import (
 )
 
 // Common attributes for files and directories.
-//
-// TODO(jacobsa): Add tests for interacting with a file/directory after it has
-// been unlinked, including creating a new file. Make sure we don't screw up
-// and reuse an inode ID while it is still in use.
 type inode struct {
 	/////////////////////////
 	// Dependencies
@@ -73,9 +69,6 @@ type inode struct {
 	// we use its indices for Dirent.Offset, which is exposed to the user who
 	// might be calling readdir in a loop while concurrently modifying the
 	// directory. Unused entries can, however, be reused.
-	//
-	// TODO(jacobsa): Add good tests exercising concurrent modifications while
-	// doing readdir, seekdir, etc. calls.
 	//
 	// INVARIANT: If dir is false, this is nil.
 	// INVARIANT: For each i, entries[i].Offset == i+1
