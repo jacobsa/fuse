@@ -960,5 +960,20 @@ func (t *MemFSTest) Chmod() {
 }
 
 func (t *MemFSTest) Chtimes() {
-	AssertTrue(false, "TODO")
+	var err error
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create a file.
+	err = ioutil.WriteFile(fileName, []byte(""), 0600)
+	AssertEq(nil, err)
+
+	// Chtimes it.
+	expectedMtime := time.Now().Add(123 * time.Millisecond)
+	err = os.Chtimes(fileName, time.Time{}, expectedMtime)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := os.Stat(fileName)
+	AssertEq(nil, err)
+	ExpectEq(0, fi.ModTime().Sub(expectedMtime))
 }
