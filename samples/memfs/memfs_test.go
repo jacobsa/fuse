@@ -968,7 +968,7 @@ func (t *MemFSTest) Chtimes() {
 	AssertEq(nil, err)
 
 	// Chtimes it.
-	expectedMtime := time.Now().Add(123 * time.Millisecond)
+	expectedMtime := time.Now().Add(123 * time.Second).Round(time.Second)
 	err = os.Chtimes(fileName, time.Time{}, expectedMtime)
 	AssertEq(nil, err)
 

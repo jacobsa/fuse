@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -373,7 +374,10 @@ func (inode *inode) WriteAt(p []byte, off int64) (n int, err error) {
 // Update attributes from non-nil parameters.
 //
 // EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) SetAttributes(size *uint64, mode *os.FileMode) {
+func (inode *inode) SetAttributes(
+	size *uint64,
+	mode *os.FileMode,
+	mtime *time.Time) {
 	// Update the modification time.
 	inode.attributes.Mtime = inode.clock.Now()
 
@@ -396,5 +400,10 @@ func (inode *inode) SetAttributes(size *uint64, mode *os.FileMode) {
 	// Change mode?
 	if mode != nil {
 		inode.attributes.Mode = *mode
+	}
+
+	// Change mtime?
+	if mtime != nil {
+		inode.attributes.Mtime = *mtime
 	}
 }
