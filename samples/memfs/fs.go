@@ -16,6 +16,7 @@ package memfs
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -496,6 +497,11 @@ func (fs *memFS) ReadFile(
 	resp.Data = make([]byte, req.Size)
 	n, err := inode.ReadAt(resp.Data, req.Offset)
 	resp.Data = resp.Data[:n]
+
+	// Don't return EOF errors; we just indicate EOF to fuse using a short read.
+	if err == io.EOF {
+		err = nil
+	}
 
 	return
 }

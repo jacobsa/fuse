@@ -694,7 +694,8 @@ type ReadFileRequest struct {
 }
 
 type ReadFileResponse struct {
-	// The data read.
+	// The data read. If this is less than the requested size, it indicates EOF.
+	// An error should not be returned in this case.
 	Data []byte
 }
 
