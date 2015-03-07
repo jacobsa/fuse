@@ -24,6 +24,7 @@ import (
 	"path"
 	"testing"
 
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -296,4 +297,19 @@ func (t *PosixTest) ReadsPastEndOfFile() {
 	AssertEq(io.EOF, err)
 	ExpectEq(0, n)
 	ExpectEq("", string(buf[:n]))
+}
+
+func (t *PosixTest) HardLinkDirectory() {
+	dirName := path.Join(t.dir, "dir")
+
+	// Create a directory.
+	err := os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Attempt to hard-link it to a new name.
+	err = os.Link(dirName, path.Join(t.dir, "other"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("link")))
+	ExpectThat(err, Error(HasSubstr("not permitted")))
 }

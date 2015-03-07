@@ -114,9 +114,6 @@ type FileSystem interface {
 	// The file system is responsible for checking that the directory is empty.
 	//
 	// Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
-	//
-	// TODO(jacobsa): Add tests for the assertion about directory link counts
-	// above (on a real file system and on memfs).
 	RmDir(
 		ctx context.Context,
 		req *RmDirRequest) (*RmDirResponse, error)
