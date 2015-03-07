@@ -606,14 +606,14 @@ func (t *MemFSTest) UnlinkFile_StillOpen() {
 	buf := make([]byte, 1024)
 	n, err = f.ReadAt(buf, 0)
 
-	AssertEq(nil, err)
+	AssertEq(io.EOF, err)
 	AssertEq(4, n)
-	ExpectEq("taco", buf[:4])
+	ExpectEq("taco", string(buf[:4]))
 
 	// Writing should still work, too.
 	n, err = f.Write([]byte("burrito"))
 	AssertEq(nil, err)
-	AssertEq(4, n)
+	AssertEq(len("burrito"), n)
 }
 
 func (t *MemFSTest) Rmdir_NonEmpty() {
