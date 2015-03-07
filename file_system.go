@@ -171,25 +171,27 @@ type FileSystem interface {
 	// page via the FUSE VFS layer, causing this method to be called:
 	//
 	//  *  The kernel calls address_space_operations::writepage when a dirty page
-	//     needs to be written to backing store (see vfs.txt). Fuse sets this to
-	//     fuse_writepage (see file.c).
+	//     needs to be written to backing store (cf. http://goo.gl/Ezbewg). Fuse
+	//     sets this to fuse_writepage (cf. http://goo.gl/IeNvLT).
 	//
-	//  *  fuse_writepage calls fuse_writepage_locked.
+	//  *  (http://goo.gl/Eestuy) fuse_writepage calls fuse_writepage_locked.
 	//
-	//  *  fuse_writepage_locked makes a write request to the userspace server.
+	//  *  (http://goo.gl/RqYIxY) fuse_writepage_locked makes a write request to
+	//     the userspace server.
 	//
 	// Note that writes *will* be received before a call to Flush when closing
 	// the file descriptor to which they were written:
 	//
-	//  *  fuse_flush calls write_inode_now, which appears to start a writeback
-	//     in the background (it talks about a "flusher thread").
+	//  *  (http://goo.gl/PheZjf) fuse_flush calls write_inode_now, which appears
+	//     to start a writeback in the background (it talks about a "flusher
+	//     thread").
 	//
-	//  *  fuse_flush then calls fuse_sync_writes, which "[waits] for all pending
-	//     writepages on the inode to finish".
+	//  *  (http://goo.gl/1IiepM) fuse_flush then calls fuse_sync_writes, which
+	//     "[waits] for all pending writepages on the inode to finish".
 	//
-	//  *  Only then does fuse_flush finally send the flush request.
+	//  *  (http://goo.gl/zzvxWv) Only then does fuse_flush finally send the
+	//     flush request.
 	//
-	// TODO(jacobsa): Add links for all of the references above.
 	WriteFile(
 		ctx context.Context,
 		req *WriteFileRequest) (*WriteFileResponse, error)
