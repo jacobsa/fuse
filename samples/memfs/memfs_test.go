@@ -563,12 +563,11 @@ func (t *MemFSTest) UnlinkFile_Exists() {
 	ExpectThat(entries, ElementsAre())
 }
 
-func (t *MemFSTest) UnlinkFile_NotAFile() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *MemFSTest) UnlinkFile_NonExistent() {
-	AssertTrue(false, "TODO")
+	err := os.Remove(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *MemFSTest) UnlinkFile_StillOpen() {
