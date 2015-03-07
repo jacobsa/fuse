@@ -481,23 +481,137 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 }
 
 func (t *MemFSTest) ModifyExistingFile_InSubDir() {
-	AssertTrue(false, "TODO")
+	var err error
+	var n int
+	var fi os.FileInfo
+	var stat *syscall.Stat_t
+
+	// Create a sub-directory.
+	dirName := path.Join(t.mfs.Dir(), "dir")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Write a file.
+	fileName := path.Join(dirName, "foo")
+
+	createTime := t.clock.Now()
+	err = ioutil.WriteFile(fileName, []byte("Jello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
+	// Open the file and modify it.
+	f, err := os.OpenFile(fileName, os.O_WRONLY, 0400)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	modifyTime := t.clock.Now()
+	n, err = f.WriteAt([]byte("H"), 0)
+	AssertEq(nil, err)
+	AssertEq(1, n)
+
+	// Simulate time advancing.
+	t.clock.AdvanceTime(time.Second)
+
+	// Stat the file.
+	fi, err = os.Stat(fileName)
+	stat = fi.Sys().(*syscall.Stat_t)
+
+	AssertEq(nil, err)
+	ExpectEq("foo", fi.Name())
+	ExpectEq(len("Hello, world!"), fi.Size())
+	ExpectEq(0600, fi.Mode())
+	ExpectEq(0, fi.ModTime().Sub(modifyTime))
+	ExpectFalse(fi.IsDir())
+
+	ExpectNe(0, stat.Ino)
+	ExpectEq(1, stat.Nlink)
+	ExpectEq(currentUid(), stat.Uid)
+	ExpectEq(currentGid(), stat.Gid)
+	ExpectEq(len("Hello, world!"), stat.Size)
+	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(modifyTime))
+	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
+
+	// Read the file back.
+	slice, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	ExpectEq("Hello, world!", string(slice))
 }
 
 func (t *MemFSTest) UnlinkFile_Exists() {
-	AssertTrue(false, "TODO")
-}
+	var err error
 
-func (t *MemFSTest) UnlinkFile_NotAFile() {
-	AssertTrue(false, "TODO")
+	// Write a file.
+	fileName := path.Join(t.mfs.Dir(), "foo")
+	err = ioutil.WriteFile(fileName, []byte("Jello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Unlink it.
+	err = os.Remove(fileName)
+	AssertEq(nil, err)
+
+	// Statting it should fail.
+	_, err = os.Stat(fileName)
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+
+	// Nothing should be in the directory.
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
 
 func (t *MemFSTest) UnlinkFile_NonExistent() {
-	AssertTrue(false, "TODO")
+	err := os.Remove(path.Join(t.mfs.Dir(), "foo"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *MemFSTest) UnlinkFile_StillOpen() {
-	AssertTrue(false, "TODO")
+	fileName := path.Join(t.mfs.Dir(), "foo")
+
+	// Create and open a file.
+	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0600)
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Write some data into it.
+	n, err := f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Unlink it.
+	err = os.Remove(fileName)
+	AssertEq(nil, err)
+
+	// The directory should no longer contain it.
+	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+
+	// We should be able to stat the file. It should still show as having
+	// contents, but with no links.
+	fi, err := f.Stat()
+
+	AssertEq(nil, err)
+	ExpectEq(4, fi.Size())
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// The contents should still be available.
+	buf := make([]byte, 1024)
+	n, err = f.ReadAt(buf, 0)
+
+	AssertEq(nil, err)
+	AssertEq(4, n)
+	ExpectEq("taco", buf[:4])
+
+	// Writing should still work, too.
+	n, err = f.Write([]byte("burrito"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
 }
 
 func (t *MemFSTest) Rmdir_NonEmpty() {
@@ -643,10 +757,6 @@ func (t *MemFSTest) CaseSensitive() {
 		AssertNe(nil, err, "Name: %s", name)
 		AssertThat(err, Error(HasSubstr("no such file or directory")))
 	}
-}
-
-func (t *MemFSTest) FileReadsAndWrites() {
-	AssertTrue(false, "TODO")
 }
 
 func (t *MemFSTest) WriteOverlapsEndOfFile() {
@@ -979,5 +1089,59 @@ func (t *MemFSTest) Chtimes() {
 }
 
 func (t *MemFSTest) ReadDirWhileModifying() {
-	AssertTrue(false, "TODO")
+	dirName := path.Join(t.mfs.Dir(), "dir")
+	createFile := func(name string) {
+		AssertEq(nil, ioutil.WriteFile(path.Join(dirName, name), []byte{}, 0400))
+	}
+
+	// Create a directory.
+	err := os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Open the directory.
+	d, err := os.Open(dirName)
+	t.toClose = append(t.toClose, d)
+	AssertEq(nil, err)
+
+	// Add four files.
+	createFile("foo")
+	createFile("bar")
+	createFile("baz")
+	createFile("qux")
+
+	// Read one entry from the directory.
+	names, err := d.Readdirnames(1)
+	AssertEq(nil, err)
+	AssertThat(names, ElementsAre("foo"))
+
+	// Make two holes in the directory.
+	AssertEq(nil, os.Remove(path.Join(dirName, "foo")))
+	AssertEq(nil, os.Remove(path.Join(dirName, "baz")))
+
+	// Add a bunch of files to the directory.
+	createFile("blah_0")
+	createFile("blah_1")
+	createFile("blah_2")
+	createFile("blah_3")
+	createFile("blah_4")
+
+	// Continue reading from the directory, noting the names we see.
+	namesSeen := make(map[string]bool)
+	for {
+		names, err = d.Readdirnames(1)
+		for _, n := range names {
+			namesSeen[n] = true
+		}
+
+		if err == io.EOF {
+			break
+		}
+
+		AssertEq(nil, err)
+	}
+
+	// Posix requires that we should have seen bar and qux, which we didn't
+	// delete.
+	ExpectTrue(namesSeen["bar"])
+	ExpectTrue(namesSeen["qux"])
 }
