@@ -1089,5 +1089,59 @@ func (t *MemFSTest) Chtimes() {
 }
 
 func (t *MemFSTest) ReadDirWhileModifying() {
-	AssertTrue(false, "TODO")
+	dirName := path.Join(t.mfs.Dir(), "dir")
+	createFile := func(name string) {
+		AssertEq(nil, ioutil.WriteFile(path.Join(dirName, name), []byte{}, 0400))
+	}
+
+	// Create a directory.
+	err := os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Open the directory.
+	d, err := os.Open(dirName)
+	t.toClose = append(t.toClose, d)
+	AssertEq(nil, err)
+
+	// Add four files.
+	createFile("foo")
+	createFile("bar")
+	createFile("baz")
+	createFile("qux")
+
+	// Read one entry from the directory.
+	names, err := d.Readdirnames(1)
+	AssertEq(nil, err)
+	AssertThat(names, ElementsAre("foo"))
+
+	// Make two holes in the directory.
+	AssertEq(nil, os.Remove(path.Join(dirName, "foo")))
+	AssertEq(nil, os.Remove(path.Join(dirName, "baz")))
+
+	// Add a bunch of files to the directory.
+	createFile("blah_0")
+	createFile("blah_1")
+	createFile("blah_2")
+	createFile("blah_3")
+	createFile("blah_4")
+
+	// Continue reading from the directory, noting the names we see.
+	namesSeen := make(map[string]bool)
+	for {
+		names, err = d.Readdirnames(1)
+		for _, n := range names {
+			namesSeen[n] = true
+		}
+
+		if err == io.EOF {
+			break
+		}
+
+		AssertEq(nil, err)
+	}
+
+	// Posix requires that we should have seen bar and qux, which we didn't
+	// delete.
+	ExpectTrue(namesSeen["bar"])
+	ExpectTrue(namesSeen["qux"])
 }
