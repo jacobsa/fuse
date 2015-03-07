@@ -759,10 +759,6 @@ func (t *MemFSTest) CaseSensitive() {
 	}
 }
 
-func (t *MemFSTest) FileReadsAndWrites() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *MemFSTest) WriteOverlapsEndOfFile() {
 	var err error
 	var n int
