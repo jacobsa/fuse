@@ -265,31 +265,45 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		typed.Respond(fuseResp)
 
 	case *bazilfuse.RemoveRequest:
-		// We don't yet support files.
-		if !typed.Dir {
-			s.logger.Println("Not supported for files. Returning ENOSYS.")
-			typed.RespondError(ENOSYS)
-			return
-		}
+		if typed.Dir {
+			// Convert the request.
+			req := &RmDirRequest{
+				Header: convertHeader(typed.Header),
+				Parent: InodeID(typed.Header.Node),
+				Name:   typed.Name,
+			}
 
-		// Convert the request.
-		req := &RmDirRequest{
-			Header: convertHeader(typed.Header),
-			Parent: InodeID(typed.Header.Node),
-			Name:   typed.Name,
-		}
+			// Call the file system.
+			_, err := s.fs.RmDir(ctx, req)
+			if err != nil {
+				s.logger.Println("Responding:", err)
+				typed.RespondError(err)
+				return
+			}
 
-		// Call the file system.
-		_, err := s.fs.RmDir(ctx, req)
-		if err != nil {
-			s.logger.Println("Responding:", err)
-			typed.RespondError(err)
-			return
-		}
+			// Respond successfully.
+			s.logger.Println("Responding OK.")
+			typed.Respond()
+		} else {
+			// Convert the request.
+			req := &UnlinkRequest{
+				Header: convertHeader(typed.Header),
+				Parent: InodeID(typed.Header.Node),
+				Name:   typed.Name,
+			}
 
-		// Respond successfully.
-		s.logger.Println("Responding OK.")
-		typed.Respond()
+			// Call the file system.
+			_, err := s.fs.Unlink(ctx, req)
+			if err != nil {
+				s.logger.Println("Responding:", err)
+				typed.RespondError(err)
+				return
+			}
+
+			// Respond successfully.
+			s.logger.Println("Responding OK.")
+			typed.Respond()
+		}
 
 	case *bazilfuse.OpenRequest:
 		// Directory or file?

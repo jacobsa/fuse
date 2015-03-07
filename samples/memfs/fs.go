@@ -417,6 +417,38 @@ func (fs *memFS) RmDir(
 	return
 }
 
+func (fs *memFS) Unlink(
+	ctx context.Context,
+	req *fuse.UnlinkRequest) (resp *fuse.UnlinkResponse, err error) {
+	resp = &fuse.UnlinkResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Grab the parent, which we will update shortly.
+	parent := fs.getInodeForModifyingOrDie(req.Parent)
+	defer parent.mu.Unlock()
+
+	// Find the child within the parent.
+	childID, ok := parent.LookUpChild(req.Name)
+	if !ok {
+		err = fuse.ENOENT
+		return
+	}
+
+	// Grab the child.
+	child := fs.getInodeForModifyingOrDie(childID)
+	defer child.mu.Unlock()
+
+	// Remove the entry within the parent.
+	parent.RemoveChild(req.Name)
+
+	// Mark the child as unlinked.
+	child.linkCount--
+
+	return
+}
+
 func (fs *memFS) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {

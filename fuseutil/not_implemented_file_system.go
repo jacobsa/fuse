@@ -76,6 +76,12 @@ func (fs *NotImplementedFileSystem) RmDir(
 	return nil, fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) Unlink(
+	ctx context.Context,
+	req *fuse.UnlinkRequest) (*fuse.UnlinkResponse, error) {
+	return nil, fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) OpenDir(
 	ctx context.Context,
 	req *fuse.OpenDirRequest) (*fuse.OpenDirResponse, error) {

@@ -118,6 +118,15 @@ type FileSystem interface {
 		ctx context.Context,
 		req *RmDirRequest) (*RmDirResponse, error)
 
+	// Unlink a file from its parent. If this brings the inode's link count to
+	// zero, the inode should be deleted once the kernel calls ForgetInode. It
+	// may still be referenced before then if a user still has the file open.
+	//
+	// Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
+	Unlink(
+		ctx context.Context,
+		req *UnlinkRequest) (*UnlinkResponse, error)
+
 	///////////////////////////////////
 	// Directory handles
 	///////////////////////////////////
@@ -511,6 +520,18 @@ type RmDirRequest struct {
 
 	// The ID of parent directory inode, and the name of the directory being
 	// removed within it.
+	Parent InodeID
+	Name   string
+}
+
+type UnlinkResponse struct {
+}
+
+type UnlinkRequest struct {
+	Header RequestHeader
+
+	// The ID of parent directory inode, and the name of the file being removed
+	// within it.
 	Parent InodeID
 	Name   string
 }
