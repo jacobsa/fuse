@@ -23,6 +23,7 @@ import (
 const (
 	// Errors corresponding to kernel error numbers. These may be treated
 	// specially when returned by a FileSystem method.
+	EINVAL    = bazilfuse.Errno(syscall.EINVAL)
 	EIO       = bazilfuse.EIO
 	ENOENT    = bazilfuse.ENOENT
 	ENOSYS    = bazilfuse.ENOSYS
