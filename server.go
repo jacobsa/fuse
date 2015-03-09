@@ -409,6 +409,46 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 			typed.Respond(fuseResp)
 		}
 
+	case *bazilfuse.ReleaseRequest:
+		// Directory or file?
+		if typed.Dir {
+			// Convert the request.
+			req := &ReleaseDirHandleRequest{
+				Header: convertHeader(typed.Header),
+				Handle: HandleID(typed.Handle),
+			}
+
+			// Call the file system.
+			_, err := s.fs.ReleaseDirHandle(ctx, req)
+			if err != nil {
+				s.logger.Println("Responding:", err)
+				typed.RespondError(err)
+				return
+			}
+
+			// Respond successfully.
+			s.logger.Println("Responding OK.")
+			typed.Respond()
+		} else {
+			// Convert the request.
+			req := &ReleaseFileHandleRequest{
+				Header: convertHeader(typed.Header),
+				Handle: HandleID(typed.Handle),
+			}
+
+			// Call the file system.
+			_, err := s.fs.ReleaseFileHandle(ctx, req)
+			if err != nil {
+				s.logger.Println("Responding:", err)
+				typed.RespondError(err)
+				return
+			}
+
+			// Respond successfully.
+			s.logger.Println("Responding OK.")
+			typed.Respond()
+		}
+
 	case *bazilfuse.WriteRequest:
 		// Convert the request.
 		req := &WriteFileRequest{
