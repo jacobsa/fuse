@@ -30,3 +30,9 @@ func extractBirthtime(sys interface{}) (birthtime time.Time, ok bool) {
 	ok = true
 	return
 }
+
+func extractNlink(sys interface{}) (nlink uint64, ok bool) {
+	nlink = uint64(sys.(*syscall.Stat_t).Nlink)
+	ok = true
+	return
+}

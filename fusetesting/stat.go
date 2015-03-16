@@ -83,3 +83,25 @@ func birthtimeIs(c interface{}, expected time.Time) error {
 
 	return nil
 }
+
+// Match os.FileInfo values that specify a number of links equal to the given
+// number. On platforms where there is no nlink field available, match all
+// os.FileInfo values.
+func NlinkIs(expected uint64) oglematchers.Matcher {
+	return oglematchers.NewMatcher(
+		func(c interface{}) error { return nlinkIs(c, expected) },
+		fmt.Sprintf("nlink is %v", expected))
+}
+
+func nlinkIs(c interface{}, expected uint64) error {
+	fi, ok := c.(os.FileInfo)
+	if !ok {
+		return fmt.Errorf("which is of type %v", reflect.TypeOf(c))
+	}
+
+	if actual, ok := extractNlink(fi.Sys()); ok && actual != expected {
+		return fmt.Errorf("which has nlink == %v", actual)
+	}
+
+	return nil
+}
