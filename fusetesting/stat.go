@@ -55,6 +55,12 @@ func mtimeIs(c interface{}, expected time.Time) error {
 	return nil
 }
 
+// Extract the mtime from the result of os.FileInfo.Sys(), in a
+// platform-specific way. If not supported on this platform, return !ok.
+//
+// Defined in stat_darwin.go, etc.
+func extractMtime(sys interface{}) (mtime time.Time, ok bool)
+
 // Match os.FileInfo values that specify a file birth time equal to the given
 // time. On platforms where there is no birth time available, match all
 // os.FileInfo values.
