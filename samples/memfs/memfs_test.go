@@ -1070,7 +1070,7 @@ func (t *MemFSTest) Chmod() {
 	// Stat it.
 	fi, err := os.Stat(fileName)
 	AssertEq(nil, err)
-	ExpectEq(applyUmask(0754), fi.Mode())
+	ExpectEq(0754, fi.Mode())
 }
 
 func (t *MemFSTest) Chtimes() {
