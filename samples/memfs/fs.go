@@ -60,8 +60,11 @@ type memFS struct {
 	freeInodes []fuse.InodeID // GUARDED_BY(mu)
 }
 
-// Create a file system that stores data and metadata in memory. The supplied
-// UID/GID pair will own the root inode.
+// Create a file system that stores data and metadata in memory.
+//
+// The supplied UID/GID pair will own the root inode. This file system does no
+// permissions checking, and should therefore be mounted with the
+// default_permissions option.
 func NewMemFS(
 	uid uint32,
 	gid uint32,
