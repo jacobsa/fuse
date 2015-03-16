@@ -24,3 +24,9 @@ func extractMtime(sys interface{}) (mtime time.Time, ok bool) {
 	ok = true
 	return
 }
+
+func extractBirthtime(sys interface{}) (birthtime time.Time, ok bool) {
+	birthtime = time.Unix(sys.(*syscall.Stat_t).Birthtimespec.Unix())
+	ok = true
+	return
+}

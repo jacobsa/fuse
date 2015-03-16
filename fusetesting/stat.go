@@ -58,4 +58,28 @@ func mtimeIs(c interface{}, expected time.Time) error {
 // Match os.FileInfo values that specify a file birth time equal to the given
 // time. On platforms where there is no birth time available, match all
 // os.FileInfo values.
-func BirthtimeIs(expected time.Time) oglematchers.Matcher
+func BirthtimeIs(expected time.Time) oglematchers.Matcher {
+	return oglematchers.NewMatcher(
+		func(c interface{}) error { return birthtimeIs(c, expected) },
+		fmt.Sprintf("birthtime is %v", expected))
+}
+
+func birthtimeIs(c interface{}, expected time.Time) error {
+	fi, ok := c.(os.FileInfo)
+	if !ok {
+		return fmt.Errorf("which is of type %v", reflect.TypeOf(c))
+	}
+
+	// Check Sys().
+	if sysBirthtime, ok := extractBirthtime(fi.Sys()); ok {
+		if sysBirthtime != expected {
+			d := sysBirthtime.Sub(expected)
+			return fmt.Errorf(
+				"which has Sys() birthtime %v, off by %v",
+				sysBirthtime,
+				d)
+		}
+	}
+
+	return nil
+}
