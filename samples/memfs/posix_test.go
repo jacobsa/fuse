@@ -260,9 +260,18 @@ func (t *PosixTest) AppendMode() {
 
 	// Read back the contents of the file, which should be correct even though we
 	// seeked to a silly place before writing the world part.
+	//
+	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
+	//
+	//     POSIX requires that opening a file with the O_APPEND flag should have
+	//     no affect on the location at which pwrite() writes data.  However, on
+	//     Linux,  if  a  file  is opened with O_APPEND, pwrite() appends data to
+	//     the end of the file, regardless of the value of offset.
+	//
+	// So we allow either the POSIX result or the Linux result.
 	n, err = f.ReadAt(buf, 0)
 	AssertEq(io.EOF, err)
-	ExpectEq("Hello, world!", string(buf[:n]))
+	ExpectThat(string(buf[:n]), AnyOf("Hello, world!", "Jello, world!H"))
 }
 
 func (t *PosixTest) ReadsPastEndOfFile() {
