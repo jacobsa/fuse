@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	bazilfuse "bazil.org/fuse"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples/memfs"
@@ -111,8 +112,14 @@ func (t *MemFSTest) SetUp(ti *TestInfo) {
 	}
 
 	// Mount a file system.
-	fs := memfs.NewMemFS(&t.clock)
-	if t.mfs, err = fuse.Mount(mountPoint, fs); err != nil {
+	fs := memfs.NewMemFS(currentUid(), currentGid(), &t.clock)
+
+	t.mfs, err = fuse.Mount(
+		mountPoint,
+		fs,
+		bazilfuse.DefaultPermissions())
+
+	if err != nil {
 		panic("Mount: " + err.Error())
 	}
 

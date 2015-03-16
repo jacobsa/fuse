@@ -258,6 +258,27 @@ func init() {
 // http://goo.gl/tvYyQt).
 type InodeAttributes struct {
 	Size uint64
+
+	// The mode of the inode. This is exposed to the user in e.g. the result of
+	// fstat(2).
+	//
+	// The permissions bits of the mode are not necessarily respected by the FUSE
+	// kernel layer unless the file system is mounted with the
+	// 'default_permissions' option (cf. http://goo.gl/1LxOop).
+	//
+	// For example, in the case of mkdir:
+	//
+	//  *  (http://goo.gl/JkdxDI) sys_mkdirat calls inode_permission.
+	//
+	//  *  (...) inode_permission eventually calls do_inode_permission.
+	//
+	//  *  (http://goo.gl/aGCsmZ) calls i_op->permission, which is
+	//     fuse_permission (cf. http://goo.gl/VZ9beH).
+	//
+	//  *  (http://goo.gl/5kqUKO) fuse_permission doesn't do anything at all for
+	//     several code paths if FUSE_DEFAULT_PERMISSIONS is unset. In contrast,
+	//     if that flag *is* set, then it calls generic_permission.
+	//
 	Mode os.FileMode
 
 	// Time information. See `man 2 stat` for full details.
