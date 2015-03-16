@@ -734,12 +734,16 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 	//     https://github.com/bazillion/fuse/issues/66
 	// ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
-	// Attempt to read from the directory. This should succeed even though it has
-	// been unlinked, and we shouldn't see any junk from the new directory.
+	// Attempt to read from the directory. This shouldn't see any junk from the
+	// new directory. It should either succeed with an empty result or should
+	// return ENOENT.
 	entries, err := f.Readdir(0)
 
-	AssertEq(nil, err)
-	ExpectThat(entries, ElementsAre())
+	if err != nil {
+		ExpectThat(err, Error(HasSubstr("no such file")))
+	} else {
+		ExpectThat(entries, ElementsAre())
+	}
 }
 
 func (t *MemFSTest) CaseSensitive() {
