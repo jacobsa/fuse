@@ -111,7 +111,7 @@ func (t *MemFSTest) SetUp(ti *TestInfo) {
 	}
 
 	// Mount a file system.
-	fs := memfs.NewMemFS(&t.clock)
+	fs := memfs.NewMemFS(currentUid(), currentGid(), &t.clock)
 	if t.mfs, err = fuse.Mount(mountPoint, fs); err != nil {
 		panic("Mount: " + err.Error())
 	}

@@ -60,8 +60,11 @@ type memFS struct {
 	freeInodes []fuse.InodeID // GUARDED_BY(mu)
 }
 
-// Create a file system that stores data and metadata in memory.
+// Create a file system that stores data and metadata in memory. The supplied
+// UID/GID pair will own the root inode.
 func NewMemFS(
+	uid uint32,
+	gid uint32,
 	clock timeutil.Clock) fuse.FileSystem {
 	// Set up the basic struct.
 	fs := &memFS{
@@ -69,10 +72,11 @@ func NewMemFS(
 		inodes: make([]*inode, fuse.RootInodeID+1),
 	}
 
-	// Set up the root inode. Its ownership information will later be modified in
-	// Init.
+	// Set up the root inode.
 	rootAttrs := fuse.InodeAttributes{
 		Mode: 0700 | os.ModeDir,
+		Uid:  uid,
+		Gid:  gid,
 	}
 
 	fs.inodes[fuse.RootInodeID] = newInode(clock, rootAttrs)
@@ -195,17 +199,6 @@ func (fs *memFS) Init(
 	ctx context.Context,
 	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
 	resp = &fuse.InitResponse{}
-
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
-
-	// Update the root inode's ownership information to match the credentials of
-	// the mounting process.
-	root := fs.getInodeForModifyingOrDie(fuse.RootInodeID)
-	defer root.mu.Unlock()
-
-	root.attributes.Uid = req.Header.Uid
-	root.attributes.Gid = req.Header.Gid
 
 	return
 }
