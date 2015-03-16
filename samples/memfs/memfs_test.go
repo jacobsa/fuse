@@ -71,7 +71,15 @@ func currentGid() uint32 {
 }
 
 // Transform the supplied mode by the current umask.
-func applyUmask(m os.FileMode) os.FileMode
+func applyUmask(m os.FileMode) os.FileMode {
+	// HACK(jacobsa): Use umask(2) to change and restore the umask in order to
+	// figure out what the mask is. See the listing in `man getumask`.
+	umask := syscall.Umask(0)
+	syscall.Umask(umask)
+
+	// Apply it.
+	return m &^ os.FileMode(umask)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
