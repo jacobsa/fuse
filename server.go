@@ -20,7 +20,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 
 	bazilfuse "bazil.org/fuse"
@@ -29,7 +28,6 @@ import (
 // An object that terminates one end of the userspace <-> FUSE VFS connection.
 type server struct {
 	logger *log.Logger
-	clock  timeutil.Clock
 	fs     FileSystem
 }
 
@@ -37,7 +35,6 @@ type server struct {
 func newServer(fs FileSystem) (s *server, err error) {
 	s = &server{
 		logger: getLogger(),
-		clock:  timeutil.RealClock(),
 		fs:     fs,
 	}
 
@@ -49,7 +46,6 @@ func newServer(fs FileSystem) (s *server, err error) {
 func convertExpirationTime(t time.Time) time.Duration
 
 func convertChildInodeEntry(
-	clock timeutil.Clock,
 	in *ChildInodeEntry,
 	out *bazilfuse.LookupResponse) {
 	out.Node = bazilfuse.NodeID(in.Child)
@@ -147,7 +143,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 
 		// Convert the response.
 		fuseResp := &bazilfuse.LookupResponse{}
-		convertChildInodeEntry(s.clock, &resp.Entry, fuseResp)
+		convertChildInodeEntry(&resp.Entry, fuseResp)
 
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
@@ -235,7 +231,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 
 		// Convert the response.
 		fuseResp := &bazilfuse.MkdirResponse{}
-		convertChildInodeEntry(s.clock, &resp.Entry, &fuseResp.LookupResponse)
+		convertChildInodeEntry(&resp.Entry, &fuseResp.LookupResponse)
 
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
@@ -264,7 +260,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 				Handle: bazilfuse.HandleID(resp.Handle),
 			},
 		}
-		convertChildInodeEntry(s.clock, &resp.Entry, &fuseResp.LookupResponse)
+		convertChildInodeEntry(&resp.Entry, &fuseResp.LookupResponse)
 
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
