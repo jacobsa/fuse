@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples/memfs"
 	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
@@ -67,10 +68,6 @@ func currentGid() uint32 {
 	}
 
 	return uint32(gid)
-}
-
-func timespecToTime(ts syscall.Timespec) time.Time {
-	return time.Unix(ts.Sec, ts.Nsec)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -187,7 +184,8 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(os.ModeDir|0754, fi.Mode())
-	ExpectEq(0, fi.ModTime().Sub(createTime))
+	ExpectThat(fi, fusetesting.MtimeIs(createTime))
+	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectTrue(fi.IsDir())
 
 	ExpectNe(0, stat.Ino)
@@ -195,8 +193,6 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(0, stat.Size)
-	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
-	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Check the root's mtime.
 	fi, err = os.Stat(t.mfs.Dir())
@@ -250,7 +246,8 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(os.ModeDir|0754, fi.Mode())
-	ExpectEq(0, fi.ModTime().Sub(createTime))
+	ExpectThat(fi, fusetesting.MtimeIs(createTime))
+	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectTrue(fi.IsDir())
 
 	ExpectNe(0, stat.Ino)
@@ -258,8 +255,6 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(0, stat.Size)
-	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
-	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Check the parent's mtime.
 	fi, err = os.Stat(path.Join(t.mfs.Dir(), "parent"))
@@ -363,7 +358,8 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len(contents), fi.Size())
 	ExpectEq(0400, fi.Mode())
-	ExpectEq(0, fi.ModTime().Sub(createTime))
+	ExpectThat(fi, fusetesting.MtimeIs(createTime))
+	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
 
 	ExpectNe(0, stat.Ino)
@@ -371,8 +367,6 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(len(contents), stat.Size)
-	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
-	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Read it back.
 	slice, err := ioutil.ReadFile(fileName)
@@ -409,7 +403,8 @@ func (t *MemFSTest) CreateNewFile_InSubDir() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len(contents), fi.Size())
 	ExpectEq(0400, fi.Mode())
-	ExpectEq(0, fi.ModTime().Sub(createTime))
+	ExpectThat(fi, fusetesting.MtimeIs(createTime))
+	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
 
 	ExpectNe(0, stat.Ino)
@@ -417,8 +412,6 @@ func (t *MemFSTest) CreateNewFile_InSubDir() {
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(len(contents), stat.Size)
-	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(createTime))
-	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Read it back.
 	slice, err := ioutil.ReadFile(fileName)
@@ -463,7 +456,8 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
 	ExpectEq(0600, fi.Mode())
-	ExpectEq(0, fi.ModTime().Sub(modifyTime))
+	ExpectThat(fi, fusetesting.MtimeIs(modifyTime))
+	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
 
 	ExpectNe(0, stat.Ino)
@@ -471,8 +465,6 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(len("Hello, world!"), stat.Size)
-	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(modifyTime))
-	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Read the file back.
 	slice, err := ioutil.ReadFile(fileName)
@@ -522,7 +514,8 @@ func (t *MemFSTest) ModifyExistingFile_InSubDir() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
 	ExpectEq(0600, fi.Mode())
-	ExpectEq(0, fi.ModTime().Sub(modifyTime))
+	ExpectThat(fi, fusetesting.MtimeIs(modifyTime))
+	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
 
 	ExpectNe(0, stat.Ino)
@@ -530,8 +523,6 @@ func (t *MemFSTest) ModifyExistingFile_InSubDir() {
 	ExpectEq(currentUid(), stat.Uid)
 	ExpectEq(currentGid(), stat.Gid)
 	ExpectEq(len("Hello, world!"), stat.Size)
-	ExpectEq(0, timespecToTime(stat.Mtimespec).Sub(modifyTime))
-	ExpectEq(0, timespecToTime(stat.Birthtimespec).Sub(createTime))
 
 	// Read the file back.
 	slice, err := ioutil.ReadFile(fileName)
