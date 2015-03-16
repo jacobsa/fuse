@@ -313,3 +313,51 @@ func (t *PosixTest) HardLinkDirectory() {
 	ExpectThat(err, Error(HasSubstr("link")))
 	ExpectThat(err, Error(HasSubstr("not permitted")))
 }
+
+func (t *PosixTest) RmdirWhileOpenedForReading() {
+	var err error
+
+	// Create a directory.
+	err = os.Mkdir(path.Join(t.dir, "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Open the directory for reading.
+	f, err := os.Open(path.Join(t.dir, "dir"))
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	AssertEq(nil, err)
+
+	// Remove the directory.
+	err = os.Remove(path.Join(t.dir, "dir"))
+	AssertEq(nil, err)
+
+	// Create a new directory, with the same name even, and add some contents
+	// within it.
+	err = os.MkdirAll(path.Join(t.dir, "dir/foo"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.dir, "dir/bar"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.dir, "dir/baz"), 0700)
+	AssertEq(nil, err)
+
+	// We should still be able to stat the open file handle.
+	fi, err := f.Stat()
+	ExpectEq("dir", fi.Name())
+
+	// Attempt to read from the directory. This shouldn't see any junk from the
+	// new directory. It should either succeed with an empty result or should
+	// return ENOENT.
+	entries, err := f.Readdir(0)
+
+	if err != nil {
+		ExpectThat(err, Error(HasSubstr("no such file")))
+	} else {
+		ExpectThat(entries, ElementsAre())
+	}
+}
