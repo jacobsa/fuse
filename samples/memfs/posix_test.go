@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"syscall"
 	"testing"
 
 	. "github.com/jacobsa/oglematchers"
@@ -312,4 +313,51 @@ func (t *PosixTest) HardLinkDirectory() {
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("link")))
 	ExpectThat(err, Error(HasSubstr("not permitted")))
+}
+
+func (t *PosixTest) RmdirWhileOpenedForReading() {
+	var err error
+
+	// Create a directory.
+	err = os.Mkdir(path.Join(t.dir, "dir"), 0700)
+	AssertEq(nil, err)
+
+	// Open the directory for reading.
+	f, err := os.Open(path.Join(t.dir, "dir"))
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	AssertEq(nil, err)
+
+	// Remove the directory.
+	err = os.Remove(path.Join(t.dir, "dir"))
+	AssertEq(nil, err)
+
+	// Create a new directory, with the same name even, and add some contents
+	// within it.
+	err = os.MkdirAll(path.Join(t.dir, "dir/foo"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.dir, "dir/bar"), 0700)
+	AssertEq(nil, err)
+
+	err = os.MkdirAll(path.Join(t.dir, "dir/baz"), 0700)
+	AssertEq(nil, err)
+
+	// We should still be able to stat the open file handle. It should show up as
+	// unlinked.
+	fi, err := f.Stat()
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// Attempt to read from the directory. This should succeed even though it has
+	// been unlinked, and we shouldn't see any junk from the new directory.
+	entries, err := f.Readdir(0)
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }
