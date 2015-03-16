@@ -43,7 +43,22 @@ func newServer(fs FileSystem) (s *server, err error) {
 
 // Convert an absolute cache expiration time to a relative time from now for
 // consumption by fuse.
-func convertExpirationTime(t time.Time) time.Duration
+func convertExpirationTime(t time.Time) (d time.Duration) {
+	// Fuse represents durations as unsigned 64-bit counts of seconds and 32-bit
+	// counts of nanoseconds (cf. http://goo.gl/EJupJV). The bazil.org/fuse
+	// package converts time.Duration values to this form in a straightforward
+	// way (cf. http://goo.gl/FJhV8j).
+	//
+	// So negative durations are right out. There is no need to cap the positive
+	// magnitude, because 2^64 seconds is well longer than the 2^63 ns range of
+	// time.Duration.
+	d = t.Sub(time.Now())
+	if d < 0 {
+		d = 0
+	}
+
+	return
+}
 
 func convertChildInodeEntry(
 	in *ChildInodeEntry,
