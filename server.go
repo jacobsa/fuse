@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"time"
 
-	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 
 	bazilfuse "bazil.org/fuse"
@@ -28,7 +28,6 @@ import (
 // An object that terminates one end of the userspace <-> FUSE VFS connection.
 type server struct {
 	logger *log.Logger
-	clock  timeutil.Clock
 	fs     FileSystem
 }
 
@@ -36,22 +35,39 @@ type server struct {
 func newServer(fs FileSystem) (s *server, err error) {
 	s = &server{
 		logger: getLogger(),
-		clock:  timeutil.RealClock(),
 		fs:     fs,
 	}
 
 	return
 }
 
+// Convert an absolute cache expiration time to a relative time from now for
+// consumption by fuse.
+func convertExpirationTime(t time.Time) (d time.Duration) {
+	// Fuse represents durations as unsigned 64-bit counts of seconds and 32-bit
+	// counts of nanoseconds (cf. http://goo.gl/EJupJV). The bazil.org/fuse
+	// package converts time.Duration values to this form in a straightforward
+	// way (cf. http://goo.gl/FJhV8j).
+	//
+	// So negative durations are right out. There is no need to cap the positive
+	// magnitude, because 2^64 seconds is well longer than the 2^63 ns range of
+	// time.Duration.
+	d = t.Sub(time.Now())
+	if d < 0 {
+		d = 0
+	}
+
+	return
+}
+
 func convertChildInodeEntry(
-	clock timeutil.Clock,
 	in *ChildInodeEntry,
 	out *bazilfuse.LookupResponse) {
 	out.Node = bazilfuse.NodeID(in.Child)
 	out.Generation = uint64(in.Generation)
 	out.Attr = convertAttributes(in.Child, in.Attributes)
-	out.AttrValid = in.AttributesExpiration.Sub(clock.Now())
-	out.EntryValid = in.EntryExpiration.Sub(clock.Now())
+	out.AttrValid = convertExpirationTime(in.AttributesExpiration)
+	out.EntryValid = convertExpirationTime(in.EntryExpiration)
 }
 
 func convertHeader(
@@ -142,7 +158,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 
 		// Convert the response.
 		fuseResp := &bazilfuse.LookupResponse{}
-		convertChildInodeEntry(s.clock, &resp.Entry, fuseResp)
+		convertChildInodeEntry(&resp.Entry, fuseResp)
 
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
@@ -165,7 +181,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		// Convert the response.
 		fuseResp := &bazilfuse.GetattrResponse{
 			Attr:      convertAttributes(req.Inode, resp.Attributes),
-			AttrValid: resp.AttributesExpiration.Sub(s.clock.Now()),
+			AttrValid: convertExpirationTime(resp.AttributesExpiration),
 		}
 
 		s.logger.Println("Responding:", fuseResp)
@@ -205,7 +221,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		// Convert the response.
 		fuseResp := &bazilfuse.SetattrResponse{
 			Attr:      convertAttributes(req.Inode, resp.Attributes),
-			AttrValid: resp.AttributesExpiration.Sub(s.clock.Now()),
+			AttrValid: convertExpirationTime(resp.AttributesExpiration),
 		}
 
 		s.logger.Println("Responding:", fuseResp)
@@ -230,7 +246,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 
 		// Convert the response.
 		fuseResp := &bazilfuse.MkdirResponse{}
-		convertChildInodeEntry(s.clock, &resp.Entry, &fuseResp.LookupResponse)
+		convertChildInodeEntry(&resp.Entry, &fuseResp.LookupResponse)
 
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
@@ -259,7 +275,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 				Handle: bazilfuse.HandleID(resp.Handle),
 			},
 		}
-		convertChildInodeEntry(s.clock, &resp.Entry, &fuseResp.LookupResponse)
+		convertChildInodeEntry(&resp.Entry, &fuseResp.LookupResponse)
 
 		s.logger.Println("Responding:", fuseResp)
 		typed.Respond(fuseResp)
