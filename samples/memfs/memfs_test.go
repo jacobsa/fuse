@@ -447,7 +447,7 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	fileName := path.Join(t.mfs.Dir(), "foo")
 
 	createTime := t.clock.Now()
-	err = ioutil.WriteFile(fileName, []byte("Jello, world!"), 0600)
+	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
@@ -505,7 +505,7 @@ func (t *MemFSTest) ModifyExistingFile_InSubDir() {
 	fileName := path.Join(dirName, "foo")
 
 	createTime := t.clock.Now()
-	err = ioutil.WriteFile(fileName, []byte("Jello, world!"), 0600)
+	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
@@ -553,7 +553,7 @@ func (t *MemFSTest) UnlinkFile_Exists() {
 
 	// Write a file.
 	fileName := path.Join(t.mfs.Dir(), "foo")
-	err = ioutil.WriteFile(fileName, []byte("Jello, world!"), 0600)
+	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
 
 	// Unlink it.
