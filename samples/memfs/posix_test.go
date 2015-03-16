@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"syscall"
 	"testing"
 
 	. "github.com/jacobsa/oglematchers"
@@ -347,12 +346,9 @@ func (t *PosixTest) RmdirWhileOpenedForReading() {
 	err = os.MkdirAll(path.Join(t.dir, "dir/baz"), 0700)
 	AssertEq(nil, err)
 
-	// We should still be able to stat the open file handle. It should show up as
-	// unlinked.
+	// We should still be able to stat the open file handle.
 	fi, err := f.Stat()
-
 	ExpectEq("dir", fi.Name())
-	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Attempt to read from the directory. This shouldn't see any junk from the
 	// new directory. It should either succeed with an empty result or should
