@@ -70,6 +70,17 @@ func currentGid() uint32 {
 	return uint32(gid)
 }
 
+// Transform the supplied mode by the current umask.
+func applyUmask(m os.FileMode) os.FileMode {
+	// HACK(jacobsa): Use umask(2) to change and restore the umask in order to
+	// figure out what the mask is. See the listing in `man getumask`.
+	umask := syscall.Umask(0)
+	syscall.Umask(umask)
+
+	// Apply it.
+	return m &^ os.FileMode(umask)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -183,7 +194,7 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	AssertEq(nil, err)
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(os.ModeDir|0754, fi.Mode())
+	ExpectEq(os.ModeDir|applyUmask(0754), fi.Mode())
 	ExpectThat(fi, fusetesting.MtimeIs(createTime))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectTrue(fi.IsDir())
@@ -214,7 +225,7 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 
 	fi = entries[0]
 	ExpectEq("dir", fi.Name())
-	ExpectEq(os.ModeDir|0754, fi.Mode())
+	ExpectEq(os.ModeDir|applyUmask(0754), fi.Mode())
 }
 
 func (t *MemFSTest) Mkdir_TwoLevels() {
@@ -245,7 +256,7 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	AssertEq(nil, err)
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(os.ModeDir|0754, fi.Mode())
+	ExpectEq(os.ModeDir|applyUmask(0754), fi.Mode())
 	ExpectThat(fi, fusetesting.MtimeIs(createTime))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectTrue(fi.IsDir())
@@ -275,7 +286,7 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 
 	fi = entries[0]
 	ExpectEq("dir", fi.Name())
-	ExpectEq(os.ModeDir|0754, fi.Mode())
+	ExpectEq(os.ModeDir|applyUmask(0754), fi.Mode())
 }
 
 func (t *MemFSTest) Mkdir_AlreadyExists() {
@@ -357,7 +368,7 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	AssertEq(nil, err)
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len(contents), fi.Size())
-	ExpectEq(0400, fi.Mode())
+	ExpectEq(applyUmask(0400), fi.Mode())
 	ExpectThat(fi, fusetesting.MtimeIs(createTime))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
@@ -402,7 +413,7 @@ func (t *MemFSTest) CreateNewFile_InSubDir() {
 	AssertEq(nil, err)
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len(contents), fi.Size())
-	ExpectEq(0400, fi.Mode())
+	ExpectEq(applyUmask(0400), fi.Mode())
 	ExpectThat(fi, fusetesting.MtimeIs(createTime))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
@@ -455,7 +466,7 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	AssertEq(nil, err)
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
-	ExpectEq(0600, fi.Mode())
+	ExpectEq(applyUmask(0600), fi.Mode())
 	ExpectThat(fi, fusetesting.MtimeIs(modifyTime))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
@@ -513,7 +524,7 @@ func (t *MemFSTest) ModifyExistingFile_InSubDir() {
 	AssertEq(nil, err)
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
-	ExpectEq(0600, fi.Mode())
+	ExpectEq(applyUmask(0600), fi.Mode())
 	ExpectThat(fi, fusetesting.MtimeIs(modifyTime))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
@@ -1059,7 +1070,7 @@ func (t *MemFSTest) Chmod() {
 	// Stat it.
 	fi, err := os.Stat(fileName)
 	AssertEq(nil, err)
-	ExpectEq(os.FileMode(0754), fi.Mode())
+	ExpectEq(0754, fi.Mode())
 }
 
 func (t *MemFSTest) Chtimes() {
