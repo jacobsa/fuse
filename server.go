@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"time"
 
 	"github.com/jacobsa/gcsfuse/timeutil"
 	"golang.org/x/net/context"
@@ -43,6 +44,10 @@ func newServer(fs FileSystem) (s *server, err error) {
 	return
 }
 
+// Convert an absolute cache expiration time to a relative time from now for
+// consumption by fuse.
+func convertExpirationTime(t time.Time) time.Duration
+
 func convertChildInodeEntry(
 	clock timeutil.Clock,
 	in *ChildInodeEntry,
@@ -50,8 +55,8 @@ func convertChildInodeEntry(
 	out.Node = bazilfuse.NodeID(in.Child)
 	out.Generation = uint64(in.Generation)
 	out.Attr = convertAttributes(in.Child, in.Attributes)
-	out.AttrValid = in.AttributesExpiration.Sub(clock.Now())
-	out.EntryValid = in.EntryExpiration.Sub(clock.Now())
+	out.AttrValid = convertExpirationTime(in.AttributesExpiration)
+	out.EntryValid = convertExpirationTime(in.EntryExpiration)
 }
 
 func convertHeader(
@@ -165,7 +170,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		// Convert the response.
 		fuseResp := &bazilfuse.GetattrResponse{
 			Attr:      convertAttributes(req.Inode, resp.Attributes),
-			AttrValid: resp.AttributesExpiration.Sub(s.clock.Now()),
+			AttrValid: convertExpirationTime(resp.AttributesExpiration),
 		}
 
 		s.logger.Println("Responding:", fuseResp)
@@ -205,7 +210,7 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 		// Convert the response.
 		fuseResp := &bazilfuse.SetattrResponse{
 			Attr:      convertAttributes(req.Inode, resp.Attributes),
-			AttrValid: resp.AttributesExpiration.Sub(s.clock.Now()),
+			AttrValid: convertExpirationTime(resp.AttributesExpiration),
 		}
 
 		s.logger.Println("Responding:", fuseResp)
