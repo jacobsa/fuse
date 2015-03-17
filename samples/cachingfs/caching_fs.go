@@ -23,14 +23,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Constants that define the relative offsets of the inodes exported by the
-// file system. See notes on the RenumberInodes method.
-const (
-	FooInodeOffset = iota
-	DirInodeOffset
-	BarInodeOffset
-)
-
 // A file system with a fixed structure that looks like this:
 //
 //     foo
@@ -44,18 +36,13 @@ const (
 type CachingFS interface {
 	fuse.FileSystem
 
-	// Cause inodes to receive IDs according to the following rules in further
-	// responses to fuse:
-	//
-	//  *  The ID of "foo" is base + FooInodeOffset.
-	//  *  The ID of "dir" is base + DirInodeOffset.
-	//  *  The ID of "dir/bar" is base + BarInodeOffset.
-	//
-	// If this method has never been called, the file system behaves as if it
-	// were called with base set to fuse.RootInodeID + 1.
-	//
-	// REQUIRES: base > fuse.RootInodeID
-	RenumberInodes(base fuse.InodeID)
+	// Return the current inode ID of the file/directory with the given name.
+	FooID() fuse.InodeID
+	DirID() fuse.InodeID
+	BarID() fuse.InodeID
+
+	// Cause the inode IDs to change to values that have never before been used.
+	RenumberInodes()
 
 	// Cause further queries for the attributes of inodes to use the supplied
 	// time as the inode's mtime.
