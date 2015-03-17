@@ -15,6 +15,7 @@
 package cachingfs
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/jacobsa/fuse"
@@ -96,13 +97,8 @@ type cachingFS struct {
 
 	// The current ID of the lowest numbered non-root inode.
 	//
-	// INVARIANT: FooID() > fuse.RootInodeID
-	// INVARIANT: DirID() > fuse.RootInodeID
-	// INVARIANT: BarID() > fuse.RootInodeID
-	//
-	// INVARIANT: FooID() % numInodes == fooOffset
-	// INVARIANT: DirID() % numInodes == dirOffset
-	// INVARIANT: BarID() % numInodes == barOffset
+	// INVARIANT: baseID > fuse.RootInodeID
+	// INVARIANT: baseID % numInodes == 0
 	//
 	// GUARDED_BY(mu)
 	baseID fuse.InodeID
@@ -111,7 +107,13 @@ type cachingFS struct {
 	mtime time.Time
 }
 
-func (fs *cachingFS) checkInvariants()
+func (fs *cachingFS) checkInvariants() {
+	// INVARIANT: baseID > fuse.RootInodeID
+	// INVARIANT: baseID % numInodes == 0
+	if fs.baseID <= fuse.RootInodeID || fs.baseID%numInodes != 0 {
+		panic(fmt.Sprintf("Bad baseID: %v", fs.baseID))
+	}
+}
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) FooID() fuse.InodeID {
