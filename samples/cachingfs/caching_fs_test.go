@@ -141,11 +141,22 @@ func (t *BasicsTest) StatFoo() {
 }
 
 func (t *BasicsTest) StatDir() {
-	AssertTrue(false, "TODO")
+	fi, err := os.Stat(path.Join(t.dir, "dir"))
+	AssertEq(nil, err)
+
+	ExpectEq("dir", fi.Name())
+	ExpectEq(os.ModeDir|0777, fi.Mode())
+	ExpectTrue(fi.IsDir())
 }
 
 func (t *BasicsTest) StatBar() {
-	AssertTrue(false, "TODO")
+	fi, err := os.Stat(path.Join(t.dir, "dir/bar"))
+	AssertEq(nil, err)
+
+	ExpectEq("bar", fi.Name())
+	ExpectEq(cachingfs.BarSize, fi.Size())
+	ExpectEq(0777, fi.Mode())
+	ExpectFalse(fi.IsDir())
 }
 
 ////////////////////////////////////////////////////////////////////////
