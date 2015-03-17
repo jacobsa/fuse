@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	bazilfuse "bazil.org/fuse"
+	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples/memfs"

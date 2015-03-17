@@ -17,7 +17,7 @@ package fuse
 import (
 	"syscall"
 
-	bazilfuse "bazil.org/fuse"
+	"github.com/jacobsa/bazilfuse"
 )
 
 const (

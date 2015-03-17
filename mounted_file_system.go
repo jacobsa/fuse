@@ -17,7 +17,7 @@ package fuse
 import (
 	"errors"
 
-	bazilfuse "bazil.org/fuse"
+	"github.com/jacobsa/bazilfuse"
 	"golang.org/x/net/context"
 )
 
