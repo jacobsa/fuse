@@ -446,15 +446,16 @@ func (t *AttributeCachingTest) StatRenumberStat() {
 	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
 }
 
-func (t *AttributeCachingTest) StatMtimeStat() {
+func (t *AttributeCachingTest) StatMtimeStat_ViaPath() {
 	newMtime := t.initialMtime.Add(time.Second)
 
 	t.statAll()
 	t.fs.SetMtime(newMtime)
 	fooAfter, dirAfter, barAfter := t.statAll()
 
-	// We should see the new attributes, since the entry had to be looked up
-	// again and the new attributes were returned with the entry.
+	// Since we don't have entry caching enabled, the call above had to look up
+	// the entry again. With the lookup we returned new attributes, so we expect
+	// that the mtime will be fresh.
 	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
 	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
 	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
@@ -490,7 +491,7 @@ func (t *AttributeCachingTest) StatMtimeStat_ViaFileDescriptor() {
 	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
 }
 
-func (t *AttributeCachingTest) StatRenumberMtimeStat() {
+func (t *AttributeCachingTest) StatRenumberMtimeStat_ViaPath() {
 	newMtime := t.initialMtime.Add(time.Second)
 
 	t.statAll()
@@ -500,7 +501,7 @@ func (t *AttributeCachingTest) StatRenumberMtimeStat() {
 
 	// We should see new everything, because this is the first time the new
 	// inodes have been encountered. Entries for the old ones should not have
-	// been cached.
+	// been cached, because we have entry caching disabled.
 	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
 	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
 	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
