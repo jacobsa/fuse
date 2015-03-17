@@ -39,8 +39,6 @@ type CachingFSTest struct {
 
 var _ TearDownInterface = &CachingFSTest{}
 
-func init() { RegisterTestSuite(&CachingFSTest{}) }
-
 func (t *CachingFSTest) setUp(
 	lookupEntryTimeout time.Duration,
 	getattrTimeout time.Duration) {
@@ -92,9 +90,68 @@ func (t *CachingFSTest) TearDown() {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Test functions
+// Basics
 ////////////////////////////////////////////////////////////////////////
 
-func (t *CachingFSTest) DoesFoo() {
+type BasicsTest struct {
+	NoCachingTest
+}
+
+func init() { RegisterTestSuite(&BasicsTest{}) }
+
+func (t *BasicsTest) StatNonexistent_Root() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *BasicsTest) StatNonexistent_Dir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *BasicsTest) StatFoo() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *BasicsTest) StatDir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *BasicsTest) StatBar() {
+	AssertTrue(false, "TODO")
+}
+
+////////////////////////////////////////////////////////////////////////
+// No caching
+////////////////////////////////////////////////////////////////////////
+
+type NoCachingTest struct {
+	CachingFSTest
+}
+
+var _ SetUpInterface = &NoCachingTest{}
+
+func init() { RegisterTestSuite(&NoCachingTest{}) }
+
+func (t *NoCachingTest) SetUp(ti *TestInfo) {
+	const (
+		lookupEntryTimeout = 0
+		getattrTimeout     = 0
+	)
+
+	t.CachingFSTest.setUp(lookupEntryTimeout, getattrTimeout)
+}
+
+func (t *NoCachingTest) StatStat() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoCachingTest) StatRenumberStat() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoCachingTest) StatMtimeStat() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoCachingTest) StatRenumberMtimeStat() {
 	AssertTrue(false, "TODO")
 }
