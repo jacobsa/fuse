@@ -16,6 +16,7 @@ package cachingfs
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/jacobsa/fuse"
@@ -149,13 +150,30 @@ func (fs *cachingFS) barID() fuse.InodeID {
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) fooAttrs() fuse.InodeAttributes
+func (fs *cachingFS) fooAttrs() fuse.InodeAttributes {
+	return fuse.InodeAttributes{
+		Size:  FooSize,
+		Mode:  0777,
+		Mtime: fs.mtime,
+	}
+}
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) dirAttrs() fuse.InodeAttributes
+func (fs *cachingFS) dirAttrs() fuse.InodeAttributes {
+	return fuse.InodeAttributes{
+		Mode:  os.ModeDir | 0777,
+		Mtime: fs.mtime,
+	}
+}
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) barAttrs() fuse.InodeAttributes
+func (fs *cachingFS) barAttrs() fuse.InodeAttributes {
+	return fuse.InodeAttributes{
+		Size:  BarSize,
+		Mode:  0777,
+		Mtime: fs.mtime,
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Public interface
