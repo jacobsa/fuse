@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -353,12 +354,17 @@ func (t *EntryCachingTest) StatRenumberStat() {
 
 	// But after waiting for the entry cache to expire, we should see the new
 	// IDs.
-	time.Sleep(2 * t.lookupEntryTimeout)
-	fooAfter, dirAfter, barAfter = t.statAll()
+	//
+	// Note that the cache is not guaranteed to expire on darwin. See notes on
+	// fuse.MountConfig.EnableVnodeCaching.
+	if runtime.GOOS != "darwin" {
+		time.Sleep(2 * t.lookupEntryTimeout)
+		fooAfter, dirAfter, barAfter = t.statAll()
 
-	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
-	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
-	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+		ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
+		ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
+		ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+	}
 }
 
 func (t *EntryCachingTest) StatMtimeStat() {
@@ -395,16 +401,21 @@ func (t *EntryCachingTest) StatRenumberMtimeStat() {
 
 	// After waiting for the entry cache to expire, we should see fresh
 	// everything.
-	time.Sleep(2 * t.lookupEntryTimeout)
-	fooAfter, dirAfter, barAfter = t.statAll()
+	//
+	// Note that the cache is not guaranteed to expire on darwin. See notes on
+	// fuse.MountConfig.EnableVnodeCaching.
+	if runtime.GOOS != "darwin" {
+		time.Sleep(2 * t.lookupEntryTimeout)
+		fooAfter, dirAfter, barAfter = t.statAll()
 
-	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
-	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
-	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+		ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
+		ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
+		ExpectEq(t.fs.BarID(), getInodeID(barAfter))
 
-	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
-	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
-	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+		ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
+		ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
+		ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
