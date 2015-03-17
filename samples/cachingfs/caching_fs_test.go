@@ -214,10 +214,7 @@ func (t *NoCachingTest) SetUp(ti *TestInfo) {
 }
 
 func (t *NoCachingTest) StatStat() {
-	// Stat everything.
 	fooBefore, dirBefore, barBefore := t.statAll()
-
-	// Stat again.
 	fooAfter, dirAfter, barAfter := t.statAll()
 
 	// Make sure everything matches.
@@ -231,7 +228,15 @@ func (t *NoCachingTest) StatStat() {
 }
 
 func (t *NoCachingTest) StatRenumberStat() {
-	AssertTrue(false, "TODO")
+	fooBefore, dirBefore, barBefore := t.statAll()
+	t.fs.RenumberInodes()
+	fooAfter, dirAfter, barAfter := t.statAll()
+
+	// We should see different inode IDs, because the entries should not have
+	// been cached.
+	ExpectNe(getInodeID(fooBefore), getInodeID(fooAfter))
+	ExpectNe(getInodeID(dirBefore), getInodeID(dirAfter))
+	ExpectNe(getInodeID(barBefore), getInodeID(barAfter))
 }
 
 func (t *NoCachingTest) StatMtimeStat() {
