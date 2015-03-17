@@ -114,19 +114,17 @@ func (t *BasicsTest) SetUp(ti *TestInfo) {
 }
 
 func (t *BasicsTest) StatNonexistent_Root() {
-	var err error
+	names := []string{
+		"blah",
+		"bar", // Wrong directory
+	}
 
-	// Unknown name
-	_, err = os.Stat(path.Join(t.dir, "blah"))
+	for _, n := range names {
+		_, err := os.Stat(path.Join(t.dir, n))
 
-	AssertNe(nil, err)
-	ExpectTrue(os.IsNotExist(err), "err: %v", err)
-
-	// Wrong directory
-	_, err = os.Stat(path.Join(t.dir, "bar"))
-
-	AssertNe(nil, err)
-	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+		AssertNe(nil, err)
+		ExpectTrue(os.IsNotExist(err), "n: %s, err: %v", n, err)
+	}
 }
 
 func (t *BasicsTest) StatNonexistent_Dir() {
