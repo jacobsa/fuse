@@ -508,7 +508,7 @@ func (t *AttributeCachingTest) StatRenumberMtimeStat_ViaFileDescriptor() {
 	// After waiting for the attribute cache to expire, we should see the fresh
 	// mtime, still with the old inode ID.
 	time.Sleep(2 * t.getattrTimeout)
-	fooAfter, dirAfter, barAfter = t.statAll()
+	fooAfter, dirAfter, barAfter = t.statFiles(foo, dir, bar)
 
 	ExpectEq(getInodeID(fooBefore), getInodeID(fooAfter))
 	ExpectEq(getInodeID(dirBefore), getInodeID(dirAfter))
