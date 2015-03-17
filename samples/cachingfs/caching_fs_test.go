@@ -37,16 +37,16 @@ func TestHelloFS(t *testing.T) { RunTests(t) }
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type CachingFSTest struct {
+type cachingFSTest struct {
 	dir          string
 	fs           cachingfs.CachingFS
 	mfs          *fuse.MountedFileSystem
 	initialMtime time.Time
 }
 
-var _ TearDownInterface = &CachingFSTest{}
+var _ TearDownInterface = &cachingFSTest{}
 
-func (t *CachingFSTest) setUp(
+func (t *cachingFSTest) setUp(
 	lookupEntryTimeout time.Duration,
 	getattrTimeout time.Duration) {
 	var err error
@@ -71,7 +71,7 @@ func (t *CachingFSTest) setUp(
 	t.fs.SetMtime(t.initialMtime)
 }
 
-func (t *CachingFSTest) TearDown() {
+func (t *cachingFSTest) TearDown() {
 	// Was the file system mounted?
 	if t.mfs == nil {
 		return
@@ -100,6 +100,21 @@ func (t *CachingFSTest) TearDown() {
 	}
 }
 
+func (t *cachingFSTest) statAll() (foo, dir, bar os.FileInfo) {
+	var err error
+
+	foo, err = os.Stat(path.Join(t.dir, "foo"))
+	AssertEq(nil, err)
+
+	dir, err = os.Stat(path.Join(t.dir, "dir"))
+	AssertEq(nil, err)
+
+	bar, err = os.Stat(path.Join(t.dir, "dir/bar"))
+	AssertEq(nil, err)
+
+	return
+}
+
 func getInodeID(fi os.FileInfo) uint64 {
 	return fi.Sys().(*syscall.Stat_t).Ino
 }
@@ -109,7 +124,7 @@ func getInodeID(fi os.FileInfo) uint64 {
 ////////////////////////////////////////////////////////////////////////
 
 type BasicsTest struct {
-	CachingFSTest
+	cachingFSTest
 }
 
 var _ SetUpInterface = &BasicsTest{}
@@ -122,7 +137,7 @@ func (t *BasicsTest) SetUp(ti *TestInfo) {
 		getattrTimeout     = 0
 	)
 
-	t.CachingFSTest.setUp(lookupEntryTimeout, getattrTimeout)
+	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout)
 }
 
 func (t *BasicsTest) StatNonexistent() {
@@ -182,7 +197,7 @@ func (t *BasicsTest) StatBar() {
 ////////////////////////////////////////////////////////////////////////
 
 type NoCachingTest struct {
-	CachingFSTest
+	cachingFSTest
 }
 
 var _ SetUpInterface = &NoCachingTest{}
@@ -195,31 +210,15 @@ func (t *NoCachingTest) SetUp(ti *TestInfo) {
 		getattrTimeout     = 0
 	)
 
-	t.CachingFSTest.setUp(lookupEntryTimeout, getattrTimeout)
+	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout)
 }
 
 func (t *NoCachingTest) StatStat() {
-	var err error
-
 	// Stat everything.
-	fooBefore, err := os.Stat(path.Join(t.dir, "foo"))
-	AssertEq(nil, err)
-
-	dirBefore, err := os.Stat(path.Join(t.dir, "dir"))
-	AssertEq(nil, err)
-
-	barBefore, err := os.Stat(path.Join(t.dir, "dir/bar"))
-	AssertEq(nil, err)
+	fooBefore, dirBefore, barBefore := t.statAll()
 
 	// Stat again.
-	fooAfter, err := os.Stat(path.Join(t.dir, "foo"))
-	AssertEq(nil, err)
-
-	dirAfter, err := os.Stat(path.Join(t.dir, "dir"))
-	AssertEq(nil, err)
-
-	barAfter, err := os.Stat(path.Join(t.dir, "dir/bar"))
-	AssertEq(nil, err)
+	fooAfter, dirAfter, barAfter := t.statAll()
 
 	// Make sure everything matches.
 	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(fooBefore.ModTime()))
