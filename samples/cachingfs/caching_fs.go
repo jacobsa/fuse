@@ -122,10 +122,20 @@ func (fs *cachingFS) FooID() fuse.InodeID {
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) DirID() fuse.InodeID
+func (fs *cachingFS) DirID() fuse.InodeID {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	return fs.baseID + dirOffset
+}
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) BarID() fuse.InodeID
+func (fs *cachingFS) BarID() fuse.InodeID {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	return fs.baseID + barOffset
+}
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) RenumberInodes()
