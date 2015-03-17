@@ -154,6 +154,14 @@ func (fs *cachingFS) barID() fuse.InodeID {
 }
 
 // LOCKS_REQUIRED(fs.mu)
+func (fs *cachingFS) rootAttrs() fuse.InodeAttributes {
+	return fuse.InodeAttributes{
+		Mode:  os.ModeDir | 0777,
+		Mtime: fs.mtime,
+	}
+}
+
+// LOCKS_REQUIRED(fs.mu)
 func (fs *cachingFS) fooAttrs() fuse.InodeAttributes {
 	return fuse.InodeAttributes{
 		Size:  FooSize,
@@ -287,6 +295,40 @@ func (fs *cachingFS) LookUpInode(
 	resp.Entry.Child = id
 	resp.Entry.Attributes = attrs
 	resp.Entry.EntryExpiration = time.Now().Add(fs.lookupEntryTimeout)
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *cachingFS) GetInodeAttributes(
+	ctx context.Context,
+	req *fuse.GetInodeAttributesRequest) (
+	resp *fuse.GetInodeAttributesResponse, err error) {
+	resp = &fuse.GetInodeAttributesResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Figure out which inode the request is for.
+	var attrs fuse.InodeAttributes
+
+	switch {
+	case req.Inode == fuse.RootInodeID:
+		attrs = fs.rootAttrs()
+
+	case req.Inode%numInodes == fooOffset:
+		attrs = fs.fooAttrs()
+
+	case req.Inode%numInodes == dirOffset:
+		attrs = fs.dirAttrs()
+
+	case req.Inode%numInodes == barOffset:
+		attrs = fs.barAttrs()
+	}
+
+	// Fill in the response.
+	resp.Attributes = attrs
+	resp.AttributesExpiration = time.Now().Add(fs.getattrTimeout)
 
 	return
 }
