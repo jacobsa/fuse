@@ -72,10 +72,14 @@ type CachingFS interface {
 func NewCachingFS(
 	lookupEntryTimeout time.Duration,
 	getattrTimeout time.Duration) (fs CachingFS, err error) {
+	roundUp := func(n fuse.InodeID) fuse.InodeID {
+		return numInodes * ((n + numInodes - 1) / numInodes)
+	}
+
 	cfs := &cachingFS{
 		lookupEntryTimeout: lookupEntryTimeout,
 		getattrTimeout:     getattrTimeout,
-		baseID:             (fuse.RootInodeID + 1 + numInodes - 1) / numInodes,
+		baseID:             roundUp(fuse.RootInodeID + 1),
 		mtime:              time.Now(),
 	}
 
