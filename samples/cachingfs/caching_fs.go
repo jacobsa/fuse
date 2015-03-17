@@ -15,6 +15,7 @@
 package cachingfs
 
 import (
+	"sync"
 	"time"
 
 	"github.com/jacobsa/fuse"
@@ -41,6 +42,13 @@ const (
 // that are useful in testing that these durations are honored.
 type CachingFS struct {
 	fuseutil.NotImplementedFileSystem
+	mu sync.Mutex
+
+	// GUARDED_BY(mu)
+	inodeIDBase fuse.InodeID
+
+	// GUARDED_BY(mu)
+	mtime time.Time
 }
 
 var _ fuse.FileSystem = &CachingFS{}
@@ -59,7 +67,14 @@ var _ fuse.FileSystem = &CachingFS{}
 //
 func NewCachingFS(
 	lookupEntryTimeout time.Duration,
-	getattrTimeout time.Duration) (fs *CachingFS, err error)
+	getattrTimeout time.Duration) (fs *CachingFS, err error) {
+	fs = &CachingFS{
+		inodeIDBase: fuse.RootInodeID + 1,
+		mtime:       time.Now(),
+	}
+
+	return
+}
 
 // Cause inodes to receive IDs according to the following rules in further
 // responses to fuse:
@@ -72,8 +87,18 @@ func NewCachingFS(
 // called with base set to fuse.RootInodeID + 1.
 //
 // REQUIRES: base > fuse.RootInodeID
-func (fs *CachingFS) RenumberInodes(base fuse.InodeID)
+func (fs *CachingFS) RenumberInodes(base fuse.InodeID) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	fs.inodeIDBase = base
+}
 
 // Cause further queries for the attributes of inodes to use the supplied time
 // as the inode's mtime.
-func (fs *CachingFS) SetMtime(mtime time.Time)
+func (fs *CachingFS) SetMtime(mtime time.Time) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	fs.mtime = mtime
+}
