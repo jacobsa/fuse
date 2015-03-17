@@ -271,3 +271,102 @@ func (t *NoCachingTest) StatRenumberMtimeStat() {
 	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
 	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
 }
+
+////////////////////////////////////////////////////////////////////////
+// Entry caching
+////////////////////////////////////////////////////////////////////////
+
+type EntryCachingTest struct {
+	cachingFSTest
+	lookupEntryTimeout time.Duration
+}
+
+var _ SetUpInterface = &EntryCachingTest{}
+
+func init() { RegisterTestSuite(&EntryCachingTest{}) }
+
+func (t *EntryCachingTest) SetUp(ti *TestInfo) {
+	t.lookupEntryTimeout = 250 * time.Millisecond
+	t.cachingFSTest.setUp(t.lookupEntryTimeout, 0)
+}
+
+func (t *EntryCachingTest) StatStat() {
+	fooBefore, dirBefore, barBefore := t.statAll()
+	fooAfter, dirAfter, barAfter := t.statAll()
+
+	// Make sure everything matches.
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(fooBefore.ModTime()))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(dirBefore.ModTime()))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(barBefore.ModTime()))
+
+	ExpectEq(getInodeID(fooBefore), getInodeID(fooAfter))
+	ExpectEq(getInodeID(dirBefore), getInodeID(dirAfter))
+	ExpectEq(getInodeID(barBefore), getInodeID(barAfter))
+}
+
+func (t *EntryCachingTest) StatRenumberStat() {
+	fooBefore, dirBefore, barBefore := t.statAll()
+	t.fs.RenumberInodes()
+	fooAfter, dirAfter, barAfter := t.statAll()
+
+	// We should still see the old inode IDs, because the inode entries should
+	// have been cached.
+	ExpectEq(getInodeID(fooBefore), getInodeID(fooAfter))
+	ExpectEq(getInodeID(dirBefore), getInodeID(dirAfter))
+	ExpectEq(getInodeID(barBefore), getInodeID(barAfter))
+
+	// But after waiting for the entry cache to expire, we should see the new
+	// IDs.
+	time.Sleep(2 * t.lookupEntryTimeout)
+	fooAfter, dirAfter, barAfter = t.statAll()
+
+	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
+	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
+	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+}
+
+func (t *EntryCachingTest) StatMtimeStat() {
+	newMtime := t.initialMtime.Add(time.Second)
+
+	t.statAll()
+	t.fs.SetMtime(newMtime)
+	fooAfter, dirAfter, barAfter := t.statAll()
+
+	// We should see the new mtimes, because the attributes should not have been
+	// cached.
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+}
+
+func (t *EntryCachingTest) StatRenumberMtimeStat() {
+	newMtime := t.initialMtime.Add(time.Second)
+
+	fooBefore, dirBefore, barBefore := t.statAll()
+	t.fs.RenumberInodes()
+	t.fs.SetMtime(newMtime)
+	fooAfter, dirAfter, barAfter := t.statAll()
+
+	// We should still see the old inode IDs, because the inode entries should
+	// have been cached. But the attributes should not have been.
+	ExpectEq(getInodeID(fooBefore), getInodeID(fooAfter))
+	ExpectEq(getInodeID(dirBefore), getInodeID(dirAfter))
+	ExpectEq(getInodeID(barBefore), getInodeID(barAfter))
+
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+
+	// After waiting for the entry cache to expire, we should see fresh
+	// everything.
+	time.Sleep(2 * t.lookupEntryTimeout)
+	fooAfter, dirAfter, barAfter = t.statAll()
+
+	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
+	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
+	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+}
