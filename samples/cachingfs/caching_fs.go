@@ -266,7 +266,7 @@ func (fs *cachingFS) LookUpInode(
 
 	case "bar":
 		// Parent must be dir.
-		if req.Parent%numInodes != dirOffset {
+		if req.Parent == fuse.RootInodeID || req.Parent%numInodes != dirOffset {
 			err = fuse.ENOENT
 			return
 		}
