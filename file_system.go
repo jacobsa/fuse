@@ -262,9 +262,10 @@ type InodeAttributes struct {
 	// The mode of the inode. This is exposed to the user in e.g. the result of
 	// fstat(2).
 	//
-	// The permissions bits of the mode are not necessarily respected by the FUSE
-	// kernel layer unless the file system is mounted with the
-	// 'default_permissions' option (cf. http://goo.gl/1LxOop).
+	// Note that in contrast to the defaults for FUSE, this package mounts file
+	// systems in a manner such that the kernel checks inode permissions in the
+	// standard posix way. This is implemented by setting the default_permissions
+	// mount option (cf. http://goo.gl/1LxOop and http://goo.gl/1pTjuk).
 	//
 	// For example, in the case of mkdir:
 	//
