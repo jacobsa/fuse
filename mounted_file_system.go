@@ -121,6 +121,12 @@ type MountConfig struct {
 
 // Convert to mount options to be passed to package bazilfuse.
 func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
+	opts = []bazilfuse.MountOption{
+		// Enable permissions checking in the kernel. See the comments on
+		// InodeAttributes.Mode.
+		bazilfuse.SetOption("default_permissions", ""),
+	}
+
 	return
 }
 
