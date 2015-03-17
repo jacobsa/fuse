@@ -113,7 +113,7 @@ func (t *HelloFSTest) ReadDir_Root() {
 	fi = entries[0]
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(os.ModeDir|0500, fi.Mode())
+	ExpectEq(os.ModeDir|0555, fi.Mode())
 	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectTrue(fi.IsDir())
 
@@ -121,7 +121,7 @@ func (t *HelloFSTest) ReadDir_Root() {
 	fi = entries[1]
 	ExpectEq("hello", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
-	ExpectEq(0400, fi.Mode())
+	ExpectEq(0444, fi.Mode())
 	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectFalse(fi.IsDir())
 }
@@ -137,7 +137,7 @@ func (t *HelloFSTest) ReadDir_Dir() {
 	fi = entries[0]
 	ExpectEq("world", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
-	ExpectEq(0400, fi.Mode())
+	ExpectEq(0444, fi.Mode())
 	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectFalse(fi.IsDir())
 }
@@ -155,7 +155,7 @@ func (t *HelloFSTest) Stat_Hello() {
 
 	ExpectEq("hello", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
-	ExpectEq(0400, fi.Mode())
+	ExpectEq(0444, fi.Mode())
 	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectFalse(fi.IsDir())
 }
@@ -166,7 +166,7 @@ func (t *HelloFSTest) Stat_Dir() {
 
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(0500|os.ModeDir, fi.Mode())
+	ExpectEq(0555|os.ModeDir, fi.Mode())
 	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectTrue(fi.IsDir())
 }
@@ -177,7 +177,7 @@ func (t *HelloFSTest) Stat_World() {
 
 	ExpectEq("world", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
-	ExpectEq(0400, fi.Mode())
+	ExpectEq(0444, fi.Mode())
 	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectFalse(fi.IsDir())
 }
