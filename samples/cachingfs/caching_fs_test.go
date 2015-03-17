@@ -418,20 +418,12 @@ func (t *AttributeCachingTest) StatRenumberStat() {
 func (t *AttributeCachingTest) StatMtimeStat() {
 	newMtime := t.initialMtime.Add(time.Second)
 
-	fooBefore, dirBefore, barBefore := t.statAll()
+	t.statAll()
 	t.fs.SetMtime(newMtime)
 	fooAfter, dirAfter, barAfter := t.statAll()
 
-	// We should still see the old attributes.
-	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(fooBefore.ModTime()))
-	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(dirBefore.ModTime()))
-	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(barBefore.ModTime()))
-
-	// But after waiting for the attribute cache to expire, we should see the new
-	// attributes.
-	time.Sleep(2 * t.getattrTimeout)
-	fooAfter, dirAfter, barAfter = t.statAll()
-
+	// We should see the new attributes, since the entry had to be looked up
+	// again and the new attributes were returned with the entry.
 	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
 	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
 	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
