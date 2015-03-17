@@ -122,10 +122,11 @@ type MountConfig struct {
 	//
 	// Normally on OS X we mount with the novncache option
 	// (cf. http://goo.gl/1pTjuk), which disables entry caching in the kernel.
-	// This is because osxfuse does not support the entry expiration values we
-	// return to it (cf. http://goo.gl/8yR0Ie) and it is probably better to fail
-	// to cache than to cache for too long, since the latter is more likely to
-	// hide consistency bugs that are difficult to detect and diagnose.
+	// This is because osxfuse does not honor the entry expiration values we
+	// return to it, instead caching potentially forever (cf.
+	// http://goo.gl/8yR0Ie), and it is probably better to fail to cache than to
+	// cache for too long, since the latter is more likely to hide consistency
+	// bugs that are difficult to detect and diagnose.
 	//
 	// This field disables the use of novncache, restoring entry caching. Beware:
 	// the value of ChildInodeEntry.EntryExpiration is ignored by the kernel, and
