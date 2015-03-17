@@ -16,6 +16,7 @@ package fuse
 
 import (
 	"errors"
+	"runtime"
 
 	"github.com/jacobsa/bazilfuse"
 	"golang.org/x/net/context"
@@ -134,12 +135,13 @@ type MountConfig struct {
 
 // Convert to mount options to be passed to package bazilfuse.
 func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
-	panic("TODO: Test and support MountConfig.EnableVnodeCaching")
+	// Enable permissions checking in the kernel. See the comments on
+	// InodeAttributes.Mode.
+	opts = append(opts, bazilfuse.SetOption("default_permissions", ""))
 
-	opts = []bazilfuse.MountOption{
-		// Enable permissions checking in the kernel. See the comments on
-		// InodeAttributes.Mode.
-		bazilfuse.SetOption("default_permissions", ""),
+	// OS X only: set novncache when appropriate.
+	if runtime.GOOS == "darwin" && !c.EnableVnodeCaching {
+		opts = append(opts, bazilfuse.SetOption("novncache", ""))
 	}
 
 	return
