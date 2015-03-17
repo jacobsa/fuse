@@ -332,3 +332,19 @@ func (fs *cachingFS) GetInodeAttributes(
 
 	return
 }
+
+func (fs *cachingFS) OpenDir(
+	ctx context.Context,
+	req *fuse.OpenDirRequest) (
+	resp *fuse.OpenDirResponse, err error) {
+	resp = &fuse.OpenDirResponse{}
+	return
+}
+
+func (fs *cachingFS) OpenFile(
+	ctx context.Context,
+	req *fuse.OpenFileRequest) (
+	resp *fuse.OpenFileResponse, err error) {
+	resp = &fuse.OpenFileResponse{}
+	return
+}
