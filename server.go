@@ -22,7 +22,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	bazilfuse "bazil.org/fuse"
+	"github.com/jacobsa/bazilfuse"
 )
 
 // An object that terminates one end of the userspace <-> FUSE VFS connection.

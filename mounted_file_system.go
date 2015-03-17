@@ -17,7 +17,7 @@ package fuse
 import (
 	"errors"
 
-	bazilfuse "bazil.org/fuse"
+	"github.com/jacobsa/bazilfuse"
 	"golang.org/x/net/context"
 )
 
@@ -115,13 +115,22 @@ func (mfs *MountedFileSystem) mountAndServe(
 	close(mfs.joinStatusAvailable)
 }
 
+// Optional configuration accepted by Mount.
+type MountConfig struct {
+}
+
+// Convert to mount options to be passed to package bazilfuse.
+func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
+	return
+}
+
 // Attempt to mount the supplied file system on the given directory.
 // mfs.WaitForReady() must be called to find out whether the mount was
 // successful.
 func Mount(
 	dir string,
 	fs FileSystem,
-	options ...bazilfuse.MountOption) (mfs *MountedFileSystem, err error) {
+	config *MountConfig) (mfs *MountedFileSystem, err error) {
 	// Create a server object.
 	server, err := newServer(fs)
 	if err != nil {
@@ -136,7 +145,7 @@ func Mount(
 	}
 
 	// Mount in the background.
-	go mfs.mountAndServe(server, options)
+	go mfs.mountAndServe(server, config.bazilfuseOptions())
 
 	return
 }
