@@ -120,13 +120,19 @@ func (fs *cachingFS) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) fooID() fuse.InodeID
+func (fs *cachingFS) fooID() fuse.InodeID {
+	return fs.baseID + fooOffset
+}
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) dirID() fuse.InodeID
+func (fs *cachingFS) dirID() fuse.InodeID {
+	return fs.baseID + dirOffset
+}
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) barID() fuse.InodeID
+func (fs *cachingFS) barID() fuse.InodeID {
+	return fs.baseID + barOffset
+}
 
 // LOCKS_REQUIRED(fs.mu)
 func (fs *cachingFS) fooAttrs() fuse.InodeAttributes
@@ -146,7 +152,7 @@ func (fs *cachingFS) FooID() fuse.InodeID {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	return fs.baseID + fooOffset
+	return fs.fooID()
 }
 
 // LOCKS_EXCLUDED(fs.mu)
@@ -154,7 +160,7 @@ func (fs *cachingFS) DirID() fuse.InodeID {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	return fs.baseID + dirOffset
+	return fs.dirID()
 }
 
 // LOCKS_EXCLUDED(fs.mu)
@@ -162,7 +168,7 @@ func (fs *cachingFS) BarID() fuse.InodeID {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	return fs.baseID + barOffset
+	return fs.barID()
 }
 
 // LOCKS_EXCLUDED(fs.mu)
