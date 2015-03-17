@@ -131,7 +131,13 @@ func (t *BasicsTest) StatNonexistent() {
 }
 
 func (t *BasicsTest) StatFoo() {
-	AssertTrue(false, "TODO")
+	fi, err := os.Stat(path.Join(t.dir, "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(cachingfs.FooSize, fi.Size())
+	ExpectEq(0777, fi.Mode())
+	ExpectFalse(fi.IsDir())
 }
 
 func (t *BasicsTest) StatDir() {
