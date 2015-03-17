@@ -48,7 +48,8 @@ var _ TearDownInterface = &cachingFSTest{}
 
 func (t *cachingFSTest) setUp(
 	lookupEntryTimeout time.Duration,
-	getattrTimeout time.Duration) {
+	getattrTimeout time.Duration,
+	config *fuse.MountConfig) {
 	var err error
 
 	// Set up a temporary directory for mounting.
@@ -60,7 +61,7 @@ func (t *cachingFSTest) setUp(
 	AssertEq(nil, err)
 
 	// Mount it.
-	t.mfs, err = fuse.Mount(t.dir, t.fs, &fuse.MountConfig{})
+	t.mfs, err = fuse.Mount(t.dir, t.fs, config)
 	AssertEq(nil, err)
 
 	err = t.mfs.WaitForReady(context.Background())
@@ -168,7 +169,7 @@ func (t *BasicsTest) SetUp(ti *TestInfo) {
 		getattrTimeout     = 0
 	)
 
-	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout)
+	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout, &fuse.MountConfig{})
 }
 
 func (t *BasicsTest) StatNonexistent() {
@@ -241,7 +242,7 @@ func (t *NoCachingTest) SetUp(ti *TestInfo) {
 		getattrTimeout     = 0
 	)
 
-	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout)
+	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout, &fuse.MountConfig{})
 }
 
 func (t *NoCachingTest) StatStat() {
@@ -318,7 +319,11 @@ func init() { RegisterTestSuite(&EntryCachingTest{}) }
 
 func (t *EntryCachingTest) SetUp(ti *TestInfo) {
 	t.lookupEntryTimeout = 250 * time.Millisecond
-	t.cachingFSTest.setUp(t.lookupEntryTimeout, 0)
+	config := &fuse.MountConfig{
+		EnableVnodeCaching: true,
+	}
+
+	t.cachingFSTest.setUp(t.lookupEntryTimeout, 0, config)
 }
 
 func (t *EntryCachingTest) StatStat() {
@@ -417,7 +422,7 @@ func init() { RegisterTestSuite(&AttributeCachingTest{}) }
 
 func (t *AttributeCachingTest) SetUp(ti *TestInfo) {
 	t.getattrTimeout = 250 * time.Millisecond
-	t.cachingFSTest.setUp(0, t.getattrTimeout)
+	t.cachingFSTest.setUp(0, t.getattrTimeout, &fuse.MountConfig{})
 }
 
 func (t *AttributeCachingTest) StatStat() {
