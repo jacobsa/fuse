@@ -254,5 +254,20 @@ func (t *NoCachingTest) StatMtimeStat() {
 }
 
 func (t *NoCachingTest) StatRenumberMtimeStat() {
-	AssertTrue(false, "TODO")
+	newMtime := t.initialMtime.Add(time.Second)
+
+	t.statAll()
+	t.fs.RenumberInodes()
+	t.fs.SetMtime(newMtime)
+	fooAfter, dirAfter, barAfter := t.statAll()
+
+	// We should see the new inode IDs and mtimes, because nothing should have
+	// been cached.
+	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
+	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
+	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
 }
