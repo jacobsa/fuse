@@ -370,3 +370,89 @@ func (t *EntryCachingTest) StatRenumberMtimeStat() {
 	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
 	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
 }
+
+////////////////////////////////////////////////////////////////////////
+// Attribute caching
+////////////////////////////////////////////////////////////////////////
+
+type AttributeCachingTest struct {
+	cachingFSTest
+	getattrTimeout time.Duration
+}
+
+var _ SetUpInterface = &AttributeCachingTest{}
+
+func init() { RegisterTestSuite(&AttributeCachingTest{}) }
+
+func (t *AttributeCachingTest) SetUp(ti *TestInfo) {
+	t.getattrTimeout = 250 * time.Millisecond
+	t.cachingFSTest.setUp(0, t.getattrTimeout)
+}
+
+func (t *AttributeCachingTest) StatStat() {
+	fooBefore, dirBefore, barBefore := t.statAll()
+	fooAfter, dirAfter, barAfter := t.statAll()
+
+	// Make sure everything matches.
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(fooBefore.ModTime()))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(dirBefore.ModTime()))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(barBefore.ModTime()))
+
+	ExpectEq(getInodeID(fooBefore), getInodeID(fooAfter))
+	ExpectEq(getInodeID(dirBefore), getInodeID(dirAfter))
+	ExpectEq(getInodeID(barBefore), getInodeID(barAfter))
+}
+
+func (t *AttributeCachingTest) StatRenumberStat() {
+	t.statAll()
+	t.fs.RenumberInodes()
+	fooAfter, dirAfter, barAfter := t.statAll()
+
+	// We should see the new inode IDs, because the entries should not have been
+	// cached.
+	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
+	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
+	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+}
+
+func (t *AttributeCachingTest) StatMtimeStat() {
+	newMtime := t.initialMtime.Add(time.Second)
+
+	fooBefore, dirBefore, barBefore := t.statAll()
+	t.fs.SetMtime(newMtime)
+	fooAfter, dirAfter, barAfter := t.statAll()
+
+	// We should still see the old attributes.
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(fooBefore.ModTime()))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(dirBefore.ModTime()))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(barBefore.ModTime()))
+
+	// But after waiting for the attribute cache to expire, we should see the new
+	// attributes.
+	time.Sleep(2 * t.getattrTimeout)
+	fooAfter, dirAfter, barAfter = t.statAll()
+
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+}
+
+func (t *AttributeCachingTest) StatRenumberMtimeStat() {
+	newMtime := t.initialMtime.Add(time.Second)
+
+	t.statAll()
+	t.fs.RenumberInodes()
+	t.fs.SetMtime(newMtime)
+	fooAfter, dirAfter, barAfter := t.statAll()
+
+	// We should see new everything, because this is the first time the new
+	// inodes have been encountered. Entries for the old ones should not have
+	// been cached.
+	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
+	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
+	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+}
