@@ -113,10 +113,13 @@ func (t *BasicsTest) SetUp(ti *TestInfo) {
 	t.CachingFSTest.setUp(lookupEntryTimeout, getattrTimeout)
 }
 
-func (t *BasicsTest) StatNonexistent_Root() {
+func (t *BasicsTest) StatNonexistent() {
 	names := []string{
 		"blah",
-		"bar", // Wrong directory
+		"bar",
+		"dir/blah",
+		"dir/dir",
+		"dir/foo",
 	}
 
 	for _, n := range names {
@@ -125,10 +128,6 @@ func (t *BasicsTest) StatNonexistent_Root() {
 		AssertNe(nil, err)
 		ExpectTrue(os.IsNotExist(err), "n: %s, err: %v", n, err)
 	}
-}
-
-func (t *BasicsTest) StatNonexistent_Dir() {
-	AssertTrue(false, "TODO")
 }
 
 func (t *BasicsTest) StatFoo() {
