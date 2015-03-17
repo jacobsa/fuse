@@ -40,18 +40,26 @@ const (
 // inode entries and attributes to be cached, used when responding to fuse
 // requests. It also exposes methods for renumbering inodes and updating mtimes
 // that are useful in testing that these durations are honored.
-type CachingFS struct {
-	fuseutil.NotImplementedFileSystem
-	mu sync.Mutex
+type CachingFS interface {
+	fuse.FileSystem
 
-	// GUARDED_BY(mu)
-	inodeIDBase fuse.InodeID
+	// Cause inodes to receive IDs according to the following rules in further
+	// responses to fuse:
+	//
+	//  *  The ID of "foo" is base + FooInodeOffset.
+	//  *  The ID of "dir" is base + DirInodeOffset.
+	//  *  The ID of "dir/bar" is base + BarInodeOffset.
+	//
+	// If this method has never been called, the file system behaves as if it
+	// were called with base set to fuse.RootInodeID + 1.
+	//
+	// REQUIRES: base > fuse.RootInodeID
+	RenumberInodes(base fuse.InodeID)
 
-	// GUARDED_BY(mu)
-	mtime time.Time
+	// Cause further queries for the attributes of inodes to use the supplied
+	// time as the inode's mtime.
+	SetMtime(mtime time.Time)
 }
-
-var _ fuse.FileSystem = &CachingFS{}
 
 // Create a file system that issues cacheable responses according to the
 // following rules:
@@ -67,13 +75,24 @@ var _ fuse.FileSystem = &CachingFS{}
 //
 func NewCachingFS(
 	lookupEntryTimeout time.Duration,
-	getattrTimeout time.Duration) (fs *CachingFS, err error) {
-	fs = &CachingFS{
+	getattrTimeout time.Duration) (fs CachingFS, err error) {
+	fs = &cachingFS{
 		inodeIDBase: fuse.RootInodeID + 1,
 		mtime:       time.Now(),
 	}
 
 	return
+}
+
+type cachingFS struct {
+	fuseutil.NotImplementedFileSystem
+	mu sync.Mutex
+
+	// GUARDED_BY(mu)
+	inodeIDBase fuse.InodeID
+
+	// GUARDED_BY(mu)
+	mtime time.Time
 }
 
 // Cause inodes to receive IDs according to the following rules in further
@@ -87,7 +106,7 @@ func NewCachingFS(
 // called with base set to fuse.RootInodeID + 1.
 //
 // REQUIRES: base > fuse.RootInodeID
-func (fs *CachingFS) RenumberInodes(base fuse.InodeID) {
+func (fs *cachingFS) RenumberInodes(base fuse.InodeID) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -96,7 +115,7 @@ func (fs *CachingFS) RenumberInodes(base fuse.InodeID) {
 
 // Cause further queries for the attributes of inodes to use the supplied time
 // as the inode's mtime.
-func (fs *CachingFS) SetMtime(mtime time.Time) {
+func (fs *cachingFS) SetMtime(mtime time.Time) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
