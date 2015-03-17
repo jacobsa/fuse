@@ -406,6 +406,9 @@ type ChildInodeEntry struct {
 	//     lookup request.
 	//
 	// Leave at the zero value to disable caching.
+	//
+	// Beware: this value is ignored on OS X, where entry caching is disabled by
+	// default. See notes on MountConfig.EnableVnodeCaching for more.
 	EntryExpiration time.Time
 }
 
