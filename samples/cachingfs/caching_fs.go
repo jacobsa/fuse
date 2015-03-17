@@ -140,7 +140,12 @@ func (fs *cachingFS) BarID() fuse.InodeID {
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) RenumberInodes()
+func (fs *cachingFS) RenumberInodes() {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	fs.baseID += numInodes
+}
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) SetMtime(mtime time.Time) {
