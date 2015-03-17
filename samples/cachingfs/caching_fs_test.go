@@ -124,7 +124,7 @@ func (t *cachingFSTest) openFiles() (foo, dir, bar *os.File) {
 	dir, err = os.Open(path.Join(t.dir, "dir"))
 	AssertEq(nil, err)
 
-	bar, err = os.Open(path.Join(t.dir, "bar"))
+	bar, err = os.Open(path.Join(t.dir, "dir/bar"))
 	AssertEq(nil, err)
 
 	return
@@ -485,6 +485,11 @@ func (t *AttributeCachingTest) StatRenumberMtimeStat_ViaFileDescriptor() {
 
 	// Open everything, fixing a particular inode number for each.
 	foo, dir, bar := t.openFiles()
+	defer func() {
+		foo.Close()
+		dir.Close()
+		bar.Close()
+	}()
 
 	fooBefore, dirBefore, barBefore := t.statFiles(foo, dir, bar)
 	t.fs.RenumberInodes()
