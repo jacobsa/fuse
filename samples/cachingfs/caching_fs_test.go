@@ -26,6 +26,7 @@ import (
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples/cachingfs"
+	"github.com/jacobsa/gcsfuse/timeutil"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -148,7 +149,7 @@ func (t *BasicsTest) StatFoo() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(cachingfs.FooSize, fi.Size())
 	ExpectEq(0777, fi.Mode())
-	ExpectEq(t.initialMtime, fi.ModTime())
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(t.initialMtime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(t.fs.FooID(), getInodeID(fi))
 }
@@ -159,7 +160,7 @@ func (t *BasicsTest) StatDir() {
 
 	ExpectEq("dir", fi.Name())
 	ExpectEq(os.ModeDir|0777, fi.Mode())
-	ExpectEq(t.initialMtime, fi.ModTime())
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(t.initialMtime))
 	ExpectTrue(fi.IsDir())
 	ExpectEq(t.fs.DirID(), getInodeID(fi))
 }
@@ -171,7 +172,7 @@ func (t *BasicsTest) StatBar() {
 	ExpectEq("bar", fi.Name())
 	ExpectEq(cachingfs.BarSize, fi.Size())
 	ExpectEq(0777, fi.Mode())
-	ExpectEq(t.initialMtime, fi.ModTime())
+	ExpectThat(fi.ModTime(), timeutil.TimeEq(t.initialMtime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(t.fs.BarID(), getInodeID(fi))
 }
