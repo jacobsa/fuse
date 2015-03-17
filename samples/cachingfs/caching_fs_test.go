@@ -28,6 +28,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples/cachingfs"
 	"github.com/jacobsa/gcsfuse/timeutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -470,11 +471,13 @@ func (t *AttributeCachingTest) StatMtimeStat_ViaPath() {
 	fooAfter, dirAfter, barAfter := t.statAll()
 
 	// Since we don't have entry caching enabled, the call above had to look up
-	// the entry again. With the lookup we returned new attributes, so we expect
-	// that the mtime will be fresh.
-	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
-	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
-	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+	// the entry again. With the lookup we returned new attributes, so it's
+	// possible that the mtime will be fresh. On Linux it appears to be, and on
+	// OS X it appears to not be.
+	m := AnyOf(timeutil.TimeEq(newMtime), timeutil.TimeEq(t.initialMtime))
+	ExpectThat(fooAfter.ModTime(), m)
+	ExpectThat(dirAfter.ModTime(), m)
+	ExpectThat(barAfter.ModTime(), m)
 }
 
 func (t *AttributeCachingTest) StatMtimeStat_ViaFileDescriptor() {
