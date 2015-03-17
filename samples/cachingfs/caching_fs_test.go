@@ -23,7 +23,6 @@ import (
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples/cachingfs"
-	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -63,7 +62,7 @@ func (t *CachingFSTest) setUp(
 	AssertEq(nil, err)
 }
 
-func (t *HelloFSTest) TearDown() {
+func (t *CachingFSTest) TearDown() {
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
 	for {
