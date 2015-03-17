@@ -113,8 +113,6 @@ func (t *MemFSTest) SetUp(ti *TestInfo) {
 	// Mount a file system.
 	fs := memfs.NewMemFS(currentUid(), currentGid(), &t.clock)
 
-	// TODO(jacobsa): Add a default_permissions field to the config and use it
-	// here.
 	t.mfs, err = fuse.Mount(mountPoint, fs, &fuse.MountConfig{})
 	if err != nil {
 		panic("Mount: " + err.Error())
