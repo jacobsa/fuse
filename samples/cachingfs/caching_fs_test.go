@@ -60,7 +60,7 @@ func (t *cachingFSTest) setUp(
 	AssertEq(nil, err)
 
 	// Mount it.
-	t.mfs, err = fuse.Mount(t.dir, t.fs)
+	t.mfs, err = fuse.Mount(t.dir, t.fs, &fuse.MountConfig{})
 	AssertEq(nil, err)
 
 	err = t.mfs.WaitForReady(context.Background())

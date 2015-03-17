@@ -65,7 +65,7 @@ func (t *HelloFSTest) SetUp(ti *TestInfo) {
 		Clock: &t.clock,
 	}
 
-	if t.mfs, err = fuse.Mount(mountPoint, fs); err != nil {
+	if t.mfs, err = fuse.Mount(mountPoint, fs, &fuse.MountConfig{}); err != nil {
 		panic("Mount: " + err.Error())
 	}
 

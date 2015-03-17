@@ -27,7 +27,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples/memfs"
@@ -114,11 +113,9 @@ func (t *MemFSTest) SetUp(ti *TestInfo) {
 	// Mount a file system.
 	fs := memfs.NewMemFS(currentUid(), currentGid(), &t.clock)
 
-	t.mfs, err = fuse.Mount(
-		mountPoint,
-		fs,
-		bazilfuse.DefaultPermissions())
-
+	// TODO(jacobsa): Add a default_permissions field to the config and use it
+	// here.
+	t.mfs, err = fuse.Mount(mountPoint, fs, &fuse.MountConfig{})
 	if err != nil {
 		panic("Mount: " + err.Error())
 	}
