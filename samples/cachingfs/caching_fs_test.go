@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -36,8 +37,10 @@ func TestHelloFS(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type CachingFSTest struct {
-	dir string
-	mfs *fuse.MountedFileSystem
+	dir          string
+	fs           cachingfs.CachingFS
+	mfs          *fuse.MountedFileSystem
+	initialMtime time.Time
 }
 
 var _ TearDownInterface = &CachingFSTest{}
@@ -51,16 +54,20 @@ func (t *CachingFSTest) setUp(
 	t.dir, err = ioutil.TempDir("", "caching_fs_test")
 	AssertEq(nil, err)
 
-	// Create a file system.
-	fs, err := cachingfs.NewCachingFS(lookupEntryTimeout, getattrTimeout)
+	// Create the file system.
+	t.fs, err = cachingfs.NewCachingFS(lookupEntryTimeout, getattrTimeout)
 	AssertEq(nil, err)
 
 	// Mount it.
-	t.mfs, err = fuse.Mount(t.dir, fs)
+	t.mfs, err = fuse.Mount(t.dir, t.fs)
 	AssertEq(nil, err)
 
 	err = t.mfs.WaitForReady(context.Background())
 	AssertEq(nil, err)
+
+	// Set up the mtime.
+	t.initialMtime = time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local)
+	t.fs.SetMtime(t.initialMtime)
 }
 
 func (t *CachingFSTest) TearDown() {
@@ -90,6 +97,10 @@ func (t *CachingFSTest) TearDown() {
 	if err := t.mfs.Join(context.Background()); err != nil {
 		panic("MountedFileSystem.Join: " + err.Error())
 	}
+}
+
+func getInodeID(fi os.FileInfo) uint64 {
+	return fi.Sys().(*syscall.Stat_t).Ino
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -137,7 +148,9 @@ func (t *BasicsTest) StatFoo() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(cachingfs.FooSize, fi.Size())
 	ExpectEq(0777, fi.Mode())
+	ExpectEq(t.initialMtime, fi.ModTime())
 	ExpectFalse(fi.IsDir())
+	ExpectEq(t.fs.FooID(), getInodeID(fi))
 }
 
 func (t *BasicsTest) StatDir() {
@@ -146,7 +159,9 @@ func (t *BasicsTest) StatDir() {
 
 	ExpectEq("dir", fi.Name())
 	ExpectEq(os.ModeDir|0777, fi.Mode())
+	ExpectEq(t.initialMtime, fi.ModTime())
 	ExpectTrue(fi.IsDir())
+	ExpectEq(t.fs.DirID(), getInodeID(fi))
 }
 
 func (t *BasicsTest) StatBar() {
@@ -156,7 +171,9 @@ func (t *BasicsTest) StatBar() {
 	ExpectEq("bar", fi.Name())
 	ExpectEq(cachingfs.BarSize, fi.Size())
 	ExpectEq(0777, fi.Mode())
+	ExpectEq(t.initialMtime, fi.ModTime())
 	ExpectFalse(fi.IsDir())
+	ExpectEq(t.fs.BarID(), getInodeID(fi))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -181,7 +198,36 @@ func (t *NoCachingTest) SetUp(ti *TestInfo) {
 }
 
 func (t *NoCachingTest) StatStat() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Stat everything.
+	fooBefore, err := os.Stat(path.Join(t.dir, "foo"))
+	AssertEq(nil, err)
+
+	dirBefore, err := os.Stat(path.Join(t.dir, "dir"))
+	AssertEq(nil, err)
+
+	barBefore, err := os.Stat(path.Join(t.dir, "bar"))
+	AssertEq(nil, err)
+
+	// Stat again.
+	fooAfter, err := os.Stat(path.Join(t.dir, "foo"))
+	AssertEq(nil, err)
+
+	dirAfter, err := os.Stat(path.Join(t.dir, "dir"))
+	AssertEq(nil, err)
+
+	barAfter, err := os.Stat(path.Join(t.dir, "bar"))
+	AssertEq(nil, err)
+
+	// Make sure everything matches.
+	ExpectEq(fooBefore.ModTime(), fooAfter.ModTime())
+	ExpectEq(dirBefore.ModTime(), dirAfter.ModTime())
+	ExpectEq(barBefore.ModTime(), barAfter.ModTime())
+
+	ExpectEq(getInodeID(fooBefore), getInodeID(fooAfter))
+	ExpectEq(getInodeID(dirBefore), getInodeID(dirAfter))
+	ExpectEq(getInodeID(barBefore), getInodeID(barAfter))
 }
 
 func (t *NoCachingTest) StatRenumberStat() {
