@@ -94,10 +94,21 @@ func (t *CachingFSTest) TearDown() {
 ////////////////////////////////////////////////////////////////////////
 
 type BasicsTest struct {
-	NoCachingTest
+	CachingFSTest
 }
 
+var _ SetUpInterface = &BasicsTest{}
+
 func init() { RegisterTestSuite(&BasicsTest{}) }
+
+func (t *BasicsTest) SetUp(ti *TestInfo) {
+	const (
+		lookupEntryTimeout = 0
+		getattrTimeout     = 0
+	)
+
+	t.CachingFSTest.setUp(lookupEntryTimeout, getattrTimeout)
+}
 
 func (t *BasicsTest) StatNonexistent_Root() {
 	AssertTrue(false, "TODO")
