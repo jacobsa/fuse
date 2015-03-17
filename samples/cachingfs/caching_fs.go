@@ -107,6 +107,10 @@ type cachingFS struct {
 	mtime time.Time
 }
 
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
 func (fs *cachingFS) checkInvariants() {
 	// INVARIANT: baseID > fuse.RootInodeID
 	// INVARIANT: baseID % numInodes == 0
@@ -114,6 +118,28 @@ func (fs *cachingFS) checkInvariants() {
 		panic(fmt.Sprintf("Bad baseID: %v", fs.baseID))
 	}
 }
+
+// LOCKS_REQUIRED(fs.mu)
+func (fs *cachingFS) fooID() fuse.InodeID
+
+// LOCKS_REQUIRED(fs.mu)
+func (fs *cachingFS) dirID() fuse.InodeID
+
+// LOCKS_REQUIRED(fs.mu)
+func (fs *cachingFS) barID() fuse.InodeID
+
+// LOCKS_REQUIRED(fs.mu)
+func (fs *cachingFS) fooAttrs() fuse.InodeAttributes
+
+// LOCKS_REQUIRED(fs.mu)
+func (fs *cachingFS) dirAttrs() fuse.InodeAttributes
+
+// LOCKS_REQUIRED(fs.mu)
+func (fs *cachingFS) barAttrs() fuse.InodeAttributes
+
+////////////////////////////////////////////////////////////////////////
+// Public interface
+////////////////////////////////////////////////////////////////////////
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) FooID() fuse.InodeID {
@@ -155,9 +181,70 @@ func (fs *cachingFS) SetMtime(mtime time.Time) {
 	fs.mtime = mtime
 }
 
+////////////////////////////////////////////////////////////////////////
+// FileSystem methods
+////////////////////////////////////////////////////////////////////////
+
 func (fs *cachingFS) Init(
 	ctx context.Context,
 	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
 	resp = &fuse.InitResponse{}
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *cachingFS) LookUpInode(
+	ctx context.Context,
+	req *fuse.LookUpInodeRequest) (resp *fuse.LookUpInodeResponse, err error) {
+	resp = &fuse.LookUpInodeResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the ID and attributes.
+	var id fuse.InodeID
+	var attrs fuse.InodeAttributes
+
+	switch req.Name {
+	case "foo":
+		// Parent must be the root.
+		if req.Parent != fuse.RootInodeID {
+			err = fuse.ENOENT
+			return
+		}
+
+		id = fs.fooID()
+		attrs = fs.fooAttrs()
+
+	case "dir":
+		// Parent must be the root.
+		if req.Parent != fuse.RootInodeID {
+			err = fuse.ENOENT
+			return
+		}
+
+		id = fs.dirID()
+		attrs = fs.dirAttrs()
+
+	case "bar":
+		// Parent must be dir.
+		if req.Parent%numInodes != dirOffset {
+			err = fuse.ENOENT
+			return
+		}
+
+		id = fs.barID()
+		attrs = fs.barAttrs()
+
+	default:
+		err = fuse.ENOENT
+		return
+	}
+
+	// Fill in the response.
+	resp.Entry.Child = id
+	resp.Entry.Attributes = attrs
+	resp.Entry.EntryExpiration = fs.entryExpiration
+
 	return
 }
