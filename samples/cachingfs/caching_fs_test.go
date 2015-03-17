@@ -228,19 +228,29 @@ func (t *NoCachingTest) StatStat() {
 }
 
 func (t *NoCachingTest) StatRenumberStat() {
-	fooBefore, dirBefore, barBefore := t.statAll()
+	t.statAll()
 	t.fs.RenumberInodes()
 	fooAfter, dirAfter, barAfter := t.statAll()
 
-	// We should see different inode IDs, because the entries should not have
-	// been cached.
-	ExpectNe(getInodeID(fooBefore), getInodeID(fooAfter))
-	ExpectNe(getInodeID(dirBefore), getInodeID(dirAfter))
-	ExpectNe(getInodeID(barBefore), getInodeID(barAfter))
+	// We should see the new inode IDs, because the entries should not have been
+	// cached.
+	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
+	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
+	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
 }
 
 func (t *NoCachingTest) StatMtimeStat() {
-	AssertTrue(false, "TODO")
+	newMtime := t.initialMtime.Add(time.Second)
+
+	t.statAll()
+	t.fs.SetMtime(newMtime)
+	fooAfter, dirAfter, barAfter := t.statAll()
+
+	// We should see the new mtimes, because the attributes should not have been
+	// cached.
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
 }
 
 func (t *NoCachingTest) StatRenumberMtimeStat() {
