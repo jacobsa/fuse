@@ -20,6 +20,7 @@ import (
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
+	"golang.org/x/net/context"
 )
 
 // Constants that define the relative offsets of the inodes exported by the
@@ -95,17 +96,7 @@ type cachingFS struct {
 	mtime time.Time
 }
 
-// Cause inodes to receive IDs according to the following rules in further
-// responses to fuse:
-//
-//  *  The ID of "foo" is base + FooInodeOffset.
-//  *  The ID of "dir" is base + DirInodeOffset.
-//  *  The ID of "dir/bar" is base + BarInodeOffset.
-//
-// If this method has never been called, the file system behaves as if it were
-// called with base set to fuse.RootInodeID + 1.
-//
-// REQUIRES: base > fuse.RootInodeID
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) RenumberInodes(base fuse.InodeID) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -113,11 +104,17 @@ func (fs *cachingFS) RenumberInodes(base fuse.InodeID) {
 	fs.inodeIDBase = base
 }
 
-// Cause further queries for the attributes of inodes to use the supplied time
-// as the inode's mtime.
+// LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) SetMtime(mtime time.Time) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	fs.mtime = mtime
+}
+
+func (fs *cachingFS) Init(
+	ctx context.Context,
+	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
+	resp = &fuse.InitResponse{}
+	return
 }
