@@ -72,8 +72,10 @@ func NewCachingFS(
 	lookupEntryTimeout time.Duration,
 	getattrTimeout time.Duration) (fs CachingFS, err error) {
 	cfs := &cachingFS{
-		baseID: (fuse.RootInodeID + 1 + numInodes - 1) / numInodes,
-		mtime:  time.Now(),
+		lookupEntryTimeout: lookupEntryTimeout,
+		getattrTimeout:     getattrTimeout,
+		baseID:             (fuse.RootInodeID + 1 + numInodes - 1) / numInodes,
+		mtime:              time.Now(),
 	}
 
 	cfs.mu = syncutil.NewInvariantMutex(cfs.checkInvariants)
@@ -93,6 +95,18 @@ const (
 
 type cachingFS struct {
 	fuseutil.NotImplementedFileSystem
+
+	/////////////////////////
+	// Constant data
+	/////////////////////////
+
+	lookupEntryTimeout time.Duration
+	getattrTimeout     time.Duration
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
 	mu syncutil.InvariantMutex
 
 	// The current ID of the lowest numbered non-root inode.
@@ -250,7 +264,7 @@ func (fs *cachingFS) LookUpInode(
 	// Fill in the response.
 	resp.Entry.Child = id
 	resp.Entry.Attributes = attrs
-	resp.Entry.EntryExpiration = fs.entryExpiration
+	resp.Entry.EntryExpiration = time.Now().Add(fs.lookupEntryTimeout)
 
 	return
 }
