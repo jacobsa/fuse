@@ -208,7 +208,7 @@ func (t *NoCachingTest) StatStat() {
 	dirBefore, err := os.Stat(path.Join(t.dir, "dir"))
 	AssertEq(nil, err)
 
-	barBefore, err := os.Stat(path.Join(t.dir, "bar"))
+	barBefore, err := os.Stat(path.Join(t.dir, "dir/bar"))
 	AssertEq(nil, err)
 
 	// Stat again.
@@ -218,13 +218,13 @@ func (t *NoCachingTest) StatStat() {
 	dirAfter, err := os.Stat(path.Join(t.dir, "dir"))
 	AssertEq(nil, err)
 
-	barAfter, err := os.Stat(path.Join(t.dir, "bar"))
+	barAfter, err := os.Stat(path.Join(t.dir, "dir/bar"))
 	AssertEq(nil, err)
 
 	// Make sure everything matches.
-	ExpectEq(fooBefore.ModTime(), fooAfter.ModTime())
-	ExpectEq(dirBefore.ModTime(), dirAfter.ModTime())
-	ExpectEq(barBefore.ModTime(), barAfter.ModTime())
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(fooBefore.ModTime()))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(dirBefore.ModTime()))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(barBefore.ModTime()))
 
 	ExpectEq(getInodeID(fooBefore), getInodeID(fooAfter))
 	ExpectEq(getInodeID(dirBefore), getInodeID(dirAfter))
