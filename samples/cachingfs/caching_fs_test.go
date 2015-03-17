@@ -17,6 +17,8 @@ package cachingfs_test
 import (
 	"io/ioutil"
 	"log"
+	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -34,6 +36,7 @@ func TestHelloFS(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type CachingFSTest struct {
+	dir string
 	mfs *fuse.MountedFileSystem
 }
 
@@ -45,7 +48,7 @@ func (t *CachingFSTest) setUp(
 	var err error
 
 	// Set up a temporary directory for mounting.
-	mountPoint, err := ioutil.TempDir("", "caching_fs_test")
+	t.dir, err = ioutil.TempDir("", "caching_fs_test")
 	AssertEq(nil, err)
 
 	// Create a file system.
@@ -53,7 +56,7 @@ func (t *CachingFSTest) setUp(
 	AssertEq(nil, err)
 
 	// Mount it.
-	t.mfs, err = fuse.Mount(mountPoint, fs)
+	t.mfs, err = fuse.Mount(t.dir, fs)
 	AssertEq(nil, err)
 
 	err = t.mfs.WaitForReady(context.Background())
@@ -111,7 +114,10 @@ func (t *BasicsTest) SetUp(ti *TestInfo) {
 }
 
 func (t *BasicsTest) StatNonexistent_Root() {
-	AssertTrue(false, "TODO")
+	_, err := os.Stat(path.Join(t.dir, "blah"))
+
+	AssertNe(nil, err)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
 func (t *BasicsTest) StatNonexistent_Dir() {
