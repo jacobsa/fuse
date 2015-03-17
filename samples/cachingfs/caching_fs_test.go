@@ -19,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -27,6 +28,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples/cachingfs"
 	"github.com/jacobsa/gcsfuse/timeutil"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -48,7 +50,8 @@ var _ TearDownInterface = &cachingFSTest{}
 
 func (t *cachingFSTest) setUp(
 	lookupEntryTimeout time.Duration,
-	getattrTimeout time.Duration) {
+	getattrTimeout time.Duration,
+	config *fuse.MountConfig) {
 	var err error
 
 	// Set up a temporary directory for mounting.
@@ -60,7 +63,7 @@ func (t *cachingFSTest) setUp(
 	AssertEq(nil, err)
 
 	// Mount it.
-	t.mfs, err = fuse.Mount(t.dir, t.fs, &fuse.MountConfig{})
+	t.mfs, err = fuse.Mount(t.dir, t.fs, config)
 	AssertEq(nil, err)
 
 	err = t.mfs.WaitForReady(context.Background())
@@ -168,7 +171,7 @@ func (t *BasicsTest) SetUp(ti *TestInfo) {
 		getattrTimeout     = 0
 	)
 
-	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout)
+	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout, &fuse.MountConfig{})
 }
 
 func (t *BasicsTest) StatNonexistent() {
@@ -241,7 +244,7 @@ func (t *NoCachingTest) SetUp(ti *TestInfo) {
 		getattrTimeout     = 0
 	)
 
-	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout)
+	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout, &fuse.MountConfig{})
 }
 
 func (t *NoCachingTest) StatStat() {
@@ -318,7 +321,11 @@ func init() { RegisterTestSuite(&EntryCachingTest{}) }
 
 func (t *EntryCachingTest) SetUp(ti *TestInfo) {
 	t.lookupEntryTimeout = 250 * time.Millisecond
-	t.cachingFSTest.setUp(t.lookupEntryTimeout, 0)
+	config := &fuse.MountConfig{
+		EnableVnodeCaching: true,
+	}
+
+	t.cachingFSTest.setUp(t.lookupEntryTimeout, 0, config)
 }
 
 func (t *EntryCachingTest) StatStat() {
@@ -348,12 +355,17 @@ func (t *EntryCachingTest) StatRenumberStat() {
 
 	// But after waiting for the entry cache to expire, we should see the new
 	// IDs.
-	time.Sleep(2 * t.lookupEntryTimeout)
-	fooAfter, dirAfter, barAfter = t.statAll()
+	//
+	// Note that the cache is not guaranteed to expire on darwin. See notes on
+	// fuse.MountConfig.EnableVnodeCaching.
+	if runtime.GOOS != "darwin" {
+		time.Sleep(2 * t.lookupEntryTimeout)
+		fooAfter, dirAfter, barAfter = t.statAll()
 
-	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
-	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
-	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+		ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
+		ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
+		ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+	}
 }
 
 func (t *EntryCachingTest) StatMtimeStat() {
@@ -390,16 +402,21 @@ func (t *EntryCachingTest) StatRenumberMtimeStat() {
 
 	// After waiting for the entry cache to expire, we should see fresh
 	// everything.
-	time.Sleep(2 * t.lookupEntryTimeout)
-	fooAfter, dirAfter, barAfter = t.statAll()
+	//
+	// Note that the cache is not guaranteed to expire on darwin. See notes on
+	// fuse.MountConfig.EnableVnodeCaching.
+	if runtime.GOOS != "darwin" {
+		time.Sleep(2 * t.lookupEntryTimeout)
+		fooAfter, dirAfter, barAfter = t.statAll()
 
-	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
-	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
-	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+		ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
+		ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
+		ExpectEq(t.fs.BarID(), getInodeID(barAfter))
 
-	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
-	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
-	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+		ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
+		ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
+		ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -417,7 +434,7 @@ func init() { RegisterTestSuite(&AttributeCachingTest{}) }
 
 func (t *AttributeCachingTest) SetUp(ti *TestInfo) {
 	t.getattrTimeout = 250 * time.Millisecond
-	t.cachingFSTest.setUp(0, t.getattrTimeout)
+	t.cachingFSTest.setUp(0, t.getattrTimeout, &fuse.MountConfig{})
 }
 
 func (t *AttributeCachingTest) StatStat() {
@@ -446,18 +463,21 @@ func (t *AttributeCachingTest) StatRenumberStat() {
 	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
 }
 
-func (t *AttributeCachingTest) StatMtimeStat() {
+func (t *AttributeCachingTest) StatMtimeStat_ViaPath() {
 	newMtime := t.initialMtime.Add(time.Second)
 
 	t.statAll()
 	t.fs.SetMtime(newMtime)
 	fooAfter, dirAfter, barAfter := t.statAll()
 
-	// We should see the new attributes, since the entry had to be looked up
-	// again and the new attributes were returned with the entry.
-	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
-	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
-	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+	// Since we don't have entry caching enabled, the call above had to look up
+	// the entry again. With the lookup we returned new attributes, so it's
+	// possible that the mtime will be fresh. On Linux it appears to be, and on
+	// OS X it appears to not be.
+	m := AnyOf(timeutil.TimeEq(newMtime), timeutil.TimeEq(t.initialMtime))
+	ExpectThat(fooAfter.ModTime(), m)
+	ExpectThat(dirAfter.ModTime(), m)
+	ExpectThat(barAfter.ModTime(), m)
 }
 
 func (t *AttributeCachingTest) StatMtimeStat_ViaFileDescriptor() {
@@ -490,7 +510,7 @@ func (t *AttributeCachingTest) StatMtimeStat_ViaFileDescriptor() {
 	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
 }
 
-func (t *AttributeCachingTest) StatRenumberMtimeStat() {
+func (t *AttributeCachingTest) StatRenumberMtimeStat_ViaPath() {
 	newMtime := t.initialMtime.Add(time.Second)
 
 	t.statAll()
@@ -500,7 +520,7 @@ func (t *AttributeCachingTest) StatRenumberMtimeStat() {
 
 	// We should see new everything, because this is the first time the new
 	// inodes have been encountered. Entries for the old ones should not have
-	// been cached.
+	// been cached, because we have entry caching disabled.
 	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
 	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
 	ExpectEq(t.fs.BarID(), getInodeID(barAfter))

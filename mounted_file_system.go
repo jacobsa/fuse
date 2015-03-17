@@ -16,6 +16,7 @@ package fuse
 
 import (
 	"errors"
+	"runtime"
 
 	"github.com/jacobsa/bazilfuse"
 	"golang.org/x/net/context"
@@ -117,14 +118,30 @@ func (mfs *MountedFileSystem) mountAndServe(
 
 // Optional configuration accepted by Mount.
 type MountConfig struct {
+	// OS X only.
+	//
+	// Normally on OS X we mount with the novncache option
+	// (cf. http://goo.gl/1pTjuk), which disables entry caching in the kernel.
+	// This is because osxfuse does not support the entry expiration values we
+	// return to it (cf. http://goo.gl/8yR0Ie) and it is probably better to fail
+	// to cache than to cache for too long, since the latter is more likely to
+	// hide consistency bugs that are difficult to detect and diagnose.
+	//
+	// This field disables the use of novncache, restoring entry caching. Beware:
+	// the value of ChildInodeEntry.EntryExpiration is ignored by the kernel, and
+	// entries will be cached for an arbitrarily long time.
+	EnableVnodeCaching bool
 }
 
 // Convert to mount options to be passed to package bazilfuse.
 func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
-	opts = []bazilfuse.MountOption{
-		// Enable permissions checking in the kernel. See the comments on
-		// InodeAttributes.Mode.
-		bazilfuse.SetOption("default_permissions", ""),
+	// Enable permissions checking in the kernel. See the comments on
+	// InodeAttributes.Mode.
+	opts = append(opts, bazilfuse.SetOption("default_permissions", ""))
+
+	// OS X only: set novncache when appropriate.
+	if runtime.GOOS == "darwin" && !c.EnableVnodeCaching {
+		opts = append(opts, bazilfuse.SetOption("novncache", ""))
 	}
 
 	return
