@@ -63,6 +63,11 @@ func (t *CachingFSTest) setUp(
 }
 
 func (t *CachingFSTest) TearDown() {
+	// Was the file system mounted?
+	if t.mfs == nil {
+		return
+	}
+
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
 	for {
