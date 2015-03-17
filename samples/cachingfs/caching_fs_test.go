@@ -460,6 +460,36 @@ func (t *AttributeCachingTest) StatMtimeStat() {
 	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
 }
 
+func (t *AttributeCachingTest) StatMtimeStat_ViaFileDescriptor() {
+	newMtime := t.initialMtime.Add(time.Second)
+
+	// Open everything, fixing a particular inode number for each.
+	foo, dir, bar := t.openFiles()
+	defer func() {
+		foo.Close()
+		dir.Close()
+		bar.Close()
+	}()
+
+	fooBefore, dirBefore, barBefore := t.statFiles(foo, dir, bar)
+	t.fs.SetMtime(newMtime)
+	fooAfter, dirAfter, barAfter := t.statFiles(foo, dir, bar)
+
+	// We should still see the old cached mtime.
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(fooBefore.ModTime()))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(dirBefore.ModTime()))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(barBefore.ModTime()))
+
+	// After waiting for the attribute cache to expire, we should see the fresh
+	// mtime.
+	time.Sleep(2 * t.getattrTimeout)
+	fooAfter, dirAfter, barAfter = t.statFiles(foo, dir, bar)
+
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+}
+
 func (t *AttributeCachingTest) StatRenumberMtimeStat() {
 	newMtime := t.initialMtime.Add(time.Second)
 
