@@ -120,7 +120,9 @@ type MountConfig struct {
 }
 
 // Convert to mount options to be passed to package bazilfuse.
-func (c *MountConfig) bazilfuseOptions() []bazilfuse.MountOption
+func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
+	return
+}
 
 // Attempt to mount the supplied file system on the given directory.
 // mfs.WaitForReady() must be called to find out whether the mount was
