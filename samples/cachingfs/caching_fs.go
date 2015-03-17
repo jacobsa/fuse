@@ -71,8 +71,8 @@ func NewCachingFS(
 	lookupEntryTimeout time.Duration,
 	getattrTimeout time.Duration) (fs CachingFS, err error) {
 	cfs := &cachingFS{
-		fooID: ((fuse.RootInodeID + 1 + numInodes - 1) / numInodes) + fooOffset,
-		mtime: time.Now(),
+		baseID: (fuse.RootInodeID + 1 + numInodes - 1) / numInodes,
+		mtime:  time.Now(),
 	}
 
 	cfs.mu = syncutil.NewInvariantMutex(cfs.checkInvariants)
@@ -94,7 +94,7 @@ type cachingFS struct {
 	fuseutil.NotImplementedFileSystem
 	mu syncutil.InvariantMutex
 
-	// The current ID of foo.
+	// The current ID of the lowest numbered non-root inode.
 	//
 	// INVARIANT: FooID() > fuse.RootInodeID
 	// INVARIANT: DirID() > fuse.RootInodeID
@@ -105,7 +105,7 @@ type cachingFS struct {
 	// INVARIANT: BarID() % numInodes == barOffset
 	//
 	// GUARDED_BY(mu)
-	fooID fuse.InodeID
+	baseID fuse.InodeID
 
 	// GUARDED_BY(mu)
 	mtime time.Time
@@ -114,7 +114,12 @@ type cachingFS struct {
 func (fs *cachingFS) checkInvariants()
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) FooID() fuse.InodeID
+func (fs *cachingFS) FooID() fuse.InodeID {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	return fs.baseID + fooOffset
+}
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) DirID() fuse.InodeID
