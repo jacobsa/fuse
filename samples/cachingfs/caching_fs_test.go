@@ -115,6 +115,37 @@ func (t *cachingFSTest) statAll() (foo, dir, bar os.FileInfo) {
 	return
 }
 
+func (t *cachingFSTest) openFiles() (foo, dir, bar *os.File) {
+	var err error
+
+	foo, err = os.Open(path.Join(t.dir, "foo"))
+	AssertEq(nil, err)
+
+	dir, err = os.Open(path.Join(t.dir, "dir"))
+	AssertEq(nil, err)
+
+	bar, err = os.Open(path.Join(t.dir, "bar"))
+	AssertEq(nil, err)
+
+	return
+}
+
+func (t *cachingFSTest) statFiles(
+	f, g, h *os.File) (foo, dir, bar os.FileInfo) {
+	var err error
+
+	foo, err = f.Stat()
+	AssertEq(nil, err)
+
+	dir, err = g.Stat()
+	AssertEq(nil, err)
+
+	bar, err = h.Stat()
+	AssertEq(nil, err)
+
+	return
+}
+
 func getInodeID(fi os.FileInfo) uint64 {
 	return fi.Sys().(*syscall.Stat_t).Ino
 }
@@ -443,6 +474,40 @@ func (t *AttributeCachingTest) StatRenumberMtimeStat() {
 	ExpectEq(t.fs.FooID(), getInodeID(fooAfter))
 	ExpectEq(t.fs.DirID(), getInodeID(dirAfter))
 	ExpectEq(t.fs.BarID(), getInodeID(barAfter))
+
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+}
+
+func (t *AttributeCachingTest) StatRenumberMtimeStat_ViaFileDescriptor() {
+	newMtime := t.initialMtime.Add(time.Second)
+
+	// Open everything, fixing a particular inode number for each.
+	foo, dir, bar := t.openFiles()
+
+	fooBefore, dirBefore, barBefore := t.statFiles(foo, dir, bar)
+	t.fs.RenumberInodes()
+	t.fs.SetMtime(newMtime)
+	fooAfter, dirAfter, barAfter := t.statFiles(foo, dir, bar)
+
+	// We should still see the old cached mtime with the old inode ID.
+	ExpectEq(getInodeID(fooBefore), getInodeID(fooAfter))
+	ExpectEq(getInodeID(dirBefore), getInodeID(dirAfter))
+	ExpectEq(getInodeID(barBefore), getInodeID(barAfter))
+
+	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(fooBefore.ModTime()))
+	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(dirBefore.ModTime()))
+	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(barBefore.ModTime()))
+
+	// After waiting for the attribute cache to expire, we should see the fresh
+	// mtime, still with the old inode ID.
+	time.Sleep(2 * t.getattrTimeout)
+	fooAfter, dirAfter, barAfter = t.statAll()
+
+	ExpectEq(getInodeID(fooBefore), getInodeID(fooAfter))
+	ExpectEq(getInodeID(dirBefore), getInodeID(dirAfter))
+	ExpectEq(getInodeID(barBefore), getInodeID(barAfter))
 
 	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
 	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
