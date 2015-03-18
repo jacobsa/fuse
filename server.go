@@ -504,6 +504,7 @@ func convertAttributes(inode InodeID, attr InodeAttributes) bazilfuse.Attr {
 		Inode:  uint64(inode),
 		Size:   attr.Size,
 		Mode:   attr.Mode,
+		Nlink:  uint32(attr.Nlink),
 		Atime:  attr.Atime,
 		Mtime:  attr.Mtime,
 		Ctime:  attr.Ctime,
