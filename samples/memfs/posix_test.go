@@ -159,6 +159,35 @@ func (t *PosixTest) WriteStartsPastEndOfFile() {
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
+func (t *PosixTest) WriteStartsPastEndOfFile_AppendMode() {
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.OpenFile(
+		path.Join(t.dir, "foo"),
+		os.O_RDWR|os.O_APPEND|os.O_CREATE,
+		0600)
+
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Write three bytes.
+	n, err = f.Write([]byte("111"))
+	AssertEq(nil, err)
+	AssertEq(3, n)
+
+	// Write at offset six.
+	n, err = f.WriteAt([]byte("222"), 6)
+	AssertEq(nil, err)
+	AssertEq(3, n)
+
+	// Read the full contents of the file.
+	contents, err := ioutil.ReadFile(f.Name())
+	AssertEq(nil, err)
+	ExpectEq("111\x00\x00\x00222", string(contents))
+}
+
 func (t *PosixTest) WriteAtDoesntChangeOffset_NotAppendMode() {
 	var err error
 	var n int
