@@ -131,9 +131,12 @@ type FileSystem interface {
 	// Directory handles
 	///////////////////////////////////
 
-	// Open a directory inode. The kernel calls this method when setting up a
-	// struct file for a particular inode with type directory, usually in
-	// response to an open(2) call from a user-space process.
+	// Open a directory inode.
+	//
+	// On Linux the kernel calls this method when setting up a struct file for a
+	// particular inode with type directory, usually in response to an open(2)
+	// call from a user-space process. On OS X it may not be called for every
+	// open(2) (cf. https://github.com/osxfuse/osxfuse/issues/199).
 	OpenDir(
 		ctx context.Context,
 		req *OpenDirRequest) (*OpenDirResponse, error)
@@ -157,9 +160,12 @@ type FileSystem interface {
 	// File handles
 	///////////////////////////////////
 
-	// Open a file inode. The kernel calls this method when setting up a struct
-	// file for a particular inode with type file, usually in response to an
-	// open(2) call from a user-space process.
+	// Open a file inode.
+	//
+	// On Linux the kernel calls this method when setting up a struct file for a
+	// particular inode with type file, usually in response to an open(2) call
+	// from a user-space process. On OS X it may not be called for every open(2)
+	// (cf.https://github.com/osxfuse/osxfuse/issues/199).
 	OpenFile(
 		ctx context.Context,
 		req *OpenFileRequest) (*OpenFileResponse, error)
