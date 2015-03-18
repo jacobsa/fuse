@@ -107,8 +107,10 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 	// Log the request.
 	s.logger.Println("Received:", fuseReq)
 
-	// TODO(jacobsa): Support cancellation when interrupted, if we can coax the
-	// system into reproducing such requests.
+	// If it becomes important, we can support cancellation when interrupted (cf.
+	// http://goo.gl/C08eAv). If we want to do this, we should find some way to
+	// coax the system into reproducing such requests so we can test the
+	// behavior.
 	ctx := context.Background()
 
 	// Attempt to handle it.
