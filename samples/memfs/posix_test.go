@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime"
 	"testing"
 
 	. "github.com/jacobsa/oglematchers"
@@ -159,6 +160,48 @@ func (t *PosixTest) WriteStartsPastEndOfFile() {
 	ExpectEq("\x00\x00taco", string(contents))
 }
 
+func (t *PosixTest) WriteStartsPastEndOfFile_AppendMode() {
+	var err error
+	var n int
+
+	// Create a file.
+	f, err := os.OpenFile(
+		path.Join(t.dir, "foo"),
+		os.O_RDWR|os.O_APPEND|os.O_CREATE,
+		0600)
+
+	t.toClose = append(t.toClose, f)
+	AssertEq(nil, err)
+
+	// Write three bytes.
+	n, err = f.Write([]byte("111"))
+	AssertEq(nil, err)
+	AssertEq(3, n)
+
+	// Write at offset six.
+	n, err = f.WriteAt([]byte("222"), 6)
+	AssertEq(nil, err)
+	AssertEq(3, n)
+
+	// Read the full contents of the file.
+	//
+	// Linux's support for pwrite is buggy; the pwrite(2) man page says this:
+	//
+	//     POSIX requires that opening a file with the O_APPEND flag should have
+	//     no affect on the location at which pwrite() writes data.  However, on
+	//     Linux,  if  a  file  is opened with O_APPEND, pwrite() appends data to
+	//     the end of the file, regardless of the value of offset.
+	//
+	contents, err := ioutil.ReadFile(f.Name())
+	AssertEq(nil, err)
+
+	if runtime.GOOS == "linux" {
+		ExpectEq("111222", string(contents))
+	} else {
+		ExpectEq("111\x00\x00\x00222", string(contents))
+	}
+}
+
 func (t *PosixTest) WriteAtDoesntChangeOffset_NotAppendMode() {
 	var err error
 	var n int
@@ -271,7 +314,12 @@ func (t *PosixTest) AppendMode() {
 	// So we allow either the POSIX result or the Linux result.
 	n, err = f.ReadAt(buf, 0)
 	AssertEq(io.EOF, err)
-	ExpectThat(string(buf[:n]), AnyOf("Hello, world!", "Jello, world!H"))
+
+	if runtime.GOOS == "linux" {
+		ExpectEq("Jello, world!H", string(buf[:n]))
+	} else {
+		ExpectEq("Hello, world!", string(buf[:n]))
+	}
 }
 
 func (t *PosixTest) ReadsPastEndOfFile() {
