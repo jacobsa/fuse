@@ -305,9 +305,10 @@ func (fs *memFS) MkDir(
 	// Set up attributes from the child, using the credentials of the calling
 	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
 	childAttrs := fuse.InodeAttributes{
-		Mode: req.Mode,
-		Uid:  req.Header.Uid,
-		Gid:  req.Header.Gid,
+		Nlink: 1,
+		Mode:  req.Mode,
+		Uid:   req.Header.Uid,
+		Gid:   req.Header.Gid,
 	}
 
 	// Allocate a child.
@@ -345,6 +346,7 @@ func (fs *memFS) CreateFile(
 	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
 	now := fs.clock.Now()
 	childAttrs := fuse.InodeAttributes{
+		Nlink:  1,
 		Mode:   req.Mode,
 		Atime:  now,
 		Mtime:  now,
@@ -408,7 +410,7 @@ func (fs *memFS) RmDir(
 	parent.RemoveChild(req.Name)
 
 	// Mark the child as unlinked.
-	child.linkCount--
+	child.attributes.Nlink--
 
 	return
 }
@@ -440,7 +442,7 @@ func (fs *memFS) Unlink(
 	parent.RemoveChild(req.Name)
 
 	// Mark the child as unlinked.
-	child.linkCount--
+	child.attributes.Nlink--
 
 	return
 }
