@@ -602,9 +602,7 @@ func (t *MemFSTest) UnlinkFile_StillOpen() {
 
 	AssertEq(nil, err)
 	ExpectEq(4, fi.Size())
-	// TODO(jacobsa): Re-enable this assertion if the following issue is fixed:
-	//     https://github.com/bazillion/fuse/issues/66
-	// ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// The contents should still be available.
 	buf := make([]byte, 1024)
@@ -724,10 +722,7 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.ModTime().Sub(createTime))
-
-	// TODO(jacobsa): Re-enable this assertion if the following issue is fixed:
-	//     https://github.com/bazillion/fuse/issues/66
-	// ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
+	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Attempt to read from the directory. This shouldn't see any junk from the
 	// new directory. It should either succeed with an empty result or should

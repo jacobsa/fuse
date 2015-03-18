@@ -201,6 +201,7 @@ func (t *BasicsTest) StatFoo() {
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(t.initialMtime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(t.fs.FooID(), getInodeID(fi))
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *BasicsTest) StatDir() {
@@ -212,6 +213,7 @@ func (t *BasicsTest) StatDir() {
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(t.initialMtime))
 	ExpectTrue(fi.IsDir())
 	ExpectEq(t.fs.DirID(), getInodeID(fi))
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *BasicsTest) StatBar() {
@@ -224,6 +226,7 @@ func (t *BasicsTest) StatBar() {
 	ExpectThat(fi.ModTime(), timeutil.TimeEq(t.initialMtime))
 	ExpectFalse(fi.IsDir())
 	ExpectEq(t.fs.BarID(), getInodeID(fi))
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 ////////////////////////////////////////////////////////////////////////

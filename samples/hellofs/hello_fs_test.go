@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -158,6 +159,7 @@ func (t *HelloFSTest) Stat_Hello() {
 	ExpectEq(0444, fi.Mode())
 	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *HelloFSTest) Stat_Dir() {
@@ -169,6 +171,7 @@ func (t *HelloFSTest) Stat_Dir() {
 	ExpectEq(0555|os.ModeDir, fi.Mode())
 	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *HelloFSTest) Stat_World() {
@@ -180,6 +183,7 @@ func (t *HelloFSTest) Stat_World() {
 	ExpectEq(0444, fi.Mode())
 	ExpectEq(0, t.clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *HelloFSTest) Stat_NonExistent() {

@@ -61,7 +61,8 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 	// root
 	rootInode: inodeInfo{
 		attributes: fuse.InodeAttributes{
-			Mode: 0555 | os.ModeDir,
+			Nlink: 1,
+			Mode:  0555 | os.ModeDir,
 		},
 		dir: true,
 		children: []fuseutil.Dirent{
@@ -83,15 +84,17 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 	// hello
 	helloInode: inodeInfo{
 		attributes: fuse.InodeAttributes{
-			Mode: 0444,
-			Size: uint64(len("Hello, world!")),
+			Nlink: 1,
+			Mode:  0444,
+			Size:  uint64(len("Hello, world!")),
 		},
 	},
 
 	// dir
 	dirInode: inodeInfo{
 		attributes: fuse.InodeAttributes{
-			Mode: 0555 | os.ModeDir,
+			Nlink: 1,
+			Mode:  0555 | os.ModeDir,
 		},
 		dir: true,
 		children: []fuseutil.Dirent{
@@ -107,8 +110,9 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 	// world
 	worldInode: inodeInfo{
 		attributes: fuse.InodeAttributes{
-			Mode: 0444,
-			Size: uint64(len("Hello, world!")),
+			Nlink: 1,
+			Mode:  0444,
+			Size:  uint64(len("Hello, world!")),
 		},
 	},
 }

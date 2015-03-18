@@ -164,6 +164,7 @@ func (fs *cachingFS) rootAttrs() fuse.InodeAttributes {
 // LOCKS_REQUIRED(fs.mu)
 func (fs *cachingFS) fooAttrs() fuse.InodeAttributes {
 	return fuse.InodeAttributes{
+		Nlink: 1,
 		Size:  FooSize,
 		Mode:  0777,
 		Mtime: fs.mtime,
@@ -173,6 +174,7 @@ func (fs *cachingFS) fooAttrs() fuse.InodeAttributes {
 // LOCKS_REQUIRED(fs.mu)
 func (fs *cachingFS) dirAttrs() fuse.InodeAttributes {
 	return fuse.InodeAttributes{
+		Nlink: 1,
 		Mode:  os.ModeDir | 0777,
 		Mtime: fs.mtime,
 	}
@@ -181,6 +183,7 @@ func (fs *cachingFS) dirAttrs() fuse.InodeAttributes {
 // LOCKS_REQUIRED(fs.mu)
 func (fs *cachingFS) barAttrs() fuse.InodeAttributes {
 	return fuse.InodeAttributes{
+		Nlink: 1,
 		Size:  BarSize,
 		Mode:  0777,
 		Mtime: fs.mtime,
