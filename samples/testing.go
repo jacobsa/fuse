@@ -15,6 +15,10 @@
 package samples
 
 import (
+	"fmt"
+	"io/ioutil"
+	"time"
+
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 )
@@ -30,11 +34,42 @@ type SampleTest struct {
 
 	// The directory at which the file system is mounted.
 	Dir string
+
+	mfs *fuse.MountedFileSystem
 }
 
 // Mount the supplied file system and initialize the exported fields of the
 // struct. Panics on error.
-func (st *SampleTest) Initialize(fs fuse.FileSystem)
+func (t *SampleTest) Initialize(fs fuse.FileSystem, config *fuse.MountConfig) {
+	err := t.initialize(fs, config)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Like Initialize, but doens't panic.
+func (t *SampleTest) initialize(
+	fs fuse.FileSystem,
+	config *fuse.MountConfig) (err error) {
+	// Initialize the clock.
+	t.Clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
+
+	// Set up a temporary directory.
+	t.Dir, err = ioutil.TempDir("", "sample_test")
+	if err != nil {
+		err = fmt.Errorf("TempDir: %v", err)
+		return
+	}
+
+	// Mount the file system.
+	t.mfs, err = fuse.Mount(t.Dir, fs, config)
+	if err != nil {
+		err = fmt.Errorf("Mount: %v", err)
+		return
+	}
+
+	return
+}
 
 // Unmount the file system and clean up. Panics on error.
-func (st *SampleTest) Destroy()
+func (t *SampleTest) Destroy()
