@@ -77,6 +77,13 @@ func (t *SampleTest) initialize(
 		return
 	}
 
+	// Wait for it to be read.
+	err = t.mfs.WaitForReady(t.Ctx)
+	if err != nil {
+		err = fmt.Errorf("WaitForReady: %v", err)
+		return
+	}
+
 	return
 }
 
