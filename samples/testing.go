@@ -105,7 +105,7 @@ func (t *SampleTest) Destroy() {
 		panic("MountedFileSystem.Unmount: " + err.Error())
 	}
 
-	if err := t.mfs.Join(context.Background()); err != nil {
+	if err := t.mfs.Join(t.Ctx); err != nil {
 		panic("MountedFileSystem.Join: " + err.Error())
 	}
 }
