@@ -82,6 +82,14 @@ func (t *SampleTest) initialize(
 
 // Unmount the file system and clean up. Panics on error.
 func (t *SampleTest) Destroy() {
+	err := t.destroy()
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Like Destroy, but doesn't panic.
+func (t *SampleTest) destroy() (err error) {
 	// Was the file system mounted?
 	if t.mfs == nil {
 		return
@@ -90,7 +98,7 @@ func (t *SampleTest) Destroy() {
 	// Unmount the file system. Try again on "resource busy" errors.
 	delay := 10 * time.Millisecond
 	for {
-		err := t.mfs.Unmount()
+		err = t.mfs.Unmount()
 		if err == nil {
 			break
 		}
@@ -102,10 +110,14 @@ func (t *SampleTest) Destroy() {
 			continue
 		}
 
-		panic("MountedFileSystem.Unmount: " + err.Error())
+		err = fmt.Errorf("MountedFileSystem.Unmount: %v", err)
+		return
 	}
 
-	if err := t.mfs.Join(t.Ctx); err != nil {
-		panic("MountedFileSystem.Join: " + err.Error())
+	if err = t.mfs.Join(t.Ctx); err != nil {
+		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
+		return
 	}
+
+	return
 }
