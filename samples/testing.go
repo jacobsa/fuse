@@ -17,10 +17,13 @@ package samples
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
+	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
+	"golang.org/x/net/context"
 )
 
 // A struct that implements common behavior needed by tests in the samples/
@@ -28,6 +31,9 @@ import (
 // Initialize method from your SetUp method and its Destroy method from your
 // TearDown method.
 type SampleTest struct {
+	// A context object that can be used for long-running operations.
+	Ctx context.Context
+
 	// A clock with a fixed initial time. The test's set up method may use this
 	// to wire the file system with a clock, if desired.
 	Clock timeutil.SimulatedClock
@@ -51,6 +57,9 @@ func (t *SampleTest) Initialize(fs fuse.FileSystem, config *fuse.MountConfig) {
 func (t *SampleTest) initialize(
 	fs fuse.FileSystem,
 	config *fuse.MountConfig) (err error) {
+	// Initialize the context.
+	t.Ctx = context.Background()
+
 	// Initialize the clock.
 	t.Clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
@@ -72,4 +81,31 @@ func (t *SampleTest) initialize(
 }
 
 // Unmount the file system and clean up. Panics on error.
-func (t *SampleTest) Destroy()
+func (t *SampleTest) Destroy() {
+	// Was the file system mounted?
+	if t.mfs == nil {
+		return
+	}
+
+	// Unmount the file system. Try again on "resource busy" errors.
+	delay := 10 * time.Millisecond
+	for {
+		err := t.mfs.Unmount()
+		if err == nil {
+			break
+		}
+
+		if strings.Contains(err.Error(), "resource busy") {
+			log.Println("Resource busy error while unmounting; trying again")
+			time.Sleep(delay)
+			delay = time.Duration(1.3 * float64(delay))
+			continue
+		}
+
+		panic("MountedFileSystem.Unmount: " + err.Error())
+	}
+
+	if err := t.mfs.Join(context.Background()); err != nil {
+		panic("MountedFileSystem.Join: " + err.Error())
+	}
+}
