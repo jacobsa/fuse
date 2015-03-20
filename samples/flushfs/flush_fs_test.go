@@ -74,12 +74,26 @@ func (t *FlushFSTest) SetUp(ti *TestInfo) {
 // Return a copy of the current contents of t.flushes.
 //
 // LOCKS_EXCLUDED(t.mu)
-func (t *FlushFSTest) getFlushes() []string
+func (t *FlushFSTest) getFlushes() (p []string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	p = make([]string, len(t.flushes))
+	copy(p, t.flushes)
+	return
+}
 
 // Return a copy of the current contents of t.fsyncs.
 //
 // LOCKS_EXCLUDED(t.mu)
-func (t *FlushFSTest) getFsyncs() []string
+func (t *FlushFSTest) getFsyncs() (p []string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	p = make([]string, len(t.fsyncs))
+	copy(p, t.fsyncs)
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Tests
