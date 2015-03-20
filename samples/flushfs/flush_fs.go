@@ -149,6 +149,27 @@ func (fs *flushFS) OpenFile(
 	return
 }
 
+func (fs *flushFS) ReadFile(
+	ctx context.Context,
+	req *fuse.ReadFileRequest) (
+	resp *fuse.ReadFileResponse, err error) {
+	resp = &fuse.ReadFileResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Ensure the offset is in range.
+	if req.Offset > int64(len(fs.fooContents)) {
+		return
+	}
+
+	// Read what we can.
+	resp.Data = make([]byte, req.Size)
+	copy(resp.Data, fs.fooContents[req.Offset:])
+
+	return
+}
+
 func (fs *flushFS) WriteFile(
 	ctx context.Context,
 	req *fuse.WriteFileRequest) (
