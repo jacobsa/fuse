@@ -17,6 +17,7 @@ package flushfs
 import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
+	"golang.org/x/net/context"
 )
 
 // Create a file system containing a single file named "foo".
@@ -33,4 +34,12 @@ func NewFileSystem(
 
 type flushFS struct {
 	fuseutil.NotImplementedFileSystem
+}
+
+func (fs *flushFS) Init(
+	ctx context.Context,
+	req *fuse.InitRequest) (
+	resp *fuse.InitResponse, err error) {
+	resp = &fuse.InitResponse{}
+	return
 }
