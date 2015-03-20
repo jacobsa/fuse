@@ -118,6 +118,12 @@ func (fs *NotImplementedFileSystem) WriteFile(
 	return nil, fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) FlushFile(
+	ctx context.Context,
+	req *fuse.FlushFileRequest) (*fuse.FlushFileResponse, error) {
+	return nil, fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) ReleaseFileHandle(
 	ctx context.Context,
 	req *fuse.ReleaseFileHandleRequest) (*fuse.ReleaseFileHandleResponse, error) {

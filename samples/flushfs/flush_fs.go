@@ -32,7 +32,11 @@ import (
 func NewFileSystem(
 	reportFlush func(string) error,
 	reportFsync func(string) error) (fs fuse.FileSystem, err error) {
-	fs = &flushFS{}
+	fs = &flushFS{
+		reportFlush: reportFlush,
+		reportFsync: reportFsync,
+	}
+
 	return
 }
 
@@ -40,6 +44,8 @@ const fooID = fuse.RootInodeID + 1
 
 type flushFS struct {
 	fuseutil.NotImplementedFileSystem
+	reportFlush func(string) error
+	reportFsync func(string) error
 
 	mu          sync.Mutex
 	fooContents []byte // GUARDED_BY(mu)
@@ -62,6 +68,7 @@ func (fs *flushFS) fooAttributes() fuse.InodeAttributes {
 	return fuse.InodeAttributes{
 		Nlink: 1,
 		Mode:  0777,
+		Size:  uint64(len(fs.fooContents)),
 	}
 }
 
@@ -166,5 +173,18 @@ func (fs *flushFS) WriteFile(
 		panic(fmt.Sprintf("Unexpected short copy: %v", n))
 	}
 
+	return
+}
+
+func (fs *flushFS) FlushFile(
+	ctx context.Context,
+	req *fuse.FlushFileRequest) (
+	resp *fuse.FlushFileResponse, err error) {
+	resp = &fuse.FlushFileResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	err = fs.reportFlush(string(fs.fooContents))
 	return
 }

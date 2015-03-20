@@ -340,6 +340,10 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
+func (t *FlushFSTest) CloseReports_DuplicatedFileDescriptor() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *FlushFSTest) CloseError() {
 	// Open the file.
 	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
@@ -359,7 +363,7 @@ func (t *FlushFSTest) CloseError() {
 	f = nil
 
 	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("TODO")))
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *FlushFSTest) FsyncReports() {
@@ -425,5 +429,29 @@ func (t *FlushFSTest) FsyncError() {
 	err = f.Sync()
 
 	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("TODO")))
+	ExpectThat(err, Error(HasSubstr("no such file")))
+}
+
+func (t *FlushFSTest) Dup() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Dup_CloseError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Dup2() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Dup2_CloseError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Mmap() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Directory() {
+	AssertTrue(false, "TODO")
 }
