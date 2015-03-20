@@ -201,7 +201,36 @@ func (t *FlushFSTest) CloseReports_ReadOnly() {
 }
 
 func (t *FlushFSTest) CloseReports_WriteOnly() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	// Open the file.
+	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Write some contents to the file.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// At this point, no flushes or fsyncs should have happened.
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Close the file.
+	err = f.Close()
+	f = nil
+	AssertEq(nil, err)
+
+	// Now we should have received the flush operation (but still no fsync).
+	ExpectThat(t.getFlushes(), ElementsAre(byteSliceEq("taco")))
+	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
 func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
