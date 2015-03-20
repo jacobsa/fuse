@@ -584,14 +584,9 @@ type CreateFileResponse struct {
 	// the same struct file in the kernel. In practice this usually means
 	// follow-up calls using the file descriptor returned by open(2).
 	//
-	// The handle may be supplied to the following methods:
-	//
-	//  *  ReadFile
-	//  *  WriteFile
-	//  *  ReleaseFileHandle
-	//
-	// The file system must ensure this ID remains valid until a later call to
-	// ReleaseFileHandle.
+	// The handle may be supplied in future calls to methods like ReadFile that
+	// accept a file handle. The file system must ensure this ID remains valid
+	// until a later call to ReleaseFileHandle.
 	Handle HandleID
 }
 
@@ -634,13 +629,9 @@ type OpenDirResponse struct {
 	// using the same struct file in the kernel. In practice this usually means
 	// follow-up calls using the file descriptor returned by open(2).
 	//
-	// The handle may be supplied to the following methods:
-	//
-	//  *  ReadDir
-	//  *  ReleaseDirHandle
-	//
-	// The file system must ensure this ID remains valid until a later call to
-	// ReleaseDirHandle.
+	// The handle may be supplied in future calls to methods like ReadDir that
+	// accept a directory handle. The file system must ensure this ID remains
+	// valid until a later call to ReleaseDirHandle.
 	Handle HandleID
 }
 
@@ -762,14 +753,9 @@ type OpenFileResponse struct {
 	// the same struct file in the kernel. In practice this usually means
 	// follow-up calls using the file descriptor returned by open(2).
 	//
-	// The handle may be supplied to the following methods:
-	//
-	//  *  ReadFile
-	//  *  WriteFile
-	//  *  ReleaseFileHandle
-	//
-	// The file system must ensure this ID remains valid until a later call to
-	// ReleaseFileHandle.
+	// The handle may be supplied in future calls to methods like ReadFile that
+	// accept a file handle. The file system must ensure this ID remains valid
+	// until a later call to ReleaseFileHandle.
 	Handle HandleID
 }
 
