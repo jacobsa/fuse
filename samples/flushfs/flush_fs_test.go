@@ -15,9 +15,11 @@
 package flushfs_test
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/jacobsa/fuse/samples"
+	"github.com/jacobsa/fuse/samples/flushfs"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -30,13 +32,31 @@ func TestFlushFS(t *testing.T) { RunTests(t) }
 type FlushFSTest struct {
 	samples.SampleTest
 
+	mu sync.Mutex
+
+	// GUARDED_BY(mu)
 	flushes []string
-	fsyncs  []string
+
+	// GUARDED_BY(mu)
+	fsyncs []string
 }
 
 func init() { RegisterTestSuite(&FlushFSTest{}) }
 
-func (t *FlushFSTest) SetUp(ti *TestInfo)
+func (t *FlushFSTest) SetUp(ti *TestInfo) {
+	// Set up a file system.
+	reportTo := func(slice *[]string) func(string) {
+		return func(s string) {
+			t.mu.Lock()
+			defer t.mu.Unlock()
+			*slice = append(*slice, s)
+		}
+	}
+
+	t.FileSystem = flushfs.NewFileSystem(
+		reportTo(&t.flushes),
+		reportTo(&t.fsyncs))
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Test functions
