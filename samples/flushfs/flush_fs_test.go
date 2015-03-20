@@ -41,10 +41,12 @@ type FlushFSTest struct {
 	mu sync.Mutex
 
 	// GUARDED_BY(mu)
-	flushes []string
+	flushes  []string
+	flushErr error
 
 	// GUARDED_BY(mu)
-	fsyncs []string
+	fsyncs   []string
+	fsyncErr error
 }
 
 func init() { RegisterTestSuite(&FlushFSTest{}) }
@@ -53,17 +55,19 @@ func (t *FlushFSTest) SetUp(ti *TestInfo) {
 	var err error
 
 	// Set up a file system.
-	reportTo := func(slice *[]string) func(string) {
-		return func(s string) {
+	reportTo := func(slice *[]string, err *error) func(string) error {
+		return func(s string) error {
 			t.mu.Lock()
 			defer t.mu.Unlock()
+
 			*slice = append(*slice, s)
+			return *err
 		}
 	}
 
 	t.FileSystem, err = flushfs.NewFileSystem(
-		reportTo(&t.flushes),
-		reportTo(&t.fsyncs))
+		reportTo(&t.flushes, &t.flushErr),
+		reportTo(&t.fsyncs, &t.fsyncErr))
 
 	if err != nil {
 		panic(err)

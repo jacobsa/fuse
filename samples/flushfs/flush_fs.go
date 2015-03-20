@@ -28,10 +28,10 @@ import (
 //
 // The file may be opened for reading and/or writing. Its initial contents are
 // empty. Whenever a flush or fsync is received, the supplied function will be
-// called with the current contents of the file.
+// called with the current contents of the file and its status returned.
 func NewFileSystem(
-	reportFlush func(string),
-	reportFsync func(string)) (fs fuse.FileSystem, err error) {
+	reportFlush func(string) error,
+	reportFsync func(string) error) (fs fuse.FileSystem, err error) {
 	fs = &flushFS{}
 	return
 }
