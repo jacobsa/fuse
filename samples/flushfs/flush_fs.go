@@ -14,7 +14,10 @@
 
 package flushfs
 
-import "github.com/jacobsa/fuse"
+import (
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseutil"
+)
 
 // Create a file system containing a single file named "foo".
 //
@@ -23,4 +26,11 @@ import "github.com/jacobsa/fuse"
 // called with the current contents of the file.
 func NewFileSystem(
 	reportFlush func(string),
-	reportFsync func(string)) (fs fuse.FileSystem, err error)
+	reportFsync func(string)) (fs fuse.FileSystem, err error) {
+	fs = &flushFS{}
+	return
+}
+
+type flushFS struct {
+	fuseutil.NotImplementedFileSystem
+}

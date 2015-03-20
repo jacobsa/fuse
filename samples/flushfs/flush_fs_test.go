@@ -44,6 +44,8 @@ type FlushFSTest struct {
 func init() { RegisterTestSuite(&FlushFSTest{}) }
 
 func (t *FlushFSTest) SetUp(ti *TestInfo) {
+	var err error
+
 	// Set up a file system.
 	reportTo := func(slice *[]string) func(string) {
 		return func(s string) {
@@ -53,9 +55,16 @@ func (t *FlushFSTest) SetUp(ti *TestInfo) {
 		}
 	}
 
-	t.FileSystem = flushfs.NewFileSystem(
+	t.FileSystem, err = flushfs.NewFileSystem(
 		reportTo(&t.flushes),
 		reportTo(&t.fsyncs))
+
+	if err != nil {
+		panic(err)
+	}
+
+	// Mount it.
+	t.SampleTest.SetUp(ti)
 }
 
 ////////////////////////////////////////////////////////////////////////
