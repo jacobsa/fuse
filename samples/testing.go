@@ -16,6 +16,7 @@ package samples
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"strings"
@@ -46,6 +47,10 @@ type SampleTest struct {
 
 	// The directory at which the file system is mounted.
 	Dir string
+
+	// Anothing non-nil in this slice will be closed by TearDown. The test will
+	// fail if closing fails.
+	ToClose []io.Closer
 
 	mfs *fuse.MountedFileSystem
 }
@@ -105,6 +110,15 @@ func (t *SampleTest) TearDown() {
 
 // Like TearDown, but doesn't panic.
 func (t *SampleTest) destroy() (err error) {
+	// Close what is necessary.
+	for _, c := range t.ToClose {
+		if c == nil {
+			continue
+		}
+
+		ogletest.ExpectEq(nil, c.Close())
+	}
+
 	// Was the file system mounted?
 	if t.mfs == nil {
 		return
