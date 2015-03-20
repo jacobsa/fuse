@@ -211,7 +211,25 @@ type FileSystem interface {
 		ctx context.Context,
 		req *WriteFileRequest) (*WriteFileResponse, error)
 
-	// Flush the current state of an open file to storage.
+	// Synchronize the current contents of an open file to storage.
+	//
+	// vfs.txt documents this as being called for by the fsync(2) system call
+	// (cf. http://goo.gl/j9X8nB). Code walk for that case:
+	//
+	//  *  (http://goo.gl/IQkWZa) sys_fsync calls do_fsync, calls vfs_fsync, calls
+	//     vfs_fsync_range.
+	//  *  (http://goo.gl/5L2SMy) vfs_fsync_range calls f_op->fsync.
+	//
+	// Note that this is also called by fdatasync(2) (cf. http://goo.gl/01R7rF).
+	//
+	// See also: FlushFile, which may perform a similar purpose when closing a
+	// file (but which is not used in "real" file systems).
+	SyncFile(
+		ctx context.Context,
+		req *SyncFileRequest) (*SyncFileResponse, error)
+
+	// Flush the current state of an open file to storage upon closing a file
+	// descriptor.
 	//
 	// vfs.txt documents this as being called for each close(2) system call (cf.
 	// http://goo.gl/FSkbrq). Code walk for that case:
@@ -821,6 +839,17 @@ type WriteFileRequest struct {
 }
 
 type WriteFileResponse struct {
+}
+
+type SyncFileRequest struct {
+	Header RequestHeader
+
+	// The file and handle being sync'd.
+	Inode  InodeID
+	Handle HandleID
+}
+
+type SyncFileResponse struct {
 }
 
 type FlushFileRequest struct {

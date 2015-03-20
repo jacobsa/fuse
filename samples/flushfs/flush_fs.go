@@ -176,6 +176,19 @@ func (fs *flushFS) WriteFile(
 	return
 }
 
+func (fs *flushFS) SyncFile(
+	ctx context.Context,
+	req *fuse.SyncFileRequest) (
+	resp *fuse.SyncFileResponse, err error) {
+	resp = &fuse.SyncFileResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	err = fs.reportFsync(string(fs.fooContents))
+	return
+}
+
 func (fs *flushFS) FlushFile(
 	ctx context.Context,
 	req *fuse.FlushFileRequest) (
