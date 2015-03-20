@@ -211,6 +211,34 @@ type FileSystem interface {
 		ctx context.Context,
 		req *WriteFileRequest) (*WriteFileResponse, error)
 
+	// Flush the current state of an open file to storage.
+	//
+	// vfs.txt documents this as being called for each close(2) system call (cf.
+	// http://goo.gl/FSkbrq). Code walk for that case:
+	//
+	//  *  (http://goo.gl/e3lv0e) sys_close calls __close_fd, calls filp_close.
+	//  *  (http://goo.gl/nI8fxD) filp_close calls f_op->flush (fuse_flush).
+	//
+	// But note that this is also called in other contexts where a file
+	// descriptor is closed, such as dup2(2) (cf. http://goo.gl/NQDvFS). In the
+	// case of close(2), a flush error is returned to the user. For dup2(2), it
+	// is not.
+	//
+	// Because of cases like dup2(2), calls to FlushFile are not necessarily one
+	// to one with calls to OpenFile. They should not be used for reference
+	// counting, and the handle must remain valid even after the method is called
+	// (use ReleaseFileHandle to dispose of it).
+	//
+	// Typical "real" file systems do not implement this, presumably relying on
+	// the kernel to write out the page cache to the block device eventually.
+	// They can get away with this because a later open(2) will see the same
+	// data. A file system that writes to remote storage however probably wants
+	// to at least schedule a real flush, and maybe do it immediately in order to
+	// return any errors that occur.
+	FlushFile(
+		ctx context.Context,
+		req *FlushFileRequest) (*FlushFileResponse, err)
+
 	// Release a previously-minted file handle. The kernel calls this when there
 	// are no more references to an open file: all file descriptors are closed
 	// and all memory mappings are unmapped.
