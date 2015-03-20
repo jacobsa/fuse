@@ -265,7 +265,62 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
 }
 
 func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	// Open the file with two handles.
+	f1, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	f2, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f1 != nil {
+			ExpectEq(nil, f1.Close())
+		}
+
+		if f2 != nil {
+			ExpectEq(nil, f2.Close())
+		}
+	}()
+
+	// Write some contents with each handle.
+	n, err = f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	n, err = f2.Write([]byte("p"))
+	AssertEq(nil, err)
+	AssertEq(1, n)
+
+	// At this point, no flushes or fsyncs should have happened.
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Close one handle. The current contents should be flushed.
+	err = f1.Close()
+	f1 = nil
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre("paco"))
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Write some more contents via the other handle. Again, no further flushes.
+	n, err = f2.Write([]byte("orp"))
+	AssertEq(nil, err)
+	AssertEq(3, n)
+
+	AssertThat(t.getFlushes(), ElementsAre("paco"))
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Close the handle. Now the new contents should be flushed.
+	err = f2.Close()
+	f2 = nil
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre("paco", "porp"))
+	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
 func (t *FlushFSTest) CloseError() {
