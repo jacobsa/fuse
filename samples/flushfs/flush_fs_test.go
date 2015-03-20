@@ -341,7 +341,7 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 }
 
 func (t *FlushFSTest) CloseError() {
-	// Open a file.
+	// Open the file.
 	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
@@ -363,7 +363,48 @@ func (t *FlushFSTest) CloseError() {
 }
 
 func (t *FlushFSTest) FsyncReports() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	// Open the file.
+	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Write some contents to the file.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Fsync.
+	err = f.Sync()
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre("taco"))
+
+	// Write some more contents.
+	n, err = f.Write([]byte("s"))
+	AssertEq(nil, err)
+	AssertEq(1, n)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre("taco"))
+
+	// Fsync.
+	err = f.Sync()
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre("taco", "tacos"))
 }
 
 func (t *FlushFSTest) FsyncError() {
