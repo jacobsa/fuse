@@ -451,3 +451,7 @@ func (t *FlushFSTest) Dup2_CloseError() {
 func (t *FlushFSTest) Mmap() {
 	AssertTrue(false, "TODO")
 }
+
+func (t *FlushFSTest) Directory() {
+	AssertTrue(false, "TODO")
+}
