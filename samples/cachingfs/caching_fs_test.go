@@ -15,104 +15,65 @@
 package cachingfs_test
 
 import (
-	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"runtime"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
 
-	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/samples/cachingfs"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse/samples"
+	"github.com/jacobsa/fuse/samples/cachingfs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
-	"golang.org/x/net/context"
 )
 
-func TestHelloFS(t *testing.T) { RunTests(t) }
+func TestCachingFS(t *testing.T) { RunTests(t) }
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type cachingFSTest struct {
-	dir          string
+	samples.SampleTest
+
 	fs           cachingfs.CachingFS
-	mfs          *fuse.MountedFileSystem
 	initialMtime time.Time
 }
 
 var _ TearDownInterface = &cachingFSTest{}
 
 func (t *cachingFSTest) setUp(
+	ti *TestInfo,
 	lookupEntryTimeout time.Duration,
-	getattrTimeout time.Duration,
-	config *fuse.MountConfig) {
+	getattrTimeout time.Duration) {
 	var err error
-
-	// Set up a temporary directory for mounting.
-	t.dir, err = ioutil.TempDir("", "caching_fs_test")
-	AssertEq(nil, err)
 
 	// Create the file system.
 	t.fs, err = cachingfs.NewCachingFS(lookupEntryTimeout, getattrTimeout)
 	AssertEq(nil, err)
 
-	// Mount it.
-	t.mfs, err = fuse.Mount(t.dir, t.fs, config)
-	AssertEq(nil, err)
+	t.FileSystem = t.fs
 
-	err = t.mfs.WaitForReady(context.Background())
-	AssertEq(nil, err)
+	// Mount it.
+	t.SampleTest.SetUp(ti)
 
 	// Set up the mtime.
 	t.initialMtime = time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local)
 	t.fs.SetMtime(t.initialMtime)
 }
 
-func (t *cachingFSTest) TearDown() {
-	// Was the file system mounted?
-	if t.mfs == nil {
-		return
-	}
-
-	// Unmount the file system. Try again on "resource busy" errors.
-	delay := 10 * time.Millisecond
-	for {
-		err := t.mfs.Unmount()
-		if err == nil {
-			break
-		}
-
-		if strings.Contains(err.Error(), "resource busy") {
-			log.Println("Resource busy error while unmounting; trying again")
-			time.Sleep(delay)
-			delay = time.Duration(1.3 * float64(delay))
-			continue
-		}
-
-		panic("MountedFileSystem.Unmount: " + err.Error())
-	}
-
-	if err := t.mfs.Join(context.Background()); err != nil {
-		panic("MountedFileSystem.Join: " + err.Error())
-	}
-}
-
 func (t *cachingFSTest) statAll() (foo, dir, bar os.FileInfo) {
 	var err error
 
-	foo, err = os.Stat(path.Join(t.dir, "foo"))
+	foo, err = os.Stat(path.Join(t.Dir, "foo"))
 	AssertEq(nil, err)
 
-	dir, err = os.Stat(path.Join(t.dir, "dir"))
+	dir, err = os.Stat(path.Join(t.Dir, "dir"))
 	AssertEq(nil, err)
 
-	bar, err = os.Stat(path.Join(t.dir, "dir/bar"))
+	bar, err = os.Stat(path.Join(t.Dir, "dir/bar"))
 	AssertEq(nil, err)
 
 	return
@@ -121,13 +82,13 @@ func (t *cachingFSTest) statAll() (foo, dir, bar os.FileInfo) {
 func (t *cachingFSTest) openFiles() (foo, dir, bar *os.File) {
 	var err error
 
-	foo, err = os.Open(path.Join(t.dir, "foo"))
+	foo, err = os.Open(path.Join(t.Dir, "foo"))
 	AssertEq(nil, err)
 
-	dir, err = os.Open(path.Join(t.dir, "dir"))
+	dir, err = os.Open(path.Join(t.Dir, "dir"))
 	AssertEq(nil, err)
 
-	bar, err = os.Open(path.Join(t.dir, "dir/bar"))
+	bar, err = os.Open(path.Join(t.Dir, "dir/bar"))
 	AssertEq(nil, err)
 
 	return
@@ -171,7 +132,7 @@ func (t *BasicsTest) SetUp(ti *TestInfo) {
 		getattrTimeout     = 0
 	)
 
-	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout, &fuse.MountConfig{})
+	t.cachingFSTest.setUp(ti, lookupEntryTimeout, getattrTimeout)
 }
 
 func (t *BasicsTest) StatNonexistent() {
@@ -184,7 +145,7 @@ func (t *BasicsTest) StatNonexistent() {
 	}
 
 	for _, n := range names {
-		_, err := os.Stat(path.Join(t.dir, n))
+		_, err := os.Stat(path.Join(t.Dir, n))
 
 		AssertNe(nil, err)
 		ExpectTrue(os.IsNotExist(err), "n: %s, err: %v", n, err)
@@ -192,7 +153,7 @@ func (t *BasicsTest) StatNonexistent() {
 }
 
 func (t *BasicsTest) StatFoo() {
-	fi, err := os.Stat(path.Join(t.dir, "foo"))
+	fi, err := os.Stat(path.Join(t.Dir, "foo"))
 	AssertEq(nil, err)
 
 	ExpectEq("foo", fi.Name())
@@ -205,7 +166,7 @@ func (t *BasicsTest) StatFoo() {
 }
 
 func (t *BasicsTest) StatDir() {
-	fi, err := os.Stat(path.Join(t.dir, "dir"))
+	fi, err := os.Stat(path.Join(t.Dir, "dir"))
 	AssertEq(nil, err)
 
 	ExpectEq("dir", fi.Name())
@@ -217,7 +178,7 @@ func (t *BasicsTest) StatDir() {
 }
 
 func (t *BasicsTest) StatBar() {
-	fi, err := os.Stat(path.Join(t.dir, "dir/bar"))
+	fi, err := os.Stat(path.Join(t.Dir, "dir/bar"))
 	AssertEq(nil, err)
 
 	ExpectEq("bar", fi.Name())
@@ -247,7 +208,7 @@ func (t *NoCachingTest) SetUp(ti *TestInfo) {
 		getattrTimeout     = 0
 	)
 
-	t.cachingFSTest.setUp(lookupEntryTimeout, getattrTimeout, &fuse.MountConfig{})
+	t.cachingFSTest.setUp(ti, lookupEntryTimeout, getattrTimeout)
 }
 
 func (t *NoCachingTest) StatStat() {
@@ -324,11 +285,9 @@ func init() { RegisterTestSuite(&EntryCachingTest{}) }
 
 func (t *EntryCachingTest) SetUp(ti *TestInfo) {
 	t.lookupEntryTimeout = 250 * time.Millisecond
-	config := &fuse.MountConfig{
-		EnableVnodeCaching: true,
-	}
+	t.SampleTest.MountConfig.EnableVnodeCaching = true
 
-	t.cachingFSTest.setUp(t.lookupEntryTimeout, 0, config)
+	t.cachingFSTest.setUp(ti, t.lookupEntryTimeout, 0)
 }
 
 func (t *EntryCachingTest) StatStat() {
@@ -437,7 +396,7 @@ func init() { RegisterTestSuite(&AttributeCachingTest{}) }
 
 func (t *AttributeCachingTest) SetUp(ti *TestInfo) {
 	t.getattrTimeout = 250 * time.Millisecond
-	t.cachingFSTest.setUp(0, t.getattrTimeout, &fuse.MountConfig{})
+	t.cachingFSTest.setUp(ti, 0, t.getattrTimeout)
 }
 
 func (t *AttributeCachingTest) StatStat() {

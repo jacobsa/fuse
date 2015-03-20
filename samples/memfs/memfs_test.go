@@ -17,23 +17,19 @@ package memfs_test
 import (
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/user"
 	"path"
 	"strconv"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
 
-	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/memfs"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
-	"golang.org/x/net/context"
 )
 
 func TestMemFS(t *testing.T) { RunTests(t) }
@@ -86,77 +82,14 @@ func applyUmask(m os.FileMode) os.FileMode {
 ////////////////////////////////////////////////////////////////////////
 
 type MemFSTest struct {
-	clock timeutil.SimulatedClock
-	mfs   *fuse.MountedFileSystem
-
-	// Files to close when tearing down. Nil entries are skipped.
-	toClose []io.Closer
+	samples.SampleTest
 }
-
-var _ SetUpInterface = &MemFSTest{}
-var _ TearDownInterface = &MemFSTest{}
 
 func init() { RegisterTestSuite(&MemFSTest{}) }
 
 func (t *MemFSTest) SetUp(ti *TestInfo) {
-	var err error
-
-	// Set up a fixed, non-zero time.
-	t.clock.SetTime(time.Now())
-
-	// Set up a temporary directory for mounting.
-	mountPoint, err := ioutil.TempDir("", "memfs_test")
-	if err != nil {
-		panic("ioutil.TempDir: " + err.Error())
-	}
-
-	// Mount a file system.
-	fs := memfs.NewMemFS(currentUid(), currentGid(), &t.clock)
-
-	t.mfs, err = fuse.Mount(mountPoint, fs, &fuse.MountConfig{})
-	if err != nil {
-		panic("Mount: " + err.Error())
-	}
-
-	if err = t.mfs.WaitForReady(context.Background()); err != nil {
-		panic("MountedFileSystem.WaitForReady: " + err.Error())
-	}
-}
-
-func (t *MemFSTest) TearDown() {
-	// Close any files we opened.
-	for _, c := range t.toClose {
-		if c == nil {
-			continue
-		}
-
-		err := c.Close()
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	// Unmount the file system. Try again on "resource busy" errors.
-	delay := 10 * time.Millisecond
-	for {
-		err := t.mfs.Unmount()
-		if err == nil {
-			break
-		}
-
-		if strings.Contains(err.Error(), "resource busy") {
-			log.Println("Resource busy error while unmounting; trying again")
-			time.Sleep(delay)
-			delay = time.Duration(1.3 * float64(delay))
-			continue
-		}
-
-		panic("MountedFileSystem.Unmount: " + err.Error())
-	}
-
-	if err := t.mfs.Join(context.Background()); err != nil {
-		panic("MountedFileSystem.Join: " + err.Error())
-	}
+	t.FileSystem = memfs.NewMemFS(currentUid(), currentGid(), &t.Clock)
+	t.SampleTest.SetUp(ti)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -164,7 +97,7 @@ func (t *MemFSTest) TearDown() {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *MemFSTest) ContentsOfEmptyFileSystem() {
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := ioutil.ReadDir(t.Dir)
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
@@ -176,18 +109,18 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	var stat *syscall.Stat_t
 	var entries []os.FileInfo
 
-	dirName := path.Join(t.mfs.Dir(), "dir")
+	dirName := path.Join(t.Dir, "dir")
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Create a directory within the root.
-	createTime := t.clock.Now()
+	createTime := t.Clock.Now()
 	err = os.Mkdir(dirName, 0754)
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Stat the directory.
 	fi, err = os.Stat(dirName)
@@ -208,7 +141,7 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq(0, stat.Size)
 
 	// Check the root's mtime.
-	fi, err = os.Stat(t.mfs.Dir())
+	fi, err = os.Stat(t.Dir)
 
 	AssertEq(nil, err)
 	ExpectEq(0, fi.ModTime().Sub(createTime))
@@ -220,7 +153,7 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectThat(entries, ElementsAre())
 
 	// Read the root.
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = ioutil.ReadDir(t.Dir)
 
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
@@ -237,22 +170,22 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	var entries []os.FileInfo
 
 	// Create a directory within the root.
-	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent"), 0700)
+	err = os.Mkdir(path.Join(t.Dir, "parent"), 0700)
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Create a child of that directory.
-	createTime := t.clock.Now()
-	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent/dir"), 0754)
+	createTime := t.Clock.Now()
+	err = os.Mkdir(path.Join(t.Dir, "parent/dir"), 0754)
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Stat the directory.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "parent/dir"))
+	fi, err = os.Stat(path.Join(t.Dir, "parent/dir"))
 	stat = fi.Sys().(*syscall.Stat_t)
 
 	AssertEq(nil, err)
@@ -270,18 +203,18 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	ExpectEq(0, stat.Size)
 
 	// Check the parent's mtime.
-	fi, err = os.Stat(path.Join(t.mfs.Dir(), "parent"))
+	fi, err = os.Stat(path.Join(t.Dir, "parent"))
 	AssertEq(nil, err)
 	ExpectEq(0, fi.ModTime().Sub(createTime))
 
 	// Read the directory.
-	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent/dir"))
+	entries, err = ioutil.ReadDir(path.Join(t.Dir, "parent/dir"))
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 
 	// Read the parent.
-	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "parent"))
+	entries, err = ioutil.ReadDir(path.Join(t.Dir, "parent"))
 
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
@@ -293,7 +226,7 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 
 func (t *MemFSTest) Mkdir_AlreadyExists() {
 	var err error
-	dirName := path.Join(t.mfs.Dir(), "dir")
+	dirName := path.Join(t.Dir, "dir")
 
 	// Create the directory once.
 	err = os.Mkdir(dirName, 0754)
@@ -310,7 +243,7 @@ func (t *MemFSTest) Mkdir_IntermediateIsFile() {
 	var err error
 
 	// Create a file.
-	fileName := path.Join(t.mfs.Dir(), "foo")
+	fileName := path.Join(t.Dir, "foo")
 	err = ioutil.WriteFile(fileName, []byte{}, 0700)
 	AssertEq(nil, err)
 
@@ -326,7 +259,7 @@ func (t *MemFSTest) Mkdir_IntermediateIsNonExistent() {
 	var err error
 
 	// Attempt to create a sub-directory of a non-existent sub-directory.
-	dirName := path.Join(t.mfs.Dir(), "foo/dir")
+	dirName := path.Join(t.Dir, "foo/dir")
 	err = os.Mkdir(dirName, 0754)
 
 	AssertNe(nil, err)
@@ -337,11 +270,11 @@ func (t *MemFSTest) Mkdir_PermissionDenied() {
 	var err error
 
 	// Create a directory within the root without write permissions.
-	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent"), 0500)
+	err = os.Mkdir(path.Join(t.Dir, "parent"), 0500)
 	AssertEq(nil, err)
 
 	// Attempt to create a child of that directory.
-	err = os.Mkdir(path.Join(t.mfs.Dir(), "parent/dir"), 0754)
+	err = os.Mkdir(path.Join(t.Dir, "parent/dir"), 0754)
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("permission denied")))
@@ -353,15 +286,15 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	var stat *syscall.Stat_t
 
 	// Write a file.
-	fileName := path.Join(t.mfs.Dir(), "foo")
+	fileName := path.Join(t.Dir, "foo")
 	const contents = "Hello\x00world"
 
-	createTime := t.clock.Now()
+	createTime := t.Clock.Now()
 	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Stat it.
 	fi, err = os.Stat(fileName)
@@ -393,7 +326,7 @@ func (t *MemFSTest) CreateNewFile_InSubDir() {
 	var stat *syscall.Stat_t
 
 	// Create a sub-dir.
-	dirName := path.Join(t.mfs.Dir(), "dir")
+	dirName := path.Join(t.Dir, "dir")
 	err = os.Mkdir(dirName, 0700)
 	AssertEq(nil, err)
 
@@ -401,12 +334,12 @@ func (t *MemFSTest) CreateNewFile_InSubDir() {
 	fileName := path.Join(dirName, "foo")
 	const contents = "Hello\x00world"
 
-	createTime := t.clock.Now()
+	createTime := t.Clock.Now()
 	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Stat it.
 	fi, err = os.Stat(fileName)
@@ -439,27 +372,27 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	var stat *syscall.Stat_t
 
 	// Write a file.
-	fileName := path.Join(t.mfs.Dir(), "foo")
+	fileName := path.Join(t.Dir, "foo")
 
-	createTime := t.clock.Now()
+	createTime := t.Clock.Now()
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Open the file and modify it.
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0400)
-	t.toClose = append(t.toClose, f)
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
-	modifyTime := t.clock.Now()
+	modifyTime := t.Clock.Now()
 	n, err = f.WriteAt([]byte("H"), 0)
 	AssertEq(nil, err)
 	AssertEq(1, n)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Stat the file.
 	fi, err = os.Stat(fileName)
@@ -492,32 +425,32 @@ func (t *MemFSTest) ModifyExistingFile_InSubDir() {
 	var stat *syscall.Stat_t
 
 	// Create a sub-directory.
-	dirName := path.Join(t.mfs.Dir(), "dir")
+	dirName := path.Join(t.Dir, "dir")
 	err = os.Mkdir(dirName, 0700)
 	AssertEq(nil, err)
 
 	// Write a file.
 	fileName := path.Join(dirName, "foo")
 
-	createTime := t.clock.Now()
+	createTime := t.Clock.Now()
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Open the file and modify it.
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0400)
-	t.toClose = append(t.toClose, f)
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
-	modifyTime := t.clock.Now()
+	modifyTime := t.Clock.Now()
 	n, err = f.WriteAt([]byte("H"), 0)
 	AssertEq(nil, err)
 	AssertEq(1, n)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Stat the file.
 	fi, err = os.Stat(fileName)
@@ -547,7 +480,7 @@ func (t *MemFSTest) UnlinkFile_Exists() {
 	var err error
 
 	// Write a file.
-	fileName := path.Join(t.mfs.Dir(), "foo")
+	fileName := path.Join(t.Dir, "foo")
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
 
@@ -562,24 +495,24 @@ func (t *MemFSTest) UnlinkFile_Exists() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// Nothing should be in the directory.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := ioutil.ReadDir(t.Dir)
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 }
 
 func (t *MemFSTest) UnlinkFile_NonExistent() {
-	err := os.Remove(path.Join(t.mfs.Dir(), "foo"))
+	err := os.Remove(path.Join(t.Dir, "foo"))
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *MemFSTest) UnlinkFile_StillOpen() {
-	fileName := path.Join(t.mfs.Dir(), "foo")
+	fileName := path.Join(t.Dir, "foo")
 
 	// Create and open a file.
 	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0600)
-	t.toClose = append(t.toClose, f)
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
 	// Write some data into it.
@@ -592,7 +525,7 @@ func (t *MemFSTest) UnlinkFile_StillOpen() {
 	AssertEq(nil, err)
 
 	// The directory should no longer contain it.
-	entries, err := ioutil.ReadDir(t.mfs.Dir())
+	entries, err := ioutil.ReadDir(t.Dir)
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 
@@ -622,11 +555,11 @@ func (t *MemFSTest) Rmdir_NonEmpty() {
 	var err error
 
 	// Create two levels of directories.
-	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo/bar"), 0754)
+	err = os.MkdirAll(path.Join(t.Dir, "foo/bar"), 0754)
 	AssertEq(nil, err)
 
 	// Attempt to remove the parent.
-	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))
+	err = os.Remove(path.Join(t.Dir, "foo"))
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("not empty")))
@@ -637,44 +570,44 @@ func (t *MemFSTest) Rmdir_Empty() {
 	var entries []os.FileInfo
 
 	// Create two levels of directories.
-	err = os.MkdirAll(path.Join(t.mfs.Dir(), "foo/bar"), 0754)
+	err = os.MkdirAll(path.Join(t.Dir, "foo/bar"), 0754)
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Remove the leaf.
-	rmTime := t.clock.Now()
-	err = os.Remove(path.Join(t.mfs.Dir(), "foo/bar"))
+	rmTime := t.Clock.Now()
+	err = os.Remove(path.Join(t.Dir, "foo/bar"))
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// There should be nothing left in the parent.
-	entries, err = ioutil.ReadDir(path.Join(t.mfs.Dir(), "foo"))
+	entries, err = ioutil.ReadDir(path.Join(t.Dir, "foo"))
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 
 	// Check the parent's mtime.
-	fi, err := os.Stat(path.Join(t.mfs.Dir(), "foo"))
+	fi, err := os.Stat(path.Join(t.Dir, "foo"))
 	AssertEq(nil, err)
 	ExpectEq(0, fi.ModTime().Sub(rmTime))
 
 	// Remove the parent.
-	err = os.Remove(path.Join(t.mfs.Dir(), "foo"))
+	err = os.Remove(path.Join(t.Dir, "foo"))
 	AssertEq(nil, err)
 
 	// Now the root directory should be empty, too.
-	entries, err = ioutil.ReadDir(t.mfs.Dir())
+	entries, err = ioutil.ReadDir(t.Dir)
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 }
 
 func (t *MemFSTest) Rmdir_NonExistent() {
-	err := os.Remove(path.Join(t.mfs.Dir(), "blah"))
+	err := os.Remove(path.Join(t.Dir, "blah"))
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file or directory")))
@@ -684,15 +617,15 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 	var err error
 
 	// Create a directory.
-	createTime := t.clock.Now()
-	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0700)
+	createTime := t.Clock.Now()
+	err = os.Mkdir(path.Join(t.Dir, "dir"), 0700)
 	AssertEq(nil, err)
 
 	// Simulate time advancing.
-	t.clock.AdvanceTime(time.Second)
+	t.Clock.AdvanceTime(time.Second)
 
 	// Open the directory for reading.
-	f, err := os.Open(path.Join(t.mfs.Dir(), "dir"))
+	f, err := os.Open(path.Join(t.Dir, "dir"))
 	defer func() {
 		if f != nil {
 			ExpectEq(nil, f.Close())
@@ -702,18 +635,18 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 	AssertEq(nil, err)
 
 	// Remove the directory.
-	err = os.Remove(path.Join(t.mfs.Dir(), "dir"))
+	err = os.Remove(path.Join(t.Dir, "dir"))
 	AssertEq(nil, err)
 
 	// Create a new directory, with the same name even, and add some contents
 	// within it.
-	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/foo"), 0700)
+	err = os.MkdirAll(path.Join(t.Dir, "dir/foo"), 0700)
 	AssertEq(nil, err)
 
-	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/bar"), 0700)
+	err = os.MkdirAll(path.Join(t.Dir, "dir/bar"), 0700)
 	AssertEq(nil, err)
 
-	err = os.MkdirAll(path.Join(t.mfs.Dir(), "dir/baz"), 0700)
+	err = os.MkdirAll(path.Join(t.Dir, "dir/baz"), 0700)
 	AssertEq(nil, err)
 
 	// We should still be able to stat the open file handle. It should show up as
@@ -740,11 +673,11 @@ func (t *MemFSTest) CaseSensitive() {
 	var err error
 
 	// Create a file.
-	err = ioutil.WriteFile(path.Join(t.mfs.Dir(), "file"), []byte{}, 0400)
+	err = ioutil.WriteFile(path.Join(t.Dir, "file"), []byte{}, 0400)
 	AssertEq(nil, err)
 
 	// Create a directory.
-	err = os.Mkdir(path.Join(t.mfs.Dir(), "dir"), 0400)
+	err = os.Mkdir(path.Join(t.Dir, "dir"), 0400)
 	AssertEq(nil, err)
 
 	// Attempt to stat with the wrong case.
@@ -758,7 +691,7 @@ func (t *MemFSTest) CaseSensitive() {
 	}
 
 	for _, name := range names {
-		_, err = os.Stat(path.Join(t.mfs.Dir(), name))
+		_, err = os.Stat(path.Join(t.Dir, name))
 		AssertNe(nil, err, "Name: %s", name)
 		AssertThat(err, Error(HasSubstr("no such file or directory")))
 	}
@@ -769,8 +702,8 @@ func (t *MemFSTest) WriteOverlapsEndOfFile() {
 	var n int
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	f, err := os.Create(path.Join(t.Dir, "foo"))
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
 	// Make it 4 bytes long.
@@ -793,8 +726,8 @@ func (t *MemFSTest) WriteStartsAtEndOfFile() {
 	var n int
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	f, err := os.Create(path.Join(t.Dir, "foo"))
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
 	// Make it 2 bytes long.
@@ -817,8 +750,8 @@ func (t *MemFSTest) WriteStartsPastEndOfFile() {
 	var n int
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	f, err := os.Create(path.Join(t.Dir, "foo"))
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
 	// Write the range [2, 6).
@@ -837,8 +770,8 @@ func (t *MemFSTest) WriteAtDoesntChangeOffset_NotAppendMode() {
 	var n int
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	f, err := os.Create(path.Join(t.Dir, "foo"))
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
 	// Make it 16 bytes long.
@@ -866,11 +799,11 @@ func (t *MemFSTest) WriteAtDoesntChangeOffset_AppendMode() {
 
 	// Create a file in append mode.
 	f, err := os.OpenFile(
-		path.Join(t.mfs.Dir(), "foo"),
+		path.Join(t.Dir, "foo"),
 		os.O_RDWR|os.O_APPEND|os.O_CREATE,
 		0600)
 
-	t.toClose = append(t.toClose, f)
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
 	// Make it 16 bytes long.
@@ -899,13 +832,13 @@ func (t *MemFSTest) AppendMode() {
 	buf := make([]byte, 1024)
 
 	// Create a file with some contents.
-	fileName := path.Join(t.mfs.Dir(), "foo")
+	fileName := path.Join(t.Dir, "foo")
 	err = ioutil.WriteFile(fileName, []byte("Jello, "), 0600)
 	AssertEq(nil, err)
 
 	// Open the file in append mode.
 	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_APPEND, 0600)
-	t.toClose = append(t.toClose, f)
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
 	// Seek to somewhere silly and then write.
@@ -953,8 +886,8 @@ func (t *MemFSTest) ReadsPastEndOfFile() {
 	buf := make([]byte, 1024)
 
 	// Create a file.
-	f, err := os.Create(path.Join(t.mfs.Dir(), "foo"))
-	t.toClose = append(t.toClose, f)
+	f, err := os.Create(path.Join(t.Dir, "foo"))
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
 	// Give it some contents.
@@ -983,7 +916,7 @@ func (t *MemFSTest) ReadsPastEndOfFile() {
 
 func (t *MemFSTest) Truncate_Smaller() {
 	var err error
-	fileName := path.Join(t.mfs.Dir(), "foo")
+	fileName := path.Join(t.Dir, "foo")
 
 	// Create a file.
 	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
@@ -991,7 +924,7 @@ func (t *MemFSTest) Truncate_Smaller() {
 
 	// Open it for modification.
 	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
-	t.toClose = append(t.toClose, f)
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
 	// Truncate it.
@@ -1011,7 +944,7 @@ func (t *MemFSTest) Truncate_Smaller() {
 
 func (t *MemFSTest) Truncate_SameSize() {
 	var err error
-	fileName := path.Join(t.mfs.Dir(), "foo")
+	fileName := path.Join(t.Dir, "foo")
 
 	// Create a file.
 	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
@@ -1019,7 +952,7 @@ func (t *MemFSTest) Truncate_SameSize() {
 
 	// Open it for modification.
 	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
-	t.toClose = append(t.toClose, f)
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
 	// Truncate it.
@@ -1039,7 +972,7 @@ func (t *MemFSTest) Truncate_SameSize() {
 
 func (t *MemFSTest) Truncate_Larger() {
 	var err error
-	fileName := path.Join(t.mfs.Dir(), "foo")
+	fileName := path.Join(t.Dir, "foo")
 
 	// Create a file.
 	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
@@ -1047,7 +980,7 @@ func (t *MemFSTest) Truncate_Larger() {
 
 	// Open it for modification.
 	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
-	t.toClose = append(t.toClose, f)
+	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
 	// Truncate it.
@@ -1067,7 +1000,7 @@ func (t *MemFSTest) Truncate_Larger() {
 
 func (t *MemFSTest) Chmod() {
 	var err error
-	fileName := path.Join(t.mfs.Dir(), "foo")
+	fileName := path.Join(t.Dir, "foo")
 
 	// Create a file.
 	err = ioutil.WriteFile(fileName, []byte(""), 0600)
@@ -1085,7 +1018,7 @@ func (t *MemFSTest) Chmod() {
 
 func (t *MemFSTest) Chtimes() {
 	var err error
-	fileName := path.Join(t.mfs.Dir(), "foo")
+	fileName := path.Join(t.Dir, "foo")
 
 	// Create a file.
 	err = ioutil.WriteFile(fileName, []byte(""), 0600)
@@ -1103,7 +1036,7 @@ func (t *MemFSTest) Chtimes() {
 }
 
 func (t *MemFSTest) ReadDirWhileModifying() {
-	dirName := path.Join(t.mfs.Dir(), "dir")
+	dirName := path.Join(t.Dir, "dir")
 	createFile := func(name string) {
 		AssertEq(nil, ioutil.WriteFile(path.Join(dirName, name), []byte{}, 0400))
 	}
@@ -1114,7 +1047,7 @@ func (t *MemFSTest) ReadDirWhileModifying() {
 
 	// Open the directory.
 	d, err := os.Open(dirName)
-	t.toClose = append(t.toClose, d)
+	t.ToClose = append(t.ToClose, d)
 	AssertEq(nil, err)
 
 	// Add four files.
