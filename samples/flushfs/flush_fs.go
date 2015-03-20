@@ -122,3 +122,21 @@ func (fs *flushFS) GetInodeAttributes(
 		return
 	}
 }
+
+func (fs *flushFS) OpenFile(
+	ctx context.Context,
+	req *fuse.OpenFileRequest) (
+	resp *fuse.OpenFileResponse, err error) {
+	resp = &fuse.OpenFileResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Sanity check.
+	if req.Inode != fooID {
+		err = fuse.ENOSYS
+		return
+	}
+
+	return
+}
