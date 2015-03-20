@@ -16,6 +16,7 @@ package flushfs_test
 
 import (
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"sync"
@@ -541,7 +542,44 @@ func (t *FlushFSTest) Dup_FlushError() {
 }
 
 func (t *FlushFSTest) Dup2() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	var f1 *os.File
+	var f2 *os.File
+	defer func() {
+		if f1 != nil {
+			ExpectEq(nil, f1.Close())
+		}
+
+		if f2 != nil {
+			ExpectEq(nil, f2.Close())
+		}
+	}()
+
+	// Open the file.
+	f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	// Write some contents to the file.
+	n, err = f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Open and unlink some temporary file.
+	f2, err = ioutil.TempFile("", "")
+	AssertEq(nil, err)
+
+	err = os.Remove(f2.Name())
+	AssertEq(nil, err)
+
+	// Duplicate the temporary file descriptor on top of the file from our file
+	// system. We should see a flush.
+	err = syscall.Dup2(int(f2.Fd()), int(f1.Fd()))
+	ExpectEq(nil, err)
+
+	ExpectThat(t.getFlushes(), ElementsAre("taco"))
+	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
 func (t *FlushFSTest) Dup2_FlushError() {
