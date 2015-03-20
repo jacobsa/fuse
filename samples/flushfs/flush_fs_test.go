@@ -234,7 +234,56 @@ func (t *FlushFSTest) CloseReports_WriteOnly() {
 }
 
 func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	// Open the file.
+	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Write some contents to the file.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// At this point, no flushes or fsyncs should have happened.
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Close the file.
+	err = f.Close()
+	f = nil
+	AssertEq(nil, err)
+
+	// Now we should have received the flush operation (but still no fsync).
+	AssertThat(t.getFlushes(), ElementsAre(byteSliceEq("taco")))
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Open the file again.
+	f, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	// Write again; expect no further flushes.
+	n, err = f.Write([]byte("p"))
+	AssertEq(nil, err)
+	AssertEq(1, n)
+
+	AssertThat(t.getFlushes(), ElementsAre(byteSliceEq("taco")))
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Close the file. Now the new contents should be flushed.
+	err = f.Close()
+	f = nil
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre(byteSliceEq("taco"), byteSliceEq("paco")))
+	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
 func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
