@@ -15,6 +15,8 @@
 package flushfs
 
 import (
+	"os"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
 	"golang.org/x/net/context"
@@ -34,6 +36,9 @@ func NewFileSystem(
 
 type flushFS struct {
 	fuseutil.NotImplementedFileSystem
+
+	mu  sync.Mu
+	foo *os.File // GUARDED_BY(mu)
 }
 
 func (fs *flushFS) Init(
