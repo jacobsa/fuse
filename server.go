@@ -427,6 +427,32 @@ func (s *server) handleFuseRequest(fuseReq bazilfuse.Request) {
 			typed.Respond(fuseResp)
 		}
 
+	case *bazilfuse.FsyncRequest:
+		// We don't currently support this for directories.
+		if typed.Dir {
+			s.logger.Println("fsyncdir not supported. Returning ENOSYS.")
+			typed.RespondError(ENOSYS)
+			return
+		}
+
+		// Convert the request.
+		req := &SyncFileRequest{
+			Header: convertHeader(typed.Header),
+			Inode:  InodeID(typed.Header.Node),
+			Handle: HandleID(typed.Handle),
+		}
+
+		// Call the file system.
+		_, err := s.fs.SyncFile(ctx, req)
+		if err != nil {
+			s.logger.Println("Responding:", err)
+			typed.RespondError(err)
+			return
+		}
+
+		s.logger.Println("Responding OK.")
+		typed.Respond()
+
 	case *bazilfuse.FlushRequest:
 		// Convert the request.
 		req := &FlushFileRequest{
