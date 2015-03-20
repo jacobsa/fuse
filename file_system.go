@@ -237,7 +237,7 @@ type FileSystem interface {
 	// return any errors that occur.
 	FlushFile(
 		ctx context.Context,
-		req *FlushFileRequest) (*FlushFileResponse, err)
+		req *FlushFileRequest) (*FlushFileResponse, error)
 
 	// Release a previously-minted file handle. The kernel calls this when there
 	// are no more references to an open file: all file descriptors are closed
