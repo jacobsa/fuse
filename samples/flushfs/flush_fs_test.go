@@ -15,11 +15,15 @@
 package flushfs_test
 
 import (
+	"io"
+	"os"
+	"path"
 	"sync"
 	"testing"
 
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/flushfs"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -99,22 +103,74 @@ func (t *FlushFSTest) getFsyncs() (p []string) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *FlushFSTest) Close_NonOverlappingFileHandles() {
+func (t *FlushFSTest) CloseReports_ReadWrite() {
+	var n int
+	var off int64
+	var err error
+	buf := make([]byte, 1024)
+
+	// Open the file.
+	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Write some contents to the file.
+	n, err = f.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// Seek and read them back.
+	off, err = f.Seek(0, 0)
+	AssertEq(nil, err)
+	AssertEq(4, off)
+
+	n, err = f.Read(buf)
+	AssertThat(err, AnyOf(nil, io.EOF))
+	AssertEq("taco", buf[:n])
+
+	// At this point, no flushes or fsyncs should have happened.
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Close the file.
+	err = f.Close()
+	f = nil
+	AssertEq(nil, err)
+
+	// Now we should have received the flush operation (but still no fsync).
+	ExpectThat(t.getFlushes(), ElementsAre("taco"))
+	ExpectThat(t.getFsyncs(), ElementsAre())
+}
+
+func (t *FlushFSTest) CloseReports_ReadOnly() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *FlushFSTest) Close_OverlappingFileHandles() {
+func (t *FlushFSTest) CloseReports_WriteOnly() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *FlushFSTest) Close_ReadOnly() {
+func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *FlushFSTest) Close_WriteOnly() {
+func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *FlushFSTest) Fsync() {
+func (t *FlushFSTest) CloseError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) FsyncReports() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) FsyncError() {
 	AssertTrue(false, "TODO")
 }
