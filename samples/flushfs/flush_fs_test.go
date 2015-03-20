@@ -15,8 +15,6 @@
 package flushfs_test
 
 import (
-	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -80,26 +78,6 @@ func (t *FlushFSTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
-
-// Match byte slices equal to the supplied string.
-func byteSliceEq(expected string) Matcher {
-	pred := func(c interface{}) error {
-		slice, ok := c.([]byte)
-		if !ok {
-			return errors.New("which is not []byte")
-		}
-
-		if string(slice) != expected {
-			return fmt.Errorf("which is string \"%s\"", string(slice))
-		}
-
-		return nil
-	}
-
-	return NewMatcher(
-		pred,
-		fmt.Sprintf("byte slice equal to string \"%s\"", expected))
-}
 
 // Return a copy of the current contents of t.flushes.
 //
@@ -169,7 +147,7 @@ func (t *FlushFSTest) CloseReports_ReadWrite() {
 	AssertEq(nil, err)
 
 	// Now we should have received the flush operation (but still no fsync).
-	ExpectThat(t.getFlushes(), ElementsAre(byteSliceEq("taco")))
+	ExpectThat(t.getFlushes(), ElementsAre("taco"))
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
@@ -196,7 +174,7 @@ func (t *FlushFSTest) CloseReports_ReadOnly() {
 	AssertEq(nil, err)
 
 	// Now we should have received the flush operation (but still no fsync).
-	ExpectThat(t.getFlushes(), ElementsAre(byteSliceEq("")))
+	ExpectThat(t.getFlushes(), ElementsAre(""))
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
@@ -229,7 +207,7 @@ func (t *FlushFSTest) CloseReports_WriteOnly() {
 	AssertEq(nil, err)
 
 	// Now we should have received the flush operation (but still no fsync).
-	ExpectThat(t.getFlushes(), ElementsAre(byteSliceEq("taco")))
+	ExpectThat(t.getFlushes(), ElementsAre("taco"))
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
@@ -262,7 +240,7 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
 	AssertEq(nil, err)
 
 	// Now we should have received the flush operation (but still no fsync).
-	AssertThat(t.getFlushes(), ElementsAre(byteSliceEq("taco")))
+	AssertThat(t.getFlushes(), ElementsAre("taco"))
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Open the file again.
@@ -274,7 +252,7 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
 	AssertEq(nil, err)
 	AssertEq(1, n)
 
-	AssertThat(t.getFlushes(), ElementsAre(byteSliceEq("taco")))
+	AssertThat(t.getFlushes(), ElementsAre("taco"))
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close the file. Now the new contents should be flushed.
@@ -282,7 +260,7 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
 	f = nil
 	AssertEq(nil, err)
 
-	AssertThat(t.getFlushes(), ElementsAre(byteSliceEq("taco"), byteSliceEq("paco")))
+	AssertThat(t.getFlushes(), ElementsAre("taco", "paco"))
 	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
