@@ -49,6 +49,14 @@ type flushFS struct {
 ////////////////////////////////////////////////////////////////////////
 
 // LOCKS_REQUIRED(fs.mu)
+func (fs *flushFS) rootAttributes() fuse.InodeAttributes {
+	return fuse.InodeAttributes{
+		Nlink: 1,
+		Mode:  0777 | os.ModeDir,
+	}
+}
+
+// LOCKS_REQUIRED(fs.mu)
 func (fs *flushFS) fooAttributes() fuse.InodeAttributes {
 	return fuse.InodeAttributes{
 		Nlink: 1,
@@ -89,4 +97,28 @@ func (fs *flushFS) LookUpInode(
 	}
 
 	return
+}
+
+func (fs *flushFS) GetInodeAttributes(
+	ctx context.Context,
+	req *fuse.GetInodeAttributesRequest) (
+	resp *fuse.GetInodeAttributesResponse, err error) {
+	resp = &fuse.GetInodeAttributesResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	switch req.Inode {
+	case fuse.RootInodeID:
+		resp.Attributes = fs.rootAttributes()
+		return
+
+	case fooID:
+		resp.Attributes = fs.fooAttributes()
+		return
+
+	default:
+		err = fuse.ENOENT
+		return
+	}
 }
