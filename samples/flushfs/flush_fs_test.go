@@ -431,3 +431,23 @@ func (t *FlushFSTest) FsyncError() {
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("TODO")))
 }
+
+func (t *FlushFSTest) Dup() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Dup_CloseError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Dup2() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Dup2_CloseError() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Mmap() {
+	AssertTrue(false, "TODO")
+}
