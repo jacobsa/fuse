@@ -823,6 +823,17 @@ type WriteFileRequest struct {
 type WriteFileResponse struct {
 }
 
+type FlushFileRequest struct {
+	Header RequestHeader
+
+	// The file and handle being flushed.
+	Inode  InodeID
+	Handle HandleID
+}
+
+type FlushFileResponse struct {
+}
+
 type ReleaseFileHandleRequest struct {
 	Header RequestHeader
 
