@@ -21,6 +21,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/flushfs"
 	. "github.com/jacobsa/oglematchers"
@@ -101,6 +102,22 @@ func (t *FlushFSTest) getFsyncs() (p []string) {
 	p = make([]string, len(t.fsyncs))
 	copy(p, t.fsyncs)
 	return
+}
+
+// LOCKS_EXCLUDED(t.mu)
+func (t *FlushFSTest) setFlushError(err error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.flushErr = err
+}
+
+// LOCKS_EXCLUDED(t.mu)
+func (t *FlushFSTest) setFsyncError(err error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.fsyncErr = err
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -324,7 +341,25 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 }
 
 func (t *FlushFSTest) CloseError() {
-	AssertTrue(false, "TODO")
+	// Open a file.
+	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Configure a flush error.
+	t.setFlushError(fuse.ENOENT)
+
+	// Close the file.
+	err = f.Close()
+	f = nil
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("TODO")))
 }
 
 func (t *FlushFSTest) FsyncReports() {
