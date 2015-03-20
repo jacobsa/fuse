@@ -466,7 +466,7 @@ func (t *FlushFSTest) Dup() {
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	n, err = f2.Write([]byte("p"))
+	n, err = f2.Write([]byte("s"))
 	AssertEq(nil, err)
 	AssertEq(1, n)
 
@@ -479,15 +479,15 @@ func (t *FlushFSTest) Dup() {
 	f1 = nil
 	AssertEq(nil, err)
 
-	AssertThat(t.getFlushes(), ElementsAre("paco"))
+	AssertThat(t.getFlushes(), ElementsAre("tacos"))
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Write some more contents via the other handle. Again, no further flushes.
-	n, err = f2.Write([]byte("orp"))
+	n, err = f2.Write([]byte("!"))
 	AssertEq(nil, err)
-	AssertEq(3, n)
+	AssertEq(1, n)
 
-	AssertThat(t.getFlushes(), ElementsAre("paco"))
+	AssertThat(t.getFlushes(), ElementsAre("tacos"))
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close the handle. Now the new contents should be flushed.
@@ -495,7 +495,7 @@ func (t *FlushFSTest) Dup() {
 	f2 = nil
 	AssertEq(nil, err)
 
-	AssertThat(t.getFlushes(), ElementsAre("paco", "porp"))
+	AssertThat(t.getFlushes(), ElementsAre("tacos", "tacos!"))
 	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
