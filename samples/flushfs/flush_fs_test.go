@@ -174,7 +174,30 @@ func (t *FlushFSTest) CloseReports_ReadWrite() {
 }
 
 func (t *FlushFSTest) CloseReports_ReadOnly() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Open the file.
+	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDONLY, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// At this point, no flushes or fsyncs should have happened.
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Close the file.
+	err = f.Close()
+	f = nil
+	AssertEq(nil, err)
+
+	// Now we should have received the flush operation (but still no fsync).
+	ExpectThat(t.getFlushes(), ElementsAre(byteSliceEq("")))
+	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
 func (t *FlushFSTest) CloseReports_WriteOnly() {
