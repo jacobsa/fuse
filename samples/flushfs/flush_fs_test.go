@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/jacobsa/fuse"
@@ -433,7 +434,69 @@ func (t *FlushFSTest) FsyncError() {
 }
 
 func (t *FlushFSTest) Dup() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	var f1 *os.File
+	var f2 *os.File
+	defer func() {
+		if f1 != nil {
+			ExpectEq(nil, f1.Close())
+		}
+
+		if f2 != nil {
+			ExpectEq(nil, f2.Close())
+		}
+	}()
+
+	// Open the file.
+	f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	fd1 := f1.Fd()
+
+	// Use dup(2) to get another copy.
+	fd2, err := syscall.Dup(int(fd1))
+	AssertEq(nil, err)
+
+	f2 = os.NewFile(uintptr(fd2), f1.Name())
+
+	// Write some contents with each handle.
+	n, err = f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	n, err = f2.Write([]byte("p"))
+	AssertEq(nil, err)
+	AssertEq(1, n)
+
+	// At this point, no flushes or fsyncs should have happened.
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Close one handle. The current contents should be flushed.
+	err = f1.Close()
+	f1 = nil
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre("paco"))
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Write some more contents via the other handle. Again, no further flushes.
+	n, err = f2.Write([]byte("orp"))
+	AssertEq(nil, err)
+	AssertEq(3, n)
+
+	AssertThat(t.getFlushes(), ElementsAre("paco"))
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Close the handle. Now the new contents should be flushed.
+	err = f2.Close()
+	f2 = nil
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre("paco", "porp"))
+	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
 func (t *FlushFSTest) Dup_CloseError() {
