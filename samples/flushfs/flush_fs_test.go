@@ -68,17 +68,39 @@ func (t *FlushFSTest) SetUp(ti *TestInfo) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Test functions
+// Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (t *FlushFSTest) FlushesOnClose_NonOverlappingFileHandles() {
+// Return a copy of the current contents of t.flushes.
+//
+// LOCKS_EXCLUDED(t.mu)
+func (t *FlushFSTest) getFlushes() []string
+
+// Return a copy of the current contents of t.fsyncs.
+//
+// LOCKS_EXCLUDED(t.mu)
+func (t *FlushFSTest) getFsyncs() []string
+
+////////////////////////////////////////////////////////////////////////
+// Tests
+////////////////////////////////////////////////////////////////////////
+
+func (t *FlushFSTest) Close_NonOverlappingFileHandles() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *FlushFSTest) FlushesOnClose_OverlappingFileHandles() {
+func (t *FlushFSTest) Close_OverlappingFileHandles() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *FlushFSTest) FlushesOnFsync() {
+func (t *FlushFSTest) Close_ReadOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Close_WriteOnly() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Fsync() {
 	AssertTrue(false, "TODO")
 }
