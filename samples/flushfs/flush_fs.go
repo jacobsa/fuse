@@ -15,6 +15,7 @@
 package flushfs
 
 import (
+	"fmt"
 	"os"
 	"sync"
 
@@ -40,8 +41,8 @@ const fooID = fuse.RootInodeID + 1
 type flushFS struct {
 	fuseutil.NotImplementedFileSystem
 
-	mu  sync.Mutex
-	foo *os.File // GUARDED_BY(mu)
+	mu          sync.Mutex
+	fooContents []byte // GUARDED_BY(mu)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -136,6 +137,33 @@ func (fs *flushFS) OpenFile(
 	if req.Inode != fooID {
 		err = fuse.ENOSYS
 		return
+	}
+
+	return
+}
+
+func (fs *flushFS) WriteFile(
+	ctx context.Context,
+	req *fuse.WriteFileRequest) (
+	resp *fuse.WriteFileResponse, err error) {
+	resp = &fuse.WriteFileResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Ensure that the contents slice is long enough.
+	newLen := int(req.Offset) + len(req.Data)
+	if len(fs.fooContents) < newLen {
+		padding := make([]byte, newLen-len(fs.fooContents))
+		fs.fooContents = append(fs.fooContents, padding...)
+	}
+
+	// Copy in the data.
+	n := copy(fs.fooContents[req.Offset:], req.Data)
+
+	// Sanity check.
+	if n != len(req.Data) {
+		panic(fmt.Sprintf("Unexpected short copy: %v", n))
 	}
 
 	return

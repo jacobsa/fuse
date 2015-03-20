@@ -75,6 +75,9 @@ func (t *FlushFSTest) SetUp(ti *TestInfo) {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+// Match byte slices equal to the supplied string.
+func byteSliceEq(expected string) Matcher
+
 // Return a copy of the current contents of t.flushes.
 //
 // LOCKS_EXCLUDED(t.mu)
@@ -127,11 +130,11 @@ func (t *FlushFSTest) CloseReports_ReadWrite() {
 	// Seek and read them back.
 	off, err = f.Seek(0, 0)
 	AssertEq(nil, err)
-	AssertEq(4, off)
+	AssertEq(0, off)
 
 	n, err = f.Read(buf)
 	AssertThat(err, AnyOf(nil, io.EOF))
-	AssertEq("taco", buf[:n])
+	AssertEq("taco", string(buf[:n]))
 
 	// At this point, no flushes or fsyncs should have happened.
 	AssertThat(t.getFlushes(), ElementsAre())
@@ -143,7 +146,7 @@ func (t *FlushFSTest) CloseReports_ReadWrite() {
 	AssertEq(nil, err)
 
 	// Now we should have received the flush operation (but still no fsync).
-	ExpectThat(t.getFlushes(), ElementsAre("taco"))
+	ExpectThat(t.getFlushes(), ElementsAre(byteSliceEq("taco")))
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
