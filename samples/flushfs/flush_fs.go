@@ -16,6 +16,7 @@ package flushfs
 
 import (
 	"os"
+	"sync"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -34,17 +35,58 @@ func NewFileSystem(
 	return
 }
 
+const fooID = fuse.RootInodeID + 1
+
 type flushFS struct {
 	fuseutil.NotImplementedFileSystem
 
-	mu  sync.Mu
+	mu  sync.Mutex
 	foo *os.File // GUARDED_BY(mu)
 }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+// LOCKS_REQUIRED(fs.mu)
+func (fs *flushFS) fooAttributes() fuse.InodeAttributes {
+	return fuse.InodeAttributes{
+		Nlink: 1,
+		Mode:  0777,
+	}
+}
+
+////////////////////////////////////////////////////////////////////////
+// File system methods
+////////////////////////////////////////////////////////////////////////
 
 func (fs *flushFS) Init(
 	ctx context.Context,
 	req *fuse.InitRequest) (
 	resp *fuse.InitResponse, err error) {
 	resp = &fuse.InitResponse{}
+	return
+}
+
+func (fs *flushFS) LookUpInode(
+	ctx context.Context,
+	req *fuse.LookUpInodeRequest) (
+	resp *fuse.LookUpInodeResponse, err error) {
+	resp = &fuse.LookUpInodeResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Sanity check.
+	if req.Parent != fuse.RootInodeID || req.Name != "foo" {
+		err = fuse.ENOENT
+		return
+	}
+
+	resp.Entry = fuse.ChildInodeEntry{
+		Child:      fooID,
+		Attributes: fs.fooAttributes(),
+	}
+
 	return
 }
