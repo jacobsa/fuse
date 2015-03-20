@@ -408,5 +408,22 @@ func (t *FlushFSTest) FsyncReports() {
 }
 
 func (t *FlushFSTest) FsyncError() {
-	AssertTrue(false, "TODO")
+	// Open the file.
+	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	defer func() {
+		if f != nil {
+			ExpectEq(nil, f.Close())
+		}
+	}()
+
+	// Configure an fsync error.
+	t.setFsyncError(fuse.ENOENT)
+
+	// Fsync.
+	err = f.Sync()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("TODO")))
 }
