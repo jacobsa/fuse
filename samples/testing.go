@@ -23,14 +23,20 @@ import (
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
 
 // A struct that implements common behavior needed by tests in the samples/
-// directory. Use it as an anonymous member of your test fixture, calling its
-// Initialize method from your SetUp method and its Destroy method from your
-// TearDown method.
+// directory. Use it as an embedded field in your test fixture, calling its
+// SetUp method from your SetUp method after setting the FileSystem field.
 type SampleTest struct {
+	// The file system under test and the configuration with which it should be
+	// mounted. These must be set by the user of this type before calling SetUp;
+	// all the other fields below are set by SetUp itself.
+	FileSystem  fuse.FileSystem
+	MountConfig fuse.MountConfig
+
 	// A context object that can be used for long-running operations.
 	Ctx context.Context
 
@@ -44,10 +50,12 @@ type SampleTest struct {
 	mfs *fuse.MountedFileSystem
 }
 
-// Mount the supplied file system and initialize the exported fields of the
-// struct. Panics on error.
-func (t *SampleTest) Initialize(fs fuse.FileSystem, config *fuse.MountConfig) {
-	err := t.initialize(fs, config)
+// Mount the supplied file system and initialize the other exported fields of
+// the struct. Panics on error.
+//
+// REQUIRES: t.FileSystem has been set.
+func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
+	err := t.initialize(t.FileSystem, &t.MountConfig)
 	if err != nil {
 		panic(err)
 	}
@@ -88,14 +96,14 @@ func (t *SampleTest) initialize(
 }
 
 // Unmount the file system and clean up. Panics on error.
-func (t *SampleTest) Destroy() {
+func (t *SampleTest) TearDown() {
 	err := t.destroy()
 	if err != nil {
 		panic(err)
 	}
 }
 
-// Like Destroy, but doesn't panic.
+// Like TearDown, but doesn't panic.
 func (t *SampleTest) destroy() (err error) {
 	// Was the file system mounted?
 	if t.mfs == nil {

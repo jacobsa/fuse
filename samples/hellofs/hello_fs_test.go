@@ -22,7 +22,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/hellofs"
 	. "github.com/jacobsa/oglematchers"
@@ -39,21 +38,14 @@ type HelloFSTest struct {
 	samples.SampleTest
 }
 
-var _ SetUpInterface = &HelloFSTest{}
-var _ TearDownInterface = &HelloFSTest{}
-
 func init() { RegisterTestSuite(&HelloFSTest{}) }
 
 func (t *HelloFSTest) SetUp(ti *TestInfo) {
-	fs := &hellofs.HelloFS{
+	t.FileSystem = &hellofs.HelloFS{
 		Clock: &t.Clock,
 	}
 
-	t.SampleTest.Initialize(fs, &fuse.MountConfig{})
-}
-
-func (t *HelloFSTest) TearDown() {
-	t.SampleTest.Destroy()
+	t.SampleTest.SetUp(ti)
 }
 
 ////////////////////////////////////////////////////////////////////////
