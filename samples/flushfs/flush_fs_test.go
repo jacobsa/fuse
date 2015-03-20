@@ -363,7 +363,7 @@ func (t *FlushFSTest) CloseError() {
 	f = nil
 
 	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("TODO")))
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *FlushFSTest) FsyncReports() {
@@ -429,7 +429,7 @@ func (t *FlushFSTest) FsyncError() {
 	err = f.Sync()
 
 	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("TODO")))
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *FlushFSTest) Dup() {
