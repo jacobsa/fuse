@@ -71,6 +71,14 @@ func (t *FlushFSTest) SetUp(ti *TestInfo) {
 // Test functions
 ////////////////////////////////////////////////////////////////////////
 
-func (t *FlushFSTest) DoesFoo() {
+func (t *FlushFSTest) FlushesOnClose_NonOverlappingFileHandles() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) FlushesOnClose_OverlappingFileHandles() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) FlushesOnFsync() {
 	AssertTrue(false, "TODO")
 }
