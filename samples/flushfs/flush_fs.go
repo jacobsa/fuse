@@ -22,5 +22,5 @@ import "github.com/jacobsa/fuse"
 // empty. Whenever a flush or fsync is received, the supplied function will be
 // called with the current contents of the file.
 func NewFileSystem(
-	reportFlush func([]byte),
-	reportFsync func([]byte)) (fs fuse.FileSystem, err error)
+	reportFlush func(string),
+	reportFsync func(string)) (fs fuse.FileSystem, err error)
