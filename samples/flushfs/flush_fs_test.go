@@ -341,10 +341,6 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) CloseReports_DuplicatedFileDescriptor() {
-	AssertTrue(false, "TODO")
-}
-
 func (t *FlushFSTest) CloseError() {
 	// Open the file.
 	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
@@ -499,15 +495,56 @@ func (t *FlushFSTest) Dup() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) Dup_CloseError() {
-	AssertTrue(false, "TODO")
+func (t *FlushFSTest) Dup_FlushError() {
+	var err error
+
+	var f1 *os.File
+	var f2 *os.File
+	defer func() {
+		if f1 != nil {
+			ExpectEq(nil, f1.Close())
+		}
+
+		if f2 != nil {
+			ExpectEq(nil, f2.Close())
+		}
+	}()
+
+	// Open the file.
+	f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	fd1 := f1.Fd()
+
+	// Use dup(2) to get another copy.
+	fd2, err := syscall.Dup(int(fd1))
+	AssertEq(nil, err)
+
+	f2 = os.NewFile(uintptr(fd2), f1.Name())
+
+	// Configure a flush error.
+	t.setFlushError(fuse.ENOENT)
+
+	// Close by the first handle.
+	err = f1.Close()
+	f1 = nil
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+
+	// Close by the second handle.
+	err = f2.Close()
+	f2 = nil
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
 func (t *FlushFSTest) Dup2() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *FlushFSTest) Dup2_CloseError() {
+func (t *FlushFSTest) Dup2_FlushError() {
 	AssertTrue(false, "TODO")
 }
 
