@@ -68,6 +68,7 @@ func (fs *flushFS) fooAttributes() fuse.InodeAttributes {
 	return fuse.InodeAttributes{
 		Nlink: 1,
 		Mode:  0777,
+		Size:  uint64(len(fs.fooContents)),
 	}
 }
 
