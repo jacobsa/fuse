@@ -340,6 +340,10 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
+func (t *FlushFSTest) CloseReports_DuplicatedFileDescriptor() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *FlushFSTest) CloseError() {
 	// Open the file.
 	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
