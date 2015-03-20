@@ -15,6 +15,8 @@
 package flushfs_test
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -76,7 +78,24 @@ func (t *FlushFSTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 // Match byte slices equal to the supplied string.
-func byteSliceEq(expected string) Matcher
+func byteSliceEq(expected string) Matcher {
+	pred := func(c interface{}) error {
+		slice, ok := c.([]byte)
+		if !ok {
+			return errors.New("which is not []byte")
+		}
+
+		if string(slice) != expected {
+			return fmt.Errorf("which is string \"%s\"", string(slice))
+		}
+
+		return nil
+	}
+
+	return NewMatcher(
+		pred,
+		fmt.Sprintf("byte slice equal to string \"%s\"", expected))
+}
 
 // Return a copy of the current contents of t.flushes.
 //
