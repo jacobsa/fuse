@@ -496,12 +496,18 @@ func (t *FlushFSTest) Dup_FlushError() {
 	// Configure a flush error.
 	t.setFlushError(fuse.ENOENT)
 
-	// Close by the first handle.
+	// Close by the first handle. On OS X, where the semantics of file handles
+	// are different (cf. https://github.com/osxfuse/osxfuse/issues/199), this
+	// does not result in an error.
 	err = t.f1.Close()
 	t.f1 = nil
 
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("no such file")))
+	if runtime.GOOS == "darwin" {
+		AssertEq(nil, err)
+	} else {
+		AssertNe(nil, err)
+		ExpectThat(err, Error(HasSubstr("no such file")))
+	}
 
 	// Close by the second handle.
 	err = t.f2.Close()
