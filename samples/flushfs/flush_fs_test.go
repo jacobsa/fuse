@@ -570,7 +570,43 @@ func (t *FlushFSTest) Dup2_FlushError() {
 }
 
 func (t *FlushFSTest) Mmap() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// Write some contents to the file.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// mmap the file.
+	data, err := syscall.Mmap(
+		int(t.f1.Fd()), 0, 4,
+		syscall.PROT_READ|syscall.PROT_WRITE,
+		syscall.MAP_SHARED)
+
+	AssertEq(nil, err)
+	AssertEq("taco", string(data))
+
+	// Close the file. We should see a flush.
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre("taco"))
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Modify then unmap. The unmapping should cause another flush.
+	data[0] = 'p'
+
+	err = syscall.Munmap(data)
+	AssertEq(nil, err)
+
+	ExpectThat(t.getFlushes(), ElementsAre("taco", "paco"))
+	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
 func (t *FlushFSTest) Directory() {
