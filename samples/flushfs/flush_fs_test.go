@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime"
 	"sync"
 	"syscall"
 	"testing"
@@ -417,6 +418,9 @@ func (t *FlushFSTest) Dup() {
 	var n int
 	var err error
 
+	isDarwin := runtime.GOOS == "darwin"
+	var expectedFlushes []interface{}
+
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
@@ -442,12 +446,18 @@ func (t *FlushFSTest) Dup() {
 	AssertThat(t.getFlushes(), ElementsAre())
 	AssertThat(t.getFsyncs(), ElementsAre())
 
-	// Close one handle. The current contents should be flushed.
+	// Close one handle. On Linux the current contents should be flushed. On OS
+	// X, where the semantics of handles are different, they apparently are not.
+	// (Cf. https://github.com/osxfuse/osxfuse/issues/199)
 	err = t.f1.Close()
 	t.f1 = nil
 	AssertEq(nil, err)
 
-	AssertThat(t.getFlushes(), ElementsAre("tacos"))
+	if !isDarwin {
+		expectedFlushes = append(expectedFlushes, "tacos")
+	}
+
+	AssertThat(t.getFlushes(), ElementsAre(expectedFlushes...))
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Write some more contents via the other handle. Again, no further flushes.
@@ -455,7 +465,7 @@ func (t *FlushFSTest) Dup() {
 	AssertEq(nil, err)
 	AssertEq(1, n)
 
-	AssertThat(t.getFlushes(), ElementsAre("tacos"))
+	AssertThat(t.getFlushes(), ElementsAre(expectedFlushes...))
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close the handle. Now the new contents should be flushed.
@@ -463,8 +473,9 @@ func (t *FlushFSTest) Dup() {
 	t.f2 = nil
 	AssertEq(nil, err)
 
-	AssertThat(t.getFlushes(), ElementsAre("tacos", "tacos!"))
-	AssertThat(t.getFsyncs(), ElementsAre())
+	expectedFlushes = append(expectedFlushes, "tacos!")
+	ExpectThat(t.getFlushes(), ElementsAre(expectedFlushes...))
+	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
 func (t *FlushFSTest) Dup_FlushError() {
