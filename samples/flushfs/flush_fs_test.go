@@ -91,6 +91,9 @@ func (t *FlushFSTest) TearDown() {
 	if t.f2 != nil {
 		ExpectEq(nil, t.f2.Close())
 	}
+
+	// Finish tearing down.
+	t.SampleTest.TearDown()
 }
 
 ////////////////////////////////////////////////////////////////////////
