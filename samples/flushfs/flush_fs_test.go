@@ -596,7 +596,38 @@ func (t *FlushFSTest) Dup2() {
 }
 
 func (t *FlushFSTest) Dup2_FlushError() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	var f1 *os.File
+	var f2 *os.File
+	defer func() {
+		if f1 != nil {
+			ExpectEq(nil, f1.Close())
+		}
+
+		if f2 != nil {
+			ExpectEq(nil, f2.Close())
+		}
+	}()
+
+	// Open the file.
+	f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	// Open and unlink some temporary file.
+	f2, err = ioutil.TempFile("", "")
+	AssertEq(nil, err)
+
+	err = os.Remove(f2.Name())
+	AssertEq(nil, err)
+
+	// Configure a flush error.
+	t.setFlushError(fuse.ENOENT)
+
+	// Duplicate the temporary file descriptor on top of the file from our file
+	// system. We shouldn't see the flush error.
+	err = dup2(int(f2.Fd()), int(f1.Fd()))
+	ExpectEq(nil, err)
 }
 
 func (t *FlushFSTest) Mmap() {
