@@ -122,6 +122,19 @@ func (t *FlushFSTest) setFsyncError(err error) {
 	t.fsyncErr = err
 }
 
+// Like syscall.Dup2, but correctly annotates the syscall as blocking. See here
+// for more info: https://github.com/golang/go/issues/10202
+func dup2(oldfd int, newfd int) (err error) {
+	_, _, e1 := syscall.Syscall(
+		syscall.SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+
+	if e1 != 0 {
+		err = e1
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Tests
 ////////////////////////////////////////////////////////////////////////
@@ -575,7 +588,7 @@ func (t *FlushFSTest) Dup2() {
 
 	// Duplicate the temporary file descriptor on top of the file from our file
 	// system. We should see a flush.
-	err = syscall.Dup2(int(f2.Fd()), int(f1.Fd()))
+	err = dup2(int(f2.Fd()), int(f1.Fd()))
 	ExpectEq(nil, err)
 
 	ExpectThat(t.getFlushes(), ElementsAre("taco"))
