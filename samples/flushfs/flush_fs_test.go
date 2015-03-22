@@ -39,6 +39,10 @@ func TestFlushFS(t *testing.T) { RunTests(t) }
 type FlushFSTest struct {
 	samples.SampleTest
 
+	// File handles that are closed in TearDown if non-nil.
+	f1 *os.File
+	f2 *os.File
+
 	mu sync.Mutex
 
 	// GUARDED_BY(mu)
@@ -76,6 +80,17 @@ func (t *FlushFSTest) SetUp(ti *TestInfo) {
 
 	// Mount it.
 	t.SampleTest.SetUp(ti)
+}
+
+func (t *FlushFSTest) TearDown() {
+	// Close files if non-nil.
+	if t.f1 != nil {
+		ExpectEq(nil, t.f1.Close())
+	}
+
+	if t.f2 != nil {
+		ExpectEq(nil, t.f2.Close())
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -146,26 +161,20 @@ func (t *FlushFSTest) CloseReports_ReadWrite() {
 	buf := make([]byte, 1024)
 
 	// Open the file.
-	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
 	// Write some contents to the file.
-	n, err = f.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// Seek and read them back.
-	off, err = f.Seek(0, 0)
+	off, err = t.f1.Seek(0, 0)
 	AssertEq(nil, err)
 	AssertEq(0, off)
 
-	n, err = f.Read(buf)
+	n, err = t.f1.Read(buf)
 	AssertThat(err, AnyOf(nil, io.EOF))
 	AssertEq("taco", string(buf[:n]))
 
@@ -174,8 +183,8 @@ func (t *FlushFSTest) CloseReports_ReadWrite() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close the file.
-	err = f.Close()
-	f = nil
+	err = t.f1.Close()
+	t.f1 = nil
 	AssertEq(nil, err)
 
 	// Now we should have received the flush operation (but still no fsync).
@@ -187,22 +196,16 @@ func (t *FlushFSTest) CloseReports_ReadOnly() {
 	var err error
 
 	// Open the file.
-	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDONLY, 0)
 	AssertEq(nil, err)
-
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
 
 	// At this point, no flushes or fsyncs should have happened.
 	AssertThat(t.getFlushes(), ElementsAre())
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close the file.
-	err = f.Close()
-	f = nil
+	err = t.f1.Close()
+	t.f1 = nil
 	AssertEq(nil, err)
 
 	// Now we should have received the flush operation (but still no fsync).
@@ -215,17 +218,11 @@ func (t *FlushFSTest) CloseReports_WriteOnly() {
 	var err error
 
 	// Open the file.
-	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
 	// Write some contents to the file.
-	n, err = f.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
@@ -234,8 +231,8 @@ func (t *FlushFSTest) CloseReports_WriteOnly() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close the file.
-	err = f.Close()
-	f = nil
+	err = t.f1.Close()
+	t.f1 = nil
 	AssertEq(nil, err)
 
 	// Now we should have received the flush operation (but still no fsync).
@@ -248,17 +245,11 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
 	var err error
 
 	// Open the file.
-	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
 	// Write some contents to the file.
-	n, err = f.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
@@ -267,8 +258,8 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close the file.
-	err = f.Close()
-	f = nil
+	err = t.f1.Close()
+	t.f1 = nil
 	AssertEq(nil, err)
 
 	// Now we should have received the flush operation (but still no fsync).
@@ -276,11 +267,11 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Open the file again.
-	f, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
 	// Write again; expect no further flushes.
-	n, err = f.Write([]byte("p"))
+	n, err = t.f1.Write([]byte("p"))
 	AssertEq(nil, err)
 	AssertEq(1, n)
 
@@ -288,8 +279,8 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close the file. Now the new contents should be flushed.
-	err = f.Close()
-	f = nil
+	err = t.f1.Close()
+	t.f1 = nil
 	AssertEq(nil, err)
 
 	AssertThat(t.getFlushes(), ElementsAre("taco", "paco"))
@@ -301,28 +292,18 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 	var err error
 
 	// Open the file with two handles.
-	f1, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
-	f2, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	t.f2, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
-
-	defer func() {
-		if f1 != nil {
-			ExpectEq(nil, f1.Close())
-		}
-
-		if f2 != nil {
-			ExpectEq(nil, f2.Close())
-		}
-	}()
 
 	// Write some contents with each handle.
-	n, err = f1.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	n, err = f2.Write([]byte("p"))
+	n, err = t.f2.Write([]byte("p"))
 	AssertEq(nil, err)
 	AssertEq(1, n)
 
@@ -331,15 +312,15 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close one handle. The current contents should be flushed.
-	err = f1.Close()
-	f1 = nil
+	err = t.f1.Close()
+	t.f1 = nil
 	AssertEq(nil, err)
 
 	AssertThat(t.getFlushes(), ElementsAre("paco"))
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Write some more contents via the other handle. Again, no further flushes.
-	n, err = f2.Write([]byte("orp"))
+	n, err = t.f2.Write([]byte("orp"))
 	AssertEq(nil, err)
 	AssertEq(3, n)
 
@@ -347,8 +328,8 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close the handle. Now the new contents should be flushed.
-	err = f2.Close()
-	f2 = nil
+	err = t.f2.Close()
+	t.f2 = nil
 	AssertEq(nil, err)
 
 	AssertThat(t.getFlushes(), ElementsAre("paco", "porp"))
@@ -356,22 +337,18 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 }
 
 func (t *FlushFSTest) CloseError() {
-	// Open the file.
-	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
-	AssertEq(nil, err)
+	var err error
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
 
 	// Configure a flush error.
 	t.setFlushError(fuse.ENOENT)
 
 	// Close the file.
-	err = f.Close()
-	f = nil
+	err = t.f1.Close()
+	t.f1 = nil
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
@@ -382,17 +359,11 @@ func (t *FlushFSTest) FsyncReports() {
 	var err error
 
 	// Open the file.
-	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
-
 	// Write some contents to the file.
-	n, err = f.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
@@ -400,14 +371,14 @@ func (t *FlushFSTest) FsyncReports() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Fsync.
-	err = f.Sync()
+	err = t.f1.Sync()
 	AssertEq(nil, err)
 
 	AssertThat(t.getFlushes(), ElementsAre())
 	AssertThat(t.getFsyncs(), ElementsAre("taco"))
 
 	// Write some more contents.
-	n, err = f.Write([]byte("s"))
+	n, err = t.f1.Write([]byte("s"))
 	AssertEq(nil, err)
 	AssertEq(1, n)
 
@@ -415,7 +386,7 @@ func (t *FlushFSTest) FsyncReports() {
 	AssertThat(t.getFsyncs(), ElementsAre("taco"))
 
 	// Fsync.
-	err = f.Sync()
+	err = t.f1.Sync()
 	AssertEq(nil, err)
 
 	AssertThat(t.getFlushes(), ElementsAre())
@@ -423,21 +394,17 @@ func (t *FlushFSTest) FsyncReports() {
 }
 
 func (t *FlushFSTest) FsyncError() {
-	// Open the file.
-	f, err := os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
-	AssertEq(nil, err)
+	var err error
 
-	defer func() {
-		if f != nil {
-			ExpectEq(nil, f.Close())
-		}
-	}()
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
 
 	// Configure an fsync error.
 	t.setFsyncError(fuse.ENOENT)
 
 	// Fsync.
-	err = f.Sync()
+	err = t.f1.Sync()
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
@@ -447,36 +414,24 @@ func (t *FlushFSTest) Dup() {
 	var n int
 	var err error
 
-	var f1 *os.File
-	var f2 *os.File
-	defer func() {
-		if f1 != nil {
-			ExpectEq(nil, f1.Close())
-		}
-
-		if f2 != nil {
-			ExpectEq(nil, f2.Close())
-		}
-	}()
-
 	// Open the file.
-	f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
-	fd1 := f1.Fd()
+	fd1 := t.f1.Fd()
 
 	// Use dup(2) to get another copy.
 	fd2, err := syscall.Dup(int(fd1))
 	AssertEq(nil, err)
 
-	f2 = os.NewFile(uintptr(fd2), f1.Name())
+	t.f2 = os.NewFile(uintptr(fd2), t.f1.Name())
 
 	// Write some contents with each handle.
-	n, err = f1.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	n, err = f2.Write([]byte("s"))
+	n, err = t.f2.Write([]byte("s"))
 	AssertEq(nil, err)
 	AssertEq(1, n)
 
@@ -485,15 +440,15 @@ func (t *FlushFSTest) Dup() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close one handle. The current contents should be flushed.
-	err = f1.Close()
-	f1 = nil
+	err = t.f1.Close()
+	t.f1 = nil
 	AssertEq(nil, err)
 
 	AssertThat(t.getFlushes(), ElementsAre("tacos"))
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Write some more contents via the other handle. Again, no further flushes.
-	n, err = f2.Write([]byte("!"))
+	n, err = t.f2.Write([]byte("!"))
 	AssertEq(nil, err)
 	AssertEq(1, n)
 
@@ -501,8 +456,8 @@ func (t *FlushFSTest) Dup() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Close the handle. Now the new contents should be flushed.
-	err = f2.Close()
-	f2 = nil
+	err = t.f2.Close()
+	t.f2 = nil
 	AssertEq(nil, err)
 
 	AssertThat(t.getFlushes(), ElementsAre("tacos", "tacos!"))
@@ -512,43 +467,31 @@ func (t *FlushFSTest) Dup() {
 func (t *FlushFSTest) Dup_FlushError() {
 	var err error
 
-	var f1 *os.File
-	var f2 *os.File
-	defer func() {
-		if f1 != nil {
-			ExpectEq(nil, f1.Close())
-		}
-
-		if f2 != nil {
-			ExpectEq(nil, f2.Close())
-		}
-	}()
-
 	// Open the file.
-	f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
-	fd1 := f1.Fd()
+	fd1 := t.f1.Fd()
 
 	// Use dup(2) to get another copy.
 	fd2, err := syscall.Dup(int(fd1))
 	AssertEq(nil, err)
 
-	f2 = os.NewFile(uintptr(fd2), f1.Name())
+	t.f2 = os.NewFile(uintptr(fd2), t.f1.Name())
 
 	// Configure a flush error.
 	t.setFlushError(fuse.ENOENT)
 
 	// Close by the first handle.
-	err = f1.Close()
-	f1 = nil
+	err = t.f1.Close()
+	t.f1 = nil
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// Close by the second handle.
-	err = f2.Close()
-	f2 = nil
+	err = t.f2.Close()
+	t.f2 = nil
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
@@ -558,37 +501,25 @@ func (t *FlushFSTest) Dup2() {
 	var n int
 	var err error
 
-	var f1 *os.File
-	var f2 *os.File
-	defer func() {
-		if f1 != nil {
-			ExpectEq(nil, f1.Close())
-		}
-
-		if f2 != nil {
-			ExpectEq(nil, f2.Close())
-		}
-	}()
-
 	// Open the file.
-	f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
 	// Write some contents to the file.
-	n, err = f1.Write([]byte("taco"))
+	n, err = t.f1.Write([]byte("taco"))
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
 	// Open and unlink some temporary file.
-	f2, err = ioutil.TempFile("", "")
+	t.f2, err = ioutil.TempFile("", "")
 	AssertEq(nil, err)
 
-	err = os.Remove(f2.Name())
+	err = os.Remove(t.f2.Name())
 	AssertEq(nil, err)
 
 	// Duplicate the temporary file descriptor on top of the file from our file
 	// system. We should see a flush.
-	err = dup2(int(f2.Fd()), int(f1.Fd()))
+	err = dup2(int(t.f2.Fd()), int(t.f1.Fd()))
 	ExpectEq(nil, err)
 
 	ExpectThat(t.getFlushes(), ElementsAre("taco"))
@@ -598,27 +529,15 @@ func (t *FlushFSTest) Dup2() {
 func (t *FlushFSTest) Dup2_FlushError() {
 	var err error
 
-	var f1 *os.File
-	var f2 *os.File
-	defer func() {
-		if f1 != nil {
-			ExpectEq(nil, f1.Close())
-		}
-
-		if f2 != nil {
-			ExpectEq(nil, f2.Close())
-		}
-	}()
-
 	// Open the file.
-	f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
 	// Open and unlink some temporary file.
-	f2, err = ioutil.TempFile("", "")
+	t.f2, err = ioutil.TempFile("", "")
 	AssertEq(nil, err)
 
-	err = os.Remove(f2.Name())
+	err = os.Remove(t.f2.Name())
 	AssertEq(nil, err)
 
 	// Configure a flush error.
@@ -626,7 +545,7 @@ func (t *FlushFSTest) Dup2_FlushError() {
 
 	// Duplicate the temporary file descriptor on top of the file from our file
 	// system. We shouldn't see the flush error.
-	err = dup2(int(f2.Fd()), int(f1.Fd()))
+	err = dup2(int(t.f2.Fd()), int(t.f1.Fd()))
 	ExpectEq(nil, err)
 }
 
