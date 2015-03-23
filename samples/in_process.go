@@ -55,8 +55,8 @@ type SampleTest struct {
 	mfs *fuse.MountedFileSystem
 }
 
-// Mount the supplied file system and initialize the other exported fields of
-// the struct. Panics on error.
+// Mount t.FileSystem and initialize the other exported fields of the struct.
+// Panics on error.
 //
 // REQUIRES: t.FileSystem has been set.
 func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
@@ -66,7 +66,7 @@ func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
 	}
 }
 
-// Like Initialize, but doens't panic.
+// Like SetUp, but doens't panic.
 func (t *SampleTest) initialize(
 	fs fuse.FileSystem,
 	config *fuse.MountConfig) (err error) {
