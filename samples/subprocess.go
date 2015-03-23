@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os/exec"
 	"path"
 	"sync"
@@ -173,17 +174,30 @@ func (t *SubprocessTest) destroy() (err error) {
 		ogletest.ExpectEq(nil, c.Close())
 	}
 
-	// Was the file system mounted?
+	// If we didn't try to mount the file system, there's nothing further to do.
 	if t.mountCmd == nil {
 		return
 	}
 
-	// Unmount the file system.
-	err = unmount(t.Dir)
-	if err != nil {
-		err = fmt.Errorf("unmount: %v", err)
-		return
-	}
+	// In the background, initiate an unmount.
+	unmountErrChan := make(chan error)
+	go func() {
+		unmountErrChan <- unmount(t.Dir)
+	}()
+
+	// Make sure we wait for the unmount, even if we've already returned early in
+	// error. Return its error if we haven't seen any other error.
+	defer func() {
+		unmountErr := <-unmountErrChan
+		if unmountErr != nil {
+			if err != nil {
+				log.Println("unmount:", unmountErr)
+				return
+			}
+
+			err = fmt.Errorf("unmount: %v", unmountErr)
+		}
+	}()
 
 	// Wait for the subprocess.
 	if err = t.mountCmd.Wait(); err != nil {
