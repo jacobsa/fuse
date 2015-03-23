@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
@@ -151,6 +152,7 @@ func (t *SubprocessTest) initialize() (err error) {
 
 	// TODO(jacobsa): Probably need some sort of signalling (on stderr? write to
 	// a flag-controlled file?) when WaitForReady has returned.
+	time.Sleep(time.Second)
 
 	return
 }
