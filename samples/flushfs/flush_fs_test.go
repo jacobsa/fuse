@@ -631,7 +631,10 @@ type FlushErrorTest struct {
 
 func init() { RegisterTestSuite(&FlushErrorTest{}) }
 
-func (t *FlushErrorTest) SetUp(ti *TestInfo)
+func (t *FlushErrorTest) SetUp(ti *TestInfo) {
+	const noErr = 0
+	t.flushFSTest.SetUp(ti, bazilfuse.ENOENT, noErr)
+}
 
 func (t *FlushErrorTest) Close() {
 	var err error
@@ -714,7 +717,10 @@ type FsyncErrorTest struct {
 
 func init() { RegisterTestSuite(&FsyncErrorTest{}) }
 
-func (t *FsyncErrorTest) SetUp(ti *TestInfo)
+func (t *FsyncErrorTest) SetUp(ti *TestInfo) {
+	const noErr = 0
+	t.flushFSTest.SetUp(ti, noErr, bazilfuse.ENOENT)
+}
 
 func (t *FsyncErrorTest) Fsync() {
 	var err error
