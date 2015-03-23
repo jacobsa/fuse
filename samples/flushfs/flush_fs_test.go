@@ -94,41 +94,15 @@ func (t *FlushFSTest) TearDown() {
 // Return a copy of the current contents of t.flushes.
 //
 // LOCKS_EXCLUDED(t.mu)
-func (t *FlushFSTest) getFlushes() (p []string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	p = make([]string, len(t.flushes))
-	copy(p, t.flushes)
-	return
+func (t *flushFSTest) getFlushes() (p []string) {
+	panic("TODO")
 }
 
 // Return a copy of the current contents of t.fsyncs.
 //
 // LOCKS_EXCLUDED(t.mu)
-func (t *FlushFSTest) getFsyncs() (p []string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	p = make([]string, len(t.fsyncs))
-	copy(p, t.fsyncs)
-	return
-}
-
-// LOCKS_EXCLUDED(t.mu)
-func (t *FlushFSTest) setFlushError(err error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	t.flushErr = err
-}
-
-// LOCKS_EXCLUDED(t.mu)
-func (t *FlushFSTest) setFsyncError(err error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	t.fsyncErr = err
+func (t *flushFSTest) getFsyncs() (p []string) {
+	panic("TODO")
 }
 
 // Like syscall.Dup2, but correctly annotates the syscall as blocking. See here
