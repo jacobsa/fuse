@@ -569,8 +569,118 @@ func (t *FlushFSTest) Dup2_FlushError() {
 	ExpectEq(nil, err)
 }
 
-func (t *FlushFSTest) Mmap() {
-	AssertTrue(false, "TODO")
+func (t *FlushFSTest) Mmap_MunmapBeforeClose() {
+	var n int
+	var err error
+
+	// If we run this test with GOMAXPROCS=1 (the default), the program will
+	// deadlock for the reason described here:
+	//
+	//     https://groups.google.com/d/msg/golang-nuts/11rdExWP6ac/TzwT6HBOb3wJ
+	//
+	// In summary, the goroutine reading from the mmap'd file is camping on a
+	// scheduler slot while it blocks on a page fault, and the goroutine handling
+	// fuse requests is waiting for the scheduler slot.
+	//
+	// So run with GOMAXPROCS=2.
+	old := runtime.GOMAXPROCS(2)
+	defer runtime.GOMAXPROCS(old)
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// Write some contents to the file.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// mmap the file.
+	data, err := syscall.Mmap(
+		int(t.f1.Fd()), 0, 4,
+		syscall.PROT_READ|syscall.PROT_WRITE,
+		syscall.MAP_SHARED)
+
+	AssertEq(nil, err)
+	AssertEq("taco", string(data))
+
+	// Modify then unmap.
+	data[0] = 'p'
+
+	err = syscall.Munmap(data)
+	AssertEq(nil, err)
+
+	// munmap does not cause a flush.
+	ExpectThat(t.getFlushes(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre())
+
+	// Close the file. We should see a flush. On Darwin, this will contain out of
+	// date contents (cf. https://github.com/osxfuse/osxfuse/issues/202).
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+
+	if runtime.GOOS == "darwin" {
+		ExpectThat(t.getFlushes(), ElementsAre("taco"))
+		ExpectThat(t.getFsyncs(), ElementsAre())
+	} else {
+		ExpectThat(t.getFlushes(), ElementsAre("paco"))
+		ExpectThat(t.getFsyncs(), ElementsAre())
+	}
+}
+
+func (t *FlushFSTest) Mmap_CloseBeforeMunmap() {
+	var n int
+	var err error
+
+	// If we run this test with GOMAXPROCS=1 (the default), the program will
+	// deadlock for the reason described here:
+	//
+	//     https://groups.google.com/d/msg/golang-nuts/11rdExWP6ac/TzwT6HBOb3wJ
+	//
+	// In summary, the goroutine reading from the mmap'd file is camping on a
+	// scheduler slot while it blocks on a page fault, and the goroutine handling
+	// fuse requests is waiting for the scheduler slot.
+	//
+	// So run with GOMAXPROCS=2.
+	old := runtime.GOMAXPROCS(2)
+	defer runtime.GOMAXPROCS(old)
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// Write some contents to the file.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// mmap the file.
+	data, err := syscall.Mmap(
+		int(t.f1.Fd()), 0, 4,
+		syscall.PROT_READ|syscall.PROT_WRITE,
+		syscall.MAP_SHARED)
+
+	AssertEq(nil, err)
+	AssertEq("taco", string(data))
+
+	// Close the file. We should see a flush.
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre("taco"))
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Modify then unmap.
+	data[0] = 'p'
+
+	err = syscall.Munmap(data)
+	AssertEq(nil, err)
+
+	// munmap does not cause a flush.
+	ExpectThat(t.getFlushes(), ElementsAre("taco"))
+	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
 func (t *FlushFSTest) Directory() {
