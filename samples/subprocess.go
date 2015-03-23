@@ -15,6 +15,7 @@
 package samples
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -48,7 +49,9 @@ type SubprocessTest struct {
 	// fail if closing fails.
 	ToClose []io.Closer
 
-	mountCmd *exec.Cmd
+	mountCmd    *exec.Cmd
+	mountStdout bytes.Buffer
+	mountStderr bytes.Buffer
 }
 
 // Mount the file system and initialize the other exported fields of the
@@ -109,17 +112,6 @@ func buildMountSample() (toolPath string, err error) {
 	return
 }
 
-// Invoke mount_sample, returning a running command.
-func invokeMountSample(path string, args []string) (cmd *exec.Cmd, err error) {
-	cmd = exec.Command(path, args...)
-	if err = cmd.Start(); err != nil {
-		err = fmt.Errorf("Start: %v", err)
-		return
-	}
-
-	return
-}
-
 // Like SetUp, but doens't panic.
 func (t *SubprocessTest) initialize() (err error) {
 	// Initialize the context.
@@ -139,13 +131,22 @@ func (t *SubprocessTest) initialize() (err error) {
 		return
 	}
 
-	// Invoke it.
-	args := []string{"--type", t.MountType}
+	// Set up a command.
+	args := []string{
+		toolPath,
+		"--type",
+		t.MountType,
+	}
+
 	args = append(args, t.MountFlags...)
 
-	t.mountCmd, err = invokeMountSample(toolPath, args)
-	if err != nil {
-		err = fmt.Errorf("invokeMountSample: %v", err)
+	t.mountCmd = exec.Command(toolPath, args...)
+	t.mountCmd.Stdout = &t.mountStdout
+	t.mountCmd.Stderr = &t.mountStderr
+
+	// Start it.
+	if err = t.mountCmd.Start(); err != nil {
+		err = fmt.Errorf("mountCmd.Start: %v", err)
 		return
 	}
 
@@ -201,7 +202,16 @@ func (t *SubprocessTest) destroy() (err error) {
 
 	// Wait for the subprocess.
 	if err = t.mountCmd.Wait(); err != nil {
-		err = fmt.Errorf("Cmd.Wait: %v", err)
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			err = fmt.Errorf(
+				"mount_sample exited with %v. Stderr:\n%s",
+				exitErr,
+				t.mountStderr.String())
+
+			return
+		}
+
+		err = fmt.Errorf("mountCmd.Wait: %v", err)
 		return
 	}
 
