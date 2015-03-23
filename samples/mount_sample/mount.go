@@ -18,13 +18,14 @@ package main
 
 import (
 	"flag"
-	"os"
+	"log"
+
+	"github.com/jacobsa/fuse"
+	"golang.org/x/net/context"
 )
 
-var fType = flag.String(
-	"type",
-	"",
-	"The name of the samples/ sub-dir to be mounted.")
+var fType = flag.String("type", "", "The name of the samples/ sub-dir.")
+var fMountPoint = flag.String("mount_point", "", "Path to mount point.")
 
 var fFlushesFile = flag.String(
 	"flushfs.flushes_file",
@@ -36,6 +37,34 @@ var fFsyncsFile = flag.String(
 	"",
 	"Path to a file to which fsyncs should be reported, \\n-separated.")
 
+func makeFS() (fs fuse.FileSystem, err error)
+
 func main() {
-	os.Exit(1)
+	flag.Parse()
+
+	// Create an appropriate file system.
+	fs, err := makeFS()
+	if err != nil {
+		log.Fatalf("makeFS: %v", err)
+	}
+
+	// Mount the file system.
+	if *fMountPoint == "" {
+		log.Fatalf("You must set --mount_point.")
+	}
+
+	mfs, err := fuse.Mount(*fMountPoint, fs, &fuse.MountConfig{})
+	if err != nil {
+		log.Fatalf("Mount: %v", err)
+	}
+
+	// Wait for it to be ready.
+	if err = mfs.WaitForReady(context.Background()); err != nil {
+		log.Fatalf("WaitForReady: %v", err)
+	}
+
+	// Wait for it to be unmounted.
+	if err = mfs.Join(context.Background()); err != nil {
+		log.Fatalf("Join: %v", err)
+	}
 }
