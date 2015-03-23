@@ -113,7 +113,15 @@ func buildMountSample() (toolPath string, err error) {
 }
 
 // Invoke mount_sample, returning a running command.
-func invokeMountSample(path string, args []string) (cmd *exec.Cmd, err error)
+func invokeMountSample(path string, args []string) (cmd *exec.Cmd, err error) {
+	cmd = exec.Command(path, args...)
+	if err = cmd.Start(); err != nil {
+		err = fmt.Errorf("Start: %v", err)
+		return
+	}
+
+	return
+}
 
 // Like SetUp, but doens't panic.
 func (t *SubprocessTest) initialize() (err error) {
