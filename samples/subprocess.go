@@ -18,14 +18,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os/exec"
 	"path"
-	"strings"
 	"sync"
-	"time"
 
-	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
@@ -182,22 +178,10 @@ func (t *SubprocessTest) destroy() (err error) {
 		return
 	}
 
-	// Unmount the file system. Try again on "resource busy" errors.
-	delay := 10 * time.Millisecond
-	for {
-		err = bazilfuse.Unmount(t.Dir)
-		if err == nil {
-			break
-		}
-
-		if strings.Contains(err.Error(), "resource busy") {
-			log.Println("Resource busy error while unmounting; trying again")
-			time.Sleep(delay)
-			delay = time.Duration(1.3 * float64(delay))
-			continue
-		}
-
-		err = fmt.Errorf("Unmount: %v", err)
+	// Unmount the file system.
+	err = unmount(t.Dir)
+	if err != nil {
+		err = fmt.Errorf("unmount: %v", err)
 		return
 	}
 

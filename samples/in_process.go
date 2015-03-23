@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
-	"strings"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
@@ -124,27 +122,10 @@ func (t *SampleTest) destroy() (err error) {
 		return
 	}
 
-	// Unmount the file system. Try again on "resource busy" errors.
-	delay := 10 * time.Millisecond
-	for {
-		err = t.mfs.Unmount()
-		if err == nil {
-			break
-		}
-
-		if strings.Contains(err.Error(), "resource busy") {
-			log.Println("Resource busy error while unmounting; trying again")
-			time.Sleep(delay)
-			delay = time.Duration(1.3 * float64(delay))
-			continue
-		}
-
-		err = fmt.Errorf("MountedFileSystem.Unmount: %v", err)
-		return
-	}
-
-	if err = t.mfs.Join(t.Ctx); err != nil {
-		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
+	// Unmount the file system.
+	err = unmount(t.Dir)
+	if err != nil {
+		err = fmt.Errorf("unmount: %v", err)
 		return
 	}
 
