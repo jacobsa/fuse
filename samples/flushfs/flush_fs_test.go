@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	"github.com/jacobsa/bazilfuse"
-	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -597,9 +596,6 @@ func (t *FlushErrorTest) Close() {
 	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
-	// Configure a flush error.
-	t.setFlushError(fuse.ENOENT)
-
 	// Close the file.
 	err = t.f1.Close()
 	t.f1 = nil
@@ -622,9 +618,6 @@ func (t *FlushErrorTest) Dup() {
 	AssertEq(nil, err)
 
 	t.f2 = os.NewFile(uintptr(fd2), t.f1.Name())
-
-	// Configure a flush error.
-	t.setFlushError(fuse.ENOENT)
 
 	// Close by the first handle. On OS X, where the semantics of file handles
 	// are different (cf. https://github.com/osxfuse/osxfuse/issues/199), this
@@ -661,9 +654,6 @@ func (t *FlushErrorTest) Dup2() {
 	err = os.Remove(t.f2.Name())
 	AssertEq(nil, err)
 
-	// Configure a flush error.
-	t.setFlushError(fuse.ENOENT)
-
 	// Duplicate the temporary file descriptor on top of the file from our file
 	// system. We shouldn't see the flush error.
 	err = dup2(int(t.f2.Fd()), int(t.f1.Fd()))
@@ -688,9 +678,6 @@ func (t *FsyncErrorTest) Fsync() {
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
-
-	// Configure an fsync error.
-	t.setFsyncError(fuse.ENOENT)
 
 	// Fsync.
 	err = t.f1.Sync()
