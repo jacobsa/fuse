@@ -661,6 +661,8 @@ type NoErrorsTest struct {
 
 func init() { RegisterTestSuite(&NoErrorsTest{}) }
 
+func (t *NoErrorsTest) SetUp(ti *TestInfo)
+
 ////////////////////////////////////////////////////////////////////////
 // Flush error
 ////////////////////////////////////////////////////////////////////////
@@ -671,7 +673,7 @@ type FlushErrorTest struct {
 
 func init() { RegisterTestSuite(&FlushErrorTest{}) }
 
-func (t *FlushFSTest) SetUp(ti *TestInfo)
+func (t *FlushErrorTest) SetUp(ti *TestInfo)
 
 ////////////////////////////////////////////////////////////////////////
 // Fsync  error
@@ -683,4 +685,4 @@ type FsyncErrorTest struct {
 
 func init() { RegisterTestSuite(&FsyncErrorTest{}) }
 
-func (t *FlushFSTest) SetUp(ti *TestInfo)
+func (t *FlushErrorTest) SetUp(ti *TestInfo)
