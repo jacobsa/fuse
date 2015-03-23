@@ -614,13 +614,19 @@ func (t *FlushFSTest) Mmap_MunmapBeforeClose() {
 	ExpectThat(t.getFlushes(), ElementsAre())
 	ExpectThat(t.getFsyncs(), ElementsAre())
 
-	// Close the file. We should see a flush.
+	// Close the file. We should see a flush. On Darwin, this will contain out of
+	// date contents (cf. https://github.com/osxfuse/osxfuse/issues/202).
 	err = t.f1.Close()
 	t.f1 = nil
 	AssertEq(nil, err)
 
-	AssertThat(t.getFlushes(), ElementsAre("paco"))
-	AssertThat(t.getFsyncs(), ElementsAre())
+	if runtime.GOOS == "darwin" {
+		ExpectThat(t.getFlushes(), ElementsAre("taco"))
+		ExpectThat(t.getFsyncs(), ElementsAre())
+	} else {
+		ExpectThat(t.getFlushes(), ElementsAre("paco"))
+		ExpectThat(t.getFsyncs(), ElementsAre())
+	}
 }
 
 func (t *FlushFSTest) Mmap_CloseBeforeMunmap() {

@@ -244,7 +244,9 @@ type FileSystem interface {
 	//
 	// Note that one potentially significant case where this is *not* called is
 	// munmap(2). (Cf. http://goo.gl/7n1r9X, fuse-devel mailing list thread from
-	// Han-Wen Nienhuys on 2014-10-08.)
+	// Han-Wen Nienhuys on 2014-10-08.) Even if users close(2) after writing to
+	// an mmap'd file, on OS X the contents are not immediately flushed (cf.
+	// https://github.com/osxfuse/osxfuse/issues/202).
 	//
 	// Because of cases like dup2(2), calls to FlushFile are not necessarily one
 	// to one with calls to OpenFile. They should not be used for reference
