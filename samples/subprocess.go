@@ -16,6 +16,7 @@ package samples
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,6 +29,11 @@ import (
 	"github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
+
+var fToolPath = flag.String(
+	"mount_sample",
+	"",
+	"Path to the mount_sample tool. If unset, we will compile it.")
 
 // A struct that implements common behavior needed by tests in the samples/
 // directory where the file system is mounted by a subprocess. Use it as an
@@ -68,50 +74,58 @@ func (t *SubprocessTest) SetUp(ti *ogletest.TestInfo) {
 	}
 }
 
-// Set by buildMountSample.
-var mountSamplePath string
-var mountSampleErr error
-var mountSampleOnce sync.Once
+// Private state for getToolPath.
+var getToolPath_Path string
+var getToolPath_Err error
+var getToolPath_Once sync.Once
 
-// Build the mount_sample tool if it has not yet been built for this process.
-// Return a path to the binary.
-func buildMountSample() (toolPath string, err error) {
-	// Build if we haven't yet.
-	mountSampleOnce.Do(func() {
-		// Create a temporary directory.
-		tempDir, err := ioutil.TempDir("", "")
-		if err != nil {
-			mountSampleErr = fmt.Errorf("TempDir: %v", err)
-			return
-		}
-
-		mountSamplePath = path.Join(tempDir, "mount_sample")
-
-		// Build the command.
-		cmd := exec.Command(
-			"go",
-			"build",
-			"-o",
-			mountSamplePath,
-			"github.com/jacobsa/fuse/samples/mount_sample")
-
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			mountSampleErr = fmt.Errorf(
-				"mount_sample exited with %v, output:\n%s",
-				err,
-				string(output))
-
-			return
-		}
-	})
-
-	if mountSampleErr != nil {
-		err = mountSampleErr
+// Implementation detail of getToolPath.
+func getToolPathImpl() (toolPath string, err error) {
+	// Fast path: has the user set the flag?
+	if *fToolPath != "" {
+		toolPath = *fToolPath
 		return
 	}
 
-	toolPath = mountSamplePath
+	// Create a temporary directory.
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		err = fmt.Errorf("TempDir: %v", err)
+		return
+	}
+
+	toolPath = path.Join(tempDir, "mount_sample")
+
+	// Build the command.
+	cmd := exec.Command(
+		"go",
+		"build",
+		"-o",
+		toolPath,
+		"github.com/jacobsa/fuse/samples/mount_sample")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf(
+			"mount_sample exited with %v, output:\n%s",
+			err,
+			string(output))
+
+		return
+	}
+
+	return
+}
+
+// Build the mount_sample tool if it has not yet been built for this process.
+// Return a path to the binary.
+func getToolPath() (toolPath string, err error) {
+	// Build if we haven't yet.
+	getToolPath_Once.Do(func() {
+		getToolPath_Path, getToolPath_Err = getToolPathImpl()
+	})
+
+	toolPath, err = getToolPath_Path, getToolPath_Err
 	return
 }
 
@@ -167,9 +181,9 @@ func (t *SubprocessTest) initialize() (err error) {
 	}
 
 	// Build the mount_sample tool.
-	toolPath, err := buildMountSample()
+	toolPath, err := getToolPath()
 	if err != nil {
-		err = fmt.Errorf("buildMountSample: %v", err)
+		err = fmt.Errorf("getToolPath: %v", err)
 		return
 	}
 
