@@ -15,9 +15,16 @@
 package samples
 
 import (
+	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
+	"os/exec"
+	"strings"
+	"time"
 
-	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/bazilfuse"
+	"github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
 )
 
@@ -42,5 +49,110 @@ type SubprocessTest struct {
 	// fail if closing fails.
 	ToClose []io.Closer
 
-	mfs *fuse.MountedFileSystem
+	mountCmd *exec.Cmd
+}
+
+// Mount the file system and initialize the other exported fields of the
+// struct. Panics on error.
+//
+// REQUIRES: t.FileSystem has been set.
+func (t *SubprocessTest) SetUp(ti *ogletest.TestInfo) {
+	err := t.initialize()
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Build the mount_sample tool if it has not yet been built for this process.
+// Return a path to the binary.
+func buildMountSample() (path string, err error)
+
+// Invoke mount_sample, returning a running command.
+func invokeMountSample(path string, args []string) (cmd *exec.Cmd, err error)
+
+// Like SetUp, but doens't panic.
+func (t *SubprocessTest) initialize() (err error) {
+	// Initialize the context.
+	t.Ctx = context.Background()
+
+	// Set up a temporary directory.
+	t.Dir, err = ioutil.TempDir("", "sample_test")
+	if err != nil {
+		err = fmt.Errorf("TempDir: %v", err)
+		return
+	}
+
+	// Build the mount_sample tool.
+	toolPath, err := buildMountSample()
+	if err != nil {
+		err = fmt.Errorf("buildMountSample: %v", err)
+		return
+	}
+
+	// Invoke it.
+	args := []string{"--type", t.MountType}
+	args = append(args, t.MountFlags...)
+
+	t.mountCmd, err = invokeMountSample(toolPath, args)
+	if err != nil {
+		err = fmt.Errorf("invokeMountSample: %v", err)
+		return
+	}
+
+	// TODO(jacobsa): Probably need some sort of signalling (on stderr? write to
+	// a flag-controlled file?) when WaitForReady has returned.
+
+	return
+}
+
+// Unmount the file system and clean up. Panics on error.
+func (t *SubprocessTest) TearDown() {
+	err := t.destroy()
+	if err != nil {
+		panic(err)
+	}
+}
+
+// Like TearDown, but doesn't panic.
+func (t *SubprocessTest) destroy() (err error) {
+	// Close what is necessary.
+	for _, c := range t.ToClose {
+		if c == nil {
+			continue
+		}
+
+		ogletest.ExpectEq(nil, c.Close())
+	}
+
+	// Was the file system mounted?
+	if t.mountCmd == nil {
+		return
+	}
+
+	// Unmount the file system. Try again on "resource busy" errors.
+	delay := 10 * time.Millisecond
+	for {
+		err = bazilfuse.Unmount(t.Dir)
+		if err == nil {
+			break
+		}
+
+		if strings.Contains(err.Error(), "resource busy") {
+			log.Println("Resource busy error while unmounting; trying again")
+			time.Sleep(delay)
+			delay = time.Duration(1.3 * float64(delay))
+			continue
+		}
+
+		err = fmt.Errorf("Unmount: %v", err)
+		return
+	}
+
+	// Wait for the subprocess.
+	if err = t.mountCmd.Wait(); err != nil {
+		err = fmt.Errorf("Cmd.Wait: %v", err)
+		return
+	}
+
+	return
 }
