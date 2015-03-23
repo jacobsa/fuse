@@ -130,7 +130,7 @@ func init() { RegisterTestSuite(&NoErrorsTest{}) }
 
 func (t *NoErrorsTest) SetUp(ti *TestInfo)
 
-func (t *FlushFSTest) CloseReports_ReadWrite() {
+func (t *NoErrorsTest) Close_ReadWrite() {
 	var n int
 	var off int64
 	var err error
@@ -168,7 +168,7 @@ func (t *FlushFSTest) CloseReports_ReadWrite() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) CloseReports_ReadOnly() {
+func (t *NoErrorsTest) Close_ReadOnly() {
 	var err error
 
 	// Open the file.
@@ -189,7 +189,7 @@ func (t *FlushFSTest) CloseReports_ReadOnly() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) CloseReports_WriteOnly() {
+func (t *NoErrorsTest) Close_WriteOnly() {
 	var n int
 	var err error
 
@@ -216,7 +216,7 @@ func (t *FlushFSTest) CloseReports_WriteOnly() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
+func (t *NoErrorsTest) Close_MultipleTimes_NonOverlappingFileHandles() {
 	var n int
 	var err error
 
@@ -263,7 +263,7 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
+func (t *NoErrorsTest) Close_MultipleTimes_OverlappingFileHandles() {
 	var n int
 	var err error
 
@@ -312,7 +312,7 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) FsyncReports() {
+func (t *NoErrorsTest) Fsync() {
 	var n int
 	var err error
 
@@ -351,7 +351,7 @@ func (t *FlushFSTest) FsyncReports() {
 	AssertThat(t.getFsyncs(), ElementsAre("taco", "tacos"))
 }
 
-func (t *FlushFSTest) Dup() {
+func (t *NoErrorsTest) Dup() {
 	var n int
 	var err error
 
@@ -415,7 +415,7 @@ func (t *FlushFSTest) Dup() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) Dup2() {
+func (t *NoErrorsTest) Dup2() {
 	var n int
 	var err error
 
@@ -444,7 +444,7 @@ func (t *FlushFSTest) Dup2() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) Mmap_MunmapBeforeClose() {
+func (t *NoErrorsTest) Mmap_MunmapBeforeClose() {
 	var n int
 	var err error
 
@@ -504,7 +504,7 @@ func (t *FlushFSTest) Mmap_MunmapBeforeClose() {
 	}
 }
 
-func (t *FlushFSTest) Mmap_CloseBeforeMunmap() {
+func (t *NoErrorsTest) Mmap_CloseBeforeMunmap() {
 	var n int
 	var err error
 
@@ -558,7 +558,7 @@ func (t *FlushFSTest) Mmap_CloseBeforeMunmap() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) Directory() {
+func (t *NoErrorsTest) Directory() {
 	AssertTrue(false, "TODO")
 }
 
@@ -574,7 +574,7 @@ func init() { RegisterTestSuite(&FlushErrorTest{}) }
 
 func (t *FlushErrorTest) SetUp(ti *TestInfo)
 
-func (t *FlushFSTest) CloseError() {
+func (t *FlushErrorTest) Close() {
 	var err error
 
 	// Open the file.
@@ -592,7 +592,7 @@ func (t *FlushFSTest) CloseError() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *FlushFSTest) Dup_FlushError() {
+func (t *FlushErrorTest) Dup() {
 	var err error
 
 	// Open the file.
@@ -631,7 +631,7 @@ func (t *FlushFSTest) Dup_FlushError() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *FlushFSTest) Dup2_FlushError() {
+func (t *FlushErrorTest) Dup2() {
 	var err error
 
 	// Open the file.
@@ -666,7 +666,7 @@ func init() { RegisterTestSuite(&FsyncErrorTest{}) }
 
 func (t *FsyncErrorTest) SetUp(ti *TestInfo)
 
-func (t *FlushFSTest) FsyncError() {
+func (t *FsyncErrorTest) Fsync() {
 	var err error
 
 	// Open the file.
