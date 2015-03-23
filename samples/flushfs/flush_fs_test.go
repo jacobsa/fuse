@@ -40,6 +40,10 @@ func TestFlushFS(t *testing.T) { RunTests(t) }
 type flushFSTest struct {
 	samples.SubprocessTest
 
+	// Files to which mount_sample is writing reported flushes and fsyncs.
+	flushes *os.File
+	fsyncs  *os.File
+
 	// File handles that are closed in TearDown if non-nil.
 	f1 *os.File
 	f2 *os.File
@@ -52,7 +56,11 @@ func (t *flushFSTest) setUp(
 	var err error
 
 	// Set up files to receive flush and fsync reports.
-	panic("TODO")
+	t.flushes, err = ioutil.TempFile("", "")
+	AssertEq(nil, err)
+
+	t.fsyncs, err = ioutil.TempFile("", "")
+	AssertEq(nil, err)
 
 	// Set up test config.
 	t.MountType = "flushfs"
@@ -74,7 +82,15 @@ func (t *flushFSTest) setUp(
 }
 
 func (t *FlushFSTest) TearDown() {
-	// Close files if non-nil.
+	// Unlink reporting files.
+	os.Remove(t.flushes.Name())
+	os.Remove(t.fsyncs.Name())
+
+	// Close reporting files.
+	t.flushes.Close()
+	t.fsyncs.Close()
+
+	// Close test files if non-nil.
 	if t.f1 != nil {
 		ExpectEq(nil, t.f1.Close())
 	}
