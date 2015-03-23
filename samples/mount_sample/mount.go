@@ -26,6 +26,16 @@ var fType = flag.String(
 	"",
 	"The name of the samples/ sub-dir to be mounted.")
 
+var fFlushesFile = flag.String(
+	"flushfs.flushes_file",
+	"",
+	"Path to a file to which flushes should be reported, \\n-separated.")
+
+var fFsyncsFile = flag.String(
+	"flushfs.fsyncs_file",
+	"",
+	"Path to a file to which fsyncs should be reported, \\n-separated.")
+
 func main() {
 	os.Exit(1)
 }
