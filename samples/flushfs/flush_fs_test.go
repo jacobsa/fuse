@@ -15,6 +15,8 @@
 package flushfs_test
 
 import (
+	"bufio"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -106,7 +108,38 @@ func (t *flushFSTest) TearDown() {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func readReports(f *os.File) (reports []string, err error)
+func readReports(f *os.File) (reports []string, err error) {
+	// Seek the file to the start.
+	_, err = f.Seek(0, 0)
+	if err != nil {
+		err = fmt.Errorf("Seek: %v", err)
+		return
+	}
+
+	// We expect reports to end in a newline (including the final one).
+	reader := bufio.NewReader(f)
+	for {
+		var record []byte
+		record, err = reader.ReadBytes('\n')
+		if err == io.EOF {
+			if len(record) != 0 {
+				err = fmt.Errorf("Unexpected record:\n%s", hex.Dump(record))
+				return
+			}
+
+			err = nil
+			return
+		}
+
+		if err != nil {
+			err = fmt.Errorf("ReadBytes: %v", err)
+			return
+		}
+
+		// Strip the newline.
+		reports = append(reports, string(record[:len(record)-1]))
+	}
+}
 
 // Return a copy of the current contents of t.flushes.
 func (t *flushFSTest) getFlushes() (p []string) {
