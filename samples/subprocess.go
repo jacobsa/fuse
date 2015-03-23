@@ -136,6 +136,8 @@ func (t *SubprocessTest) initialize() (err error) {
 	args := []string{
 		"--type",
 		t.MountType,
+		"--mount_point",
+		t.Dir,
 	}
 
 	args = append(args, t.MountFlags...)
