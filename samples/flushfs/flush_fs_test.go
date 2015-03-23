@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/flushfs"
@@ -37,7 +38,7 @@ func TestFlushFS(t *testing.T) { RunTests(t) }
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type FlushFSTest struct {
+type flushFSTest struct {
 	samples.SampleTest
 
 	// File handles that are closed in TearDown if non-nil.
@@ -55,9 +56,10 @@ type FlushFSTest struct {
 	fsyncErr error
 }
 
-func init() { RegisterTestSuite(&FlushFSTest{}) }
-
-func (t *FlushFSTest) SetUp(ti *TestInfo) {
+func (t *flushFSTest) setUp(
+	ti *TestInfo,
+	flushErr bazilfuse.Errno,
+	fsyncErr bazilfuse.Errno) {
 	var err error
 
 	// Set up a file system.
