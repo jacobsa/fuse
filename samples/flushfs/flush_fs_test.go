@@ -19,7 +19,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -27,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/jacobsa/bazilfuse"
+	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/fuse/samples"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -57,10 +57,10 @@ func (t *flushFSTest) setUp(
 	var err error
 
 	// Set up files to receive flush and fsync reports.
-	t.flushes, err = ioutil.TempFile("", "")
+	t.flushes, err = fsutil.AnonymousFile("")
 	AssertEq(nil, err)
 
-	t.fsyncs, err = ioutil.TempFile("", "")
+	t.fsyncs, err = fsutil.AnonymousFile("")
 	AssertEq(nil, err)
 
 	// Set up test config.
@@ -486,11 +486,8 @@ func (t *NoErrorsTest) Dup2() {
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	// Open and unlink some temporary file.
-	t.f2, err = ioutil.TempFile("", "")
-	AssertEq(nil, err)
-
-	err = os.Remove(t.f2.Name())
+	// Create some anonymous temporary file.
+	t.f2, err = fsutil.AnonymousFile("")
 	AssertEq(nil, err)
 
 	// Duplicate the temporary file descriptor on top of the file from our file
@@ -693,11 +690,8 @@ func (t *FlushErrorTest) Dup2() {
 	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
 
-	// Open and unlink some temporary file.
-	t.f2, err = ioutil.TempFile("", "")
-	AssertEq(nil, err)
-
-	err = os.Remove(t.f2.Name())
+	// Create some anonymous temporary file.
+	t.f2, err = fsutil.AnonymousFile("")
 	AssertEq(nil, err)
 
 	// Duplicate the temporary file descriptor on top of the file from our file
