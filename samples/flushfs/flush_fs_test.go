@@ -573,6 +573,19 @@ func (t *FlushFSTest) Mmap() {
 	var n int
 	var err error
 
+	// If we run this test with GOMAXPROCS=1 (the default), the program will
+	// deadlock for the reason described here:
+	//
+	//     https://groups.google.com/d/msg/golang-nuts/11rdExWP6ac/TzwT6HBOb3wJ
+	//
+	// In summary, the goroutine reading from the mmap'd file is camping on a
+	// scheduler slot while it blocks on a page fault, and the goroutine handling
+	// fuse requests is waiting for the scheduler slot.
+	//
+	// So run with GOMAXPROCS=2.
+	old := runtime.GOMAXPROCS(2)
+	defer runtime.GOMAXPROCS(old)
+
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
