@@ -242,6 +242,10 @@ type FileSystem interface {
 	// case of close(2), a flush error is returned to the user. For dup2(2), it
 	// is not.
 	//
+	// Note that one potentially significant case where this is *not* called is
+	// munmap(2). (Cf. http://goo.gl/7n1r9X, fuse-devel mailing list thread from
+	// Han-Wen Nienhuys on 2014-10-08.)
+	//
 	// Because of cases like dup2(2), calls to FlushFile are not necessarily one
 	// to one with calls to OpenFile. They should not be used for reference
 	// counting, and the handle must remain valid even after the method is called
