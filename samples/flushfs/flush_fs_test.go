@@ -633,7 +633,7 @@ func init() { RegisterTestSuite(&FlushErrorTest{}) }
 
 func (t *FlushErrorTest) SetUp(ti *TestInfo) {
 	const noErr = 0
-	t.flushFSTest.SetUp(ti, bazilfuse.ENOENT, noErr)
+	t.flushFSTest.setUp(ti, bazilfuse.ENOENT, noErr)
 }
 
 func (t *FlushErrorTest) Close() {
@@ -719,7 +719,7 @@ func init() { RegisterTestSuite(&FsyncErrorTest{}) }
 
 func (t *FsyncErrorTest) SetUp(ti *TestInfo) {
 	const noErr = 0
-	t.flushFSTest.SetUp(ti, noErr, bazilfuse.ENOENT)
+	t.flushFSTest.setUp(ti, noErr, bazilfuse.ENOENT)
 }
 
 func (t *FsyncErrorTest) Fsync() {
