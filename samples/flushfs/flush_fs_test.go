@@ -569,7 +569,11 @@ func (t *FlushFSTest) Dup2_FlushError() {
 	ExpectEq(nil, err)
 }
 
-func (t *FlushFSTest) Mmap() {
+func (t *FlushFSTest) Mmap_MunmapBeforeClose() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *FlushFSTest) Mmap_CloseBeforeMunmap() {
 	var n int
 	var err error
 
@@ -612,13 +616,14 @@ func (t *FlushFSTest) Mmap() {
 	AssertThat(t.getFlushes(), ElementsAre("taco"))
 	AssertThat(t.getFsyncs(), ElementsAre())
 
-	// Modify then unmap. The unmapping should cause another flush.
+	// Modify then unmap.
 	data[0] = 'p'
 
 	err = syscall.Munmap(data)
 	AssertEq(nil, err)
 
-	ExpectThat(t.getFlushes(), ElementsAre("taco", "paco"))
+	// munmap does not cause a flush.
+	ExpectThat(t.getFlushes(), ElementsAre("taco"))
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
