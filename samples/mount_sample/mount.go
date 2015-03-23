@@ -31,30 +31,21 @@ import (
 var fType = flag.String("type", "", "The name of the samples/ sub-dir.")
 var fMountPoint = flag.String("mount_point", "", "Path to mount point.")
 
-var fFlushesFile = flag.String("flushfs.flushes_file", "", "")
-var fFsyncsFile = flag.String("flushfs.fsyncs_file", "", "")
+var fFlushesFile = flag.Uint64("flushfs.flushes_file", 0, "")
+var fFsyncsFile = flag.Uint64("flushfs.fsyncs_file", 0, "")
 var fFlushError = flag.Int("flushfs.flush_error", 0, "")
 var fFsyncError = flag.Int("flushfs.fsync_error", 0, "")
 
 func makeFlushFS() (fs fuse.FileSystem, err error) {
 	// Check the flags.
-	if *fFlushesFile == "" || *fFsyncsFile == "" {
+	if *fFlushesFile == 0 || *fFsyncsFile == 0 {
 		err = fmt.Errorf("You must set the flushfs flags.")
 		return
 	}
 
-	// Open the files.
-	flushes, err := os.OpenFile(*fFlushesFile, os.O_RDWR, 0)
-	if err != nil {
-		err = fmt.Errorf("Opening %s: %v", *fFlushesFile, err)
-		return
-	}
-
-	fsyncs, err := os.OpenFile(*fFsyncsFile, os.O_RDWR, 0)
-	if err != nil {
-		err = fmt.Errorf("Opening %s: %v", *fFsyncsFile, err)
-		return
-	}
+	// Set up the files.
+	flushes := os.NewFile(uintptr(*fFlushesFile), "(flushes file)")
+	fsyncs := os.NewFile(uintptr(*fFsyncsFile), "(fsyncs file)")
 
 	// Set up errors.
 	var flushErr error

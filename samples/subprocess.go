@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
 	"path"
 	"sync"
@@ -39,6 +40,10 @@ type SubprocessTest struct {
 
 	// Additional flags to be passed to the mount_sample tool.
 	MountFlags []string
+
+	// A list of files to pass to mount_sample. The given string flag will be
+	// used to pass the file descriptor number.
+	MountFiles map[string]*os.File
 
 	// A context object that can be used for long-running operations.
 	Ctx context.Context
@@ -132,7 +137,7 @@ func (t *SubprocessTest) initialize() (err error) {
 		return
 	}
 
-	// Set up a command.
+	// Set up basic args for the subprocess.
 	args := []string{
 		"--type",
 		t.MountType,
@@ -142,9 +147,22 @@ func (t *SubprocessTest) initialize() (err error) {
 
 	args = append(args, t.MountFlags...)
 
+	// Set up inherited files and appropriate flags.
+	var extraFiles []*os.File
+	for flag, file := range t.MountFiles {
+		// Cf. os/exec.Cmd.ExtraFiles
+		fd := 3 + len(extraFiles)
+
+		extraFiles = append(extraFiles, file)
+		args = append(args, "--"+flag)
+		args = append(args, fmt.Sprintf("%d", fd))
+	}
+
+	// Set up a command.
 	t.mountCmd = exec.Command(toolPath, args...)
 	t.mountCmd.Stdout = &t.mountStdout
 	t.mountCmd.Stderr = &t.mountStderr
+	t.mountCmd.ExtraFiles = extraFiles
 
 	// Start it.
 	if err = t.mountCmd.Start(); err != nil {

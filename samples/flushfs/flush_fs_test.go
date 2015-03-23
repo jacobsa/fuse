@@ -66,17 +66,16 @@ func (t *flushFSTest) setUp(
 	// Set up test config.
 	t.MountType = "flushfs"
 	t.MountFlags = []string{
-		"--flushfs.flushes_file",
-		t.flushes.Name(),
-
-		"--flushfs.fsyncs_file",
-		t.fsyncs.Name(),
-
 		"--flushfs.flush_error",
 		fmt.Sprintf("%d", int(flushErr)),
 
 		"--flushfs.fsync_error",
 		fmt.Sprintf("%d", int(fsyncErr)),
+	}
+
+	t.MountFiles = map[string]*os.File{
+		"flushfs.flushes_file": t.flushes,
+		"flushfs.fsyncs_file":  t.fsyncs,
 	}
 
 	t.SubprocessTest.SetUp(ti)
