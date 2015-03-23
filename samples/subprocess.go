@@ -55,9 +55,7 @@ type SubprocessTest struct {
 	// fail if closing fails.
 	ToClose []io.Closer
 
-	mountCmd    *exec.Cmd
-	mountStdout bytes.Buffer
-	mountStderr bytes.Buffer
+	mountSampleErr <-chan error
 }
 
 // Mount the file system and initialize the other exported fields of the
@@ -118,6 +116,35 @@ func buildMountSample() (toolPath string, err error) {
 	return
 }
 
+func waitForMountSample(
+	cmd *exec.Cmd,
+	errChan chan<- error,
+	stderr *bytes.Buffer) {
+	// However we exit, write the error to the channel.
+	var err error
+	defer func() {
+		errChan <- err
+	}()
+
+	// Wait for the command.
+	err = cmd.Wait()
+	if err == nil {
+		return
+	}
+
+	// Make exit errors nicer.
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		err = fmt.Errorf(
+			"mount_sample exited with %v. Stderr:\n%s",
+			exitErr,
+			stderr.String())
+
+		return
+	}
+
+	err = fmt.Errorf("Waiting for mount_sample: %v", err)
+}
+
 // Like SetUp, but doens't panic.
 func (t *SubprocessTest) initialize() (err error) {
 	// Initialize the context.
@@ -159,16 +186,21 @@ func (t *SubprocessTest) initialize() (err error) {
 	}
 
 	// Set up a command.
-	t.mountCmd = exec.Command(toolPath, args...)
-	t.mountCmd.Stdout = &t.mountStdout
-	t.mountCmd.Stderr = &t.mountStderr
-	t.mountCmd.ExtraFiles = extraFiles
+	var stderr bytes.Buffer
+	mountCmd := exec.Command(toolPath, args...)
+	mountCmd.Stderr = &stderr
+	mountCmd.ExtraFiles = extraFiles
 
 	// Start it.
-	if err = t.mountCmd.Start(); err != nil {
+	if err = mountCmd.Start(); err != nil {
 		err = fmt.Errorf("mountCmd.Start: %v", err)
 		return
 	}
+
+	// Launch a goroutine that waits for it and returns its status.
+	mountSampleErr := make(chan error, 1)
+	t.mountSampleErr = mountSampleErr
+	go waitForMountSample(mountCmd, mountSampleErr, &stderr)
 
 	// TODO(jacobsa): Probably need some sort of signalling (on stderr? write to
 	// a flag-controlled file?) when WaitForReady has returned.
@@ -197,7 +229,7 @@ func (t *SubprocessTest) destroy() (err error) {
 	}
 
 	// If we didn't try to mount the file system, there's nothing further to do.
-	if t.mountCmd == nil {
+	if t.mountSampleErr == nil {
 		return
 	}
 
@@ -222,17 +254,7 @@ func (t *SubprocessTest) destroy() (err error) {
 	}()
 
 	// Wait for the subprocess.
-	if err = t.mountCmd.Wait(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			err = fmt.Errorf(
-				"mount_sample exited with %v. Stderr:\n%s",
-				exitErr,
-				t.mountStderr.String())
-
-			return
-		}
-
-		err = fmt.Errorf("mountCmd.Wait: %v", err)
+	if err = <-t.mountSampleErr; err != nil {
 		return
 	}
 
