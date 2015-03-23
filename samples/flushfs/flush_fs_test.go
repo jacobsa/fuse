@@ -81,7 +81,7 @@ func (t *flushFSTest) setUp(
 	t.SubprocessTest.SetUp(ti)
 }
 
-func (t *FlushFSTest) TearDown() {
+func (t *flushFSTest) TearDown() {
 	// Unlink reporting files.
 	os.Remove(t.flushes.Name())
 	os.Remove(t.fsyncs.Name())
@@ -100,7 +100,7 @@ func (t *FlushFSTest) TearDown() {
 	}
 
 	// Finish tearing down.
-	t.SampleTest.TearDown()
+	t.SubprocessTest.TearDown()
 }
 
 ////////////////////////////////////////////////////////////////////////
