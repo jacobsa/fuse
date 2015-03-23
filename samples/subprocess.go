@@ -20,7 +20,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os/exec"
+	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jacobsa/bazilfuse"
@@ -63,9 +65,52 @@ func (t *SubprocessTest) SetUp(ti *ogletest.TestInfo) {
 	}
 }
 
+// Set by buildMountSample.
+var mountSamplePath string
+var mountSampleErr error
+var mountSampleOnce sync.Once
+
 // Build the mount_sample tool if it has not yet been built for this process.
 // Return a path to the binary.
-func buildMountSample() (path string, err error)
+func buildMountSample() (toolPath string, err error) {
+	// Build if we haven't yet.
+	mountSampleOnce.Do(func() {
+		// Create a temporary directory.
+		tempDir, err := ioutil.TempDir("", "")
+		if err != nil {
+			mountSampleErr = fmt.Errorf("TempDir: %v", err)
+			return
+		}
+
+		mountSamplePath = path.Join(tempDir, "mount_sample")
+
+		// Build the command.
+		cmd := exec.Command(
+			"go",
+			"build",
+			"github.com/jacobsa/fuse/samples/mount_sample",
+			"-o",
+			mountSamplePath)
+
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			mountSampleErr = fmt.Errorf(
+				"mount_sample exited with %v, output:\n%s",
+				err,
+				string(output))
+
+			return
+		}
+	})
+
+	if mountSampleErr != nil {
+		err = mountSampleErr
+		return
+	}
+
+	toolPath = mountSamplePath
+	return
+}
 
 // Invoke mount_sample, returning a running command.
 func invokeMountSample(path string, args []string) (cmd *exec.Cmd, err error)
