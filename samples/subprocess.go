@@ -88,9 +88,9 @@ func buildMountSample() (toolPath string, err error) {
 		cmd := exec.Command(
 			"go",
 			"build",
-			"github.com/jacobsa/fuse/samples/mount_sample",
 			"-o",
-			mountSamplePath)
+			mountSamplePath,
+			"github.com/jacobsa/fuse/samples/mount_sample")
 
 		output, err := cmd.CombinedOutput()
 		if err != nil {
