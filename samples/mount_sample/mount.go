@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 
 	"github.com/jacobsa/fuse"
@@ -37,7 +38,19 @@ var fFsyncsFile = flag.String(
 	"",
 	"Path to a file to which fsyncs should be reported, \\n-separated.")
 
-func makeFS() (fs fuse.FileSystem, err error)
+func makeFlushFS() (fs fuse.FileSystem, err error)
+
+func makeFS() (fs fuse.FileSystem, err error) {
+	switch *fType {
+	default:
+		err = fmt.Errorf("Unknown FS type: %v", *fType)
+
+	case "flushfs":
+		fs, err = makeFlushFS()
+	}
+
+	return
+}
 
 func main() {
 	flag.Parse()
