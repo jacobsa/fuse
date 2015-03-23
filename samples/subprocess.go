@@ -133,7 +133,6 @@ func (t *SubprocessTest) initialize() (err error) {
 
 	// Set up a command.
 	args := []string{
-		toolPath,
 		"--type",
 		t.MountType,
 	}
