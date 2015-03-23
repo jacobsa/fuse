@@ -106,18 +106,26 @@ func (t *flushFSTest) TearDown() {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func readReports(f *os.File) (reports []string, err error)
+
 // Return a copy of the current contents of t.flushes.
-//
-// LOCKS_EXCLUDED(t.mu)
 func (t *flushFSTest) getFlushes() (p []string) {
-	panic("TODO")
+	var err error
+	if p, err = readReports(t.flushes); err != nil {
+		panic(err)
+	}
+
+	return
 }
 
 // Return a copy of the current contents of t.fsyncs.
-//
-// LOCKS_EXCLUDED(t.mu)
 func (t *flushFSTest) getFsyncs() (p []string) {
-	panic("TODO")
+	var err error
+	if p, err = readReports(t.fsyncs); err != nil {
+		panic(err)
+	}
+
+	return
 }
 
 // Like syscall.Dup2, but correctly annotates the syscall as blocking. See here
