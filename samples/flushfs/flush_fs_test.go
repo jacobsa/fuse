@@ -184,7 +184,10 @@ type NoErrorsTest struct {
 
 func init() { RegisterTestSuite(&NoErrorsTest{}) }
 
-func (t *NoErrorsTest) SetUp(ti *TestInfo)
+func (t *NoErrorsTest) SetUp(ti *TestInfo) {
+	const noErr = 0
+	t.flushFSTest.setUp(ti, noErr, noErr)
+}
 
 func (t *NoErrorsTest) Close_ReadWrite() {
 	var n int
