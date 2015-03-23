@@ -20,25 +20,79 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 
+	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/samples/flushfs"
 	"golang.org/x/net/context"
 )
 
 var fType = flag.String("type", "", "The name of the samples/ sub-dir.")
 var fMountPoint = flag.String("mount_point", "", "Path to mount point.")
 
-var fFlushesFile = flag.String(
-	"flushfs.flushes_file",
-	"",
-	"Path to a file to which flushes should be reported, \\n-separated.")
+var fFlushesFile = flag.String("flushfs.flushes_file", "", "")
+var fFsyncsFile = flag.String("flushfs.fsyncs_file", "", "")
+var fFlushError = flag.Int("flushfs.flush_error", 0, "")
+var fFsyncError = flag.Int("flushfs.fsync_error", 0, "")
 
-var fFsyncsFile = flag.String(
-	"flushfs.fsyncs_file",
-	"",
-	"Path to a file to which fsyncs should be reported, \\n-separated.")
+func makeFlushFS() (fs fuse.FileSystem, err error) {
+	// Check the flags.
+	if *fFlushesFile == "" || *fFsyncsFile == "" {
+		err = fmt.Errorf("You must set the flushfs flags.")
+		return
+	}
 
-func makeFlushFS() (fs fuse.FileSystem, err error)
+	// Open the files.
+	flushes, err := os.OpenFile(*fFlushesFile, os.O_RDWR, 0)
+	if err != nil {
+		err = fmt.Errorf("Opening %s: %v", *fFlushesFile, err)
+		return
+	}
+
+	fsyncs, err := os.OpenFile(*fFsyncsFile, os.O_RDWR, 0)
+	if err != nil {
+		err = fmt.Errorf("Opening %s: %v", *fFsyncsFile, err)
+		return
+	}
+
+	// Set up errors.
+	var flushErr error
+	var fsyncErr error
+
+	if *fFlushError != 0 {
+		flushErr = bazilfuse.Errno(*fFlushError)
+	}
+
+	if *fFsyncError != 0 {
+		fsyncErr = bazilfuse.Errno(*fFsyncError)
+	}
+
+	// Report flushes and fsyncs by writing the contents followed by a newline.
+	report := func(f *os.File, outErr error) func(string) error {
+		return func(s string) (err error) {
+			buf := []byte(s)
+			buf = append(buf, '\n')
+
+			_, err = f.Write(buf)
+			if err != nil {
+				err = fmt.Errorf("Write: %v", err)
+				return
+			}
+
+			err = outErr
+			return
+		}
+	}
+
+	reportFlush := report(flushes, flushErr)
+	reportFsync := report(fsyncs, fsyncErr)
+
+	// Create the file system.
+	fs, err = flushfs.NewFileSystem(reportFlush, reportFsync)
+
+	return
+}
 
 func makeFS() (fs fuse.FileSystem, err error) {
 	switch *fType {
