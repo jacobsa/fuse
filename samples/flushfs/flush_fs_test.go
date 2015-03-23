@@ -15,19 +15,18 @@
 package flushfs_test
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
-	"sync"
 	"syscall"
 	"testing"
 
 	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples"
-	"github.com/jacobsa/fuse/samples/flushfs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -39,21 +38,11 @@ func TestFlushFS(t *testing.T) { RunTests(t) }
 ////////////////////////////////////////////////////////////////////////
 
 type flushFSTest struct {
-	samples.SampleTest
+	samples.SubprocessTest
 
 	// File handles that are closed in TearDown if non-nil.
 	f1 *os.File
 	f2 *os.File
-
-	mu sync.Mutex
-
-	// GUARDED_BY(mu)
-	flushes  []string
-	flushErr error
-
-	// GUARDED_BY(mu)
-	fsyncs   []string
-	fsyncErr error
 }
 
 func (t *flushFSTest) setUp(
@@ -62,27 +51,26 @@ func (t *flushFSTest) setUp(
 	fsyncErr bazilfuse.Errno) {
 	var err error
 
-	// Set up a file system.
-	reportTo := func(slice *[]string, err *error) func(string) error {
-		return func(s string) error {
-			t.mu.Lock()
-			defer t.mu.Unlock()
+	// Set up files to receive flush and fsync reports.
+	panic("TODO")
 
-			*slice = append(*slice, s)
-			return *err
-		}
+	// Set up test config.
+	t.MountType = "flushfs"
+	t.MountFlags = []string{
+		"--flushfs.flushes_file",
+		t.flushes.Name(),
+
+		"--flushfs.fsyncs_file",
+		t.fsyncs.Name(),
+
+		"--flushfs.flush_error",
+		fmt.Sprintf("%d", int(flushErr)),
+
+		"--fsyncfs.fsync_error",
+		fmt.Sprintf("%d", int(fsyncErr)),
 	}
 
-	t.FileSystem, err = flushfs.NewFileSystem(
-		reportTo(&t.flushes, &t.flushErr),
-		reportTo(&t.fsyncs, &t.fsyncErr))
-
-	if err != nil {
-		panic(err)
-	}
-
-	// Mount it.
-	t.SampleTest.SetUp(ti)
+	t.SubprocessTest.SetUp(ti)
 }
 
 func (t *FlushFSTest) TearDown() {
