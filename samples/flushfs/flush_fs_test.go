@@ -685,4 +685,4 @@ type FsyncErrorTest struct {
 
 func init() { RegisterTestSuite(&FsyncErrorTest{}) }
 
-func (t *FlushErrorTest) SetUp(ti *TestInfo)
+func (t *FsyncErrorTest) SetUp(ti *TestInfo)
