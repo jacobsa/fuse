@@ -75,7 +75,7 @@ func (t *flushFSTest) setUp(
 		"--flushfs.flush_error",
 		fmt.Sprintf("%d", int(flushErr)),
 
-		"--fsyncfs.fsync_error",
+		"--flushfs.fsync_error",
 		fmt.Sprintf("%d", int(fsyncErr)),
 	}
 
