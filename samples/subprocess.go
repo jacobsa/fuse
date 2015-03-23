@@ -24,7 +24,6 @@ import (
 	"os/exec"
 	"path"
 	"sync"
-	"time"
 
 	"github.com/jacobsa/ogletest"
 	"golang.org/x/net/context"
@@ -145,6 +144,16 @@ func waitForMountSample(
 	err = fmt.Errorf("Waiting for mount_sample: %v", err)
 }
 
+func waitForReady(readyReader *os.File, c chan<- struct{}) {
+	_, err := readyReader.Read(make([]byte, 1))
+	if err != nil {
+		log.Printf("Readying from ready pipe: %v", err)
+		return
+	}
+
+	c <- struct{}{}
+}
+
 // Like SetUp, but doens't panic.
 func (t *SubprocessTest) initialize() (err error) {
 	// Initialize the context.
@@ -174,6 +183,18 @@ func (t *SubprocessTest) initialize() (err error) {
 
 	args = append(args, t.MountFlags...)
 
+	// Set up a pipe for the "ready" status.
+	readyReader, readyWriter, err := os.Pipe()
+	if err != nil {
+		err = fmt.Errorf("Pipe: %v", err)
+		return
+	}
+
+	defer readyReader.Close()
+	defer readyWriter.Close()
+
+	t.MountFiles["ready_file"] = readyWriter
+
 	// Set up inherited files and appropriate flags.
 	var extraFiles []*os.File
 	for flag, file := range t.MountFiles {
@@ -199,12 +220,21 @@ func (t *SubprocessTest) initialize() (err error) {
 
 	// Launch a goroutine that waits for it and returns its status.
 	mountSampleErr := make(chan error, 1)
-	t.mountSampleErr = mountSampleErr
 	go waitForMountSample(mountCmd, mountSampleErr, &stderr)
 
-	// TODO(jacobsa): Probably need some sort of signalling (on stderr? write to
-	// a flag-controlled file?) when WaitForReady has returned.
-	time.Sleep(time.Second)
+	// Wait for the tool to say the file system is ready. In parallel, watch for
+	// the tool to fail.
+	readyChan := make(chan struct{}, 1)
+	go waitForReady(readyReader, readyChan)
+
+	select {
+	case <-readyChan:
+	case err = <-mountSampleErr:
+		return
+	}
+
+	// TearDown is no responsible for joining.
+	t.mountSampleErr = mountSampleErr
 
 	return
 }

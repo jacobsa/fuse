@@ -17,6 +17,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -30,6 +31,7 @@ import (
 
 var fType = flag.String("type", "", "The name of the samples/ sub-dir.")
 var fMountPoint = flag.String("mount_point", "", "Path to mount point.")
+var fReadyFile = flag.Uint64("ready_file", 0, "FD to signal when ready.")
 
 var fFlushesFile = flag.Uint64("flushfs.flushes_file", 0, "")
 var fFsyncsFile = flag.Uint64("flushfs.fsyncs_file", 0, "")
@@ -97,8 +99,24 @@ func makeFS() (fs fuse.FileSystem, err error) {
 	return
 }
 
+func getReadyFile() (f *os.File, err error) {
+	if *fReadyFile == 0 {
+		err = errors.New("You must set --ready_file.")
+		return
+	}
+
+	f = os.NewFile(uintptr(*fReadyFile), "(ready file)")
+	return
+}
+
 func main() {
 	flag.Parse()
+
+	// Grab the file to signal when ready.
+	readyFile, err := getReadyFile()
+	if err != nil {
+		log.Fatalf("getReadyFile:", err)
+	}
 
 	// Create an appropriate file system.
 	fs, err := makeFS()
@@ -119,6 +137,12 @@ func main() {
 	// Wait for it to be ready.
 	if err = mfs.WaitForReady(context.Background()); err != nil {
 		log.Fatalf("WaitForReady: %v", err)
+	}
+
+	// Signal that it is ready.
+	_, err = readyFile.Write([]byte("x"))
+	if err != nil {
+		log.Fatalf("readyFile.Write: %v", err)
 	}
 
 	// Wait for it to be unmounted.
