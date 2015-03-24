@@ -256,11 +256,11 @@ type FileSystem interface {
 	//     close(2) (cf. http://goo.gl/kVmNcx).
 	//
 	//  *  However, even on OS X you can arrange for writes via a mapping to be
-	//     either fsync'd or flush'd by calling msync(2) followed by close(2). On
-	//     OS X msync(2) will cause a write to go through and close(2) will cause
-	//     a flush as usual (cf. http://goo.gl/kVmNcx). On Linux, msync(2) does
-	//     nothing unless you set the MS_SYNC flag, in which case it causes an
-	//     fsync (cf. http://goo.gl/P3mErk).
+	//     flushed by calling msync(2) followed by close(2). On OS X msync(2)
+	//     will cause a WriteFile to go through and close(2) will cause a
+	//     FlushFile as usual (cf. http://goo.gl/kVmNcx). On Linux, msync(2) does
+	//     nothing unless you set the MS_SYNC flag, in which case it causes a
+	//     SyncFile (cf. http://goo.gl/P3mErk).
 	//
 	// In summary: if you make data durable in both FlushFile and SyncFile, then
 	// your users can get safe behavior from mapped files by calling msync(2)
