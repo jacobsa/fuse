@@ -37,6 +37,24 @@ type InitOp struct {
 // Look up a child by name within a parent directory. The kernel sends this
 // when resolving user paths to dentry structs, which are then cached.
 type LookUpInodeOp struct {
+	Header RequestHeader
+
+	// The ID of the directory inode to which the child belongs.
+	Parent InodeID
+
+	// The name of the child of interest, relative to the parent. For example, in
+	// this directory structure:
+	//
+	//     foo/
+	//         bar/
+	//             baz
+	//
+	// the file system may receive a request to look up the child named "bar" for
+	// the parent foo/.
+	Name string
+
+	// The resulting entry. Must be filled out by the file system.
+	Entry ChildInodeEntry
 }
 
 // Refresh the attributes for an inode whose ID was previously returned by
@@ -269,28 +287,6 @@ type ReleaseFileHandleOp struct {
 ////////////////////////////////////////////////////////////////////////
 // Requests and responses
 ////////////////////////////////////////////////////////////////////////
-
-type LookUpInodeRequest struct {
-	Header RequestHeader
-
-	// The ID of the directory inode to which the child belongs.
-	Parent InodeID
-
-	// The name of the child of interest, relative to the parent. For example, in
-	// this directory structure:
-	//
-	//     foo/
-	//         bar/
-	//             baz
-	//
-	// the file system may receive a request to look up the child named "bar" for
-	// the parent foo/.
-	Name string
-}
-
-type LookUpInodeResponse struct {
-	Entry ChildInodeEntry
-}
 
 type GetInodeAttributesRequest struct {
 	Header RequestHeader
