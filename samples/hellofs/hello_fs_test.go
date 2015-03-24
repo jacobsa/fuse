@@ -41,9 +41,10 @@ type HelloFSTest struct {
 func init() { RegisterTestSuite(&HelloFSTest{}) }
 
 func (t *HelloFSTest) SetUp(ti *TestInfo) {
-	t.FileSystem = &hellofs.HelloFS{
-		Clock: &t.Clock,
-	}
+	var err error
+
+	t.Server, err = hellofs.NewHelloFS(&t.Clock)
+	AssertEq(nil, err)
 
 	t.SampleTest.SetUp(ti)
 }
