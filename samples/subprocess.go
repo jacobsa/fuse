@@ -236,7 +236,6 @@ func (t *SubprocessTest) initialize() (err error) {
 
 	// Set up basic args for the subprocess.
 	args := []string{
-		"--fuse.debug",
 		"--type",
 		t.MountType,
 		"--mount_point",
@@ -271,7 +270,7 @@ func (t *SubprocessTest) initialize() (err error) {
 	// Set up a command.
 	var stderr bytes.Buffer
 	mountCmd := exec.Command(toolPath, args...)
-	mountCmd.Stderr = os.Stderr
+	mountCmd.Stderr = &stderr
 	mountCmd.ExtraFiles = extraFiles
 
 	// Start it.
