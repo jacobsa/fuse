@@ -286,6 +286,7 @@ func (t *SubprocessTest) destroy() (err error) {
 	// Make sure we wait for the unmount, even if we've already returned early in
 	// error. Return its error if we haven't seen any other error.
 	defer func() {
+		// Wait.
 		unmountErr := <-unmountErrChan
 		if unmountErr != nil {
 			if err != nil {
@@ -294,7 +295,11 @@ func (t *SubprocessTest) destroy() (err error) {
 			}
 
 			err = fmt.Errorf("unmount: %v", unmountErr)
+			return
 		}
+
+		// Attempt to unlink the mount point.
+		os.Remove(t.Dir)
 	}()
 
 	// Wait for the subprocess.

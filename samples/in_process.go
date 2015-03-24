@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
@@ -126,6 +127,12 @@ func (t *SampleTest) destroy() (err error) {
 	err = unmount(t.Dir)
 	if err != nil {
 		err = fmt.Errorf("unmount: %v", err)
+		return
+	}
+
+	// Unlink the mount point.
+	if err = os.Remove(t.Dir); err != nil {
+		err = fmt.Errorf("Unlinking mount point: %v", err)
 		return
 	}
 
