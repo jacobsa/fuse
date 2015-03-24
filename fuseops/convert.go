@@ -38,120 +38,69 @@ func Convert(r bazilfuse.Request) (o Op) {
 		o = to
 		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
+	case *bazilfuse.LookupRequest:
 		to := &LookUpInodeOp{
 		//TODO
 		}
 		o = to
 		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
+	case *bazilfuse.GetattrRequest:
 		to := &GetInodeAttributesOp{
 		//TODO
 		}
 		o = to
 		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
+	case *bazilfuse.SetattrRequest:
 		to := &SetInodeAttributesOp{
 		//TODO
 		}
 		o = to
 		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
-		to := &ForgetInodeOp{
-		//TODO
-		}
-		o = to
-		co = &to.commonOp
-
-	case *bazilfuse.InitRequest:
+	case *bazilfuse.MkdirRequest:
 		to := &MkDirOp{
 		//TODO
 		}
 		o = to
 		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
+	case *bazilfuse.CreateRequest:
 		to := &CreateFileOp{
 		//TODO
 		}
 		o = to
 		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
-		to := &RmDirOp{
+	case *bazilfuse.RemoveRequest:
 		//TODO
-		}
-		o = to
-		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
-		to := &UnlinkOp{
+	case *bazilfuse.OpenRequest:
 		//TODO
-		}
-		o = to
-		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
-		to := &OpenDirOp{
+	case *bazilfuse.ReadRequest:
 		//TODO
-		}
-		o = to
-		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
-		to := &ReadDirOp{
+	case *bazilfuse.ReleaseRequest:
 		//TODO
-		}
-		o = to
-		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
-		to := &ReleaseDirHandleOp{
-		//TODO
-		}
-		o = to
-		co = &to.commonOp
-
-	case *bazilfuse.InitRequest:
-		to := &OpenFileOp{
-		//TODO
-		}
-		o = to
-		co = &to.commonOp
-
-	case *bazilfuse.InitRequest:
-		to := &ReadFileOp{
-		//TODO
-		}
-		o = to
-		co = &to.commonOp
-
-	case *bazilfuse.InitRequest:
+	case *bazilfuse.WriteRequest:
 		to := &WriteFileOp{
 		//TODO
 		}
 		o = to
 		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
+	case *bazilfuse.FsyncRequest:
 		to := &SyncFileOp{
 		//TODO
 		}
 		o = to
 		co = &to.commonOp
 
-	case *bazilfuse.InitRequest:
+	case *bazilfuse.FlushRequest:
 		to := &FlushFileOp{
-		//TODO
-		}
-		o = to
-		co = &to.commonOp
-
-	case *bazilfuse.InitRequest:
-		to := &ReleaseFileHandleOp{
 		//TODO
 		}
 		o = to
