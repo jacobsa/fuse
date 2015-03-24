@@ -24,6 +24,9 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
+	"unsafe"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse/fsutil"
@@ -174,7 +177,20 @@ func dup2(oldfd int, newfd int) (err error) {
 }
 
 // Call msync(2) on a slice previously returned by mmap(2).
-func msync(p []byte) (err error)
+func msync(p []byte) (err error) {
+	_, _, errno := unix.Syscall(
+		unix.SYS_MMAP,
+		uintptr(unsafe.Pointer(&p[0])),
+		uintptr(len(p)),
+		0)
+
+	if errno != 0 {
+		err = errno
+		return
+	}
+
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // No errors
