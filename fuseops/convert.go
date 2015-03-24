@@ -30,17 +30,16 @@ import (
 func Convert(r bazilfuse.Request) (o Op) {
 	var co *commonOp
 
-	switch r.(type) {
+	switch typed := r.(type) {
 	case *bazilfuse.InitRequest:
-		to := &InitOp{
-		//TODO
-		}
+		to := &InitOp{}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.LookupRequest:
 		to := &LookUpInodeOp{
-		//TODO
+			Parent: InodeID(typed.Header.Node),
+			Name:   typed.Name,
 		}
 		o = to
 		co = &to.commonOp
