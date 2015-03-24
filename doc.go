@@ -19,7 +19,12 @@
 //  *  The fuseops package, which defines the operations that fuse might send
 //     to your userspace daemon.
 //
-//  *  Mount, a function that allows for mounting a file system.
+//  *  The Server interface, which a type in your daemon must implement.
+//
+//  *  Mount, a function that allows for mounting a Server as a file system.
+//
+// Make sure to see the examples in the sub-packages of samples/, which double
+// as tests for this package: http://godoc.org/github.com/jacobsa/fuse/samples
 //
 // In order to use this package to mount file systems on OS X, the system must
 // have FUSE for OS X installed (see http://osxfuse.github.io/). Do note that

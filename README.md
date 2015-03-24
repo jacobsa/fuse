@@ -24,5 +24,8 @@ The chief improvements and/or differences from the bazil.org packages are:
 The very large disadvantage over using the bazil.org packages is that many
 features have not yet been exposed.
 
+Make sure to see the sub-packages of the [samples][] package.
+
 [bazil]: http://godoc.org/bazil.org/fuse
 [bazil-fs]: http://godoc.org/bazil.org/fuse/fs
+[samples]: http://godoc.org/github.com/jacobsa/fuse/samples
