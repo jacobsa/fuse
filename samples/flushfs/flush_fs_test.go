@@ -914,3 +914,32 @@ func (t *FsyncErrorTest) Fdatasync() {
 
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
+
+func (t *FsyncErrorTest) Msync() {
+	var err error
+
+	// On OS X, msync does not cause SyncFile.
+	if isDarwin {
+		return
+	}
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// mmap the file.
+	data, err := syscall.Mmap(
+		int(t.f1.Fd()), 0, 4,
+		syscall.PROT_READ|syscall.PROT_WRITE,
+		syscall.MAP_SHARED)
+
+	AssertEq(nil, err)
+
+	// msync the mapping.
+	err = msync(data)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+
+	// Unmap.
+	err = syscall.Munmap(data)
+	AssertEq(nil, err)
+}
