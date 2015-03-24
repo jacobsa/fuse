@@ -144,7 +144,7 @@ func Convert(r bazilfuse.Request, logger *log.Logger) (o Op) {
 			o = to
 			co = &to.commonOp
 		} else {
-			to := &ReadFileOp{
+			to := &ReleaseFileHandleOp{
 				Handle: HandleID(typed.Handle),
 			}
 			o = to
