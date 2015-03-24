@@ -75,28 +75,36 @@ func (t *SubprocessTest) SetUp(ti *ogletest.TestInfo) {
 }
 
 // Private state for getToolPath.
-var getToolPath_Path string
-var getToolPath_Err error
-var getToolPath_Once sync.Once
+var getToolContents_Contents []byte
+var getToolContents_Err error
+var getToolContents_Once sync.Once
 
 // Implementation detail of getToolPath.
-func getToolPathImpl() (toolPath string, err error) {
+func getToolContentsImpl() (contents []byte, err error) {
 	// Fast path: has the user set the flag?
 	if *fToolPath != "" {
-		toolPath = *fToolPath
+		contents, err = ioutil.ReadFile(*fToolPath)
+		if err != nil {
+			err = fmt.Errorf("Reading mount_sample contents: %v", err)
+			return
+		}
+
 		return
 	}
 
-	// Create a temporary directory.
+	// Create a temporary directory into which we will compile the tool.
 	tempDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %v", err)
 		return
 	}
 
-	toolPath = path.Join(tempDir, "mount_sample")
+	toolPath := path.Join(tempDir, "mount_sample")
 
-	// Build the command.
+	// Ensure that we kill the temporary directory when we're finished here.
+	defer os.RemoveAll(tempDir)
+
+	// Run "go build".
 	cmd := exec.Command(
 		"go",
 		"build",
@@ -114,18 +122,25 @@ func getToolPathImpl() (toolPath string, err error) {
 		return
 	}
 
+	// Slurp the tool contents.
+	contents, err = ioutil.ReadFile(toolPath)
+	if err != nil {
+		err = fmt.Errorf("ReadFile: %v", err)
+		return
+	}
+
 	return
 }
 
 // Build the mount_sample tool if it has not yet been built for this process.
-// Return a path to the binary.
-func getToolPath() (toolPath string, err error) {
-	// Build if we haven't yet.
-	getToolPath_Once.Do(func() {
-		getToolPath_Path, getToolPath_Err = getToolPathImpl()
+// Return its contents.
+func getToolContents() (contents []byte, err error) {
+	// Get hold of the binary contents, if we haven't yet.
+	getToolContents_Once.Do(func() {
+		getToolContents_Contents, getToolContents_Err = getToolContentsImpl()
 	})
 
-	toolPath, err = getToolPath_Path, getToolPath_Err
+	contents, err = getToolContents_Contents, getToolContents_Err
 	return
 }
 
@@ -180,10 +195,42 @@ func (t *SubprocessTest) initialize() (err error) {
 		return
 	}
 
-	// Build the mount_sample tool.
-	toolPath, err := getToolPath()
+	// Build/read the mount_sample tool.
+	toolContents, err := getToolContents()
 	if err != nil {
-		err = fmt.Errorf("getToolPath: %v", err)
+		err = fmt.Errorf("getTooltoolContents: %v", err)
+		return
+	}
+
+	// Create a temporary file to hold the contents of the tool.
+	toolFile, err := ioutil.TempFile("", "subprocess_test")
+	if err != nil {
+		err = fmt.Errorf("TempFile: %v", err)
+		return
+	}
+
+	defer toolFile.Close()
+
+	// Ensure that it is deleted when we leave.
+	toolPath := toolFile.Name()
+	defer os.Remove(toolPath)
+
+	// Write out the tool contents and make them executable.
+	if _, err = toolFile.Write(toolContents); err != nil {
+		err = fmt.Errorf("toolFile.Write: %v", err)
+		return
+	}
+
+	if err = toolFile.Chmod(0500); err != nil {
+		err = fmt.Errorf("toolFile.Chmod: %v", err)
+		return
+	}
+
+	// Close the tool file to prevent "text file busy" errors below.
+	err = toolFile.Close()
+	toolFile = nil
+	if err != nil {
+		err = fmt.Errorf("toolFile.Close: %v", err)
 		return
 	}
 
@@ -263,6 +310,8 @@ func (t *SubprocessTest) TearDown() {
 
 // Like TearDown, but doesn't panic.
 func (t *SubprocessTest) destroy() (err error) {
+	// Make sure we clean up after ourselves after everything else below.
+
 	// Close what is necessary.
 	for _, c := range t.ToClose {
 		if c == nil {
@@ -298,8 +347,8 @@ func (t *SubprocessTest) destroy() (err error) {
 			return
 		}
 
-		// Attempt to unlink the mount point.
-		os.Remove(t.Dir)
+		// Clean up.
+		ogletest.ExpectEq(nil, os.Remove(t.Dir))
 	}()
 
 	// Wait for the subprocess.
