@@ -19,8 +19,6 @@ import (
 	"log"
 	"strings"
 	"time"
-
-	"github.com/jacobsa/bazilfuse"
 )
 
 // Unmount the file system mounted at the supplied directory. Try again on
@@ -30,7 +28,7 @@ import (
 func unmount(dir string) (err error) {
 	delay := 10 * time.Millisecond
 	for {
-		err = bazilfuse.Unmount(dir)
+		err = fuse.Unmount(dir)
 		if err == nil {
 			return
 		}
