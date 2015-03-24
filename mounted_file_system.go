@@ -22,6 +22,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+// A Server is a function that reads ops from the supplied Connection,
+// responding to them as appropriate.
+type Server func(*Connection)
+
 // A struct representing the status of a mount operation, with a method that
 // waits for unmounting.
 type MountedFileSystem struct {
@@ -43,22 +47,9 @@ func (mfs *MountedFileSystem) Dir() string {
 	return mfs.dir
 }
 
-// Wait until the mount point is ready to be used. After a successful return
-// from this function, the contents of the mounted file system should be
-// visible in the directory supplied to NewMountPoint. May be called multiple
-// times.
-func (mfs *MountedFileSystem) WaitForReady(ctx context.Context) error {
-	select {
-	case <-mfs.readyStatusAvailable:
-		return mfs.readyStatus
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
 // Block until a mounted file system has been unmounted. The return value will
 // be non-nil if anything unexpected happened while serving. May be called
-// multiple times. Must not be called unless WaitForReady has returned nil.
+// multiple times.
 func (mfs *MountedFileSystem) Join(ctx context.Context) error {
 	select {
 	case <-mfs.joinStatusAvailable:
@@ -69,8 +60,10 @@ func (mfs *MountedFileSystem) Join(ctx context.Context) error {
 }
 
 // Attempt to unmount the file system. Use Join to wait for it to actually be
-// unmounted. You must first call WaitForReady to ensure there is no race with
-// mounting.
+// unmounted.
+//
+// TODO(jacobsa): Kill this in favor of an Unmount free function that can be
+// used even from outside of the daemon process.
 func (mfs *MountedFileSystem) Unmount() error {
 	return bazilfuse.Unmount(mfs.dir)
 }
@@ -147,21 +140,15 @@ func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
 	return
 }
 
-// Attempt to mount the supplied file system on the given directory.
-// mfs.WaitForReady() must be called to find out whether the mount was
-// successful.
-//
-// TODO(jacobsa): Fold in WaitForReady. See issue #3.
+// Attempt to mount a file system on the given directory, using the supplied
+// Server to serve connection requests. This function blocks until the file
+// system is successfully mounted. On some systems, this requires the supplied
+// Server to make forward progress (in particular, to respond to
+// fuseops.InitOp).
 func Mount(
 	dir string,
-	fs FileSystem,
+	server Server,
 	config *MountConfig) (mfs *MountedFileSystem, err error) {
-	// Create a server object.
-	server, err := newServer(fs)
-	if err != nil {
-		return
-	}
-
 	// Initialize the struct.
 	mfs = &MountedFileSystem{
 		dir:                  dir,
@@ -171,6 +158,10 @@ func Mount(
 
 	// Mount in the background.
 	go mfs.mountAndServe(server, config.bazilfuseOptions())
+
+	// Wait for ready.
+	<-mfs.readyStatusAvailable
+	err = mfs.readyStatus
 
 	return
 }
