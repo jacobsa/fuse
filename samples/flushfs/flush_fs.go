@@ -107,14 +107,23 @@ func (fs *flushFS) ServeOps(c *fuse.Connection) {
 		case *fuseops.GetInodeAttributesOp:
 			fs.getInodeAttributes(typed)
 
-		case *fuseops.OpenDirOp:
-			fs.openDir(typed)
-
 		case *fuseops.OpenFileOp:
 			fs.openFile(typed)
 
 		case *fuseops.ReadFileOp:
 			fs.readFile(typed)
+
+		case *fuseops.WriteFileOp:
+			fs.writeFile(typed)
+
+		case *fuseops.SyncFileOp:
+			fs.syncFile(typed)
+
+		case *fuseops.FlushFileOp:
+			fs.flushFile(typed)
+
+		case *fuseops.OpenDirOp:
+			fs.openDir(typed)
 
 		default:
 			typed.Respond(fuse.ENOSYS)
