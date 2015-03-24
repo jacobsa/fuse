@@ -413,6 +413,10 @@ func (t *NoErrorsTest) Fdatasync() {
 	var n int
 	var err error
 
+	if !fsutil.FdatasyncSupported {
+		return
+	}
+
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
 	AssertEq(nil, err)
@@ -426,7 +430,7 @@ func (t *NoErrorsTest) Fdatasync() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 
 	// Fdatasync.
-	err = syscall.Fdatasync(int(t.f1.Fd()))
+	err = fsutil.Fdatasync(t.f1)
 	AssertEq(nil, err)
 
 	AssertThat(t.getFlushes(), ElementsAre())
@@ -441,7 +445,7 @@ func (t *NoErrorsTest) Fdatasync() {
 	AssertThat(t.getFsyncs(), ElementsAre("taco"))
 
 	// Fdatasync.
-	err = syscall.Fdatasync(int(t.f1.Fd()))
+	err = fsutil.Fdatasync(t.f1)
 	AssertEq(nil, err)
 
 	AssertThat(t.getFlushes(), ElementsAre())
@@ -789,12 +793,16 @@ func (t *FsyncErrorTest) Fsync() {
 func (t *FsyncErrorTest) Fdatasync() {
 	var err error
 
+	if !fsutil.FdatasyncSupported {
+		return
+	}
+
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
 
 	// Fdatasync.
-	err = syscall.Fdatasync(int(t.f1.Fd()))
+	err = fsutil.Fdatasync(t.f1)
 
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
