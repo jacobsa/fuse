@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/cachingfs"
 	. "github.com/jacobsa/oglematchers"
@@ -54,7 +55,7 @@ func (t *cachingFSTest) setUp(
 	t.fs, err = cachingfs.NewCachingFS(lookupEntryTimeout, getattrTimeout)
 	AssertEq(nil, err)
 
-	t.Server = t.fs
+	t.Server = fuseutil.NewFileSystemServer(t.fs)
 
 	// Mount it.
 	t.SampleTest.SetUp(ti)
