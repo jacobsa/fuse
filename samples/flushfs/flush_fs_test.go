@@ -173,6 +173,9 @@ func dup2(oldfd int, newfd int) (err error) {
 	return
 }
 
+// Call msync(2) on a slice previously returned by mmap(2).
+func msync(p []byte) (err error)
+
 ////////////////////////////////////////////////////////////////////////
 // No errors
 ////////////////////////////////////////////////////////////////////////
@@ -542,7 +545,7 @@ func (t *NoErrorsTest) Dup2() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *NoErrorsTest) Mmap_MunmapBeforeClose() {
+func (t *NoErrorsTest) Mmap_NoMsync_MunmapBeforeClose() {
 	var n int
 	var err error
 
@@ -589,7 +592,7 @@ func (t *NoErrorsTest) Mmap_MunmapBeforeClose() {
 	}
 }
 
-func (t *NoErrorsTest) Mmap_CloseBeforeMunmap() {
+func (t *NoErrorsTest) Mmap_NoMsync_CloseBeforeMunmap() {
 	var n int
 	var err error
 
@@ -628,6 +631,14 @@ func (t *NoErrorsTest) Mmap_CloseBeforeMunmap() {
 	// munmap does not cause a flush.
 	ExpectThat(t.getFlushes(), ElementsAre("taco"))
 	ExpectThat(t.getFsyncs(), ElementsAre())
+}
+
+func (t *NoErrorsTest) Mmap_WithMsync_MunmapBeforeClose() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *NoErrorsTest) Mmap_WithMsync_CloseBeforeMunmap() {
+	AssertTrue(false, "TODO")
 }
 
 func (t *NoErrorsTest) Directory() {
