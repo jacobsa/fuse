@@ -25,15 +25,42 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 )
 
-// A file system with a fixed structure that looks like this:
+// Create a file system with a fixed structure that looks like this:
 //
 //     hello
 //     dir/
 //         world
 //
 // Each file contains the string "Hello, world!".
-type HelloFS struct {
+func NewHelloFS(clock timeutil.Clock) (server fuse.Server, err error) {
+	fs := &helloFS{
+		Clock: clock,
+	}
+
+	server = fuse.Server(fs.serve)
+	return
+}
+
+type helloFS struct {
 	Clock timeutil.Clock
+}
+
+func (fs *helloFS) serve(c *fuse.Connection) {
+	for {
+		op, err := c.ReadOp()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		switch typed := op.(type) {
+		default:
+			typed.Respond(fuse.ENOSYS)
+		}
+	}
 }
 
 const (
@@ -128,7 +155,7 @@ func findChildInode(
 	return
 }
 
-func (fs *HelloFS) patchAttributes(
+func (fs *helloFS) patchAttributes(
 	attr *fuseops.InodeAttributes) {
 	now := fs.Clock.Now()
 	attr.Atime = now
@@ -136,11 +163,11 @@ func (fs *HelloFS) patchAttributes(
 	attr.Crtime = now
 }
 
-func (fs *HelloFS) init(op *fuseops.InitOp) {
+func (fs *helloFS) init(op *fuseops.InitOp) {
 	op.Respond(nil)
 }
 
-func (fs *HelloFS) lookUpInode(op *fuseops.LookUpInodeOp) {
+func (fs *helloFS) lookUpInode(op *fuseops.LookUpInodeOp) {
 	var err error
 	defer func() { op.Respond(err) }()
 
@@ -167,7 +194,7 @@ func (fs *HelloFS) lookUpInode(op *fuseops.LookUpInodeOp) {
 	return
 }
 
-func (fs *HelloFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
+func (fs *helloFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
 	var err error
 	defer func() { op.Respond(err) }()
 
@@ -187,12 +214,12 @@ func (fs *HelloFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
 	return
 }
 
-func (fs *HelloFS) openDir(op *fuseops.OpenDirOp) {
+func (fs *helloFS) openDir(op *fuseops.OpenDirOp) {
 	// Allow opening any directory.
 	op.Respond(nil)
 }
 
-func (fs *HelloFS) readDir(op fuseops.ReadDirOp) {
+func (fs *helloFS) readDir(op fuseops.ReadDirOp) {
 	var err error
 	defer func() { op.Respond(err) }()
 
@@ -211,7 +238,7 @@ func (fs *HelloFS) readDir(op fuseops.ReadDirOp) {
 	entries := info.children
 
 	// Grab the range of interest.
-	if op.Offset > fuse.DirOffset(len(entries)) {
+	if op.Offset > fuseops.DirOffset(len(entries)) {
 		err = fuse.EIO
 		return
 	}
@@ -230,12 +257,12 @@ func (fs *HelloFS) readDir(op fuseops.ReadDirOp) {
 	return
 }
 
-func (fs *HelloFS) openFile(op *fuseops.OpenFileOp) {
+func (fs *helloFS) openFile(op *fuseops.OpenFileOp) {
 	// Allow opening any file.
 	op.Respond(nil)
 }
 
-func (fs *HelloFS) readFile(op *fuseops.ReadFileOp) {
+func (fs *helloFS) readFile(op *fuseops.ReadFileOp) {
 	var err error
 	defer func() { op.Respond(err) }()
 
