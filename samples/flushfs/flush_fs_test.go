@@ -110,6 +110,8 @@ func (t *flushFSTest) TearDown() {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+var isDarwin = runtime.GOOS == "darwin"
+
 func readReports(f *os.File) (reports []string, err error) {
 	// Seek the file to the start.
 	_, err = f.Seek(0, 0)
@@ -476,7 +478,6 @@ func (t *NoErrorsTest) Dup() {
 	var n int
 	var err error
 
-	isDarwin := runtime.GOOS == "darwin"
 	var expectedFlushes []interface{}
 
 	// Open the file.
@@ -601,7 +602,7 @@ func (t *NoErrorsTest) Mmap_NoMsync_MunmapBeforeClose() {
 	t.f1 = nil
 	AssertEq(nil, err)
 
-	if runtime.GOOS == "darwin" {
+	if isDarwin {
 		ExpectThat(t.getFlushes(), ElementsAre("taco"))
 		ExpectThat(t.getFsyncs(), ElementsAre())
 	} else {
@@ -656,6 +657,8 @@ func (t *NoErrorsTest) Mmap_WithMsync_MunmapBeforeClose() {
 	var n int
 	var err error
 
+	var expectedFsyncs []interface{}
+
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
 	AssertEq(nil, err)
@@ -677,34 +680,40 @@ func (t *NoErrorsTest) Mmap_WithMsync_MunmapBeforeClose() {
 	// Modify the contents.
 	data[0] = 'p'
 
-	// msync. This causes a write, but not a flush.
+	// msync. This causes an fsync, except on OS X (cf.
+	// https://github.com/osxfuse/osxfuse/issues/202).
 	err = msync(data)
 	ExpectEq(nil, err)
 
-	ExpectThat(t.getFlushes(), ElementsAre())
-	ExpectThat(t.getFsyncs(), ElementsAre())
+	if !isDarwin {
+		expectedFsyncs = append(expectedFsyncs, "paco")
+	}
 
-	// Unmap. Again, this does not cause a flush.
+	ExpectThat(t.getFlushes(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre(expectedFsyncs...))
+
+	// Unmap. This does not cause anything.
 	err = syscall.Munmap(data)
 	AssertEq(nil, err)
 
 	ExpectThat(t.getFlushes(), ElementsAre())
-	ExpectThat(t.getFsyncs(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre(expectedFsyncs...))
 
 	// Close the file. We should now see a flush with the modified contents, even
-	// on OS X, which works differently from Linux with regard to flushing dirty
-	// pages (cf. https://github.com/osxfuse/osxfuse/issues/202).
+	// on OS X.
 	err = t.f1.Close()
 	t.f1 = nil
 	AssertEq(nil, err)
 
 	ExpectThat(t.getFlushes(), ElementsAre("paco"))
-	ExpectThat(t.getFsyncs(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre(expectedFsyncs...))
 }
 
 func (t *NoErrorsTest) Mmap_WithMsync_CloseBeforeMunmap() {
 	var n int
 	var err error
+
+	var expectedFsyncs []interface{}
 
 	// Open the file.
 	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
@@ -735,19 +744,24 @@ func (t *NoErrorsTest) Mmap_WithMsync_CloseBeforeMunmap() {
 	// Modify the contents.
 	data[0] = 'p'
 
-	// msync. This causes a write, but not a flush.
+	// msync. This causes an fsync, except on OS X (cf.
+	// https://github.com/osxfuse/osxfuse/issues/202).
 	err = msync(data)
 	ExpectEq(nil, err)
 
+	if !isDarwin {
+		expectedFsyncs = append(expectedFsyncs, "paco")
+	}
+
 	ExpectThat(t.getFlushes(), ElementsAre("taco"))
-	ExpectThat(t.getFsyncs(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre(expectedFsyncs...))
 
 	// Unmap. Again, this does not cause a flush.
 	err = syscall.Munmap(data)
 	AssertEq(nil, err)
 
 	ExpectThat(t.getFlushes(), ElementsAre("taco"))
-	ExpectThat(t.getFsyncs(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre(expectedFsyncs...))
 }
 
 func (t *NoErrorsTest) Directory() {
@@ -826,7 +840,7 @@ func (t *FlushErrorTest) Dup() {
 	err = t.f1.Close()
 	t.f1 = nil
 
-	if runtime.GOOS == "darwin" {
+	if isDarwin {
 		AssertEq(nil, err)
 	} else {
 		ExpectThat(err, Error(HasSubstr("no such file")))
