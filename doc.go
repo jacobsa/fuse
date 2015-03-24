@@ -19,7 +19,10 @@
 //  *  The fuseops package, which defines the operations that fuse might send
 //     to your userspace daemon.
 //
-//  *  The Server interface, which a type in your daemon must implement.
+//  *  The Server interface, which your daemon must implement.
+//
+//  *  fuseutil.NewFileSystemServer, which offers a convenient way to implement
+//     the Server interface.
 //
 //  *  Mount, a function that allows for mounting a Server as a file system.
 //
