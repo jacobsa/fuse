@@ -676,6 +676,9 @@ func (t *NoErrorsTest) Mmap_WithMsync_MunmapBeforeClose() {
 	data[0] = 'p'
 
 	// msync. This causes a write, but not a flush.
+	err = msync(data)
+	ExpectEq(nil, err)
+
 	ExpectThat(t.getFlushes(), ElementsAre())
 	ExpectThat(t.getFsyncs(), ElementsAre())
 
