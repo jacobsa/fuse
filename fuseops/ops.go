@@ -154,7 +154,12 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	resp := bazilfuse.SetattrResponse{
+		Attr:      convertAttributes(o.Inode, o.Attributes),
+		AttrValid: convertExpirationTime(o.AttributesExpiration),
+	}
+
+	o.r.(*bazilfuse.SetattrRequest).Respond(&resp)
 }
 
 // Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
@@ -174,7 +179,7 @@ func (o *ForgetInodeOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	o.r.(*bazilfuse.ForgetRequest).Respond()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -208,7 +213,8 @@ func (o *MkDirOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	resp := bazilfuse.MkdirResponse{}
+	o.r.(*bazilfuse.MkdirRequest).Respond(&resp)
 }
 
 // Create a file inode and open it.
