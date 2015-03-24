@@ -31,7 +31,14 @@ type Connection struct {
 // result. You must call c.close() eventually.
 func newConnection(
 	logger *log.Logger,
-	wrapped *bazilfuse.Conn) (c *Connection, err error)
+	wrapped *bazilfuse.Conn) (c *Connection, err error) {
+	c = &Connection{
+		logger:  logger,
+		wrapped: wrapped,
+	}
+
+	return
+}
 
 // Read the next op from the kernel process. Return io.EOF if the kernel has
 // closed the connection.
@@ -64,6 +71,13 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 	}
 }
 
-func (c *Connection) waitForReady() (err error)
+func (c *Connection) waitForReady() (err error) {
+	<-c.wrapped.Ready
+	err = c.wrapped.MountError
+	return
+}
 
-func (c *Connection) close() (err error)
+func (c *Connection) close() (err error) {
+	err = c.wrapped.Close()
+	return
+}
