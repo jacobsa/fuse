@@ -18,6 +18,8 @@
 package fuseops
 
 import (
+	"time"
+
 	"github.com/jacobsa/bazilfuse"
 	"golang.org/x/net/context"
 )
@@ -184,6 +186,50 @@ func Convert(r bazilfuse.Request) (o Op) {
 
 	co.init(r)
 	return
+}
+
+func convertAttributes(inode InodeID, attr InodeAttributes) bazilfuse.Attr {
+	return bazilfuse.Attr{
+		Inode:  uint64(inode),
+		Size:   attr.Size,
+		Mode:   attr.Mode,
+		Nlink:  uint32(attr.Nlink),
+		Atime:  attr.Atime,
+		Mtime:  attr.Mtime,
+		Ctime:  attr.Ctime,
+		Crtime: attr.Crtime,
+		Uid:    attr.Uid,
+		Gid:    attr.Gid,
+	}
+}
+
+// Convert an absolute cache expiration time to a relative time from now for
+// consumption by fuse.
+func convertExpirationTime(t time.Time) (d time.Duration) {
+	// Fuse represents durations as unsigned 64-bit counts of seconds and 32-bit
+	// counts of nanoseconds (cf. http://goo.gl/EJupJV). The bazil.org/fuse
+	// package converts time.Duration values to this form in a straightforward
+	// way (cf. http://goo.gl/FJhV8j).
+	//
+	// So negative durations are right out. There is no need to cap the positive
+	// magnitude, because 2^64 seconds is well longer than the 2^63 ns range of
+	// time.Duration.
+	d = t.Sub(time.Now())
+	if d < 0 {
+		d = 0
+	}
+
+	return
+}
+
+func convertChildInodeEntry(
+	in *ChildInodeEntry,
+	out *bazilfuse.LookupResponse) {
+	out.Node = bazilfuse.NodeID(in.Child)
+	out.Generation = uint64(in.Generation)
+	out.Attr = convertAttributes(in.Child, in.Attributes)
+	out.AttrValid = convertExpirationTime(in.AttributesExpiration)
+	out.EntryValid = convertExpirationTime(in.EntryExpiration)
 }
 
 // A helper for embedding common behavior.

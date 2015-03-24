@@ -89,7 +89,9 @@ func (o *LookUpInodeOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	resp := bazilfuse.LookupResponse{}
+	convertChildInodeEntry(&o.Entry, &resp)
+	o.r.(*bazilfuse.LookupRequest).Respond(&resp)
 }
 
 // Refresh the attributes for an inode whose ID was previously returned in a
