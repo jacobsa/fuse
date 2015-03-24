@@ -29,7 +29,7 @@ import (
 
 // A struct that implements common behavior needed by tests in the samples/
 // directory. Use it as an embedded field in your test fixture, calling its
-// SetUp method from your SetUp method after setting the FileSystem field.
+// SetUp method from your SetUp method after setting the Server field.
 type SampleTest struct {
 	// The server under test and the configuration with which it should be
 	// mounted. These must be set by the user of this type before calling SetUp;
