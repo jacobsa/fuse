@@ -39,7 +39,7 @@ var fFsyncsFile = flag.Uint64("flushfs.fsyncs_file", 0, "")
 var fFlushError = flag.Int("flushfs.flush_error", 0, "")
 var fFsyncError = flag.Int("flushfs.fsync_error", 0, "")
 
-func makeFlushFS() (fs fuse.FileSystem, err error) {
+func makeFlushFS() (server fuse.Server, err error) {
 	// Check the flags.
 	if *fFlushesFile == 0 || *fFsyncsFile == 0 {
 		err = fmt.Errorf("You must set the flushfs flags.")
@@ -83,18 +83,18 @@ func makeFlushFS() (fs fuse.FileSystem, err error) {
 	reportFsync := report(fsyncs, fsyncErr)
 
 	// Create the file system.
-	fs, err = flushfs.NewFileSystem(reportFlush, reportFsync)
+	server, err = flushfs.NewFileSystem(reportFlush, reportFsync)
 
 	return
 }
 
-func makeFS() (fs fuse.FileSystem, err error) {
+func makeFS() (server fuse.Server, err error) {
 	switch *fType {
 	default:
 		err = fmt.Errorf("Unknown FS type: %v", *fType)
 
 	case "flushfs":
-		fs, err = makeFlushFS()
+		server, err = makeFlushFS()
 	}
 
 	return
@@ -124,7 +124,7 @@ func main() {
 	}
 
 	// Create an appropriate file system.
-	fs, err := makeFS()
+	server, err := makeFS()
 	if err != nil {
 		log.Fatalf("makeFS: %v", err)
 	}
@@ -134,14 +134,9 @@ func main() {
 		log.Fatalf("You must set --mount_point.")
 	}
 
-	mfs, err := fuse.Mount(*fMountPoint, fs, &fuse.MountConfig{})
+	mfs, err := fuse.Mount(*fMountPoint, server, &fuse.MountConfig{})
 	if err != nil {
 		log.Fatalf("Mount: %v", err)
-	}
-
-	// Wait for it to be ready.
-	if err = mfs.WaitForReady(context.Background()); err != nil {
-		log.Fatalf("WaitForReady: %v", err)
 	}
 
 	// Signal that it is ready.
