@@ -16,12 +16,12 @@ package flushfs
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
-	"golang.org/x/net/context"
 )
 
 // Create a file system whose sole contents are a file named "foo" and a
@@ -86,45 +86,76 @@ func (fs *flushFS) barAttributes() fuseops.InodeAttributes {
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *flushFS) ServeOps(c *fuse.Connection)
+func (fs *flushFS) ServeOps(c *fuse.Connection) {
+	for {
+		op, err := c.ReadOp()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		switch typed := op.(type) {
+		case *fuseops.InitOp:
+			fs.init(typed)
+
+		case *fuseops.LookUpInodeOp:
+			fs.lookUpInode(typed)
+
+		case *fuseops.GetInodeAttributesOp:
+			fs.getInodeAttributes(typed)
+
+		case *fuseops.OpenDirOp:
+			fs.openDir(typed)
+
+		case *fuseops.OpenFileOp:
+			fs.openFile(typed)
+
+		case *fuseops.ReadFileOp:
+			fs.readFile(typed)
+
+		default:
+			typed.Respond(fuse.ENOSYS)
+		}
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Op methods
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *flushFS) Init(
-	ctx context.Context,
-	req *fuse.InitRequest) (
-	resp *fuse.InitResponse, err error) {
-	resp = &fuse.InitResponse{}
+func (fs *flushFS) init(op *fuseops.InitOp) {
+	var err error
+	defer func() { op.Respond(err) }()
+
 	return
 }
 
-func (fs *flushFS) LookUpInode(
-	ctx context.Context,
-	req *fuse.LookUpInodeRequest) (
-	resp *fuse.LookUpInodeResponse, err error) {
-	resp = &fuse.LookUpInodeResponse{}
+func (fs *flushFS) lookUpInode(op *fuseops.LookUpInodeOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Sanity check.
-	if req.Parent != fuseops.RootInodeID {
+	if op.Parent != fuseops.RootInodeID {
 		err = fuse.ENOENT
 		return
 	}
 
 	// Set up the entry.
-	switch req.Name {
+	switch op.Name {
 	case "foo":
-		resp.Entry = fuse.ChildInodeEntry{
+		op.Entry = fuseops.ChildInodeEntry{
 			Child:      fooID,
 			Attributes: fs.fooAttributes(),
 		}
 
 	case "bar":
-		resp.Entry = fuse.ChildInodeEntry{
+		op.Entry = fuseops.ChildInodeEntry{
 			Child:      barID,
 			Attributes: fs.barAttributes(),
 		}
@@ -137,26 +168,24 @@ func (fs *flushFS) LookUpInode(
 	return
 }
 
-func (fs *flushFS) GetInodeAttributes(
-	ctx context.Context,
-	req *fuse.GetInodeAttributesRequest) (
-	resp *fuse.GetInodeAttributesResponse, err error) {
-	resp = &fuse.GetInodeAttributesResponse{}
+func (fs *flushFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	switch req.Inode {
+	switch op.Inode {
 	case fuseops.RootInodeID:
-		resp.Attributes = fs.rootAttributes()
+		op.Attributes = fs.rootAttributes()
 		return
 
 	case fooID:
-		resp.Attributes = fs.fooAttributes()
+		op.Attributes = fs.fooAttributes()
 		return
 
 	case barID:
-		resp.Attributes = fs.barAttributes()
+		op.Attributes = fs.barAttributes()
 		return
 
 	default:
@@ -165,17 +194,15 @@ func (fs *flushFS) GetInodeAttributes(
 	}
 }
 
-func (fs *flushFS) OpenFile(
-	ctx context.Context,
-	req *fuse.OpenFileRequest) (
-	resp *fuse.OpenFileResponse, err error) {
-	resp = &fuse.OpenFileResponse{}
+func (fs *flushFS) openFile(op *fuseops.OpenFileOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Sanity check.
-	if req.Inode != fooID {
+	if op.Inode != fooID {
 		err = fuse.ENOSYS
 		return
 	}
@@ -183,59 +210,53 @@ func (fs *flushFS) OpenFile(
 	return
 }
 
-func (fs *flushFS) ReadFile(
-	ctx context.Context,
-	req *fuse.ReadFileRequest) (
-	resp *fuse.ReadFileResponse, err error) {
-	resp = &fuse.ReadFileResponse{}
+func (fs *flushFS) readFile(op *fuseops.ReadFileOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Ensure the offset is in range.
-	if req.Offset > int64(len(fs.fooContents)) {
+	if op.Offset > int64(len(fs.fooContents)) {
 		return
 	}
 
 	// Read what we can.
-	resp.Data = make([]byte, req.Size)
-	copy(resp.Data, fs.fooContents[req.Offset:])
+	op.Data = make([]byte, op.Size)
+	copy(op.Data, fs.fooContents[op.Offset:])
 
 	return
 }
 
-func (fs *flushFS) WriteFile(
-	ctx context.Context,
-	req *fuse.WriteFileRequest) (
-	resp *fuse.WriteFileResponse, err error) {
-	resp = &fuse.WriteFileResponse{}
+func (fs *flushFS) writeFile(op *fuseops.WriteFileOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Ensure that the contents slice is long enough.
-	newLen := int(req.Offset) + len(req.Data)
+	newLen := int(op.Offset) + len(op.Data)
 	if len(fs.fooContents) < newLen {
 		padding := make([]byte, newLen-len(fs.fooContents))
 		fs.fooContents = append(fs.fooContents, padding...)
 	}
 
 	// Copy in the data.
-	n := copy(fs.fooContents[req.Offset:], req.Data)
+	n := copy(fs.fooContents[op.Offset:], op.Data)
 
 	// Sanity check.
-	if n != len(req.Data) {
+	if n != len(op.Data) {
 		panic(fmt.Sprintf("Unexpected short copy: %v", n))
 	}
 
 	return
 }
 
-func (fs *flushFS) SyncFile(
-	ctx context.Context,
-	req *fuse.SyncFileRequest) (
-	resp *fuse.SyncFileResponse, err error) {
-	resp = &fuse.SyncFileResponse{}
+func (fs *flushFS) syncFile(op *fuseops.SyncFileOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -244,11 +265,9 @@ func (fs *flushFS) SyncFile(
 	return
 }
 
-func (fs *flushFS) FlushFile(
-	ctx context.Context,
-	req *fuse.FlushFileRequest) (
-	resp *fuse.FlushFileResponse, err error) {
-	resp = &fuse.FlushFileResponse{}
+func (fs *flushFS) flushFile(op *fuseops.FlushFileOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -257,17 +276,15 @@ func (fs *flushFS) FlushFile(
 	return
 }
 
-func (fs *flushFS) OpenDir(
-	ctx context.Context,
-	req *fuse.OpenDirRequest) (
-	resp *fuse.OpenDirResponse, err error) {
-	resp = &fuse.OpenDirResponse{}
+func (fs *flushFS) openDir(op *fuseops.OpenDirOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Sanity check.
-	if req.Inode != barID {
+	if op.Inode != barID {
 		err = fuse.ENOSYS
 		return
 	}
