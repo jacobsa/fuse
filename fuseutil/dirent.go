@@ -18,7 +18,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
 )
 
 type DirentType uint32
@@ -35,14 +35,14 @@ const (
 )
 
 // A struct representing an entry within a directory file, describing a child.
-// See notes on fuse.ReadDirResponse and on AppendDirent for details.
+// See notes on fuseops.ReadDirOp and on AppendDirent for details.
 type Dirent struct {
 	// The (opaque) offset within the directory file of the entry following this
-	// one. See notes on fuse.ReadDirRequest.Offset for details.
-	Offset fuse.DirOffset
+	// one. See notes on fuseops.ReadDirOp.Offset for details.
+	Offset fuseops.DirOffset
 
 	// The inode of the child file or directory, and its name within the parent.
-	Inode fuse.InodeID
+	Inode fuseops.InodeID
 	Name  string
 
 	// The type of the child. The zero value (DT_Unknown) is legal, but means
@@ -51,7 +51,7 @@ type Dirent struct {
 }
 
 // Append the supplied directory entry to the given buffer in the format
-// expected in fuse.ReadResponse.Data, returning the resulting buffer.
+// expected in fuseops.ReadFileOp.Data, returning the resulting buffer.
 func AppendDirent(input []byte, d Dirent) (output []byte) {
 	// We want to append bytes with the layout of fuse_dirent
 	// (http://goo.gl/BmFxob) in host order. The struct must be aligned according
