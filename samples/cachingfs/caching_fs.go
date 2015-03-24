@@ -16,13 +16,13 @@ package cachingfs
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/syncutil"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -232,6 +232,40 @@ func (fs *cachingFS) SetMtime(mtime time.Time) {
 	fs.mtime = mtime
 }
 
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *cachingFS) ServeOps(c *fuse.Connection) {
+	for {
+		op, err := c.ReadOp()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		switch typed := op.(type) {
+		case *fuseops.InitOp:
+			fs.init(typed)
+
+		case *fuseops.LookUpInodeOp:
+			fs.lookUpInode(typed)
+
+		case *fuseops.GetInodeAttributesOp:
+			fs.getInodeAttributes(typed)
+
+		case *fuseops.OpenDirOp:
+			fs.openDir(typed)
+
+		case *fuseops.OpenFileOp:
+			fs.openFile(typed)
+
+		default:
+			typed.Respond(fuse.ENOSYS)
+		}
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Op methods
 ////////////////////////////////////////////////////////////////////////
@@ -241,10 +275,9 @@ func (fs *cachingFS) init(op *fuseops.InitOp) {
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) LookUpInode(
-	ctx context.Context,
-	req *fuse.LookUpInodeRequest) (resp *fuse.LookUpInodeResponse, err error) {
-	resp = &fuse.LookUpInodeResponse{}
+func (fs *cachingFS) lookUpInode(op *fuseops.LookUpInodeOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -253,10 +286,10 @@ func (fs *cachingFS) LookUpInode(
 	var id fuseops.InodeID
 	var attrs fuseops.InodeAttributes
 
-	switch req.Name {
+	switch op.Name {
 	case "foo":
 		// Parent must be the root.
-		if req.Parent != fuseops.RootInodeID {
+		if op.Parent != fuseops.RootInodeID {
 			err = fuse.ENOENT
 			return
 		}
@@ -266,7 +299,7 @@ func (fs *cachingFS) LookUpInode(
 
 	case "dir":
 		// Parent must be the root.
-		if req.Parent != fuseops.RootInodeID {
+		if op.Parent != fuseops.RootInodeID {
 			err = fuse.ENOENT
 			return
 		}
@@ -276,7 +309,7 @@ func (fs *cachingFS) LookUpInode(
 
 	case "bar":
 		// Parent must be dir.
-		if req.Parent == fuseops.RootInodeID || req.Parent%numInodes != dirOffset {
+		if op.Parent == fuseops.RootInodeID || op.Parent%numInodes != dirOffset {
 			err = fuse.ENOENT
 			return
 		}
@@ -290,19 +323,17 @@ func (fs *cachingFS) LookUpInode(
 	}
 
 	// Fill in the response.
-	resp.Entry.Child = id
-	resp.Entry.Attributes = attrs
-	resp.Entry.EntryExpiration = time.Now().Add(fs.lookupEntryTimeout)
+	op.Entry.Child = id
+	op.Entry.Attributes = attrs
+	op.Entry.EntryExpiration = time.Now().Add(fs.lookupEntryTimeout)
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) GetInodeAttributes(
-	ctx context.Context,
-	req *fuse.GetInodeAttributesRequest) (
-	resp *fuse.GetInodeAttributesResponse, err error) {
-	resp = &fuse.GetInodeAttributesResponse{}
+func (fs *cachingFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -311,38 +342,36 @@ func (fs *cachingFS) GetInodeAttributes(
 	var attrs fuseops.InodeAttributes
 
 	switch {
-	case req.Inode == fuseops.RootInodeID:
+	case op.Inode == fuseops.RootInodeID:
 		attrs = fs.rootAttrs()
 
-	case req.Inode%numInodes == fooOffset:
+	case op.Inode%numInodes == fooOffset:
 		attrs = fs.fooAttrs()
 
-	case req.Inode%numInodes == dirOffset:
+	case op.Inode%numInodes == dirOffset:
 		attrs = fs.dirAttrs()
 
-	case req.Inode%numInodes == barOffset:
+	case op.Inode%numInodes == barOffset:
 		attrs = fs.barAttrs()
 	}
 
 	// Fill in the response.
-	resp.Attributes = attrs
-	resp.AttributesExpiration = time.Now().Add(fs.getattrTimeout)
+	op.Attributes = attrs
+	op.AttributesExpiration = time.Now().Add(fs.getattrTimeout)
 
 	return
 }
 
-func (fs *cachingFS) OpenDir(
-	ctx context.Context,
-	req *fuse.OpenDirRequest) (
-	resp *fuse.OpenDirResponse, err error) {
-	resp = &fuse.OpenDirResponse{}
+func (fs *cachingFS) openDir(op *fuseops.OpenDirOp) {
+	var err error
+	defer func() { op.Respond(err) }()
+
 	return
 }
 
-func (fs *cachingFS) OpenFile(
-	ctx context.Context,
-	req *fuse.OpenFileRequest) (
-	resp *fuse.OpenFileResponse, err error) {
-	resp = &fuse.OpenFileResponse{}
+func (fs *cachingFS) openFile(op *fuseops.OpenFileOp) {
+	var err error
+	defer func() { op.Respond(err) }()
+
 	return
 }
