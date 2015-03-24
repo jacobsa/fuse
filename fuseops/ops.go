@@ -49,7 +49,7 @@ type InitOp struct {
 
 func (o *InitOp) Respond(err error) {
 	if err != nil {
-		o.commonOp.Respond(err)
+		o.commonOp.respondErr(err)
 		return
 	}
 

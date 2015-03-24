@@ -22,7 +22,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Convert the supplied bazilfuse request struct to an Op.
+// Convert the supplied bazilfuse request struct to an Op, returning nil if it
+// is unknown.
 //
 // This function is an implementation detail of the fuse package, and must not
 // be called by anyone else.
@@ -121,8 +122,7 @@ func Convert(r bazilfuse.Request) (o Op) {
 		co = &to.commonOp
 
 	default:
-		co = &commonOp{}
-		o = co
+		return
 	}
 
 	co.init(r)
@@ -152,7 +152,7 @@ func (o *commonOp) Context() context.Context {
 	return o.ctx
 }
 
-func (o *commonOp) Respond(err error) {
+func (o *commonOp) respondErr(err error) {
 	if err != nil {
 		panic("Expect non-nil here.")
 	}
