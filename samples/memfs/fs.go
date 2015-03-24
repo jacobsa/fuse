@@ -93,7 +93,44 @@ func NewMemFS(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *memFS) ServeOps(c *fuse.Connection)
+func (fs *memFS) ServeOps(c *fuse.Connection) {
+	for {
+		op, err := c.ReadOp()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		switch typed := op.(type) {
+		case *fuseops.InitOp:
+			fs.init(typed)
+
+		case *fuseops.LookUpInodeOp:
+			fs.lookUpInode(typed)
+
+		case *fuseops.GetInodeAttributesOp:
+			fs.getInodeAttributes(typed)
+
+		case *fuseops.OpenDirOp:
+			fs.openDir(typed)
+
+		case *fuseops.ReadDirOp:
+			fs.readDir(typed)
+
+		case *fuseops.OpenFileOp:
+			fs.openFile(typed)
+
+		case *fuseops.ReadFileOp:
+			fs.readFile(typed)
+
+		default:
+			typed.Respond(fuse.ENOSYS)
+		}
+	}
+}
 
 func (fs *memFS) checkInvariants() {
 	// Check reserved inodes.
