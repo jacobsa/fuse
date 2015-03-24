@@ -88,7 +88,7 @@ type MemFSTest struct {
 func init() { RegisterTestSuite(&MemFSTest{}) }
 
 func (t *MemFSTest) SetUp(ti *TestInfo) {
-	t.FileSystem = memfs.NewMemFS(currentUid(), currentGid(), &t.Clock)
+	t.Server = memfs.NewMemFS(currentUid(), currentGid(), &t.Clock)
 	t.SampleTest.SetUp(ti)
 }
 
