@@ -15,6 +15,8 @@
 package fuseutil
 
 import (
+	"io"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 )
@@ -53,4 +55,82 @@ type FileSystem interface {
 // Create a fuse.Server that serves ops by calling the associated FileSystem
 // method and then calling Op.Respond with the resulting error. Unsupported ops
 // are responded to directly with ENOSYS.
-func NewFileSystemServer(fs FileSystem) fuse.Server
+func NewFileSystemServer(fs FileSystem) fuse.Server {
+	return fileSystemServer{fs}
+}
+
+type fileSystemServer struct {
+	fs FileSystem
+}
+
+func (s fileSystemServer) ServeOps(c *fuse.Connection) {
+	for {
+		op, err := c.ReadOp()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		switch typed := op.(type) {
+		default:
+			op.Respond(fuse.ENOSYS)
+
+		case *fuseops.InitOp:
+			op.Respond(s.fs.Init(typed))
+
+		case *fuseops.LookUpInodeOp:
+			op.Respond(s.fs.LookUpInode(typed))
+
+		case *fuseops.GetInodeAttributesOp:
+			op.Respond(s.fs.GetInodeAttributes(typed))
+
+		case *fuseops.SetInodeAttributesOp:
+			op.Respond(s.fs.SetInodeAttributes(typed))
+
+		case *fuseops.ForgetInodeOp:
+			op.Respond(s.fs.ForgetInode(typed))
+
+		case *fuseops.MkDirOp:
+			op.Respond(s.fs.MkDir(typed))
+
+		case *fuseops.CreateFileOp:
+			op.Respond(s.fs.CreateFile(typed))
+
+		case *fuseops.RmDirOp:
+			op.Respond(s.fs.RmDir(typed))
+
+		case *fuseops.UnlinkOp:
+			op.Respond(s.fs.Unlink(typed))
+
+		case *fuseops.OpenDirOp:
+			op.Respond(s.fs.OpenDir(typed))
+
+		case *fuseops.ReadDirOp:
+			op.Respond(s.fs.ReadDir(typed))
+
+		case *fuseops.ReleaseDirHandleOp:
+			op.Respond(s.fs.ReleaseDirHandle(typed))
+
+		case *fuseops.OpenFileOp:
+			op.Respond(s.fs.OpenFile(typed))
+
+		case *fuseops.ReadFileOp:
+			op.Respond(s.fs.ReadFile(typed))
+
+		case *fuseops.WriteFileOp:
+			op.Respond(s.fs.WriteFile(typed))
+
+		case *fuseops.SyncFileOp:
+			op.Respond(s.fs.SyncFile(typed))
+
+		case *fuseops.FlushFileOp:
+			op.Respond(s.fs.FlushFile(typed))
+
+		case *fuseops.ReleaseFileHandleOp:
+			op.Respond(s.fs.ReleaseFileHandle(typed))
+		}
+	}
+}
