@@ -22,12 +22,38 @@ import (
 	"time"
 
 	"github.com/jacobsa/bazilfuse"
+	"golang.org/x/net/context"
 )
+
+type Op interface {
+	// Return the fields common to all operations.
+	Header() OpHeader
+
+	// A context that can be used for long-running operations.
+	Context() context.Context
+
+	// Repond to the operation with the supplied error. If there is no error, set
+	// any necessary output fields and then call Respond(nil).
+	Respond(error)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Setup
+////////////////////////////////////////////////////////////////////////
 
 // Sent once when mounting the file system. It must succeed in order for the
 // mount to succeed.
 type InitOp struct {
-	Header OpHeader
+	commonOp
+}
+
+func (o *InitOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	o.r.(*bazilfuse.InitRequest).Respond(&bazilfuse.InitResponse{})
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -37,7 +63,7 @@ type InitOp struct {
 // Look up a child by name within a parent directory. The kernel sends this
 // when resolving user paths to dentry structs, which are then cached.
 type LookUpInodeOp struct {
-	Header OpHeader
+	commonOp
 
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
@@ -57,12 +83,23 @@ type LookUpInodeOp struct {
 	Entry ChildInodeEntry
 }
 
+func (o *LookUpInodeOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	resp := bazilfuse.LookupResponse{}
+	convertChildInodeEntry(&o.Entry, &resp)
+	o.r.(*bazilfuse.LookupRequest).Respond(&resp)
+}
+
 // Refresh the attributes for an inode whose ID was previously returned in a
 // LookUpInodeOp. The kernel sends this when the FUSE VFS layer's cache of
 // inode attributes is stale. This is controlled by the AttributesExpiration
 // field of ChildInodeEntry, etc.
 type GetInodeAttributesOp struct {
-	Header OpHeader
+	commonOp
 
 	// The inode of interest.
 	Inode InodeID
@@ -74,12 +111,26 @@ type GetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
+func (o *GetInodeAttributesOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	resp := bazilfuse.GetattrResponse{
+		Attr:      convertAttributes(o.Inode, o.Attributes),
+		AttrValid: convertExpirationTime(o.AttributesExpiration),
+	}
+
+	o.r.(*bazilfuse.GetattrRequest).Respond(&resp)
+}
+
 // Change attributes for an inode.
 //
 // The kernel sends this for obvious cases like chmod(2), and for less obvious
 // cases like ftrunctate(2).
 type SetInodeAttributesOp struct {
-	Header OpHeader
+	commonOp
 
 	// The inode of interest.
 	Inode InodeID
@@ -97,15 +148,38 @@ type SetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
+func (o *SetInodeAttributesOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	resp := bazilfuse.SetattrResponse{
+		Attr:      convertAttributes(o.Inode, o.Attributes),
+		AttrValid: convertExpirationTime(o.AttributesExpiration),
+	}
+
+	o.r.(*bazilfuse.SetattrRequest).Respond(&resp)
+}
+
 // Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
 // kernel sends this when removing an inode from its internal caches.
 type ForgetInodeOp struct {
-	Header OpHeader
+	commonOp
 
 	// The inode to be forgotten. The kernel guarantees that the node ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	ID InodeID
+}
+
+func (o *ForgetInodeOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	o.r.(*bazilfuse.ForgetRequest).Respond()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -120,7 +194,7 @@ type ForgetInodeOp struct {
 // http://goo.gl/FZpLu5). But volatile file systems and paranoid non-volatile
 // file systems should check for the reasons described below on CreateFile.
 type MkDirOp struct {
-	Header OpHeader
+	commonOp
 
 	// The ID of parent directory inode within which to create the child.
 	Parent InodeID
@@ -131,6 +205,16 @@ type MkDirOp struct {
 
 	// Set by the file system: information about the inode that was created.
 	Entry ChildInodeEntry
+}
+
+func (o *MkDirOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	resp := bazilfuse.MkdirResponse{}
+	o.r.(*bazilfuse.MkdirRequest).Respond(&resp)
 }
 
 // Create a file inode and open it.
@@ -147,7 +231,7 @@ type MkDirOp struct {
 // course particularly applies to file systems that are volatile from the
 // kernel's point of view.
 type CreateFileOp struct {
-	Header OpHeader
+	commonOp
 
 	// The ID of parent directory inode within which to create the child file.
 	Parent InodeID
@@ -173,6 +257,22 @@ type CreateFileOp struct {
 	Handle HandleID
 }
 
+func (o *CreateFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	resp := bazilfuse.CreateResponse{
+		OpenResponse: bazilfuse.OpenResponse{
+			Handle: bazilfuse.HandleID(o.Handle),
+		},
+	}
+	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
+
+	o.r.(*bazilfuse.CreateRequest).Respond(&resp)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Unlinking
 ////////////////////////////////////////////////////////////////////////
@@ -185,12 +285,21 @@ type CreateFileOp struct {
 //
 // Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
 type RmDirOp struct {
-	Header OpHeader
+	commonOp
 
 	// The ID of parent directory inode, and the name of the directory being
 	// removed within it.
 	Parent InodeID
 	Name   string
+}
+
+func (o *RmDirOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	o.r.(*bazilfuse.RemoveRequest).Respond()
 }
 
 // Unlink a file from its parent. If this brings the inode's link count to
@@ -199,12 +308,21 @@ type RmDirOp struct {
 //
 // Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
 type UnlinkOp struct {
-	Header OpHeader
+	commonOp
 
 	// The ID of parent directory inode, and the name of the file being removed
 	// within it.
 	Parent InodeID
 	Name   string
+}
+
+func (o *UnlinkOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	o.r.(*bazilfuse.RemoveRequest).Respond()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -218,7 +336,7 @@ type UnlinkOp struct {
 // user-space process. On OS X it may not be sent for every open(2) (cf.
 // https://github.com/osxfuse/osxfuse/issues/199).
 type OpenDirOp struct {
-	Header OpHeader
+	commonOp
 
 	// The ID of the inode to be opened.
 	Inode InodeID
@@ -237,9 +355,22 @@ type OpenDirOp struct {
 	Handle HandleID
 }
 
+func (o *OpenDirOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	resp := bazilfuse.OpenResponse{
+		Handle: bazilfuse.HandleID(o.Handle),
+	}
+
+	o.r.(*bazilfuse.OpenRequest).Respond(&resp)
+}
+
 // Read entries from a directory previously opened with OpenDir.
 type ReadDirOp struct {
-	Header OpHeader
+	commonOp
 
 	// The directory inode that we are reading, and the handle previously
 	// returned by OpenDir when opening that inode.
@@ -327,6 +458,19 @@ type ReadDirOp struct {
 	Data []byte
 }
 
+func (o *ReadDirOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	resp := bazilfuse.ReadResponse{
+		Data: o.Data,
+	}
+
+	o.r.(*bazilfuse.ReadRequest).Respond(&resp)
+}
+
 // Release a previously-minted directory handle. The kernel sends this when
 // there are no more references to an open directory: all file descriptors are
 // closed and all memory mappings are unmapped.
@@ -334,12 +478,21 @@ type ReadDirOp struct {
 // The kernel guarantees that the handle ID will not be used in further ops
 // sent to the file system (unless it is reissued by the file system).
 type ReleaseDirHandleOp struct {
-	Header OpHeader
+	commonOp
 
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	Handle HandleID
+}
+
+func (o *ReleaseDirHandleOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	o.r.(*bazilfuse.ReleaseRequest).Respond()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -353,7 +506,7 @@ type ReleaseDirHandleOp struct {
 // process. On OS X it may not be sent for every open(2)
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
 type OpenFileOp struct {
-	Header OpHeader
+	commonOp
 
 	// The ID of the inode to be opened.
 	Inode InodeID
@@ -371,13 +524,26 @@ type OpenFileOp struct {
 	Handle HandleID
 }
 
+func (o *OpenFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	resp := bazilfuse.OpenResponse{
+		Handle: bazilfuse.HandleID(o.Handle),
+	}
+
+	o.r.(*bazilfuse.OpenRequest).Respond(&resp)
+}
+
 // Read data from a file previously opened with CreateFile or OpenFile.
 //
 // Note that this op is not sent for every call to read(2) by the end user;
 // some reads may be served by the page cache. See notes on WriteFileOp for
 // more.
 type ReadFileOp struct {
-	Header OpHeader
+	commonOp
 
 	// The file inode that we are reading, and the handle previously returned by
 	// CreateFile or OpenFile when opening that inode.
@@ -398,6 +564,19 @@ type ReadFileOp struct {
 	// Set by the file system: the data read. If this is less than the requested
 	// size, it indicates EOF. An error should not be returned in this case.
 	Data []byte
+}
+
+func (o *ReadFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	resp := bazilfuse.ReadResponse{
+		Data: o.Data,
+	}
+
+	o.r.(*bazilfuse.ReadRequest).Respond(&resp)
 }
 
 // Write data to a file previously opened with CreateFile or OpenFile.
@@ -429,7 +608,7 @@ type ReadFileOp struct {
 //     flush request.
 //
 type WriteFileOp struct {
-	Header OpHeader
+	commonOp
 
 	// The file inode that we are modifying, and the handle previously returned
 	// by CreateFile or OpenFile when opening that inode.
@@ -467,6 +646,19 @@ type WriteFileOp struct {
 	Data []byte
 }
 
+func (o *WriteFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	resp := bazilfuse.WriteResponse{
+		Size: len(o.Data),
+	}
+
+	o.r.(*bazilfuse.WriteRequest).Respond(&resp)
+}
+
 // Synchronize the current contents of an open file to storage.
 //
 // vfs.txt documents this as being called for by the fsync(2) system call
@@ -484,11 +676,20 @@ type WriteFileOp struct {
 // See also: FlushFileOp, which may perform a similar function when closing a
 // file (but which is not used in "real" file systems).
 type SyncFileOp struct {
-	Header OpHeader
+	commonOp
 
 	// The file and handle being sync'd.
 	Inode  InodeID
 	Handle HandleID
+}
+
+func (o *SyncFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	o.r.(*bazilfuse.FsyncRequest).Respond()
 }
 
 // Flush the current state of an open file to storage upon closing a file
@@ -539,11 +740,20 @@ type SyncFileOp struct {
 // to at least schedule a real flush, and maybe do it immediately in order to
 // return any errors that occur.
 type FlushFileOp struct {
-	Header OpHeader
+	commonOp
 
 	// The file and handle being flushed.
 	Inode  InodeID
 	Handle HandleID
+}
+
+func (o *FlushFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	o.r.(*bazilfuse.FlushRequest).Respond()
 }
 
 // Release a previously-minted file handle. The kernel calls this when there
@@ -553,10 +763,19 @@ type FlushFileOp struct {
 // The kernel guarantees that the handle ID will not be used in further calls
 // to the file system (unless it is reissued by the file system).
 type ReleaseFileHandleOp struct {
-	Header OpHeader
+	commonOp
 
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	Handle HandleID
+}
+
+func (o *ReleaseFileHandleOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	o.r.(*bazilfuse.ReleaseRequest).Respond()
 }
