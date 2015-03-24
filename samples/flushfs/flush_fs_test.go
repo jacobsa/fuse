@@ -583,9 +583,10 @@ func (t *NoErrorsTest) Mmap_NoMsync_MunmapBeforeClose() {
 	AssertEq(nil, err)
 	AssertEq("taco", string(data))
 
-	// Modify then unmap.
+	// Modify the contents.
 	data[0] = 'p'
 
+	// Unmap.
 	err = syscall.Munmap(data)
 	AssertEq(nil, err)
 
@@ -650,7 +651,50 @@ func (t *NoErrorsTest) Mmap_NoMsync_CloseBeforeMunmap() {
 }
 
 func (t *NoErrorsTest) Mmap_WithMsync_MunmapBeforeClose() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// Write some contents to the file.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// mmap the file.
+	data, err := syscall.Mmap(
+		int(t.f1.Fd()), 0, 4,
+		syscall.PROT_READ|syscall.PROT_WRITE,
+		syscall.MAP_SHARED)
+
+	AssertEq(nil, err)
+	AssertEq("taco", string(data))
+
+	// Modify the contents.
+	data[0] = 'p'
+
+	// msync. This causes a write, but not a flush.
+	ExpectThat(t.getFlushes(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre())
+
+	// Unmap. Again, this does not cause a flush.
+	err = syscall.Munmap(data)
+	AssertEq(nil, err)
+
+	ExpectThat(t.getFlushes(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre())
+
+	// Close the file. We should now see a flush with the modified contents, even
+	// on OS X, which works differently from Linux with regard to flushing dirty
+	// pages (cf. https://github.com/osxfuse/osxfuse/issues/202).
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+
+	ExpectThat(t.getFlushes(), ElementsAre("paco"))
+	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
 func (t *NoErrorsTest) Mmap_WithMsync_CloseBeforeMunmap() {
