@@ -79,7 +79,7 @@ func NewCachingFS(
 	cfs := &cachingFS{
 		lookupEntryTimeout: lookupEntryTimeout,
 		getattrTimeout:     getattrTimeout,
-		baseID:             roundUp(fuse.RootInodeID + 1),
+		baseID:             roundUp(fuseops.RootInodeID + 1),
 		mtime:              time.Now(),
 	}
 
@@ -114,7 +114,7 @@ type cachingFS struct {
 
 	// The current ID of the lowest numbered non-root inode.
 	//
-	// INVARIANT: baseID > fuse.RootInodeID
+	// INVARIANT: baseID > fuseops.RootInodeID
 	// INVARIANT: baseID % numInodes == 0
 	//
 	// GUARDED_BY(mu)
@@ -129,9 +129,9 @@ type cachingFS struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *cachingFS) checkInvariants() {
-	// INVARIANT: baseID > fuse.RootInodeID
+	// INVARIANT: baseID > fuseops.RootInodeID
 	// INVARIANT: baseID % numInodes == 0
-	if fs.baseID <= fuse.RootInodeID || fs.baseID%numInodes != 0 {
+	if fs.baseID <= fuseops.RootInodeID || fs.baseID%numInodes != 0 {
 		panic(fmt.Sprintf("Bad baseID: %v", fs.baseID))
 	}
 }
@@ -233,14 +233,11 @@ func (fs *cachingFS) SetMtime(mtime time.Time) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// FileSystem methods
+// Op methods
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *cachingFS) Init(
-	ctx context.Context,
-	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
-	resp = &fuse.InitResponse{}
-	return
+func (fs *cachingFS) init(op *fuseops.InitOp) {
+	op.Respond(nil)
 }
 
 // LOCKS_EXCLUDED(fs.mu)
@@ -259,7 +256,7 @@ func (fs *cachingFS) LookUpInode(
 	switch req.Name {
 	case "foo":
 		// Parent must be the root.
-		if req.Parent != fuse.RootInodeID {
+		if req.Parent != fuseops.RootInodeID {
 			err = fuse.ENOENT
 			return
 		}
@@ -269,7 +266,7 @@ func (fs *cachingFS) LookUpInode(
 
 	case "dir":
 		// Parent must be the root.
-		if req.Parent != fuse.RootInodeID {
+		if req.Parent != fuseops.RootInodeID {
 			err = fuse.ENOENT
 			return
 		}
@@ -279,7 +276,7 @@ func (fs *cachingFS) LookUpInode(
 
 	case "bar":
 		// Parent must be dir.
-		if req.Parent == fuse.RootInodeID || req.Parent%numInodes != dirOffset {
+		if req.Parent == fuseops.RootInodeID || req.Parent%numInodes != dirOffset {
 			err = fuse.ENOENT
 			return
 		}
@@ -314,7 +311,7 @@ func (fs *cachingFS) GetInodeAttributes(
 	var attrs fuseops.InodeAttributes
 
 	switch {
-	case req.Inode == fuse.RootInodeID:
+	case req.Inode == fuseops.RootInodeID:
 		attrs = fs.rootAttrs()
 
 	case req.Inode%numInodes == fooOffset:
