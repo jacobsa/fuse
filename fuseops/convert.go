@@ -49,12 +49,27 @@ type commonOp struct {
 	r   bazilfuse.Request
 }
 
-func (o *commonOp) init(r bazilfuse.Request)
+func (o *commonOp) init(r bazilfuse.Request) {
+	o.ctx = context.Background()
+	o.r = r
+}
 
-func (o *commonOp) Header() OpHeader
+func (o *commonOp) Header() OpHeader {
+	bh := o.r.Hdr()
+	return OpHeader{
+		Uid: bh.Uid,
+		Gid: bh.Gid,
+	}
+}
 
 func (o *commonOp) Context() context.Context {
 	return o.ctx
 }
 
-func (o *commonOp) Respond(err error)
+func (o *commonOp) Respond(err error) {
+	if err != nil {
+		panic("Expect non-nil here.")
+	}
+
+	o.r.RespondError(err)
+}
