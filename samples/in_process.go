@@ -18,8 +18,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
-	"strings"
+	"os"
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
@@ -55,8 +54,8 @@ type SampleTest struct {
 	mfs *fuse.MountedFileSystem
 }
 
-// Mount the supplied file system and initialize the other exported fields of
-// the struct. Panics on error.
+// Mount t.FileSystem and initialize the other exported fields of the struct.
+// Panics on error.
 //
 // REQUIRES: t.FileSystem has been set.
 func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
@@ -66,7 +65,7 @@ func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
 	}
 }
 
-// Like Initialize, but doens't panic.
+// Like SetUp, but doens't panic.
 func (t *SampleTest) initialize(
 	fs fuse.FileSystem,
 	config *fuse.MountConfig) (err error) {
@@ -90,7 +89,7 @@ func (t *SampleTest) initialize(
 		return
 	}
 
-	// Wait for it to be read.
+	// Wait for it to be ready.
 	err = t.mfs.WaitForReady(t.Ctx)
 	if err != nil {
 		err = fmt.Errorf("WaitForReady: %v", err)
@@ -124,27 +123,16 @@ func (t *SampleTest) destroy() (err error) {
 		return
 	}
 
-	// Unmount the file system. Try again on "resource busy" errors.
-	delay := 10 * time.Millisecond
-	for {
-		err = t.mfs.Unmount()
-		if err == nil {
-			break
-		}
-
-		if strings.Contains(err.Error(), "resource busy") {
-			log.Println("Resource busy error while unmounting; trying again")
-			time.Sleep(delay)
-			delay = time.Duration(1.3 * float64(delay))
-			continue
-		}
-
-		err = fmt.Errorf("MountedFileSystem.Unmount: %v", err)
+	// Unmount the file system.
+	err = unmount(t.Dir)
+	if err != nil {
+		err = fmt.Errorf("unmount: %v", err)
 		return
 	}
 
-	if err = t.mfs.Join(t.Ctx); err != nil {
-		err = fmt.Errorf("MountedFileSystem.Join: %v", err)
+	// Unlink the mount point.
+	if err = os.Remove(t.Dir); err != nil {
+		err = fmt.Errorf("Unlinking mount point: %v", err)
 		return
 	}
 

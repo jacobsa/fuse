@@ -15,18 +15,19 @@
 package flushfs_test
 
 import (
+	"bufio"
+	"encoding/hex"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
-	"sync"
 	"syscall"
 	"testing"
 
-	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/bazilfuse"
+	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/fuse/samples"
-	"github.com/jacobsa/fuse/samples/flushfs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -37,54 +38,59 @@ func TestFlushFS(t *testing.T) { RunTests(t) }
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
-type FlushFSTest struct {
-	samples.SampleTest
+type flushFSTest struct {
+	samples.SubprocessTest
+
+	// Files to which mount_sample is writing reported flushes and fsyncs.
+	flushes *os.File
+	fsyncs  *os.File
 
 	// File handles that are closed in TearDown if non-nil.
 	f1 *os.File
 	f2 *os.File
-
-	mu sync.Mutex
-
-	// GUARDED_BY(mu)
-	flushes  []string
-	flushErr error
-
-	// GUARDED_BY(mu)
-	fsyncs   []string
-	fsyncErr error
 }
 
-func init() { RegisterTestSuite(&FlushFSTest{}) }
-
-func (t *FlushFSTest) SetUp(ti *TestInfo) {
+func (t *flushFSTest) setUp(
+	ti *TestInfo,
+	flushErr bazilfuse.Errno,
+	fsyncErr bazilfuse.Errno) {
 	var err error
 
-	// Set up a file system.
-	reportTo := func(slice *[]string, err *error) func(string) error {
-		return func(s string) error {
-			t.mu.Lock()
-			defer t.mu.Unlock()
+	// Set up files to receive flush and fsync reports.
+	t.flushes, err = fsutil.AnonymousFile("")
+	AssertEq(nil, err)
 
-			*slice = append(*slice, s)
-			return *err
-		}
+	t.fsyncs, err = fsutil.AnonymousFile("")
+	AssertEq(nil, err)
+
+	// Set up test config.
+	t.MountType = "flushfs"
+	t.MountFlags = []string{
+		"--flushfs.flush_error",
+		fmt.Sprintf("%d", int(flushErr)),
+
+		"--flushfs.fsync_error",
+		fmt.Sprintf("%d", int(fsyncErr)),
 	}
 
-	t.FileSystem, err = flushfs.NewFileSystem(
-		reportTo(&t.flushes, &t.flushErr),
-		reportTo(&t.fsyncs, &t.fsyncErr))
-
-	if err != nil {
-		panic(err)
+	t.MountFiles = map[string]*os.File{
+		"flushfs.flushes_file": t.flushes,
+		"flushfs.fsyncs_file":  t.fsyncs,
 	}
 
-	// Mount it.
-	t.SampleTest.SetUp(ti)
+	t.SubprocessTest.SetUp(ti)
 }
 
-func (t *FlushFSTest) TearDown() {
-	// Close files if non-nil.
+func (t *flushFSTest) TearDown() {
+	// Unlink reporting files.
+	os.Remove(t.flushes.Name())
+	os.Remove(t.fsyncs.Name())
+
+	// Close reporting files.
+	t.flushes.Close()
+	t.fsyncs.Close()
+
+	// Close test files if non-nil.
 	if t.f1 != nil {
 		ExpectEq(nil, t.f1.Close())
 	}
@@ -94,51 +100,64 @@ func (t *FlushFSTest) TearDown() {
 	}
 
 	// Finish tearing down.
-	t.SampleTest.TearDown()
+	t.SubprocessTest.TearDown()
 }
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-// Return a copy of the current contents of t.flushes.
-//
-// LOCKS_EXCLUDED(t.mu)
-func (t *FlushFSTest) getFlushes() (p []string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+func readReports(f *os.File) (reports []string, err error) {
+	// Seek the file to the start.
+	_, err = f.Seek(0, 0)
+	if err != nil {
+		err = fmt.Errorf("Seek: %v", err)
+		return
+	}
 
-	p = make([]string, len(t.flushes))
-	copy(p, t.flushes)
+	// We expect reports to end in a newline (including the final one).
+	reader := bufio.NewReader(f)
+	for {
+		var record []byte
+		record, err = reader.ReadBytes('\n')
+		if err == io.EOF {
+			if len(record) != 0 {
+				err = fmt.Errorf("Unexpected record:\n%s", hex.Dump(record))
+				return
+			}
+
+			err = nil
+			return
+		}
+
+		if err != nil {
+			err = fmt.Errorf("ReadBytes: %v", err)
+			return
+		}
+
+		// Strip the newline.
+		reports = append(reports, string(record[:len(record)-1]))
+	}
+}
+
+// Return a copy of the current contents of t.flushes.
+func (t *flushFSTest) getFlushes() (p []string) {
+	var err error
+	if p, err = readReports(t.flushes); err != nil {
+		panic(err)
+	}
+
 	return
 }
 
 // Return a copy of the current contents of t.fsyncs.
-//
-// LOCKS_EXCLUDED(t.mu)
-func (t *FlushFSTest) getFsyncs() (p []string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+func (t *flushFSTest) getFsyncs() (p []string) {
+	var err error
+	if p, err = readReports(t.fsyncs); err != nil {
+		panic(err)
+	}
 
-	p = make([]string, len(t.fsyncs))
-	copy(p, t.fsyncs)
 	return
-}
-
-// LOCKS_EXCLUDED(t.mu)
-func (t *FlushFSTest) setFlushError(err error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	t.flushErr = err
-}
-
-// LOCKS_EXCLUDED(t.mu)
-func (t *FlushFSTest) setFsyncError(err error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	t.fsyncErr = err
 }
 
 // Like syscall.Dup2, but correctly annotates the syscall as blocking. See here
@@ -155,10 +174,21 @@ func dup2(oldfd int, newfd int) (err error) {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Tests
+// No errors
 ////////////////////////////////////////////////////////////////////////
 
-func (t *FlushFSTest) CloseReports_ReadWrite() {
+type NoErrorsTest struct {
+	flushFSTest
+}
+
+func init() { RegisterTestSuite(&NoErrorsTest{}) }
+
+func (t *NoErrorsTest) SetUp(ti *TestInfo) {
+	const noErr = 0
+	t.flushFSTest.setUp(ti, noErr, noErr)
+}
+
+func (t *NoErrorsTest) Close_ReadWrite() {
 	var n int
 	var off int64
 	var err error
@@ -196,7 +226,7 @@ func (t *FlushFSTest) CloseReports_ReadWrite() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) CloseReports_ReadOnly() {
+func (t *NoErrorsTest) Close_ReadOnly() {
 	var err error
 
 	// Open the file.
@@ -217,7 +247,7 @@ func (t *FlushFSTest) CloseReports_ReadOnly() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) CloseReports_WriteOnly() {
+func (t *NoErrorsTest) Close_WriteOnly() {
 	var n int
 	var err error
 
@@ -244,7 +274,7 @@ func (t *FlushFSTest) CloseReports_WriteOnly() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
+func (t *NoErrorsTest) Close_MultipleTimes_NonOverlappingFileHandles() {
 	var n int
 	var err error
 
@@ -291,7 +321,7 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_NonOverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
+func (t *NoErrorsTest) Close_MultipleTimes_OverlappingFileHandles() {
 	var n int
 	var err error
 
@@ -340,25 +370,7 @@ func (t *FlushFSTest) CloseReports_MultipleTimes_OverlappingFileHandles() {
 	AssertThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) CloseError() {
-	var err error
-
-	// Open the file.
-	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
-	AssertEq(nil, err)
-
-	// Configure a flush error.
-	t.setFlushError(fuse.ENOENT)
-
-	// Close the file.
-	err = t.f1.Close()
-	t.f1 = nil
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("no such file")))
-}
-
-func (t *FlushFSTest) FsyncReports() {
+func (t *NoErrorsTest) Fsync() {
 	var n int
 	var err error
 
@@ -397,24 +409,7 @@ func (t *FlushFSTest) FsyncReports() {
 	AssertThat(t.getFsyncs(), ElementsAre("taco", "tacos"))
 }
 
-func (t *FlushFSTest) FsyncError() {
-	var err error
-
-	// Open the file.
-	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
-	AssertEq(nil, err)
-
-	// Configure an fsync error.
-	t.setFsyncError(fuse.ENOENT)
-
-	// Fsync.
-	err = t.f1.Sync()
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("no such file")))
-}
-
-func (t *FlushFSTest) Dup() {
+func (t *NoErrorsTest) Dup() {
 	var n int
 	var err error
 
@@ -478,46 +473,7 @@ func (t *FlushFSTest) Dup() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) Dup_FlushError() {
-	var err error
-
-	// Open the file.
-	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
-	AssertEq(nil, err)
-
-	fd1 := t.f1.Fd()
-
-	// Use dup(2) to get another copy.
-	fd2, err := syscall.Dup(int(fd1))
-	AssertEq(nil, err)
-
-	t.f2 = os.NewFile(uintptr(fd2), t.f1.Name())
-
-	// Configure a flush error.
-	t.setFlushError(fuse.ENOENT)
-
-	// Close by the first handle. On OS X, where the semantics of file handles
-	// are different (cf. https://github.com/osxfuse/osxfuse/issues/199), this
-	// does not result in an error.
-	err = t.f1.Close()
-	t.f1 = nil
-
-	if runtime.GOOS == "darwin" {
-		AssertEq(nil, err)
-	} else {
-		AssertNe(nil, err)
-		ExpectThat(err, Error(HasSubstr("no such file")))
-	}
-
-	// Close by the second handle.
-	err = t.f2.Close()
-	t.f2 = nil
-
-	AssertNe(nil, err)
-	ExpectThat(err, Error(HasSubstr("no such file")))
-}
-
-func (t *FlushFSTest) Dup2() {
+func (t *NoErrorsTest) Dup2() {
 	var n int
 	var err error
 
@@ -530,11 +486,8 @@ func (t *FlushFSTest) Dup2() {
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
-	// Open and unlink some temporary file.
-	t.f2, err = ioutil.TempFile("", "")
-	AssertEq(nil, err)
-
-	err = os.Remove(t.f2.Name())
+	// Create some anonymous temporary file.
+	t.f2, err = fsutil.AnonymousFile("")
 	AssertEq(nil, err)
 
 	// Duplicate the temporary file descriptor on top of the file from our file
@@ -546,30 +499,7 @@ func (t *FlushFSTest) Dup2() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) Dup2_FlushError() {
-	var err error
-
-	// Open the file.
-	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
-	AssertEq(nil, err)
-
-	// Open and unlink some temporary file.
-	t.f2, err = ioutil.TempFile("", "")
-	AssertEq(nil, err)
-
-	err = os.Remove(t.f2.Name())
-	AssertEq(nil, err)
-
-	// Configure a flush error.
-	t.setFlushError(fuse.ENOENT)
-
-	// Duplicate the temporary file descriptor on top of the file from our file
-	// system. We shouldn't see the flush error.
-	err = dup2(int(t.f2.Fd()), int(t.f1.Fd()))
-	ExpectEq(nil, err)
-}
-
-func (t *FlushFSTest) Mmap_MunmapBeforeClose() {
+func (t *NoErrorsTest) Mmap_MunmapBeforeClose() {
 	var n int
 	var err error
 
@@ -629,7 +559,7 @@ func (t *FlushFSTest) Mmap_MunmapBeforeClose() {
 	}
 }
 
-func (t *FlushFSTest) Mmap_CloseBeforeMunmap() {
+func (t *NoErrorsTest) Mmap_CloseBeforeMunmap() {
 	var n int
 	var err error
 
@@ -683,6 +613,118 @@ func (t *FlushFSTest) Mmap_CloseBeforeMunmap() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *FlushFSTest) Directory() {
+func (t *NoErrorsTest) Directory() {
 	AssertTrue(false, "TODO")
+}
+
+////////////////////////////////////////////////////////////////////////
+// Flush error
+////////////////////////////////////////////////////////////////////////
+
+type FlushErrorTest struct {
+	flushFSTest
+}
+
+func init() { RegisterTestSuite(&FlushErrorTest{}) }
+
+func (t *FlushErrorTest) SetUp(ti *TestInfo) {
+	const noErr = 0
+	t.flushFSTest.setUp(ti, bazilfuse.ENOENT, noErr)
+}
+
+func (t *FlushErrorTest) Close() {
+	var err error
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// Close the file.
+	err = t.f1.Close()
+	t.f1 = nil
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+}
+
+func (t *FlushErrorTest) Dup() {
+	var err error
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	fd1 := t.f1.Fd()
+
+	// Use dup(2) to get another copy.
+	fd2, err := syscall.Dup(int(fd1))
+	AssertEq(nil, err)
+
+	t.f2 = os.NewFile(uintptr(fd2), t.f1.Name())
+
+	// Close by the first handle. On OS X, where the semantics of file handles
+	// are different (cf. https://github.com/osxfuse/osxfuse/issues/199), this
+	// does not result in an error.
+	err = t.f1.Close()
+	t.f1 = nil
+
+	if runtime.GOOS == "darwin" {
+		AssertEq(nil, err)
+	} else {
+		AssertNe(nil, err)
+		ExpectThat(err, Error(HasSubstr("no such file")))
+	}
+
+	// Close by the second handle.
+	err = t.f2.Close()
+	t.f2 = nil
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+}
+
+func (t *FlushErrorTest) Dup2() {
+	var err error
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	// Create some anonymous temporary file.
+	t.f2, err = fsutil.AnonymousFile("")
+	AssertEq(nil, err)
+
+	// Duplicate the temporary file descriptor on top of the file from our file
+	// system. We shouldn't see the flush error.
+	err = dup2(int(t.f2.Fd()), int(t.f1.Fd()))
+	ExpectEq(nil, err)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Fsync  error
+////////////////////////////////////////////////////////////////////////
+
+type FsyncErrorTest struct {
+	flushFSTest
+}
+
+func init() { RegisterTestSuite(&FsyncErrorTest{}) }
+
+func (t *FsyncErrorTest) SetUp(ti *TestInfo) {
+	const noErr = 0
+	t.flushFSTest.setUp(ti, noErr, bazilfuse.ENOENT)
+}
+
+func (t *FsyncErrorTest) Fsync() {
+	var err error
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// Fsync.
+	err = t.f1.Sync()
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
