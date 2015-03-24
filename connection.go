@@ -60,6 +60,8 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			return
 		}
 
+		c.logger.Printf("Received: %v", bfReq)
+
 		// Special case: responding to this is required to make mounting work on OS
 		// X. We don't currently expose the capability for the file system to
 		// intercept this.
