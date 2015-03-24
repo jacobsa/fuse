@@ -176,13 +176,14 @@ func dup2(oldfd int, newfd int) (err error) {
 	return
 }
 
-// Call msync(2) on a slice previously returned by mmap(2).
+// Call msync(2) with the MS_SYNC flag on a slice previously returned by
+// mmap(2).
 func msync(p []byte) (err error) {
 	_, _, errno := unix.Syscall(
 		unix.SYS_MSYNC,
 		uintptr(unsafe.Pointer(&p[0])),
 		uintptr(len(p)),
-		0)
+		unix.MS_SYNC)
 
 	if errno != 0 {
 		err = errno
