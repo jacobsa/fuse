@@ -218,9 +218,12 @@ type FileSystem interface {
 	//
 	//  *  (http://goo.gl/IQkWZa) sys_fsync calls do_fsync, calls vfs_fsync, calls
 	//     vfs_fsync_range.
+	//
 	//  *  (http://goo.gl/5L2SMy) vfs_fsync_range calls f_op->fsync.
 	//
-	// Note that this is also called by fdatasync(2) (cf. http://goo.gl/01R7rF).
+	// Note that this is also called by fdatasync(2) (cf. http://goo.gl/01R7rF),
+	// and may be called for msync(2) with the MS_SYNC flag (see the notes on
+	// FlushFile).
 	//
 	// See also: FlushFile, which may perform a similar purpose when closing a
 	// file (but which is not used in "real" file systems).
