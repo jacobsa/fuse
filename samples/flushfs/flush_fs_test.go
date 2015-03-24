@@ -409,6 +409,49 @@ func (t *NoErrorsTest) Fsync() {
 	AssertThat(t.getFsyncs(), ElementsAre("taco", "tacos"))
 }
 
+func (t *NoErrorsTest) Fdatasync() {
+	var n int
+	var err error
+
+	if !fsutil.FdatasyncSupported {
+		return
+	}
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	// Write some contents to the file.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Fdatasync.
+	err = fsutil.Fdatasync(t.f1)
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre("taco"))
+
+	// Write some more contents.
+	n, err = t.f1.Write([]byte("s"))
+	AssertEq(nil, err)
+	AssertEq(1, n)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre("taco"))
+
+	// Fdatasync.
+	err = fsutil.Fdatasync(t.f1)
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre("taco", "tacos"))
+}
+
 func (t *NoErrorsTest) Dup() {
 	var n int
 	var err error
@@ -614,7 +657,29 @@ func (t *NoErrorsTest) Mmap_CloseBeforeMunmap() {
 }
 
 func (t *NoErrorsTest) Directory() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Open the directory.
+	t.f1, err = os.Open(path.Join(t.Dir, "bar"))
+	AssertEq(nil, err)
+
+	// Sanity check: stat it.
+	fi, err := t.f1.Stat()
+	AssertEq(nil, err)
+	AssertEq(0777|os.ModeDir, fi.Mode())
+
+	// Sync it.
+	err = t.f1.Sync()
+	AssertEq(nil, err)
+
+	// Close it.
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+
+	// No flushes or fsync requests should have been received.
+	ExpectThat(t.getFlushes(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -643,7 +708,6 @@ func (t *FlushErrorTest) Close() {
 	err = t.f1.Close()
 	t.f1 = nil
 
-	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
@@ -671,7 +735,6 @@ func (t *FlushErrorTest) Dup() {
 	if runtime.GOOS == "darwin" {
 		AssertEq(nil, err)
 	} else {
-		AssertNe(nil, err)
 		ExpectThat(err, Error(HasSubstr("no such file")))
 	}
 
@@ -679,7 +742,6 @@ func (t *FlushErrorTest) Dup() {
 	err = t.f2.Close()
 	t.f2 = nil
 
-	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
@@ -725,6 +787,22 @@ func (t *FsyncErrorTest) Fsync() {
 	// Fsync.
 	err = t.f1.Sync()
 
-	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+}
+
+func (t *FsyncErrorTest) Fdatasync() {
+	var err error
+
+	if !fsutil.FdatasyncSupported {
+		return
+	}
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// Fdatasync.
+	err = fsutil.Fdatasync(t.f1)
+
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }

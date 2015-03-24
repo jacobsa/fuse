@@ -48,3 +48,10 @@ func AnonymousFile(dir string) (f *os.File, err error) {
 
 	return
 }
+
+// Call fdatasync on the supplied file.
+//
+// REQUIRES: FdatasyncSupported is true.
+func Fdatasync(f *os.File) error {
+	return fdatasync(f)
+}

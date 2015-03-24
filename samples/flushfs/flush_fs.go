@@ -24,11 +24,14 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Create a file system containing a single file named "foo".
+// Create a file system whose sole contents are a file named "foo" and a
+// directory named "bar".
 //
 // The file may be opened for reading and/or writing. Its initial contents are
 // empty. Whenever a flush or fsync is received, the supplied function will be
 // called with the current contents of the file and its status returned.
+//
+// The directory cannot be modified.
 func NewFileSystem(
 	reportFlush func(string) error,
 	reportFsync func(string) error) (fs fuse.FileSystem, err error) {
@@ -40,7 +43,10 @@ func NewFileSystem(
 	return
 }
 
-const fooID = fuse.RootInodeID + 1
+const (
+	fooID = fuse.RootInodeID + 1 + iota
+	barID
+)
 
 type flushFS struct {
 	fuseutil.NotImplementedFileSystem
@@ -72,6 +78,14 @@ func (fs *flushFS) fooAttributes() fuse.InodeAttributes {
 	}
 }
 
+// LOCKS_REQUIRED(fs.mu)
+func (fs *flushFS) barAttributes() fuse.InodeAttributes {
+	return fuse.InodeAttributes{
+		Nlink: 1,
+		Mode:  0777 | os.ModeDir,
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // File system methods
 ////////////////////////////////////////////////////////////////////////
@@ -94,14 +108,28 @@ func (fs *flushFS) LookUpInode(
 	defer fs.mu.Unlock()
 
 	// Sanity check.
-	if req.Parent != fuse.RootInodeID || req.Name != "foo" {
+	if req.Parent != fuse.RootInodeID {
 		err = fuse.ENOENT
 		return
 	}
 
-	resp.Entry = fuse.ChildInodeEntry{
-		Child:      fooID,
-		Attributes: fs.fooAttributes(),
+	// Set up the entry.
+	switch req.Name {
+	case "foo":
+		resp.Entry = fuse.ChildInodeEntry{
+			Child:      fooID,
+			Attributes: fs.fooAttributes(),
+		}
+
+	case "bar":
+		resp.Entry = fuse.ChildInodeEntry{
+			Child:      barID,
+			Attributes: fs.barAttributes(),
+		}
+
+	default:
+		err = fuse.ENOENT
+		return
 	}
 
 	return
@@ -123,6 +151,10 @@ func (fs *flushFS) GetInodeAttributes(
 
 	case fooID:
 		resp.Attributes = fs.fooAttributes()
+		return
+
+	case barID:
+		resp.Attributes = fs.barAttributes()
 		return
 
 	default:
@@ -220,5 +252,23 @@ func (fs *flushFS) FlushFile(
 	defer fs.mu.Unlock()
 
 	err = fs.reportFlush(string(fs.fooContents))
+	return
+}
+
+func (fs *flushFS) OpenDir(
+	ctx context.Context,
+	req *fuse.OpenDirRequest) (
+	resp *fuse.OpenDirResponse, err error) {
+	resp = &fuse.OpenDirResponse{}
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Sanity check.
+	if req.Inode != barID {
+		err = fuse.ENOSYS
+		return
+	}
+
 	return
 }
