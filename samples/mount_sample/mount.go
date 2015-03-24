@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 
 	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse"
@@ -111,6 +112,10 @@ func getReadyFile() (f *os.File, err error) {
 
 func main() {
 	flag.Parse()
+
+	// Allow parallelism in the file system implementation, to help flush out
+	// bugs like https://github.com/jacobsa/fuse/issues/4.
+	runtime.GOMAXPROCS(2)
 
 	// Grab the file to signal when ready.
 	readyFile, err := getReadyFile()
