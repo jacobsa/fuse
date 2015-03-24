@@ -791,5 +791,15 @@ func (t *FsyncErrorTest) Fsync() {
 }
 
 func (t *FsyncErrorTest) Fdatasync() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// Fdatasync.
+	err = syscall.Fdatasync(int(t.f1.Fd()))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
