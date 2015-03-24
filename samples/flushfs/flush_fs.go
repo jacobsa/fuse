@@ -93,12 +93,18 @@ func (fs *flushFS) barAttributes() fuseops.InodeAttributes {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *flushFS) Init(
-	op *fuseops.InitOp) (err error) {
+	op *fuseops.InitOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	return
 }
 
 func (fs *flushFS) LookUpInode(
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -131,7 +137,10 @@ func (fs *flushFS) LookUpInode(
 }
 
 func (fs *flushFS) GetInodeAttributes(
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -155,7 +164,10 @@ func (fs *flushFS) GetInodeAttributes(
 }
 
 func (fs *flushFS) OpenFile(
-	op *fuseops.OpenFileOp) (err error) {
+	op *fuseops.OpenFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -169,7 +181,10 @@ func (fs *flushFS) OpenFile(
 }
 
 func (fs *flushFS) ReadFile(
-	op *fuseops.ReadFileOp) (err error) {
+	op *fuseops.ReadFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -186,7 +201,10 @@ func (fs *flushFS) ReadFile(
 }
 
 func (fs *flushFS) WriteFile(
-	op *fuseops.WriteFileOp) (err error) {
+	op *fuseops.WriteFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -209,7 +227,10 @@ func (fs *flushFS) WriteFile(
 }
 
 func (fs *flushFS) SyncFile(
-	op *fuseops.SyncFileOp) (err error) {
+	op *fuseops.SyncFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -218,7 +239,10 @@ func (fs *flushFS) SyncFile(
 }
 
 func (fs *flushFS) FlushFile(
-	op *fuseops.FlushFileOp) (err error) {
+	op *fuseops.FlushFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -227,7 +251,10 @@ func (fs *flushFS) FlushFile(
 }
 
 func (fs *flushFS) OpenDir(
-	op *fuseops.OpenDirOp) (err error) {
+	op *fuseops.OpenDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
