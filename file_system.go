@@ -245,7 +245,9 @@ type FileSystem interface {
 	// Note that one potentially significant case where this is *not* called is
 	// munmap(2) (cf. http://goo.gl/j8B9g0). Even if users close(2) after writing
 	// to an mmap'd file, on OS X the contents are not immediately flushed (cf.
-	// https://github.com/osxfuse/osxfuse/issues/202).
+	// https://github.com/osxfuse/osxfuse/issues/202). On both Linux and OS X
+	// users can get safe behavior by calling msync(2), then munmap(2), then
+	// close(2).
 	//
 	// Because of cases like dup2(2), calls to FlushFile are not necessarily one
 	// to one with calls to OpenFile. They should not be used for reference
