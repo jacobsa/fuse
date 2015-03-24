@@ -218,9 +218,12 @@ type FileSystem interface {
 	//
 	//  *  (http://goo.gl/IQkWZa) sys_fsync calls do_fsync, calls vfs_fsync, calls
 	//     vfs_fsync_range.
+	//
 	//  *  (http://goo.gl/5L2SMy) vfs_fsync_range calls f_op->fsync.
 	//
-	// Note that this is also called by fdatasync(2) (cf. http://goo.gl/01R7rF).
+	// Note that this is also called by fdatasync(2) (cf. http://goo.gl/01R7rF),
+	// and may be called for msync(2) with the MS_SYNC flag (see the notes on
+	// FlushFile).
 	//
 	// See also: FlushFile, which may perform a similar purpose when closing a
 	// file (but which is not used in "real" file systems).
@@ -242,11 +245,28 @@ type FileSystem interface {
 	// case of close(2), a flush error is returned to the user. For dup2(2), it
 	// is not.
 	//
-	// Note that one potentially significant case where this is *not* called is
-	// munmap(2). (Cf. http://goo.gl/7n1r9X, fuse-devel mailing list thread from
-	// Han-Wen Nienhuys on 2014-10-08.) Even if users close(2) after writing to
-	// an mmap'd file, on OS X the contents are not immediately flushed (cf.
-	// https://github.com/osxfuse/osxfuse/issues/202).
+	// One potentially significant case where this may not be called is mmap'd
+	// files, where the behavior is complicated:
+	//
+	//  *  munmap(2) does not cause flushes (cf. http://goo.gl/j8B9g0).
+	//
+	//  *  On OS X, if a user modifies a mapped file via the mapping before
+	//     closing the file with close(2), the WriteFile calls for the
+	//     modifications may not be received before the FlushFile request for the
+	//     close(2) (cf. http://goo.gl/kVmNcx).
+	//
+	//  *  However, even on OS X you can arrange for writes via a mapping to be
+	//     flushed by calling msync(2) followed by close(2). On OS X msync(2)
+	//     will cause a WriteFile to go through and close(2) will cause a
+	//     FlushFile as usual (cf. http://goo.gl/kVmNcx). On Linux, msync(2) does
+	//     nothing unless you set the MS_SYNC flag, in which case it causes a
+	//     SyncFile (cf. http://goo.gl/P3mErk).
+	//
+	// In summary: if you make data durable in both FlushFile and SyncFile, then
+	// your users can get safe behavior from mapped files by calling msync(2)
+	// with MS_SYNC, followed by munmap(2), followed by close(2). On Linux, the
+	// msync(2) appears to be optional because close(2) implies dirty page
+	// writeback (cf. http://goo.gl/HyzLTT).
 	//
 	// Because of cases like dup2(2), calls to FlushFile are not necessarily one
 	// to one with calls to OpenFile. They should not be used for reference

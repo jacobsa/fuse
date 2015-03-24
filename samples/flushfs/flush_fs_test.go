@@ -24,6 +24,9 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
+	"unsafe"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse/fsutil"
@@ -107,6 +110,8 @@ func (t *flushFSTest) TearDown() {
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+var isDarwin = runtime.GOOS == "darwin"
+
 func readReports(f *os.File) (reports []string, err error) {
 	// Seek the file to the start.
 	_, err = f.Seek(0, 0)
@@ -168,6 +173,23 @@ func dup2(oldfd int, newfd int) (err error) {
 
 	if e1 != 0 {
 		err = e1
+	}
+
+	return
+}
+
+// Call msync(2) with the MS_SYNC flag on a slice previously returned by
+// mmap(2).
+func msync(p []byte) (err error) {
+	_, _, errno := unix.Syscall(
+		unix.SYS_MSYNC,
+		uintptr(unsafe.Pointer(&p[0])),
+		uintptr(len(p)),
+		unix.MS_SYNC)
+
+	if errno != 0 {
+		err = errno
+		return
 	}
 
 	return
@@ -456,7 +478,6 @@ func (t *NoErrorsTest) Dup() {
 	var n int
 	var err error
 
-	isDarwin := runtime.GOOS == "darwin"
 	var expectedFlushes []interface{}
 
 	// Open the file.
@@ -542,7 +563,7 @@ func (t *NoErrorsTest) Dup2() {
 	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
-func (t *NoErrorsTest) Mmap_MunmapBeforeClose() {
+func (t *NoErrorsTest) Mmap_NoMsync_MunmapBeforeClose() {
 	var n int
 	var err error
 
@@ -564,9 +585,10 @@ func (t *NoErrorsTest) Mmap_MunmapBeforeClose() {
 	AssertEq(nil, err)
 	AssertEq("taco", string(data))
 
-	// Modify then unmap.
+	// Modify the contents.
 	data[0] = 'p'
 
+	// Unmap.
 	err = syscall.Munmap(data)
 	AssertEq(nil, err)
 
@@ -580,7 +602,7 @@ func (t *NoErrorsTest) Mmap_MunmapBeforeClose() {
 	t.f1 = nil
 	AssertEq(nil, err)
 
-	if runtime.GOOS == "darwin" {
+	if isDarwin {
 		ExpectThat(t.getFlushes(), ElementsAre("taco"))
 		ExpectThat(t.getFsyncs(), ElementsAre())
 	} else {
@@ -589,7 +611,7 @@ func (t *NoErrorsTest) Mmap_MunmapBeforeClose() {
 	}
 }
 
-func (t *NoErrorsTest) Mmap_CloseBeforeMunmap() {
+func (t *NoErrorsTest) Mmap_NoMsync_CloseBeforeMunmap() {
 	var n int
 	var err error
 
@@ -619,15 +641,127 @@ func (t *NoErrorsTest) Mmap_CloseBeforeMunmap() {
 	AssertThat(t.getFlushes(), ElementsAre("taco"))
 	AssertThat(t.getFsyncs(), ElementsAre())
 
-	// Modify then unmap.
+	// Modify the contents.
 	data[0] = 'p'
 
+	// Unmap.
 	err = syscall.Munmap(data)
 	AssertEq(nil, err)
 
 	// munmap does not cause a flush.
 	ExpectThat(t.getFlushes(), ElementsAre("taco"))
 	ExpectThat(t.getFsyncs(), ElementsAre())
+}
+
+func (t *NoErrorsTest) Mmap_WithMsync_MunmapBeforeClose() {
+	var n int
+	var err error
+
+	var expectedFsyncs []interface{}
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// Write some contents to the file.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// mmap the file.
+	data, err := syscall.Mmap(
+		int(t.f1.Fd()), 0, 4,
+		syscall.PROT_READ|syscall.PROT_WRITE,
+		syscall.MAP_SHARED)
+
+	AssertEq(nil, err)
+	AssertEq("taco", string(data))
+
+	// Modify the contents.
+	data[0] = 'p'
+
+	// msync. This causes an fsync, except on OS X (cf.
+	// https://github.com/osxfuse/osxfuse/issues/202).
+	err = msync(data)
+	ExpectEq(nil, err)
+
+	if !isDarwin {
+		expectedFsyncs = append(expectedFsyncs, "paco")
+	}
+
+	ExpectThat(t.getFlushes(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre(expectedFsyncs...))
+
+	// Unmap. This does not cause anything.
+	err = syscall.Munmap(data)
+	AssertEq(nil, err)
+
+	ExpectThat(t.getFlushes(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre(expectedFsyncs...))
+
+	// Close the file. We should now see a flush with the modified contents, even
+	// on OS X.
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+
+	ExpectThat(t.getFlushes(), ElementsAre("paco"))
+	ExpectThat(t.getFsyncs(), ElementsAre(expectedFsyncs...))
+}
+
+func (t *NoErrorsTest) Mmap_WithMsync_CloseBeforeMunmap() {
+	var n int
+	var err error
+
+	var expectedFsyncs []interface{}
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// Write some contents to the file.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	// mmap the file.
+	data, err := syscall.Mmap(
+		int(t.f1.Fd()), 0, 4,
+		syscall.PROT_READ|syscall.PROT_WRITE,
+		syscall.MAP_SHARED)
+
+	AssertEq(nil, err)
+	AssertEq("taco", string(data))
+
+	// Close the file. We should see a flush.
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre("taco"))
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Modify the contents.
+	data[0] = 'p'
+
+	// msync. This causes an fsync, except on OS X (cf.
+	// https://github.com/osxfuse/osxfuse/issues/202).
+	err = msync(data)
+	ExpectEq(nil, err)
+
+	if !isDarwin {
+		expectedFsyncs = append(expectedFsyncs, "paco")
+	}
+
+	ExpectThat(t.getFlushes(), ElementsAre("taco"))
+	ExpectThat(t.getFsyncs(), ElementsAre(expectedFsyncs...))
+
+	// Unmap. Again, this does not cause a flush.
+	err = syscall.Munmap(data)
+	AssertEq(nil, err)
+
+	ExpectThat(t.getFlushes(), ElementsAre("taco"))
+	ExpectThat(t.getFsyncs(), ElementsAre(expectedFsyncs...))
 }
 
 func (t *NoErrorsTest) Directory() {
@@ -706,7 +840,7 @@ func (t *FlushErrorTest) Dup() {
 	err = t.f1.Close()
 	t.f1 = nil
 
-	if runtime.GOOS == "darwin" {
+	if isDarwin {
 		AssertEq(nil, err)
 	} else {
 		ExpectThat(err, Error(HasSubstr("no such file")))
@@ -779,4 +913,33 @@ func (t *FsyncErrorTest) Fdatasync() {
 	err = fsutil.Fdatasync(t.f1)
 
 	ExpectThat(err, Error(HasSubstr("no such file")))
+}
+
+func (t *FsyncErrorTest) Msync() {
+	var err error
+
+	// On OS X, msync does not cause SyncFile.
+	if isDarwin {
+		return
+	}
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_RDWR, 0)
+	AssertEq(nil, err)
+
+	// mmap the file.
+	data, err := syscall.Mmap(
+		int(t.f1.Fd()), 0, 4,
+		syscall.PROT_READ|syscall.PROT_WRITE,
+		syscall.MAP_SHARED)
+
+	AssertEq(nil, err)
+
+	// msync the mapping.
+	err = msync(data)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+
+	// Unmap.
+	err = syscall.Munmap(data)
+	AssertEq(nil, err)
 }
