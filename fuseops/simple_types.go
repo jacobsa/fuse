@@ -126,7 +126,7 @@ type HandleID uint64
 type DirOffset uint64
 
 // A header that is included with every op.
-type Header struct {
+type OpHeader struct {
 	// Credentials information for the process making the request.
 	Uid uint32
 	Gid uint32
