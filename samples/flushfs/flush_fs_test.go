@@ -614,7 +614,29 @@ func (t *NoErrorsTest) Mmap_CloseBeforeMunmap() {
 }
 
 func (t *NoErrorsTest) Directory() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Open the directory.
+	t.f1, err = os.Open(path.Join(t.Dir, "bar"))
+	AssertEq(nil, err)
+
+	// Sanity check: stat it.
+	fi, err := t.f1.Stat()
+	AssertEq(nil, err)
+	AssertEq(0777|os.ModeDir, fi.Mode())
+
+	// Sync it.
+	err = t.f1.Sync()
+	AssertEq(nil, err)
+
+	// Close it.
+	err = t.f1.Close()
+	t.f1 = nil
+	AssertEq(nil, err)
+
+	// No flushes or fsync requests should have been received.
+	ExpectThat(t.getFlushes(), ElementsAre())
+	ExpectThat(t.getFsyncs(), ElementsAre())
 }
 
 ////////////////////////////////////////////////////////////////////////
