@@ -36,7 +36,8 @@ func Convert(r bazilfuse.Request) (o Op) {
 		co = &to.commonOp
 
 	default:
-		panic("TODO")
+		co = &commonOp{}
+		o = co
 	}
 
 	co.init(r)
