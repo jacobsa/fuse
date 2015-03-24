@@ -26,37 +26,65 @@ import (
 // loop" that switches on op types, instead receiving typed method calls
 // directly.
 //
-// Each method should fill in appropriate response fields for the supplied op
-// and return an error status, but not call Repand.
+// Each method is responsible for calling Respond on the supplied op.
 //
 // See NotImplementedFileSystem for a convenient way to embed default
 // implementations for methods you don't care about.
 type FileSystem interface {
-	Init(*fuseops.InitOp) error
-	LookUpInode(*fuseops.LookUpInodeOp) error
-	GetInodeAttributes(*fuseops.GetInodeAttributesOp) error
-	SetInodeAttributes(*fuseops.SetInodeAttributesOp) error
-	ForgetInode(*fuseops.ForgetInodeOp) error
-	MkDir(*fuseops.MkDirOp) error
-	CreateFile(*fuseops.CreateFileOp) error
-	RmDir(*fuseops.RmDirOp) error
-	Unlink(*fuseops.UnlinkOp) error
-	OpenDir(*fuseops.OpenDirOp) error
-	ReadDir(*fuseops.ReadDirOp) error
-	ReleaseDirHandle(*fuseops.ReleaseDirHandleOp) error
-	OpenFile(*fuseops.OpenFileOp) error
-	ReadFile(*fuseops.ReadFileOp) error
-	WriteFile(*fuseops.WriteFileOp) error
-	SyncFile(*fuseops.SyncFileOp) error
-	FlushFile(*fuseops.FlushFileOp) error
-	ReleaseFileHandle(*fuseops.ReleaseFileHandleOp) error
+	Init(*fuseops.InitOp)
+	LookUpInode(*fuseops.LookUpInodeOp)
+	GetInodeAttributes(*fuseops.GetInodeAttributesOp)
+	SetInodeAttributes(*fuseops.SetInodeAttributesOp)
+	ForgetInode(*fuseops.ForgetInodeOp)
+	MkDir(*fuseops.MkDirOp)
+	CreateFile(*fuseops.CreateFileOp)
+	RmDir(*fuseops.RmDirOp)
+	Unlink(*fuseops.UnlinkOp)
+	OpenDir(*fuseops.OpenDirOp)
+	ReadDir(*fuseops.ReadDirOp)
+	ReleaseDirHandle(*fuseops.ReleaseDirHandleOp)
+	OpenFile(*fuseops.OpenFileOp)
+	ReadFile(*fuseops.ReadFileOp)
+	WriteFile(*fuseops.WriteFileOp)
+	SyncFile(*fuseops.SyncFileOp)
+	FlushFile(*fuseops.FlushFileOp)
+	ReleaseFileHandle(*fuseops.ReleaseFileHandleOp)
 }
 
-// Create a fuse.Server that serves ops by calling the associated FileSystem
-// method and then calling Op.Respond with the resulting error. Unsupported ops
-// are responded to directly with ENOSYS.
+// Create a fuse.Server that handles ops by calling the associated FileSystem
+// method.Respond with the resulting error. Unsupported ops are responded to
+// directly with ENOSYS.
+//
+// FileSystem methods are called ine exactly the order of supported ops
+// received by the connection, on a single goroutine. The methods should
+// probably not block, instead continuing long-running operations in the
+// background. Note however that there are subtleties here: for example, you
+// probably want to serialize the order of write and flush operations.
 func NewFileSystemServer(fs FileSystem) fuse.Server {
 	return fileSystemServer{fs}
+}
+
+// A convenience function that makes it easy to ensure you respond to an
+// operation when a FileSystem method returns. Responds to op with the current
+// value of *err.
+//
+// For example:
+//
+//     func (fs *myFS) ReadFile(op *fuseops.ReadFileOp) {
+//       var err error
+//       defer fuseutil.RespondToOp(op, &err)
+//
+//       if err = fs.frobnicate(); err != nil {
+//         err = fmt.Errorf("frobnicate: %v", err)
+//         return
+//       }
+//
+//       // Lots more manipulation of err, and return paths.
+//       // [...]
+//     }
+//
+func RespondToOp(op fuseops.Op, err *error) {
+	op.Respond(*err)
 }
 
 type fileSystemServer struct {
@@ -79,58 +107,58 @@ func (s fileSystemServer) ServeOps(c *fuse.Connection) {
 			op.Respond(fuse.ENOSYS)
 
 		case *fuseops.InitOp:
-			op.Respond(s.fs.Init(typed))
+			s.fs.Init(typed)
 
 		case *fuseops.LookUpInodeOp:
-			op.Respond(s.fs.LookUpInode(typed))
+			s.fs.LookUpInode(typed)
 
 		case *fuseops.GetInodeAttributesOp:
-			op.Respond(s.fs.GetInodeAttributes(typed))
+			s.fs.GetInodeAttributes(typed)
 
 		case *fuseops.SetInodeAttributesOp:
-			op.Respond(s.fs.SetInodeAttributes(typed))
+			s.fs.SetInodeAttributes(typed)
 
 		case *fuseops.ForgetInodeOp:
-			op.Respond(s.fs.ForgetInode(typed))
+			s.fs.ForgetInode(typed)
 
 		case *fuseops.MkDirOp:
-			op.Respond(s.fs.MkDir(typed))
+			s.fs.MkDir(typed)
 
 		case *fuseops.CreateFileOp:
-			op.Respond(s.fs.CreateFile(typed))
+			s.fs.CreateFile(typed)
 
 		case *fuseops.RmDirOp:
-			op.Respond(s.fs.RmDir(typed))
+			s.fs.RmDir(typed)
 
 		case *fuseops.UnlinkOp:
-			op.Respond(s.fs.Unlink(typed))
+			s.fs.Unlink(typed)
 
 		case *fuseops.OpenDirOp:
-			op.Respond(s.fs.OpenDir(typed))
+			s.fs.OpenDir(typed)
 
 		case *fuseops.ReadDirOp:
-			op.Respond(s.fs.ReadDir(typed))
+			s.fs.ReadDir(typed)
 
 		case *fuseops.ReleaseDirHandleOp:
-			op.Respond(s.fs.ReleaseDirHandle(typed))
+			s.fs.ReleaseDirHandle(typed)
 
 		case *fuseops.OpenFileOp:
-			op.Respond(s.fs.OpenFile(typed))
+			s.fs.OpenFile(typed)
 
 		case *fuseops.ReadFileOp:
-			op.Respond(s.fs.ReadFile(typed))
+			s.fs.ReadFile(typed)
 
 		case *fuseops.WriteFileOp:
-			op.Respond(s.fs.WriteFile(typed))
+			s.fs.WriteFile(typed)
 
 		case *fuseops.SyncFileOp:
-			op.Respond(s.fs.SyncFile(typed))
+			s.fs.SyncFile(typed)
 
 		case *fuseops.FlushFileOp:
-			op.Respond(s.fs.FlushFile(typed))
+			s.fs.FlushFile(typed)
 
 		case *fuseops.ReleaseFileHandleOp:
-			op.Respond(s.fs.ReleaseFileHandle(typed))
+			s.fs.ReleaseFileHandle(typed)
 		}
 	}
 }

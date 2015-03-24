@@ -19,7 +19,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 )
 
-// A FileSystem that returns fuse.ENOSYS for all methods. Embed this in your
+// A FileSystem that responds to all ops with fuse.ENOSYS. Embed this in your
 // struct to inherit default implementations for the methods you don't care
 // about, ensuring your struct will continue to implement FileSystem even as
 // new methods are added.
@@ -29,91 +29,91 @@ type NotImplementedFileSystem struct {
 var _ FileSystem = &NotImplementedFileSystem{}
 
 func (fs *NotImplementedFileSystem) Init(
-	op *fuseops.InitOp) error {
-	return fuse.ENOSYS
+	op *fuseops.InitOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) LookUpInode(
-	op *fuseops.LookUpInodeOp) error {
-	return fuse.ENOSYS
+	op *fuseops.LookUpInodeOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) GetInodeAttributes(
-	op *fuseops.GetInodeAttributesOp) error {
-	return fuse.ENOSYS
+	op *fuseops.GetInodeAttributesOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) SetInodeAttributes(
-	op *fuseops.SetInodeAttributesOp) error {
-	return fuse.ENOSYS
+	op *fuseops.SetInodeAttributesOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) ForgetInode(
-	op *fuseops.ForgetInodeOp) error {
-	return fuse.ENOSYS
+	op *fuseops.ForgetInodeOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) MkDir(
-	op *fuseops.MkDirOp) error {
-	return fuse.ENOSYS
+	op *fuseops.MkDirOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) CreateFile(
-	op *fuseops.CreateFileOp) error {
-	return fuse.ENOSYS
+	op *fuseops.CreateFileOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) RmDir(
-	op *fuseops.RmDirOp) error {
-	return fuse.ENOSYS
+	op *fuseops.RmDirOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) Unlink(
-	op *fuseops.UnlinkOp) error {
-	return fuse.ENOSYS
+	op *fuseops.UnlinkOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) OpenDir(
-	op *fuseops.OpenDirOp) error {
-	return fuse.ENOSYS
+	op *fuseops.OpenDirOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) ReadDir(
-	op *fuseops.ReadDirOp) error {
-	return fuse.ENOSYS
+	op *fuseops.ReadDirOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) ReleaseDirHandle(
-	op *fuseops.ReleaseDirHandleOp) error {
-	return fuse.ENOSYS
+	op *fuseops.ReleaseDirHandleOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) OpenFile(
-	op *fuseops.OpenFileOp) error {
-	return fuse.ENOSYS
+	op *fuseops.OpenFileOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) ReadFile(
-	op *fuseops.ReadFileOp) error {
-	return fuse.ENOSYS
+	op *fuseops.ReadFileOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) WriteFile(
-	op *fuseops.WriteFileOp) error {
-	return fuse.ENOSYS
+	op *fuseops.WriteFileOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) SyncFile(
-	op *fuseops.SyncFileOp) error {
-	return fuse.ENOSYS
+	op *fuseops.SyncFileOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) FlushFile(
-	op *fuseops.FlushFileOp) error {
-	return fuse.ENOSYS
+	op *fuseops.FlushFileOp) {
+	op.Respond(fuse.ENOSYS)
 }
 
 func (fs *NotImplementedFileSystem) ReleaseFileHandle(
-	op *fuseops.ReleaseFileHandleOp) error {
-	return fuse.ENOSYS
+	op *fuseops.ReleaseFileHandleOp) {
+	op.Respond(fuse.ENOSYS)
 }
