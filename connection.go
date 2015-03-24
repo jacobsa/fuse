@@ -23,8 +23,8 @@ import (
 
 // A connection to the fuse kernel process.
 type Connection struct {
-	logger *log.Logger
-	wrapped
+	logger  *log.Logger
+	wrapped *bazilfuse.Conn
 }
 
 func newConnection(wrapped *bazilfuse.Conn) (c *Connection, err error)
@@ -38,4 +38,24 @@ func newConnection(wrapped *bazilfuse.Conn) (c *Connection, err error)
 // close(2) causes WriteFileOps to be issued before a FlushFileOp, but doesn't
 // wait for their response before issuing the latter (cf.
 // https://github.com/jacobsa/fuse/issues/3).
-func (c *Connection) ReadOp() (op fuseops.Op, err error)
+func (c *Connection) ReadOp() (op fuseops.Op, err error) {
+	var bfReq bazilfuse.Request
+
+	// Keep going until we find a request we know how to convert.
+	for {
+		// Read a bazilfuse request.
+		bfReq, err = c.wrapped.ReadRequest()
+		if err != nil {
+			return
+		}
+
+		// Convert it, if possible.
+		if op = fuseops.Convert(bfReq); op == nil {
+			c.logger.Printf("Returning ENOSYS for unknown bazilfuse request: %v", bfReq)
+			bfReq.RespondError(ENOSYS)
+			continue
+		}
+
+		return
+	}
+}
