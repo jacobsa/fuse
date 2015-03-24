@@ -57,11 +57,21 @@ type LookUpInodeOp struct {
 	Entry ChildInodeEntry
 }
 
-// Refresh the attributes for an inode whose ID was previously returned by
-// LookUpInode. The kernel sends this when the FUSE VFS layer's cache of inode
-// attributes is stale. This is controlled by the AttributesExpiration field of
-// responses to LookUp, etc.
+// Refresh the attributes for an inode whose ID was previously returned in a
+// LookUpInodeOp. The kernel sends this when the FUSE VFS layer's cache of
+// inode attributes is stale. This is controlled by the AttributesExpiration
+// field of ChildInodeEntry, etc.
 type GetInodeAttributesOp struct {
+	Header RequestHeader
+
+	// The inode of interest.
+	Inode InodeID
+
+	// Set by the file system: attributes for the inode, and the time at which
+	// they should expire. See notes on ChildInodeEntry.AttributesExpiration for
+	// more.
+	Attributes           InodeAttributes
+	AttributesExpiration time.Time
 }
 
 // Change attributes for an inode.
@@ -69,6 +79,22 @@ type GetInodeAttributesOp struct {
 // The kernel sends this for obvious cases like chmod(2), and for less obvious
 // cases like ftrunctate(2).
 type SetInodeAttributesOp struct {
+	Header RequestHeader
+
+	// The inode of interest.
+	Inode InodeID
+
+	// The attributes to modify, or nil for attributes that don't need a change.
+	Size  *uint64
+	Mode  *os.FileMode
+	Atime *time.Time
+	Mtime *time.Time
+
+	// Set by the file system: the new attributes for the inode, and the time at
+	// which they should expire. See notes on
+	// ChildInodeEntry.AttributesExpiration for more.
+	Attributes           InodeAttributes
+	AttributesExpiration time.Time
 }
 
 // Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
@@ -287,40 +313,6 @@ type ReleaseFileHandleOp struct {
 ////////////////////////////////////////////////////////////////////////
 // Requests and responses
 ////////////////////////////////////////////////////////////////////////
-
-type GetInodeAttributesRequest struct {
-	Header RequestHeader
-
-	// The inode of interest.
-	Inode InodeID
-}
-
-type GetInodeAttributesResponse struct {
-	// Attributes for the inode, and the time at which they should expire. See
-	// notes on ChildInodeEntry.AttributesExpiration for more.
-	Attributes           InodeAttributes
-	AttributesExpiration time.Time
-}
-
-type SetInodeAttributesRequest struct {
-	Header RequestHeader
-
-	// The inode of interest.
-	Inode InodeID
-
-	// The attributes to modify, or nil for attributes that don't need a change.
-	Size  *uint64
-	Mode  *os.FileMode
-	Atime *time.Time
-	Mtime *time.Time
-}
-
-type SetInodeAttributesResponse struct {
-	// The new attributes for the inode, and the time at which they should
-	// expire. See notes on ChildInodeEntry.AttributesExpiration for more.
-	Attributes           InodeAttributes
-	AttributesExpiration time.Time
-}
 
 type ForgetInodeRequest struct {
 	Header RequestHeader
