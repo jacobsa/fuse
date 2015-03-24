@@ -26,6 +26,9 @@ import (
 )
 
 type Op interface {
+	// Return the fields common to all operations.
+	Header() OpHeader
+
 	// A context that can be used for long-running operations.
 	Context() context.Context
 
@@ -41,7 +44,16 @@ type Op interface {
 // Sent once when mounting the file system. It must succeed in order for the
 // mount to succeed.
 type InitOp struct {
-	Header OpHeader
+	commonOp
+}
+
+func (o *InitOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.Respond(err)
+		return
+	}
+
+	o.r.(*bazilfuse.InitRequest).Respond(&bazilfuse.InitResponse{})
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -51,8 +63,6 @@ type InitOp struct {
 // Look up a child by name within a parent directory. The kernel sends this
 // when resolving user paths to dentry structs, which are then cached.
 type LookUpInodeOp struct {
-	Header OpHeader
-
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
 
@@ -76,8 +86,6 @@ type LookUpInodeOp struct {
 // inode attributes is stale. This is controlled by the AttributesExpiration
 // field of ChildInodeEntry, etc.
 type GetInodeAttributesOp struct {
-	Header OpHeader
-
 	// The inode of interest.
 	Inode InodeID
 
@@ -93,8 +101,6 @@ type GetInodeAttributesOp struct {
 // The kernel sends this for obvious cases like chmod(2), and for less obvious
 // cases like ftrunctate(2).
 type SetInodeAttributesOp struct {
-	Header OpHeader
-
 	// The inode of interest.
 	Inode InodeID
 
@@ -114,8 +120,6 @@ type SetInodeAttributesOp struct {
 // Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
 // kernel sends this when removing an inode from its internal caches.
 type ForgetInodeOp struct {
-	Header OpHeader
-
 	// The inode to be forgotten. The kernel guarantees that the node ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
@@ -134,8 +138,6 @@ type ForgetInodeOp struct {
 // http://goo.gl/FZpLu5). But volatile file systems and paranoid non-volatile
 // file systems should check for the reasons described below on CreateFile.
 type MkDirOp struct {
-	Header OpHeader
-
 	// The ID of parent directory inode within which to create the child.
 	Parent InodeID
 
@@ -161,8 +163,6 @@ type MkDirOp struct {
 // course particularly applies to file systems that are volatile from the
 // kernel's point of view.
 type CreateFileOp struct {
-	Header OpHeader
-
 	// The ID of parent directory inode within which to create the child file.
 	Parent InodeID
 
@@ -199,8 +199,6 @@ type CreateFileOp struct {
 //
 // Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
 type RmDirOp struct {
-	Header OpHeader
-
 	// The ID of parent directory inode, and the name of the directory being
 	// removed within it.
 	Parent InodeID
@@ -213,8 +211,6 @@ type RmDirOp struct {
 //
 // Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
 type UnlinkOp struct {
-	Header OpHeader
-
 	// The ID of parent directory inode, and the name of the file being removed
 	// within it.
 	Parent InodeID
@@ -232,8 +228,6 @@ type UnlinkOp struct {
 // user-space process. On OS X it may not be sent for every open(2) (cf.
 // https://github.com/osxfuse/osxfuse/issues/199).
 type OpenDirOp struct {
-	Header OpHeader
-
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -253,8 +247,6 @@ type OpenDirOp struct {
 
 // Read entries from a directory previously opened with OpenDir.
 type ReadDirOp struct {
-	Header OpHeader
-
 	// The directory inode that we are reading, and the handle previously
 	// returned by OpenDir when opening that inode.
 	Inode  InodeID
@@ -348,8 +340,6 @@ type ReadDirOp struct {
 // The kernel guarantees that the handle ID will not be used in further ops
 // sent to the file system (unless it is reissued by the file system).
 type ReleaseDirHandleOp struct {
-	Header OpHeader
-
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
@@ -367,8 +357,6 @@ type ReleaseDirHandleOp struct {
 // process. On OS X it may not be sent for every open(2)
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
 type OpenFileOp struct {
-	Header OpHeader
-
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -391,8 +379,6 @@ type OpenFileOp struct {
 // some reads may be served by the page cache. See notes on WriteFileOp for
 // more.
 type ReadFileOp struct {
-	Header OpHeader
-
 	// The file inode that we are reading, and the handle previously returned by
 	// CreateFile or OpenFile when opening that inode.
 	Inode  InodeID
@@ -443,8 +429,6 @@ type ReadFileOp struct {
 //     flush request.
 //
 type WriteFileOp struct {
-	Header OpHeader
-
 	// The file inode that we are modifying, and the handle previously returned
 	// by CreateFile or OpenFile when opening that inode.
 	Inode  InodeID
@@ -498,8 +482,6 @@ type WriteFileOp struct {
 // See also: FlushFileOp, which may perform a similar function when closing a
 // file (but which is not used in "real" file systems).
 type SyncFileOp struct {
-	Header OpHeader
-
 	// The file and handle being sync'd.
 	Inode  InodeID
 	Handle HandleID
@@ -553,8 +535,6 @@ type SyncFileOp struct {
 // to at least schedule a real flush, and maybe do it immediately in order to
 // return any errors that occur.
 type FlushFileOp struct {
-	Header OpHeader
-
 	// The file and handle being flushed.
 	Inode  InodeID
 	Handle HandleID
@@ -567,8 +547,6 @@ type FlushFileOp struct {
 // The kernel guarantees that the handle ID will not be used in further calls
 // to the file system (unless it is reissued by the file system).
 type ReleaseFileHandleOp struct {
-	Header OpHeader
-
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).

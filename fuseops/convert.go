@@ -17,10 +17,44 @@
 // more.
 package fuseops
 
-import "github.com/jacobsa/bazilfuse"
+import (
+	"github.com/jacobsa/bazilfuse"
+	"golang.org/x/net/context"
+)
 
 // Convert the supplied bazilfuse request struct to an Op.
 //
 // This function is an implementation detail of the fuse package, and must not
 // be called by anyone else.
-func Convert(h *bazilfuse.Header) Op
+func Convert(r bazilfuse.Request) (o Op) {
+	var co *commonOp
+
+	switch r.(type) {
+	case *bazilfuse.InitRequest:
+		to := &InitOp{}
+		o = to
+		co = &to.commonOp
+
+	default:
+		panic("TODO")
+	}
+
+	co.init(r)
+	return
+}
+
+// A helper for embedding common behavior.
+type commonOp struct {
+	ctx context.Context
+	r   bazilfuse.Request
+}
+
+func (o *commonOp) init(r bazilfuse.Request)
+
+func (o *commonOp) Header() OpHeader
+
+func (o *commonOp) Context() context.Context {
+	return o.ctx
+}
+
+func (o *commonOp) Respond(err error)
