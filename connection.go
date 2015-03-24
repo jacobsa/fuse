@@ -60,6 +60,15 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			return
 		}
 
+		// Special case: responding to this is required to make mounting work on OS
+		// X. We don't currently expose the capability for the file system to
+		// intercept this.
+		if statfsReq, ok := bfReq.(*bazilfuse.StatfsRequest); ok {
+			c.logger.Println("Responding OK to Statfs.")
+			statfsReq.Respond(&bazilfuse.StatfsResponse{})
+			continue
+		}
+
 		// Convert it, if possible.
 		if op = fuseops.Convert(bfReq); op == nil {
 			c.logger.Printf("Returning ENOSYS for unknown bazilfuse request: %v", bfReq)
