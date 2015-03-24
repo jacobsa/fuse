@@ -18,6 +18,6 @@ import "github.com/jacobsa/bazilfuse"
 
 // Attempt to unmount the file system whose mount point is the supplied
 // directory.
-func Unmount(dir string) {
+func Unmount(dir string) error {
 	return bazilfuse.Unmount(dir)
 }
