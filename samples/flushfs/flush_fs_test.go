@@ -179,7 +179,7 @@ func dup2(oldfd int, newfd int) (err error) {
 // Call msync(2) on a slice previously returned by mmap(2).
 func msync(p []byte) (err error) {
 	_, _, errno := unix.Syscall(
-		unix.SYS_MMAP,
+		unix.SYS_MSYNC,
 		uintptr(unsafe.Pointer(&p[0])),
 		uintptr(len(p)),
 		0)
