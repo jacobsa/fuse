@@ -19,9 +19,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/fuseutil"
 	"golang.org/x/net/context"
 )
 
@@ -33,21 +34,18 @@ import (
 //
 // Each file contains the string "Hello, world!".
 type HelloFS struct {
-	fuseutil.NotImplementedFileSystem
 	Clock timeutil.Clock
 }
 
-var _ fuse.FileSystem = &HelloFS{}
-
 const (
-	rootInode fuse.InodeID = fuse.RootInodeID + iota
+	rootInode fuseops.InodeID = fuseops.RootInodeID + iota
 	helloInode
 	dirInode
 	worldInode
 )
 
 type inodeInfo struct {
-	attributes fuse.InodeAttributes
+	attributes fuseops.InodeAttributes
 
 	// File or directory?
 	dir bool
@@ -57,10 +55,10 @@ type inodeInfo struct {
 }
 
 // We have a fixed directory structure.
-var gInodeInfo = map[fuse.InodeID]inodeInfo{
+var gInodeInfo = map[fuseops.InodeID]inodeInfo{
 	// root
 	rootInode: inodeInfo{
-		attributes: fuse.InodeAttributes{
+		attributes: fuseops.InodeAttributes{
 			Nlink: 1,
 			Mode:  0555 | os.ModeDir,
 		},
@@ -83,7 +81,7 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 
 	// hello
 	helloInode: inodeInfo{
-		attributes: fuse.InodeAttributes{
+		attributes: fuseops.InodeAttributes{
 			Nlink: 1,
 			Mode:  0444,
 			Size:  uint64(len("Hello, world!")),
@@ -92,7 +90,7 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 
 	// dir
 	dirInode: inodeInfo{
-		attributes: fuse.InodeAttributes{
+		attributes: fuseops.InodeAttributes{
 			Nlink: 1,
 			Mode:  0555 | os.ModeDir,
 		},
@@ -109,7 +107,7 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 
 	// world
 	worldInode: inodeInfo{
-		attributes: fuse.InodeAttributes{
+		attributes: fuseops.InodeAttributes{
 			Nlink: 1,
 			Mode:  0444,
 			Size:  uint64(len("Hello, world!")),
@@ -119,7 +117,7 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 
 func findChildInode(
 	name string,
-	children []fuseutil.Dirent) (inode fuse.InodeID, err error) {
+	children []fuseutil.Dirent) (inode fuseops.InodeID, err error) {
 	for _, e := range children {
 		if e.Name == name {
 			inode = e.Inode
@@ -132,7 +130,7 @@ func findChildInode(
 }
 
 func (fs *HelloFS) patchAttributes(
-	attr *fuse.InodeAttributes) {
+	attr *fuseops.InodeAttributes) {
 	now := fs.Clock.Now()
 	attr.Atime = now
 	attr.Mtime = now
