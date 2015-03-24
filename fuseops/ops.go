@@ -100,6 +100,12 @@ type SetInodeAttributesOp struct {
 // Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
 // kernel sends this when removing an inode from its internal caches.
 type ForgetInodeOp struct {
+	Header RequestHeader
+
+	// The inode to be forgotten. The kernel guarantees that the node ID will not
+	// be used in further calls to the file system (unless it is reissued by the
+	// file system).
+	ID InodeID
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -114,6 +120,17 @@ type ForgetInodeOp struct {
 // http://goo.gl/FZpLu5). But volatile file systems and paranoid non-volatile
 // file systems should check for the reasons described below on CreateFile.
 type MkDirOp struct {
+	Header RequestHeader
+
+	// The ID of parent directory inode within which to create the child.
+	Parent InodeID
+
+	// The name of the child to create, and the mode with which to create it.
+	Name string
+	Mode os.FileMode
+
+	// Set by the file system: information about the inode that was created.
+	Entry ChildInodeEntry
 }
 
 // Create a file inode and open it.
@@ -313,34 +330,6 @@ type ReleaseFileHandleOp struct {
 ////////////////////////////////////////////////////////////////////////
 // Requests and responses
 ////////////////////////////////////////////////////////////////////////
-
-type ForgetInodeRequest struct {
-	Header RequestHeader
-
-	// The inode to be forgotten. The kernel guarantees that the node ID will not
-	// be used in further calls to the file system (unless it is reissued by the
-	// file system).
-	ID InodeID
-}
-
-type ForgetInodeResponse struct {
-}
-
-type MkDirRequest struct {
-	Header RequestHeader
-
-	// The ID of parent directory inode within which to create the child.
-	Parent InodeID
-
-	// The name of the child to create, and the mode with which to create it.
-	Name string
-	Mode os.FileMode
-}
-
-type MkDirResponse struct {
-	// Information about the inode that was created.
-	Entry ChildInodeEntry
-}
 
 type CreateFileRequest struct {
 	Header RequestHeader
