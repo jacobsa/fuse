@@ -256,7 +256,7 @@ func (o *commonOp) Context() context.Context {
 }
 
 func (o *commonOp) respondErr(err error) {
-	if err != nil {
+	if err == nil {
 		panic("Expect non-nil here.")
 	}
 
