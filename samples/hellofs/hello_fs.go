@@ -19,35 +19,79 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
-	"golang.org/x/net/context"
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/fuseutil"
 )
 
-// A file system with a fixed structure that looks like this:
+// Create a file system with a fixed structure that looks like this:
 //
 //     hello
 //     dir/
 //         world
 //
 // Each file contains the string "Hello, world!".
-type HelloFS struct {
-	fuseutil.NotImplementedFileSystem
+func NewHelloFS(clock timeutil.Clock) (server fuse.Server, err error) {
+	server = &helloFS{
+		Clock: clock,
+	}
+
+	return
+}
+
+type helloFS struct {
 	Clock timeutil.Clock
 }
 
-var _ fuse.FileSystem = &HelloFS{}
+func (fs *helloFS) ServeOps(c *fuse.Connection) {
+	for {
+		op, err := c.ReadOp()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		switch typed := op.(type) {
+		case *fuseops.InitOp:
+			fs.init(typed)
+
+		case *fuseops.LookUpInodeOp:
+			fs.lookUpInode(typed)
+
+		case *fuseops.GetInodeAttributesOp:
+			fs.getInodeAttributes(typed)
+
+		case *fuseops.OpenDirOp:
+			fs.openDir(typed)
+
+		case *fuseops.ReadDirOp:
+			fs.readDir(typed)
+
+		case *fuseops.OpenFileOp:
+			fs.openFile(typed)
+
+		case *fuseops.ReadFileOp:
+			fs.readFile(typed)
+
+		default:
+			typed.Respond(fuse.ENOSYS)
+		}
+	}
+}
 
 const (
-	rootInode fuse.InodeID = fuse.RootInodeID + iota
+	rootInode fuseops.InodeID = fuseops.RootInodeID + iota
 	helloInode
 	dirInode
 	worldInode
 )
 
 type inodeInfo struct {
-	attributes fuse.InodeAttributes
+	attributes fuseops.InodeAttributes
 
 	// File or directory?
 	dir bool
@@ -57,10 +101,10 @@ type inodeInfo struct {
 }
 
 // We have a fixed directory structure.
-var gInodeInfo = map[fuse.InodeID]inodeInfo{
+var gInodeInfo = map[fuseops.InodeID]inodeInfo{
 	// root
 	rootInode: inodeInfo{
-		attributes: fuse.InodeAttributes{
+		attributes: fuseops.InodeAttributes{
 			Nlink: 1,
 			Mode:  0555 | os.ModeDir,
 		},
@@ -83,7 +127,7 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 
 	// hello
 	helloInode: inodeInfo{
-		attributes: fuse.InodeAttributes{
+		attributes: fuseops.InodeAttributes{
 			Nlink: 1,
 			Mode:  0444,
 			Size:  uint64(len("Hello, world!")),
@@ -92,7 +136,7 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 
 	// dir
 	dirInode: inodeInfo{
-		attributes: fuse.InodeAttributes{
+		attributes: fuseops.InodeAttributes{
 			Nlink: 1,
 			Mode:  0555 | os.ModeDir,
 		},
@@ -109,7 +153,7 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 
 	// world
 	worldInode: inodeInfo{
-		attributes: fuse.InodeAttributes{
+		attributes: fuseops.InodeAttributes{
 			Nlink: 1,
 			Mode:  0444,
 			Size:  uint64(len("Hello, world!")),
@@ -119,7 +163,7 @@ var gInodeInfo = map[fuse.InodeID]inodeInfo{
 
 func findChildInode(
 	name string,
-	children []fuseutil.Dirent) (inode fuse.InodeID, err error) {
+	children []fuseutil.Dirent) (inode fuseops.InodeID, err error) {
 	for _, e := range children {
 		if e.Name == name {
 			inode = e.Inode
@@ -131,88 +175,76 @@ func findChildInode(
 	return
 }
 
-func (fs *HelloFS) patchAttributes(
-	attr *fuse.InodeAttributes) {
+func (fs *helloFS) patchAttributes(
+	attr *fuseops.InodeAttributes) {
 	now := fs.Clock.Now()
 	attr.Atime = now
 	attr.Mtime = now
 	attr.Crtime = now
 }
 
-func (fs *HelloFS) Init(
-	ctx context.Context,
-	req *fuse.InitRequest) (
-	resp *fuse.InitResponse, err error) {
-	resp = &fuse.InitResponse{}
-	return
+func (fs *helloFS) init(op *fuseops.InitOp) {
+	op.Respond(nil)
 }
 
-func (fs *HelloFS) LookUpInode(
-	ctx context.Context,
-	req *fuse.LookUpInodeRequest) (
-	resp *fuse.LookUpInodeResponse, err error) {
-	resp = &fuse.LookUpInodeResponse{}
+func (fs *helloFS) lookUpInode(op *fuseops.LookUpInodeOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	// Find the info for the parent.
-	parentInfo, ok := gInodeInfo[req.Parent]
+	parentInfo, ok := gInodeInfo[op.Parent]
 	if !ok {
 		err = fuse.ENOENT
 		return
 	}
 
 	// Find the child within the parent.
-	childInode, err := findChildInode(req.Name, parentInfo.children)
+	childInode, err := findChildInode(op.Name, parentInfo.children)
 	if err != nil {
 		return
 	}
 
 	// Copy over information.
-	resp.Entry.Child = childInode
-	resp.Entry.Attributes = gInodeInfo[childInode].attributes
+	op.Entry.Child = childInode
+	op.Entry.Attributes = gInodeInfo[childInode].attributes
 
 	// Patch attributes.
-	fs.patchAttributes(&resp.Entry.Attributes)
+	fs.patchAttributes(&op.Entry.Attributes)
 
 	return
 }
 
-func (fs *HelloFS) GetInodeAttributes(
-	ctx context.Context,
-	req *fuse.GetInodeAttributesRequest) (
-	resp *fuse.GetInodeAttributesResponse, err error) {
-	resp = &fuse.GetInodeAttributesResponse{}
+func (fs *helloFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	// Find the info for this inode.
-	info, ok := gInodeInfo[req.Inode]
+	info, ok := gInodeInfo[op.Inode]
 	if !ok {
 		err = fuse.ENOENT
 		return
 	}
 
 	// Copy over its attributes.
-	resp.Attributes = info.attributes
+	op.Attributes = info.attributes
 
 	// Patch attributes.
-	fs.patchAttributes(&resp.Attributes)
+	fs.patchAttributes(&op.Attributes)
 
 	return
 }
 
-func (fs *HelloFS) OpenDir(
-	ctx context.Context,
-	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
+func (fs *helloFS) openDir(op *fuseops.OpenDirOp) {
 	// Allow opening any directory.
-	resp = &fuse.OpenDirResponse{}
-	return
+	op.Respond(nil)
 }
 
-func (fs *HelloFS) ReadDir(
-	ctx context.Context,
-	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
-	resp = &fuse.ReadDirResponse{}
+func (fs *helloFS) readDir(op *fuseops.ReadDirOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	// Find the info for this inode.
-	info, ok := gInodeInfo[req.Inode]
+	info, ok := gInodeInfo[op.Inode]
 	if !ok {
 		err = fuse.ENOENT
 		return
@@ -226,18 +258,18 @@ func (fs *HelloFS) ReadDir(
 	entries := info.children
 
 	// Grab the range of interest.
-	if req.Offset > fuse.DirOffset(len(entries)) {
+	if op.Offset > fuseops.DirOffset(len(entries)) {
 		err = fuse.EIO
 		return
 	}
 
-	entries = entries[req.Offset:]
+	entries = entries[op.Offset:]
 
 	// Resume at the specified offset into the array.
 	for _, e := range entries {
-		resp.Data = fuseutil.AppendDirent(resp.Data, e)
-		if len(resp.Data) > req.Size {
-			resp.Data = resp.Data[:req.Size]
+		op.Data = fuseutil.AppendDirent(op.Data, e)
+		if len(op.Data) > op.Size {
+			op.Data = op.Data[:op.Size]
 			break
 		}
 	}
@@ -245,25 +277,21 @@ func (fs *HelloFS) ReadDir(
 	return
 }
 
-func (fs *HelloFS) OpenFile(
-	ctx context.Context,
-	req *fuse.OpenFileRequest) (resp *fuse.OpenFileResponse, err error) {
+func (fs *helloFS) openFile(op *fuseops.OpenFileOp) {
 	// Allow opening any file.
-	resp = &fuse.OpenFileResponse{}
-	return
+	op.Respond(nil)
 }
 
-func (fs *HelloFS) ReadFile(
-	ctx context.Context,
-	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
-	resp = &fuse.ReadFileResponse{}
+func (fs *helloFS) readFile(op *fuseops.ReadFileOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	// Let io.ReaderAt deal with the semantics.
 	reader := strings.NewReader("Hello, world!")
 
-	resp.Data = make([]byte, req.Size)
-	n, err := reader.ReadAt(resp.Data, req.Offset)
-	resp.Data = resp.Data[:n]
+	op.Data = make([]byte, op.Size)
+	n, err := reader.ReadAt(op.Data, op.Offset)
+	op.Data = op.Data[:n]
 
 	// Special case: FUSE doesn't expect us to return io.EOF.
 	if err == io.EOF {

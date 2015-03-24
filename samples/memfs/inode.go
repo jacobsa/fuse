@@ -20,10 +20,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/jacobsa/fuse"
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 )
 
 // Common attributes for files and directories.
@@ -53,7 +53,7 @@ type inode struct {
 	// INVARIANT: If dir, then os.ModeDir is set
 	// INVARIANT: If !dir, then os.ModeDir is not set
 	// INVARIANT: attributes.Size == len(contents)
-	attributes fuse.InodeAttributes // GUARDED_BY(mu)
+	attributes fuseops.InodeAttributes // GUARDED_BY(mu)
 
 	// For directories, entries describing the children of the directory. Unused
 	// entries are of type DT_Unknown.
@@ -82,7 +82,7 @@ type inode struct {
 // time-related information (the inode object will take care of that).
 func newInode(
 	clock timeutil.Clock,
-	attrs fuse.InodeAttributes) (in *inode) {
+	attrs fuseops.InodeAttributes) (in *inode) {
 	// Update time info.
 	now := clock.Now()
 	attrs.Mtime = now
@@ -122,7 +122,7 @@ func (inode *inode) checkInvariants() {
 
 		childNames := make(map[string]struct{})
 		for i, e := range inode.entries {
-			if e.Offset != fuse.DirOffset(i+1) {
+			if e.Offset != fuseops.DirOffset(i+1) {
 				panic(fmt.Sprintf("Unexpected offset: %v", e.Offset))
 			}
 
@@ -195,7 +195,7 @@ func (inode *inode) Len() (n int) {
 //
 // REQUIRES: inode.dir
 // SHARED_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool) {
+func (inode *inode) LookUpChild(name string) (id fuseops.InodeID, ok bool) {
 	index, ok := inode.findChild(name)
 	if ok {
 		id = inode.entries[index].Inode
@@ -210,7 +210,7 @@ func (inode *inode) LookUpChild(name string) (id fuse.InodeID, ok bool) {
 // REQUIRES: dt != fuseutil.DT_Unknown
 // EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
 func (inode *inode) AddChild(
-	id fuse.InodeID,
+	id fuseops.InodeID,
 	name string,
 	dt fuseutil.DirentType) {
 	var index int
@@ -221,7 +221,7 @@ func (inode *inode) AddChild(
 	// No matter where we place the entry, make sure it has the correct Offset
 	// field.
 	defer func() {
-		inode.entries[index].Offset = fuse.DirOffset(index + 1)
+		inode.entries[index].Offset = fuseops.DirOffset(index + 1)
 	}()
 
 	// Set up the entry.
@@ -262,7 +262,7 @@ func (inode *inode) RemoveChild(name string) {
 	// Mark it as unused.
 	inode.entries[i] = fuseutil.Dirent{
 		Type:   fuseutil.DT_Unknown,
-		Offset: fuse.DirOffset(i + 1),
+		Offset: fuseops.DirOffset(i + 1),
 	}
 }
 

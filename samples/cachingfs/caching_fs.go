@@ -16,13 +16,13 @@ package cachingfs
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 
 	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fuseutil"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/syncutil"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -42,12 +42,12 @@ const (
 // requests. It also exposes methods for renumbering inodes and updating mtimes
 // that are useful in testing that these durations are honored.
 type CachingFS interface {
-	fuse.FileSystem
+	fuse.Server
 
 	// Return the current inode ID of the file/directory with the given name.
-	FooID() fuse.InodeID
-	DirID() fuse.InodeID
-	BarID() fuse.InodeID
+	FooID() fuseops.InodeID
+	DirID() fuseops.InodeID
+	BarID() fuseops.InodeID
 
 	// Cause the inode IDs to change to values that have never before been used.
 	RenumberInodes()
@@ -72,14 +72,14 @@ type CachingFS interface {
 func NewCachingFS(
 	lookupEntryTimeout time.Duration,
 	getattrTimeout time.Duration) (fs CachingFS, err error) {
-	roundUp := func(n fuse.InodeID) fuse.InodeID {
+	roundUp := func(n fuseops.InodeID) fuseops.InodeID {
 		return numInodes * ((n + numInodes - 1) / numInodes)
 	}
 
 	cfs := &cachingFS{
 		lookupEntryTimeout: lookupEntryTimeout,
 		getattrTimeout:     getattrTimeout,
-		baseID:             roundUp(fuse.RootInodeID + 1),
+		baseID:             roundUp(fuseops.RootInodeID + 1),
 		mtime:              time.Now(),
 	}
 
@@ -99,8 +99,6 @@ const (
 )
 
 type cachingFS struct {
-	fuseutil.NotImplementedFileSystem
-
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -116,11 +114,11 @@ type cachingFS struct {
 
 	// The current ID of the lowest numbered non-root inode.
 	//
-	// INVARIANT: baseID > fuse.RootInodeID
+	// INVARIANT: baseID > fuseops.RootInodeID
 	// INVARIANT: baseID % numInodes == 0
 	//
 	// GUARDED_BY(mu)
-	baseID fuse.InodeID
+	baseID fuseops.InodeID
 
 	// GUARDED_BY(mu)
 	mtime time.Time
@@ -131,39 +129,39 @@ type cachingFS struct {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *cachingFS) checkInvariants() {
-	// INVARIANT: baseID > fuse.RootInodeID
+	// INVARIANT: baseID > fuseops.RootInodeID
 	// INVARIANT: baseID % numInodes == 0
-	if fs.baseID <= fuse.RootInodeID || fs.baseID%numInodes != 0 {
+	if fs.baseID <= fuseops.RootInodeID || fs.baseID%numInodes != 0 {
 		panic(fmt.Sprintf("Bad baseID: %v", fs.baseID))
 	}
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) fooID() fuse.InodeID {
+func (fs *cachingFS) fooID() fuseops.InodeID {
 	return fs.baseID + fooOffset
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) dirID() fuse.InodeID {
+func (fs *cachingFS) dirID() fuseops.InodeID {
 	return fs.baseID + dirOffset
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) barID() fuse.InodeID {
+func (fs *cachingFS) barID() fuseops.InodeID {
 	return fs.baseID + barOffset
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) rootAttrs() fuse.InodeAttributes {
-	return fuse.InodeAttributes{
+func (fs *cachingFS) rootAttrs() fuseops.InodeAttributes {
+	return fuseops.InodeAttributes{
 		Mode:  os.ModeDir | 0777,
 		Mtime: fs.mtime,
 	}
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) fooAttrs() fuse.InodeAttributes {
-	return fuse.InodeAttributes{
+func (fs *cachingFS) fooAttrs() fuseops.InodeAttributes {
+	return fuseops.InodeAttributes{
 		Nlink: 1,
 		Size:  FooSize,
 		Mode:  0777,
@@ -172,8 +170,8 @@ func (fs *cachingFS) fooAttrs() fuse.InodeAttributes {
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) dirAttrs() fuse.InodeAttributes {
-	return fuse.InodeAttributes{
+func (fs *cachingFS) dirAttrs() fuseops.InodeAttributes {
+	return fuseops.InodeAttributes{
 		Nlink: 1,
 		Mode:  os.ModeDir | 0777,
 		Mtime: fs.mtime,
@@ -181,8 +179,8 @@ func (fs *cachingFS) dirAttrs() fuse.InodeAttributes {
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) barAttrs() fuse.InodeAttributes {
-	return fuse.InodeAttributes{
+func (fs *cachingFS) barAttrs() fuseops.InodeAttributes {
+	return fuseops.InodeAttributes{
 		Nlink: 1,
 		Size:  BarSize,
 		Mode:  0777,
@@ -195,7 +193,7 @@ func (fs *cachingFS) barAttrs() fuse.InodeAttributes {
 ////////////////////////////////////////////////////////////////////////
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) FooID() fuse.InodeID {
+func (fs *cachingFS) FooID() fuseops.InodeID {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -203,7 +201,7 @@ func (fs *cachingFS) FooID() fuse.InodeID {
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) DirID() fuse.InodeID {
+func (fs *cachingFS) DirID() fuseops.InodeID {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -211,7 +209,7 @@ func (fs *cachingFS) DirID() fuse.InodeID {
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) BarID() fuse.InodeID {
+func (fs *cachingFS) BarID() fuseops.InodeID {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -234,34 +232,64 @@ func (fs *cachingFS) SetMtime(mtime time.Time) {
 	fs.mtime = mtime
 }
 
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *cachingFS) ServeOps(c *fuse.Connection) {
+	for {
+		op, err := c.ReadOp()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		switch typed := op.(type) {
+		case *fuseops.InitOp:
+			fs.init(typed)
+
+		case *fuseops.LookUpInodeOp:
+			fs.lookUpInode(typed)
+
+		case *fuseops.GetInodeAttributesOp:
+			fs.getInodeAttributes(typed)
+
+		case *fuseops.OpenDirOp:
+			fs.openDir(typed)
+
+		case *fuseops.OpenFileOp:
+			fs.openFile(typed)
+
+		default:
+			typed.Respond(fuse.ENOSYS)
+		}
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
-// FileSystem methods
+// Op methods
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *cachingFS) Init(
-	ctx context.Context,
-	req *fuse.InitRequest) (resp *fuse.InitResponse, err error) {
-	resp = &fuse.InitResponse{}
-	return
+func (fs *cachingFS) init(op *fuseops.InitOp) {
+	op.Respond(nil)
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) LookUpInode(
-	ctx context.Context,
-	req *fuse.LookUpInodeRequest) (resp *fuse.LookUpInodeResponse, err error) {
-	resp = &fuse.LookUpInodeResponse{}
+func (fs *cachingFS) lookUpInode(op *fuseops.LookUpInodeOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Find the ID and attributes.
-	var id fuse.InodeID
-	var attrs fuse.InodeAttributes
+	var id fuseops.InodeID
+	var attrs fuseops.InodeAttributes
 
-	switch req.Name {
+	switch op.Name {
 	case "foo":
 		// Parent must be the root.
-		if req.Parent != fuse.RootInodeID {
+		if op.Parent != fuseops.RootInodeID {
 			err = fuse.ENOENT
 			return
 		}
@@ -271,7 +299,7 @@ func (fs *cachingFS) LookUpInode(
 
 	case "dir":
 		// Parent must be the root.
-		if req.Parent != fuse.RootInodeID {
+		if op.Parent != fuseops.RootInodeID {
 			err = fuse.ENOENT
 			return
 		}
@@ -281,7 +309,7 @@ func (fs *cachingFS) LookUpInode(
 
 	case "bar":
 		// Parent must be dir.
-		if req.Parent == fuse.RootInodeID || req.Parent%numInodes != dirOffset {
+		if op.Parent == fuseops.RootInodeID || op.Parent%numInodes != dirOffset {
 			err = fuse.ENOENT
 			return
 		}
@@ -295,59 +323,55 @@ func (fs *cachingFS) LookUpInode(
 	}
 
 	// Fill in the response.
-	resp.Entry.Child = id
-	resp.Entry.Attributes = attrs
-	resp.Entry.EntryExpiration = time.Now().Add(fs.lookupEntryTimeout)
+	op.Entry.Child = id
+	op.Entry.Attributes = attrs
+	op.Entry.EntryExpiration = time.Now().Add(fs.lookupEntryTimeout)
 
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) GetInodeAttributes(
-	ctx context.Context,
-	req *fuse.GetInodeAttributesRequest) (
-	resp *fuse.GetInodeAttributesResponse, err error) {
-	resp = &fuse.GetInodeAttributesResponse{}
+func (fs *cachingFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Figure out which inode the request is for.
-	var attrs fuse.InodeAttributes
+	var attrs fuseops.InodeAttributes
 
 	switch {
-	case req.Inode == fuse.RootInodeID:
+	case op.Inode == fuseops.RootInodeID:
 		attrs = fs.rootAttrs()
 
-	case req.Inode%numInodes == fooOffset:
+	case op.Inode%numInodes == fooOffset:
 		attrs = fs.fooAttrs()
 
-	case req.Inode%numInodes == dirOffset:
+	case op.Inode%numInodes == dirOffset:
 		attrs = fs.dirAttrs()
 
-	case req.Inode%numInodes == barOffset:
+	case op.Inode%numInodes == barOffset:
 		attrs = fs.barAttrs()
 	}
 
 	// Fill in the response.
-	resp.Attributes = attrs
-	resp.AttributesExpiration = time.Now().Add(fs.getattrTimeout)
+	op.Attributes = attrs
+	op.AttributesExpiration = time.Now().Add(fs.getattrTimeout)
 
 	return
 }
 
-func (fs *cachingFS) OpenDir(
-	ctx context.Context,
-	req *fuse.OpenDirRequest) (
-	resp *fuse.OpenDirResponse, err error) {
-	resp = &fuse.OpenDirResponse{}
+func (fs *cachingFS) openDir(op *fuseops.OpenDirOp) {
+	var err error
+	defer func() { op.Respond(err) }()
+
 	return
 }
 
-func (fs *cachingFS) OpenFile(
-	ctx context.Context,
-	req *fuse.OpenFileRequest) (
-	resp *fuse.OpenFileResponse, err error) {
-	resp = &fuse.OpenFileResponse{}
+func (fs *cachingFS) openFile(op *fuseops.OpenFileOp) {
+	var err error
+	defer func() { op.Respond(err) }()
+
 	return
 }

@@ -16,15 +16,13 @@
 //
 // The primary elements of interest are:
 //
-//  *  The FileSystem interface, which defines the methods a file system must
-//     implement.
-//
-//  *  fuseutil.NotImplementedFileSystem, which may be embedded to obtain
-//     default implementations for all methods that are not of interest to a
-//     particular file system.
+//  *  The fuseops package, which defines the operations that fuse might send
+//     to your userspace daemon.
 //
 //  *  Mount, a function that allows for mounting a file system.
 //
 // In order to use this package to mount file systems on OS X, the system must
-// have FUSE for OS X installed: http://osxfuse.github.io/
+// have FUSE for OS X installed (see http://osxfuse.github.io/). Do note that
+// there are several OS X-specific oddities; grep through the documentation for
+// more info.
 package fuse

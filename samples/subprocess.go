@@ -67,8 +67,6 @@ type SubprocessTest struct {
 
 // Mount the file system and initialize the other exported fields of the
 // struct. Panics on error.
-//
-// REQUIRES: t.FileSystem has been set.
 func (t *SubprocessTest) SetUp(ti *ogletest.TestInfo) {
 	err := t.initialize()
 	if err != nil {

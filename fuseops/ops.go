@@ -25,6 +25,9 @@ import (
 	"golang.org/x/net/context"
 )
 
+// A common interface implemented by all ops in this package. Use a type switch
+// to find particular concrete types, responding with fuse.ENOSYS if a type is
+// not supported.
 type Op interface {
 	// Return the fields common to all operations.
 	Header() OpHeader
@@ -53,7 +56,10 @@ func (o *InitOp) Respond(err error) {
 		return
 	}
 
-	o.r.(*bazilfuse.InitRequest).Respond(&bazilfuse.InitResponse{})
+	resp := &bazilfuse.InitResponse{}
+
+	o.commonOp.logger.Printf("Responding: %v", &resp)
+	o.r.(*bazilfuse.InitRequest).Respond(resp)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -91,6 +97,8 @@ func (o *LookUpInodeOp) Respond(err error) {
 
 	resp := bazilfuse.LookupResponse{}
 	convertChildInodeEntry(&o.Entry, &resp)
+
+	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.LookupRequest).Respond(&resp)
 }
 
@@ -122,6 +130,7 @@ func (o *GetInodeAttributesOp) Respond(err error) {
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
 	}
 
+	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.GetattrRequest).Respond(&resp)
 }
 
@@ -159,6 +168,7 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
 	}
 
+	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.SetattrRequest).Respond(&resp)
 }
 
@@ -179,6 +189,7 @@ func (o *ForgetInodeOp) Respond(err error) {
 		return
 	}
 
+	o.commonOp.logger.Printf("Responding OK to ForgetInodeOp")
 	o.r.(*bazilfuse.ForgetRequest).Respond()
 }
 
@@ -214,6 +225,9 @@ func (o *MkDirOp) Respond(err error) {
 	}
 
 	resp := bazilfuse.MkdirResponse{}
+	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
+
+	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.MkdirRequest).Respond(&resp)
 }
 
@@ -270,6 +284,7 @@ func (o *CreateFileOp) Respond(err error) {
 	}
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
+	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.CreateRequest).Respond(&resp)
 }
 
@@ -299,6 +314,7 @@ func (o *RmDirOp) Respond(err error) {
 		return
 	}
 
+	o.commonOp.logger.Printf("Responding OK to RmDirOp")
 	o.r.(*bazilfuse.RemoveRequest).Respond()
 }
 
@@ -322,6 +338,7 @@ func (o *UnlinkOp) Respond(err error) {
 		return
 	}
 
+	o.commonOp.logger.Printf("Responding OK to UnlinkOp")
 	o.r.(*bazilfuse.RemoveRequest).Respond()
 }
 
@@ -365,6 +382,7 @@ func (o *OpenDirOp) Respond(err error) {
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
 
+	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.OpenRequest).Respond(&resp)
 }
 
@@ -468,6 +486,7 @@ func (o *ReadDirOp) Respond(err error) {
 		Data: o.Data,
 	}
 
+	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.ReadRequest).Respond(&resp)
 }
 
@@ -492,6 +511,7 @@ func (o *ReleaseDirHandleOp) Respond(err error) {
 		return
 	}
 
+	o.commonOp.logger.Printf("Responding OK to ReleaseDirHandleOp")
 	o.r.(*bazilfuse.ReleaseRequest).Respond()
 }
 
@@ -534,6 +554,7 @@ func (o *OpenFileOp) Respond(err error) {
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
 
+	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.OpenRequest).Respond(&resp)
 }
 
@@ -576,6 +597,7 @@ func (o *ReadFileOp) Respond(err error) {
 		Data: o.Data,
 	}
 
+	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.ReadRequest).Respond(&resp)
 }
 
@@ -656,6 +678,7 @@ func (o *WriteFileOp) Respond(err error) {
 		Size: len(o.Data),
 	}
 
+	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.WriteRequest).Respond(&resp)
 }
 
@@ -689,6 +712,7 @@ func (o *SyncFileOp) Respond(err error) {
 		return
 	}
 
+	o.commonOp.logger.Printf("Responding OK to SyncFileOp")
 	o.r.(*bazilfuse.FsyncRequest).Respond()
 }
 
@@ -753,6 +777,7 @@ func (o *FlushFileOp) Respond(err error) {
 		return
 	}
 
+	o.commonOp.logger.Printf("Responding OK to FlushFileOp")
 	o.r.(*bazilfuse.FlushRequest).Respond()
 }
 
@@ -777,5 +802,6 @@ func (o *ReleaseFileHandleOp) Respond(err error) {
 		return
 	}
 
+	o.commonOp.logger.Printf("Responding OK to ReleaseFileHandleOp")
 	o.r.(*bazilfuse.ReleaseRequest).Respond()
 }

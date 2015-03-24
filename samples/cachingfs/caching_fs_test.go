@@ -54,7 +54,7 @@ func (t *cachingFSTest) setUp(
 	t.fs, err = cachingfs.NewCachingFS(lookupEntryTimeout, getattrTimeout)
 	AssertEq(nil, err)
 
-	t.FileSystem = t.fs
+	t.Server = t.fs
 
 	// Mount it.
 	t.SampleTest.SetUp(ti)

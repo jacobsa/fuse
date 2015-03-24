@@ -18,6 +18,8 @@
 package fuseops
 
 import (
+	"log"
+	"reflect"
 	"time"
 
 	"github.com/jacobsa/bazilfuse"
@@ -29,7 +31,7 @@ import (
 //
 // This function is an implementation detail of the fuse package, and must not
 // be called by anyone else.
-func Convert(r bazilfuse.Request) (o Op) {
+func Convert(r bazilfuse.Request, logger *log.Logger) (o Op) {
 	var co *commonOp
 
 	switch typed := r.(type) {
@@ -57,6 +59,23 @@ func Convert(r bazilfuse.Request) (o Op) {
 		to := &SetInodeAttributesOp{
 			Inode: InodeID(typed.Header.Node),
 		}
+
+		if typed.Valid&bazilfuse.SetattrSize != 0 {
+			to.Size = &typed.Size
+		}
+
+		if typed.Valid&bazilfuse.SetattrMode != 0 {
+			to.Mode = &typed.Mode
+		}
+
+		if typed.Valid&bazilfuse.SetattrAtime != 0 {
+			to.Atime = &typed.Atime
+		}
+
+		if typed.Valid&bazilfuse.SetattrMtime != 0 {
+			to.Mtime = &typed.Mtime
+		}
+
 		o = to
 		co = &to.commonOp
 
@@ -142,7 +161,7 @@ func Convert(r bazilfuse.Request) (o Op) {
 			o = to
 			co = &to.commonOp
 		} else {
-			to := &ReadFileOp{
+			to := &ReleaseFileHandleOp{
 				Handle: HandleID(typed.Handle),
 			}
 			o = to
@@ -184,7 +203,7 @@ func Convert(r bazilfuse.Request) (o Op) {
 		return
 	}
 
-	co.init(r)
+	co.init(reflect.TypeOf(o).String(), r, logger)
 	return
 }
 
@@ -234,13 +253,20 @@ func convertChildInodeEntry(
 
 // A helper for embedding common behavior.
 type commonOp struct {
-	ctx context.Context
-	r   bazilfuse.Request
+	opType string
+	ctx    context.Context
+	r      bazilfuse.Request
+	logger *log.Logger
 }
 
-func (o *commonOp) init(r bazilfuse.Request) {
+func (o *commonOp) init(
+	opType string,
+	r bazilfuse.Request,
+	logger *log.Logger) {
+	o.opType = opType
 	o.ctx = context.Background()
 	o.r = r
+	o.logger = logger
 }
 
 func (o *commonOp) Header() OpHeader {
@@ -256,9 +282,14 @@ func (o *commonOp) Context() context.Context {
 }
 
 func (o *commonOp) respondErr(err error) {
-	if err != nil {
+	if err == nil {
 		panic("Expect non-nil here.")
 	}
+
+	o.logger.Printf(
+		"Responding with error to %s: %v",
+		o.opType,
+		err)
 
 	o.r.RespondError(err)
 }

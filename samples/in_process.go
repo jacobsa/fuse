@@ -29,19 +29,19 @@ import (
 
 // A struct that implements common behavior needed by tests in the samples/
 // directory. Use it as an embedded field in your test fixture, calling its
-// SetUp method from your SetUp method after setting the FileSystem field.
+// SetUp method from your SetUp method after setting the Server field.
 type SampleTest struct {
-	// The file system under test and the configuration with which it should be
+	// The server under test and the configuration with which it should be
 	// mounted. These must be set by the user of this type before calling SetUp;
 	// all the other fields below are set by SetUp itself.
-	FileSystem  fuse.FileSystem
+	Server      fuse.Server
 	MountConfig fuse.MountConfig
 
 	// A context object that can be used for long-running operations.
 	Ctx context.Context
 
 	// A clock with a fixed initial time. The test's set up method may use this
-	// to wire the file system with a clock, if desired.
+	// to wire the server with a clock, if desired.
 	Clock timeutil.SimulatedClock
 
 	// The directory at which the file system is mounted.
@@ -54,12 +54,12 @@ type SampleTest struct {
 	mfs *fuse.MountedFileSystem
 }
 
-// Mount t.FileSystem and initialize the other exported fields of the struct.
+// Mount t.Server and initialize the other exported fields of the struct.
 // Panics on error.
 //
-// REQUIRES: t.FileSystem has been set.
+// REQUIRES: t.Server has been set.
 func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
-	err := t.initialize(t.FileSystem, &t.MountConfig)
+	err := t.initialize(t.Server, &t.MountConfig)
 	if err != nil {
 		panic(err)
 	}
@@ -67,7 +67,7 @@ func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
 
 // Like SetUp, but doens't panic.
 func (t *SampleTest) initialize(
-	fs fuse.FileSystem,
+	server fuse.Server,
 	config *fuse.MountConfig) (err error) {
 	// Initialize the context.
 	t.Ctx = context.Background()
@@ -83,16 +83,9 @@ func (t *SampleTest) initialize(
 	}
 
 	// Mount the file system.
-	t.mfs, err = fuse.Mount(t.Dir, fs, config)
+	t.mfs, err = fuse.Mount(t.Dir, server, config)
 	if err != nil {
 		err = fmt.Errorf("Mount: %v", err)
-		return
-	}
-
-	// Wait for it to be ready.
-	err = t.mfs.WaitForReady(t.Ctx)
-	if err != nil {
-		err = fmt.Errorf("WaitForReady: %v", err)
 		return
 	}
 
