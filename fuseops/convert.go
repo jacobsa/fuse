@@ -35,6 +35,91 @@ func Convert(r bazilfuse.Request) (o Op) {
 		o = to
 		co = &to.commonOp
 
+	case *bazilfuse.InitRequest:
+		to := &LookUpInodeOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &GetInodeAttributesOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &SetInodeAttributesOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &ForgetInodeOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &MkDirOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &CreateFileOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &RmDirOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &UnlinkOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &OpenDirOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &ReadDirOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &ReleaseDirHandleOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &OpenFileOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &ReadFileOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &WriteFileOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &SyncFileOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &FlushFileOp{}
+		o = to
+		co = &to.commonOp
+
+	case *bazilfuse.InitRequest:
+		to := &ReleaseFileHandleOp{}
+		o = to
+		co = &to.commonOp
+
 	default:
 		co = &commonOp{}
 		o = co
