@@ -23,7 +23,6 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"golang.org/x/net/context"
 )
 
 // A file system with a fixed structure that looks like this:
@@ -137,76 +136,68 @@ func (fs *HelloFS) patchAttributes(
 	attr.Crtime = now
 }
 
-func (fs *HelloFS) Init(op *fuseops.InitOp) {
+func (fs *HelloFS) init(op *fuseops.InitOp) {
 	op.Respond(nil)
 }
 
-func (fs *HelloFS) LookUpInode(
-	ctx context.Context,
-	req *fuse.LookUpInodeRequest) (
-	resp *fuse.LookUpInodeResponse, err error) {
-	resp = &fuse.LookUpInodeResponse{}
+func (fs *HelloFS) lookUpInode(op *fuseops.LookUpInodeOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	// Find the info for the parent.
-	parentInfo, ok := gInodeInfo[req.Parent]
+	parentInfo, ok := gInodeInfo[op.Parent]
 	if !ok {
 		err = fuse.ENOENT
 		return
 	}
 
 	// Find the child within the parent.
-	childInode, err := findChildInode(req.Name, parentInfo.children)
+	childInode, err := findChildInode(op.Name, parentInfo.children)
 	if err != nil {
 		return
 	}
 
 	// Copy over information.
-	resp.Entry.Child = childInode
-	resp.Entry.Attributes = gInodeInfo[childInode].attributes
+	op.Entry.Child = childInode
+	op.Entry.Attributes = gInodeInfo[childInode].attributes
 
 	// Patch attributes.
-	fs.patchAttributes(&resp.Entry.Attributes)
+	fs.patchAttributes(&op.Entry.Attributes)
 
 	return
 }
 
-func (fs *HelloFS) GetInodeAttributes(
-	ctx context.Context,
-	req *fuse.GetInodeAttributesRequest) (
-	resp *fuse.GetInodeAttributesResponse, err error) {
-	resp = &fuse.GetInodeAttributesResponse{}
+func (fs *HelloFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	// Find the info for this inode.
-	info, ok := gInodeInfo[req.Inode]
+	info, ok := gInodeInfo[op.Inode]
 	if !ok {
 		err = fuse.ENOENT
 		return
 	}
 
 	// Copy over its attributes.
-	resp.Attributes = info.attributes
+	op.Attributes = info.attributes
 
 	// Patch attributes.
-	fs.patchAttributes(&resp.Attributes)
+	fs.patchAttributes(&op.Attributes)
 
 	return
 }
 
-func (fs *HelloFS) OpenDir(
-	ctx context.Context,
-	req *fuse.OpenDirRequest) (resp *fuse.OpenDirResponse, err error) {
+func (fs *HelloFS) openDir(op *fuseops.OpenDirOp) {
 	// Allow opening any directory.
-	resp = &fuse.OpenDirResponse{}
-	return
+	op.Respond(nil)
 }
 
-func (fs *HelloFS) ReadDir(
-	ctx context.Context,
-	req *fuse.ReadDirRequest) (resp *fuse.ReadDirResponse, err error) {
-	resp = &fuse.ReadDirResponse{}
+func (fs *HelloFS) readDir(op fuseops.ReadDirOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	// Find the info for this inode.
-	info, ok := gInodeInfo[req.Inode]
+	info, ok := gInodeInfo[op.Inode]
 	if !ok {
 		err = fuse.ENOENT
 		return
@@ -220,18 +211,18 @@ func (fs *HelloFS) ReadDir(
 	entries := info.children
 
 	// Grab the range of interest.
-	if req.Offset > fuse.DirOffset(len(entries)) {
+	if op.Offset > fuse.DirOffset(len(entries)) {
 		err = fuse.EIO
 		return
 	}
 
-	entries = entries[req.Offset:]
+	entries = entries[op.Offset:]
 
 	// Resume at the specified offset into the array.
 	for _, e := range entries {
-		resp.Data = fuseutil.AppendDirent(resp.Data, e)
-		if len(resp.Data) > req.Size {
-			resp.Data = resp.Data[:req.Size]
+		op.Data = fuseutil.AppendDirent(op.Data, e)
+		if len(op.Data) > op.Size {
+			op.Data = op.Data[:op.Size]
 			break
 		}
 	}
@@ -239,25 +230,21 @@ func (fs *HelloFS) ReadDir(
 	return
 }
 
-func (fs *HelloFS) OpenFile(
-	ctx context.Context,
-	req *fuse.OpenFileRequest) (resp *fuse.OpenFileResponse, err error) {
+func (fs *HelloFS) openFile(op *fuseops.OpenFileOp) {
 	// Allow opening any file.
-	resp = &fuse.OpenFileResponse{}
-	return
+	op.Respond(nil)
 }
 
-func (fs *HelloFS) ReadFile(
-	ctx context.Context,
-	req *fuse.ReadFileRequest) (resp *fuse.ReadFileResponse, err error) {
-	resp = &fuse.ReadFileResponse{}
+func (fs *HelloFS) readFile(op *fuseops.ReadFileOp) {
+	var err error
+	defer func() { op.Respond(err) }()
 
 	// Let io.ReaderAt deal with the semantics.
 	reader := strings.NewReader("Hello, world!")
 
-	resp.Data = make([]byte, req.Size)
-	n, err := reader.ReadAt(resp.Data, req.Offset)
-	resp.Data = resp.Data[:n]
+	op.Data = make([]byte, op.Size)
+	n, err := reader.ReadAt(op.Data, op.Offset)
+	op.Data = op.Data[:n]
 
 	// Special case: FUSE doesn't expect us to return io.EOF.
 	if err == io.EOF {
