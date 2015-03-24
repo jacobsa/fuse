@@ -59,6 +59,23 @@ func Convert(r bazilfuse.Request, logger *log.Logger) (o Op) {
 		to := &SetInodeAttributesOp{
 			Inode: InodeID(typed.Header.Node),
 		}
+
+		if typed.Valid&bazilfuse.SetattrSize != 0 {
+			to.Size = &typed.Size
+		}
+
+		if typed.Valid&bazilfuse.SetattrMode != 0 {
+			to.Mode = &typed.Mode
+		}
+
+		if typed.Valid&bazilfuse.SetattrAtime != 0 {
+			to.Atime = &typed.Atime
+		}
+
+		if typed.Valid&bazilfuse.SetattrMtime != 0 {
+			to.Mtime = &typed.Mtime
+		}
+
 		o = to
 		co = &to.commonOp
 
