@@ -46,28 +46,33 @@ func Convert(r bazilfuse.Request) (o Op) {
 
 	case *bazilfuse.GetattrRequest:
 		to := &GetInodeAttributesOp{
-		//TODO
+			Inode: InodeID(typed.Header.Node),
 		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.SetattrRequest:
 		to := &SetInodeAttributesOp{
-		//TODO
+			Inode: InodeID(typed.Header.Node),
 		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.MkdirRequest:
 		to := &MkDirOp{
-		//TODO
+			Parent: InodeID(typed.Header.Node),
+			Name:   typed.Name,
+			Mode:   typed.Mode,
 		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.CreateRequest:
 		to := &CreateFileOp{
-		//TODO
+			Parent: InodeID(typed.Header.Node),
+			Name:   typed.Name,
+			Mode:   typed.Mode,
+			Flags:  typed.Flags,
 		}
 		o = to
 		co = &to.commonOp
