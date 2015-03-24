@@ -63,6 +63,8 @@ func (o *InitOp) Respond(err error) {
 // Look up a child by name within a parent directory. The kernel sends this
 // when resolving user paths to dentry structs, which are then cached.
 type LookUpInodeOp struct {
+	commonOp
+
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
 
@@ -81,11 +83,22 @@ type LookUpInodeOp struct {
 	Entry ChildInodeEntry
 }
 
+func (o *LookUpInodeOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
+}
+
 // Refresh the attributes for an inode whose ID was previously returned in a
 // LookUpInodeOp. The kernel sends this when the FUSE VFS layer's cache of
 // inode attributes is stale. This is controlled by the AttributesExpiration
 // field of ChildInodeEntry, etc.
 type GetInodeAttributesOp struct {
+	commonOp
+
 	// The inode of interest.
 	Inode InodeID
 
@@ -96,11 +109,22 @@ type GetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
+func (o *GetInodeAttributesOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
+}
+
 // Change attributes for an inode.
 //
 // The kernel sends this for obvious cases like chmod(2), and for less obvious
 // cases like ftrunctate(2).
 type SetInodeAttributesOp struct {
+	commonOp
+
 	// The inode of interest.
 	Inode InodeID
 
@@ -117,13 +141,33 @@ type SetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
+func (o *SetInodeAttributesOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
+}
+
 // Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
 // kernel sends this when removing an inode from its internal caches.
 type ForgetInodeOp struct {
+	commonOp
+
 	// The inode to be forgotten. The kernel guarantees that the node ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	ID InodeID
+}
+
+func (o *ForgetInodeOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -138,6 +182,8 @@ type ForgetInodeOp struct {
 // http://goo.gl/FZpLu5). But volatile file systems and paranoid non-volatile
 // file systems should check for the reasons described below on CreateFile.
 type MkDirOp struct {
+	commonOp
+
 	// The ID of parent directory inode within which to create the child.
 	Parent InodeID
 
@@ -147,6 +193,15 @@ type MkDirOp struct {
 
 	// Set by the file system: information about the inode that was created.
 	Entry ChildInodeEntry
+}
+
+func (o *MkDirOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
 }
 
 // Create a file inode and open it.
@@ -163,6 +218,8 @@ type MkDirOp struct {
 // course particularly applies to file systems that are volatile from the
 // kernel's point of view.
 type CreateFileOp struct {
+	commonOp
+
 	// The ID of parent directory inode within which to create the child file.
 	Parent InodeID
 
@@ -187,6 +244,15 @@ type CreateFileOp struct {
 	Handle HandleID
 }
 
+func (o *CreateFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Unlinking
 ////////////////////////////////////////////////////////////////////////
@@ -199,10 +265,21 @@ type CreateFileOp struct {
 //
 // Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
 type RmDirOp struct {
+	commonOp
+
 	// The ID of parent directory inode, and the name of the directory being
 	// removed within it.
 	Parent InodeID
 	Name   string
+}
+
+func (o *RmDirOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
 }
 
 // Unlink a file from its parent. If this brings the inode's link count to
@@ -211,10 +288,21 @@ type RmDirOp struct {
 //
 // Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
 type UnlinkOp struct {
+	commonOp
+
 	// The ID of parent directory inode, and the name of the file being removed
 	// within it.
 	Parent InodeID
 	Name   string
+}
+
+func (o *UnlinkOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -228,6 +316,8 @@ type UnlinkOp struct {
 // user-space process. On OS X it may not be sent for every open(2) (cf.
 // https://github.com/osxfuse/osxfuse/issues/199).
 type OpenDirOp struct {
+	commonOp
+
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -245,8 +335,19 @@ type OpenDirOp struct {
 	Handle HandleID
 }
 
+func (o *OpenDirOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
+}
+
 // Read entries from a directory previously opened with OpenDir.
 type ReadDirOp struct {
+	commonOp
+
 	// The directory inode that we are reading, and the handle previously
 	// returned by OpenDir when opening that inode.
 	Inode  InodeID
@@ -333,6 +434,15 @@ type ReadDirOp struct {
 	Data []byte
 }
 
+func (o *ReadDirOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
+}
+
 // Release a previously-minted directory handle. The kernel sends this when
 // there are no more references to an open directory: all file descriptors are
 // closed and all memory mappings are unmapped.
@@ -340,10 +450,21 @@ type ReadDirOp struct {
 // The kernel guarantees that the handle ID will not be used in further ops
 // sent to the file system (unless it is reissued by the file system).
 type ReleaseDirHandleOp struct {
+	commonOp
+
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	Handle HandleID
+}
+
+func (o *ReleaseDirHandleOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -357,6 +478,8 @@ type ReleaseDirHandleOp struct {
 // process. On OS X it may not be sent for every open(2)
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
 type OpenFileOp struct {
+	commonOp
+
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -373,12 +496,23 @@ type OpenFileOp struct {
 	Handle HandleID
 }
 
+func (o *OpenFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
+}
+
 // Read data from a file previously opened with CreateFile or OpenFile.
 //
 // Note that this op is not sent for every call to read(2) by the end user;
 // some reads may be served by the page cache. See notes on WriteFileOp for
 // more.
 type ReadFileOp struct {
+	commonOp
+
 	// The file inode that we are reading, and the handle previously returned by
 	// CreateFile or OpenFile when opening that inode.
 	Inode  InodeID
@@ -398,6 +532,15 @@ type ReadFileOp struct {
 	// Set by the file system: the data read. If this is less than the requested
 	// size, it indicates EOF. An error should not be returned in this case.
 	Data []byte
+}
+
+func (o *ReadFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
 }
 
 // Write data to a file previously opened with CreateFile or OpenFile.
@@ -429,6 +572,8 @@ type ReadFileOp struct {
 //     flush request.
 //
 type WriteFileOp struct {
+	commonOp
+
 	// The file inode that we are modifying, and the handle previously returned
 	// by CreateFile or OpenFile when opening that inode.
 	Inode  InodeID
@@ -465,6 +610,15 @@ type WriteFileOp struct {
 	Data []byte
 }
 
+func (o *WriteFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
+}
+
 // Synchronize the current contents of an open file to storage.
 //
 // vfs.txt documents this as being called for by the fsync(2) system call
@@ -482,9 +636,20 @@ type WriteFileOp struct {
 // See also: FlushFileOp, which may perform a similar function when closing a
 // file (but which is not used in "real" file systems).
 type SyncFileOp struct {
+	commonOp
+
 	// The file and handle being sync'd.
 	Inode  InodeID
 	Handle HandleID
+}
+
+func (o *SyncFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
 }
 
 // Flush the current state of an open file to storage upon closing a file
@@ -535,9 +700,20 @@ type SyncFileOp struct {
 // to at least schedule a real flush, and maybe do it immediately in order to
 // return any errors that occur.
 type FlushFileOp struct {
+	commonOp
+
 	// The file and handle being flushed.
 	Inode  InodeID
 	Handle HandleID
+}
+
+func (o *FlushFileOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
 }
 
 // Release a previously-minted file handle. The kernel calls this when there
@@ -547,8 +723,19 @@ type FlushFileOp struct {
 // The kernel guarantees that the handle ID will not be used in further calls
 // to the file system (unless it is reissued by the file system).
 type ReleaseFileHandleOp struct {
+	commonOp
+
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	Handle HandleID
+}
+
+func (o *ReleaseFileHandleOp) Respond(err error) {
+	if err != nil {
+		o.commonOp.respondErr(err)
+		return
+	}
+
+	panic("TODO")
 }
