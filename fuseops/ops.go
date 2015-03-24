@@ -484,6 +484,11 @@ type WriteFileOp struct {
 // See also: FlushFileOp, which may perform a similar function when closing a
 // file (but which is not used in "real" file systems).
 type SyncFileOp struct {
+	Header RequestHeader
+
+	// The file and handle being sync'd.
+	Inode  InodeID
+	Handle HandleID
 }
 
 // Flush the current state of an open file to storage upon closing a file
@@ -534,6 +539,11 @@ type SyncFileOp struct {
 // to at least schedule a real flush, and maybe do it immediately in order to
 // return any errors that occur.
 type FlushFileOp struct {
+	Header RequestHeader
+
+	// The file and handle being flushed.
+	Inode  InodeID
+	Handle HandleID
 }
 
 // Release a previously-minted file handle. The kernel calls this when there
@@ -543,42 +553,10 @@ type FlushFileOp struct {
 // The kernel guarantees that the handle ID will not be used in further calls
 // to the file system (unless it is reissued by the file system).
 type ReleaseFileHandleOp struct {
-}
-
-////////////////////////////////////////////////////////////////////////
-// Requests and responses
-////////////////////////////////////////////////////////////////////////
-
-type SyncFileRequest struct {
-	Header RequestHeader
-
-	// The file and handle being sync'd.
-	Inode  InodeID
-	Handle HandleID
-}
-
-type SyncFileResponse struct {
-}
-
-type FlushFileRequest struct {
-	Header RequestHeader
-
-	// The file and handle being flushed.
-	Inode  InodeID
-	Handle HandleID
-}
-
-type FlushFileResponse struct {
-}
-
-type ReleaseFileHandleRequest struct {
 	Header RequestHeader
 
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	Handle HandleID
-}
-
-type ReleaseFileHandleResponse struct {
 }
