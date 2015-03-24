@@ -57,6 +57,9 @@ func (fs *helloFS) serve(c *fuse.Connection) {
 		}
 
 		switch typed := op.(type) {
+		case *fuseops.InitOp:
+			fs.init(typed)
+
 		default:
 			typed.Respond(fuse.ENOSYS)
 		}
