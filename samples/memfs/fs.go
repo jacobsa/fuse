@@ -20,16 +20,15 @@ import (
 	"os"
 	"time"
 
+	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"golang.org/x/net/context"
 )
 
 type memFS struct {
-	fuseutil.NotImplementedFileSystem
-
 	/////////////////////////
 	// Dependencies
 	/////////////////////////
@@ -44,20 +43,21 @@ type memFS struct {
 	mu syncutil.InvariantMutex
 
 	// The collection of live inodes, indexed by ID. IDs of free inodes that may
-	// be re-used have nil entries. No ID less than fuse.RootInodeID is ever used.
+	// be re-used have nil entries. No ID less than fuseops.RootInodeID is ever
+	// used.
 	//
-	// INVARIANT: len(inodes) > fuse.RootInodeID
-	// INVARIANT: For all i < fuse.RootInodeID, inodes[i] == nil
-	// INVARIANT: inodes[fuse.RootInodeID] != nil
-	// INVARIANT: inodes[fuse.RootInodeID].dir is true
+	// INVARIANT: len(inodes) > fuseops.RootInodeID
+	// INVARIANT: For all i < fuseops.RootInodeID, inodes[i] == nil
+	// INVARIANT: inodes[fuseops.RootInodeID] != nil
+	// INVARIANT: inodes[fuseops.RootInodeID].dir is true
 	inodes []*inode // GUARDED_BY(mu)
 
 	// A list of inode IDs within inodes available for reuse, not including the
-	// reserved IDs less than fuse.RootInodeID.
+	// reserved IDs less than fuseops.RootInodeID.
 	//
 	// INVARIANT: This is all and only indices i of 'inodes' such that i >
-	// fuse.RootInodeID and inodes[i] == nil
-	freeInodes []fuse.InodeID // GUARDED_BY(mu)
+	// fuseops.RootInodeID and inodes[i] == nil
+	freeInodes []fuseops.InodeID // GUARDED_BY(mu)
 }
 
 // Create a file system that stores data and metadata in memory.
@@ -68,21 +68,21 @@ type memFS struct {
 func NewMemFS(
 	uid uint32,
 	gid uint32,
-	clock timeutil.Clock) fuse.FileSystem {
+	clock timeutil.Clock) fuse.Server {
 	// Set up the basic struct.
 	fs := &memFS{
 		clock:  clock,
-		inodes: make([]*inode, fuse.RootInodeID+1),
+		inodes: make([]*inode, fuseops.RootInodeID+1),
 	}
 
 	// Set up the root inode.
-	rootAttrs := fuse.InodeAttributes{
+	rootAttrs := fuseops.InodeAttributes{
 		Mode: 0700 | os.ModeDir,
 		Uid:  uid,
 		Gid:  gid,
 	}
 
-	fs.inodes[fuse.RootInodeID] = newInode(clock, rootAttrs)
+	fs.inodes[fuseops.RootInodeID] = newInode(clock, rootAttrs)
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
@@ -94,25 +94,27 @@ func NewMemFS(
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func (fs *memFS) ServeOps(c *fuse.Connection)
+
 func (fs *memFS) checkInvariants() {
 	// Check reserved inodes.
-	for i := 0; i < fuse.RootInodeID; i++ {
+	for i := 0; i < fuseops.RootInodeID; i++ {
 		if fs.inodes[i] != nil {
 			panic(fmt.Sprintf("Non-nil inode for ID: %v", i))
 		}
 	}
 
 	// Check the root inode.
-	if !fs.inodes[fuse.RootInodeID].dir {
+	if !fs.inodes[fuseops.RootInodeID].dir {
 		panic("Expected root to be a directory.")
 	}
 
 	// Build our own list of free IDs.
-	freeIDsEncountered := make(map[fuse.InodeID]struct{})
-	for i := fuse.RootInodeID + 1; i < len(fs.inodes); i++ {
+	freeIDsEncountered := make(map[fuseops.InodeID]struct{})
+	for i := fuseops.RootInodeID + 1; i < len(fs.inodes); i++ {
 		inode := fs.inodes[i]
 		if inode == nil {
-			freeIDsEncountered[fuse.InodeID(i)] = struct{}{}
+			freeIDsEncountered[fuseops.InodeID(i)] = struct{}{}
 			continue
 		}
 	}
@@ -138,7 +140,7 @@ func (fs *memFS) checkInvariants() {
 //
 // SHARED_LOCKS_REQUIRED(fs.mu)
 // EXCLUSIVE_LOCK_FUNCTION(inode.mu)
-func (fs *memFS) getInodeForModifyingOrDie(id fuse.InodeID) (inode *inode) {
+func (fs *memFS) getInodeForModifyingOrDie(id fuseops.InodeID) (inode *inode) {
 	inode = fs.inodes[id]
 	if inode == nil {
 		panic(fmt.Sprintf("Unknown inode: %v", id))
@@ -153,7 +155,7 @@ func (fs *memFS) getInodeForModifyingOrDie(id fuse.InodeID) (inode *inode) {
 //
 // SHARED_LOCKS_REQUIRED(fs.mu)
 // SHARED_LOCK_FUNCTION(inode.mu)
-func (fs *memFS) getInodeForReadingOrDie(id fuse.InodeID) (inode *inode) {
+func (fs *memFS) getInodeForReadingOrDie(id fuseops.InodeID) (inode *inode) {
 	inode = fs.inodes[id]
 	if inode == nil {
 		panic(fmt.Sprintf("Unknown inode: %v", id))
@@ -169,7 +171,7 @@ func (fs *memFS) getInodeForReadingOrDie(id fuse.InodeID) (inode *inode) {
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
 // EXCLUSIVE_LOCK_FUNCTION(inode.mu)
 func (fs *memFS) allocateInode(
-	attrs fuse.InodeAttributes) (id fuse.InodeID, inode *inode) {
+	attrs fuseops.InodeAttributes) (id fuseops.InodeID, inode *inode) {
 	// Create and lock the inode.
 	inode = newInode(fs.clock, attrs)
 	inode.mu.Lock()
@@ -181,7 +183,7 @@ func (fs *memFS) allocateInode(
 		fs.freeInodes = fs.freeInodes[:numFree-1]
 		fs.inodes[id] = inode
 	} else {
-		id = fuse.InodeID(len(fs.inodes))
+		id = fuseops.InodeID(len(fs.inodes))
 		fs.inodes = append(fs.inodes, inode)
 	}
 
@@ -189,7 +191,7 @@ func (fs *memFS) allocateInode(
 }
 
 // EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
-func (fs *memFS) deallocateInode(id fuse.InodeID) {
+func (fs *memFS) deallocateInode(id fuseops.InodeID) {
 	fs.freeInodes = append(fs.freeInodes, id)
 	fs.inodes[id] = nil
 }
@@ -304,7 +306,7 @@ func (fs *memFS) MkDir(
 
 	// Set up attributes from the child, using the credentials of the calling
 	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
-	childAttrs := fuse.InodeAttributes{
+	childAttrs := fuseops.InodeAttributes{
 		Nlink: 1,
 		Mode:  req.Mode,
 		Uid:   req.Header.Uid,
@@ -345,7 +347,7 @@ func (fs *memFS) CreateFile(
 	// Set up attributes from the child, using the credentials of the calling
 	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
 	now := fs.clock.Now()
-	childAttrs := fuse.InodeAttributes{
+	childAttrs := fuseops.InodeAttributes{
 		Nlink:  1,
 		Mode:   req.Mode,
 		Atime:  now,
