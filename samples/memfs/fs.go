@@ -200,12 +200,18 @@ func (fs *memFS) deallocateInode(id fuseops.InodeID) {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *memFS) Init(
-	op *fuseops.InitOp) (err error) {
+	op *fuseops.InitOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	return
 }
 
 func (fs *memFS) LookUpInode(
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
@@ -237,7 +243,10 @@ func (fs *memFS) LookUpInode(
 }
 
 func (fs *memFS) GetInodeAttributes(
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
@@ -256,7 +265,10 @@ func (fs *memFS) GetInodeAttributes(
 }
 
 func (fs *memFS) SetInodeAttributes(
-	op *fuseops.SetInodeAttributesOp) (err error) {
+	op *fuseops.SetInodeAttributesOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
@@ -278,7 +290,10 @@ func (fs *memFS) SetInodeAttributes(
 }
 
 func (fs *memFS) MkDir(
-	op *fuseops.MkDirOp) (err error) {
+	op *fuseops.MkDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -315,7 +330,10 @@ func (fs *memFS) MkDir(
 }
 
 func (fs *memFS) CreateFile(
-	op *fuseops.CreateFileOp) (err error) {
+	op *fuseops.CreateFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -359,7 +377,10 @@ func (fs *memFS) CreateFile(
 }
 
 func (fs *memFS) RmDir(
-	op *fuseops.RmDirOp) (err error) {
+	op *fuseops.RmDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -394,7 +415,10 @@ func (fs *memFS) RmDir(
 }
 
 func (fs *memFS) Unlink(
-	op *fuseops.UnlinkOp) (err error) {
+	op *fuseops.UnlinkOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -423,7 +447,10 @@ func (fs *memFS) Unlink(
 }
 
 func (fs *memFS) OpenDir(
-	op *fuseops.OpenDirOp) (err error) {
+	op *fuseops.OpenDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
@@ -441,7 +468,10 @@ func (fs *memFS) OpenDir(
 }
 
 func (fs *memFS) ReadDir(
-	op *fuseops.ReadDirOp) (err error) {
+	op *fuseops.ReadDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
@@ -460,7 +490,10 @@ func (fs *memFS) ReadDir(
 }
 
 func (fs *memFS) OpenFile(
-	op *fuseops.OpenFileOp) (err error) {
+	op *fuseops.OpenFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
@@ -478,7 +511,10 @@ func (fs *memFS) OpenFile(
 }
 
 func (fs *memFS) ReadFile(
-	op *fuseops.ReadFileOp) (err error) {
+	op *fuseops.ReadFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
@@ -500,7 +536,10 @@ func (fs *memFS) ReadFile(
 }
 
 func (fs *memFS) WriteFile(
-	op *fuseops.WriteFileOp) (err error) {
+	op *fuseops.WriteFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
