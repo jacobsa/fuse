@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/googlecloudplatform/gcsfuse/timeutil"
-	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
@@ -123,7 +122,7 @@ func (inode *inode) checkInvariants() {
 
 		childNames := make(map[string]struct{})
 		for i, e := range inode.entries {
-			if e.Offset != fuse.DirOffset(i+1) {
+			if e.Offset != fuseops.DirOffset(i+1) {
 				panic(fmt.Sprintf("Unexpected offset: %v", e.Offset))
 			}
 
@@ -222,7 +221,7 @@ func (inode *inode) AddChild(
 	// No matter where we place the entry, make sure it has the correct Offset
 	// field.
 	defer func() {
-		inode.entries[index].Offset = fuse.DirOffset(index + 1)
+		inode.entries[index].Offset = fuseops.DirOffset(index + 1)
 	}()
 
 	// Set up the entry.
@@ -263,7 +262,7 @@ func (inode *inode) RemoveChild(name string) {
 	// Mark it as unused.
 	inode.entries[i] = fuseutil.Dirent{
 		Type:   fuseutil.DT_Unknown,
-		Offset: fuse.DirOffset(i + 1),
+		Offset: fuseops.DirOffset(i + 1),
 	}
 }
 
