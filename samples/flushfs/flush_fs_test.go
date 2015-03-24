@@ -410,7 +410,42 @@ func (t *NoErrorsTest) Fsync() {
 }
 
 func (t *NoErrorsTest) Fdatasync() {
-	AssertTrue(false, "TODO")
+	var n int
+	var err error
+
+	// Open the file.
+	t.f1, err = os.OpenFile(path.Join(t.Dir, "foo"), os.O_WRONLY, 0)
+	AssertEq(nil, err)
+
+	// Write some contents to the file.
+	n, err = t.f1.Write([]byte("taco"))
+	AssertEq(nil, err)
+	AssertEq(4, n)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre())
+
+	// Fdatasync.
+	err = syscall.Fdatasync(int(t.f1.Fd()))
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre("taco"))
+
+	// Write some more contents.
+	n, err = t.f1.Write([]byte("s"))
+	AssertEq(nil, err)
+	AssertEq(1, n)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre("taco"))
+
+	// Fdatasync.
+	err = syscall.Fdatasync(int(t.f1.Fd()))
+	AssertEq(nil, err)
+
+	AssertThat(t.getFlushes(), ElementsAre())
+	AssertThat(t.getFsyncs(), ElementsAre("taco", "tacos"))
 }
 
 func (t *NoErrorsTest) Dup() {
