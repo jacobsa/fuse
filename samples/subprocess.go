@@ -93,7 +93,7 @@ func getToolContentsImpl() (contents []byte, err error) {
 	}
 
 	// Create a temporary directory into which we will compile the tool.
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := ioutil.TempDir("", "sample_test")
 	if err != nil {
 		err = fmt.Errorf("TempDir: %v", err)
 		return
@@ -203,7 +203,7 @@ func (t *SubprocessTest) initialize() (err error) {
 	}
 
 	// Create a temporary file to hold the contents of the tool.
-	toolFile, err := ioutil.TempFile("", "subprocess_test")
+	toolFile, err := ioutil.TempFile("", "sample_test")
 	if err != nil {
 		err = fmt.Errorf("TempFile: %v", err)
 		return
