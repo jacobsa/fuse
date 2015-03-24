@@ -16,12 +16,12 @@ package cachingfs
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"time"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/gcloud/syncutil"
 )
 
@@ -42,7 +42,7 @@ const (
 // requests. It also exposes methods for renumbering inodes and updating mtimes
 // that are useful in testing that these durations are honored.
 type CachingFS interface {
-	fuse.Server
+	fuseutil.FileSystem
 
 	// Return the current inode ID of the file/directory with the given name.
 	FooID() fuseops.InodeID
@@ -99,6 +99,8 @@ const (
 )
 
 type cachingFS struct {
+	fuseutil.NotImplementedFileSystem
+
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -232,53 +234,18 @@ func (fs *cachingFS) SetMtime(mtime time.Time) {
 	fs.mtime = mtime
 }
 
-// LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) ServeOps(c *fuse.Connection) {
-	for {
-		op, err := c.ReadOp()
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			panic(err)
-		}
-
-		switch typed := op.(type) {
-		case *fuseops.InitOp:
-			fs.init(typed)
-
-		case *fuseops.LookUpInodeOp:
-			fs.lookUpInode(typed)
-
-		case *fuseops.GetInodeAttributesOp:
-			fs.getInodeAttributes(typed)
-
-		case *fuseops.OpenDirOp:
-			fs.openDir(typed)
-
-		case *fuseops.OpenFileOp:
-			fs.openFile(typed)
-
-		default:
-			typed.Respond(fuse.ENOSYS)
-		}
-	}
-}
-
 ////////////////////////////////////////////////////////////////////////
-// Op methods
+// FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *cachingFS) init(op *fuseops.InitOp) {
-	op.Respond(nil)
+func (fs *cachingFS) Init(
+	op *fuseops.InitOp) (err error) {
+	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) lookUpInode(op *fuseops.LookUpInodeOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *cachingFS) LookUpInode(
+	op *fuseops.LookUpInodeOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -331,10 +298,8 @@ func (fs *cachingFS) lookUpInode(op *fuseops.LookUpInodeOp) {
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *cachingFS) GetInodeAttributes(
+	op *fuseops.GetInodeAttributesOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -362,16 +327,12 @@ func (fs *cachingFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
 	return
 }
 
-func (fs *cachingFS) openDir(op *fuseops.OpenDirOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *cachingFS) OpenDir(
+	op *fuseops.OpenDirOp) (err error) {
 	return
 }
 
-func (fs *cachingFS) openFile(op *fuseops.OpenFileOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *cachingFS) OpenFile(
+	op *fuseops.OpenFileOp) (err error) {
 	return
 }

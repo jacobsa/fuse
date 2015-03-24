@@ -33,54 +33,18 @@ import (
 //
 // Each file contains the string "Hello, world!".
 func NewHelloFS(clock timeutil.Clock) (server fuse.Server, err error) {
-	server = &helloFS{
+	fs := &helloFS{
 		Clock: clock,
 	}
 
+	server = fuseutil.NewFileSystemServer(fs)
 	return
 }
 
 type helloFS struct {
+	fuseutil.NotImplementedFileSystem
+
 	Clock timeutil.Clock
-}
-
-func (fs *helloFS) ServeOps(c *fuse.Connection) {
-	for {
-		op, err := c.ReadOp()
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			panic(err)
-		}
-
-		switch typed := op.(type) {
-		case *fuseops.InitOp:
-			fs.init(typed)
-
-		case *fuseops.LookUpInodeOp:
-			fs.lookUpInode(typed)
-
-		case *fuseops.GetInodeAttributesOp:
-			fs.getInodeAttributes(typed)
-
-		case *fuseops.OpenDirOp:
-			fs.openDir(typed)
-
-		case *fuseops.ReadDirOp:
-			fs.readDir(typed)
-
-		case *fuseops.OpenFileOp:
-			fs.openFile(typed)
-
-		case *fuseops.ReadFileOp:
-			fs.readFile(typed)
-
-		default:
-			typed.Respond(fuse.ENOSYS)
-		}
-	}
 }
 
 const (
@@ -183,14 +147,11 @@ func (fs *helloFS) patchAttributes(
 	attr.Crtime = now
 }
 
-func (fs *helloFS) init(op *fuseops.InitOp) {
-	op.Respond(nil)
+func (fs *helloFS) Init(op *fuseops.InitOp) (err error) {
+	return
 }
 
-func (fs *helloFS) lookUpInode(op *fuseops.LookUpInodeOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *helloFS) LookUpInode(op *fuseops.LookUpInodeOp) (err error) {
 	// Find the info for the parent.
 	parentInfo, ok := gInodeInfo[op.Parent]
 	if !ok {
@@ -214,10 +175,8 @@ func (fs *helloFS) lookUpInode(op *fuseops.LookUpInodeOp) {
 	return
 }
 
-func (fs *helloFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *helloFS) GetInodeAttributes(
+	op *fuseops.GetInodeAttributesOp) (err error) {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
 	if !ok {
@@ -234,15 +193,14 @@ func (fs *helloFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
 	return
 }
 
-func (fs *helloFS) openDir(op *fuseops.OpenDirOp) {
+func (fs *helloFS) OpenDir(
+	op *fuseops.OpenDirOp) (err error) {
 	// Allow opening any directory.
-	op.Respond(nil)
+	return
 }
 
-func (fs *helloFS) readDir(op *fuseops.ReadDirOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *helloFS) ReadDir(
+	op *fuseops.ReadDirOp) (err error) {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
 	if !ok {
@@ -277,15 +235,14 @@ func (fs *helloFS) readDir(op *fuseops.ReadDirOp) {
 	return
 }
 
-func (fs *helloFS) openFile(op *fuseops.OpenFileOp) {
+func (fs *helloFS) OpenFile(
+	op *fuseops.OpenFileOp) (err error) {
 	// Allow opening any file.
-	op.Respond(nil)
+	return
 }
 
-func (fs *helloFS) readFile(op *fuseops.ReadFileOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *helloFS) ReadFile(
+	op *fuseops.ReadFileOp) (err error) {
 	// Let io.ReaderAt deal with the semantics.
 	reader := strings.NewReader("Hello, world!")
 

@@ -16,12 +16,12 @@ package flushfs
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"sync"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/fuseutil"
 )
 
 // Create a file system whose sole contents are a file named "foo" and a
@@ -35,11 +35,12 @@ import (
 func NewFileSystem(
 	reportFlush func(string) error,
 	reportFsync func(string) error) (server fuse.Server, err error) {
-	server = &flushFS{
+	fs := &flushFS{
 		reportFlush: reportFlush,
 		reportFsync: reportFsync,
 	}
 
+	server = fuseutil.NewFileSystemServer(fs)
 	return
 }
 
@@ -49,6 +50,8 @@ const (
 )
 
 type flushFS struct {
+	fuseutil.NotImplementedFileSystem
+
 	reportFlush func(string) error
 	reportFsync func(string) error
 
@@ -85,67 +88,17 @@ func (fs *flushFS) barAttributes() fuseops.InodeAttributes {
 	}
 }
 
-// LOCKS_REQUIRED(fs.mu)
-func (fs *flushFS) ServeOps(c *fuse.Connection) {
-	for {
-		op, err := c.ReadOp()
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			panic(err)
-		}
-
-		switch typed := op.(type) {
-		case *fuseops.InitOp:
-			fs.init(typed)
-
-		case *fuseops.LookUpInodeOp:
-			fs.lookUpInode(typed)
-
-		case *fuseops.GetInodeAttributesOp:
-			fs.getInodeAttributes(typed)
-
-		case *fuseops.OpenFileOp:
-			fs.openFile(typed)
-
-		case *fuseops.ReadFileOp:
-			fs.readFile(typed)
-
-		case *fuseops.WriteFileOp:
-			fs.writeFile(typed)
-
-		case *fuseops.SyncFileOp:
-			fs.syncFile(typed)
-
-		case *fuseops.FlushFileOp:
-			fs.flushFile(typed)
-
-		case *fuseops.OpenDirOp:
-			fs.openDir(typed)
-
-		default:
-			typed.Respond(fuse.ENOSYS)
-		}
-	}
-}
-
 ////////////////////////////////////////////////////////////////////////
-// Op methods
+// FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *flushFS) init(op *fuseops.InitOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *flushFS) Init(
+	op *fuseops.InitOp) (err error) {
 	return
 }
 
-func (fs *flushFS) lookUpInode(op *fuseops.LookUpInodeOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *flushFS) LookUpInode(
+	op *fuseops.LookUpInodeOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -177,10 +130,8 @@ func (fs *flushFS) lookUpInode(op *fuseops.LookUpInodeOp) {
 	return
 }
 
-func (fs *flushFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *flushFS) GetInodeAttributes(
+	op *fuseops.GetInodeAttributesOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -203,10 +154,8 @@ func (fs *flushFS) getInodeAttributes(op *fuseops.GetInodeAttributesOp) {
 	}
 }
 
-func (fs *flushFS) openFile(op *fuseops.OpenFileOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *flushFS) OpenFile(
+	op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -219,10 +168,8 @@ func (fs *flushFS) openFile(op *fuseops.OpenFileOp) {
 	return
 }
 
-func (fs *flushFS) readFile(op *fuseops.ReadFileOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *flushFS) ReadFile(
+	op *fuseops.ReadFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -238,10 +185,8 @@ func (fs *flushFS) readFile(op *fuseops.ReadFileOp) {
 	return
 }
 
-func (fs *flushFS) writeFile(op *fuseops.WriteFileOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *flushFS) WriteFile(
+	op *fuseops.WriteFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -263,10 +208,8 @@ func (fs *flushFS) writeFile(op *fuseops.WriteFileOp) {
 	return
 }
 
-func (fs *flushFS) syncFile(op *fuseops.SyncFileOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *flushFS) SyncFile(
+	op *fuseops.SyncFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -274,10 +217,8 @@ func (fs *flushFS) syncFile(op *fuseops.SyncFileOp) {
 	return
 }
 
-func (fs *flushFS) flushFile(op *fuseops.FlushFileOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *flushFS) FlushFile(
+	op *fuseops.FlushFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -285,10 +226,8 @@ func (fs *flushFS) flushFile(op *fuseops.FlushFileOp) {
 	return
 }
 
-func (fs *flushFS) openDir(op *fuseops.OpenDirOp) {
-	var err error
-	defer func() { op.Respond(err) }()
-
+func (fs *flushFS) OpenDir(
+	op *fuseops.OpenDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
