@@ -409,6 +409,10 @@ func (t *NoErrorsTest) Fsync() {
 	AssertThat(t.getFsyncs(), ElementsAre("taco", "tacos"))
 }
 
+func (t *NoErrorsTest) Fdatasync() {
+	AssertTrue(false, "TODO")
+}
+
 func (t *NoErrorsTest) Dup() {
 	var n int
 	var err error
@@ -749,4 +753,8 @@ func (t *FsyncErrorTest) Fsync() {
 
 	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
+}
+
+func (t *FsyncErrorTest) Fdatasync() {
+	AssertTrue(false, "TODO")
 }
