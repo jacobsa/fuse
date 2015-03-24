@@ -704,7 +704,6 @@ func (t *FlushErrorTest) Close() {
 	err = t.f1.Close()
 	t.f1 = nil
 
-	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
@@ -732,7 +731,6 @@ func (t *FlushErrorTest) Dup() {
 	if runtime.GOOS == "darwin" {
 		AssertEq(nil, err)
 	} else {
-		AssertNe(nil, err)
 		ExpectThat(err, Error(HasSubstr("no such file")))
 	}
 
@@ -740,7 +738,6 @@ func (t *FlushErrorTest) Dup() {
 	err = t.f2.Close()
 	t.f2 = nil
 
-	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
@@ -786,7 +783,6 @@ func (t *FsyncErrorTest) Fsync() {
 	// Fsync.
 	err = t.f1.Sync()
 
-	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
@@ -800,6 +796,5 @@ func (t *FsyncErrorTest) Fdatasync() {
 	// Fdatasync.
 	err = syscall.Fdatasync(int(t.f1.Fd()))
 
-	AssertNe(nil, err)
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
