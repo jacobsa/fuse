@@ -22,14 +22,13 @@ import (
 	"golang.org/x/net/context"
 )
 
-// A struct representing the status of a mount operation, with methods for
-// waiting on the mount to complete, waiting for unmounting, and causing
-// unmounting.
+// A struct representing the status of a mount operation, with a method that
+// waits for unmounting.
 type MountedFileSystem struct {
 	dir string
 
-	// The result to return from WaitForReady. Not valid until the channel is
-	// closed.
+	// The result of opening a bazilfuse connection and beginning to serve. Not
+	// valid until the channel is closed.
 	readyStatus          error
 	readyStatusAvailable chan struct{}
 
@@ -151,6 +150,8 @@ func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
 // Attempt to mount the supplied file system on the given directory.
 // mfs.WaitForReady() must be called to find out whether the mount was
 // successful.
+//
+// TODO(jacobsa): Fold in WaitForReady. See issue #3.
 func Mount(
 	dir string,
 	fs FileSystem,
