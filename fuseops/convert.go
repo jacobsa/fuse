@@ -78,7 +78,21 @@ func Convert(r bazilfuse.Request) (o Op) {
 		co = &to.commonOp
 
 	case *bazilfuse.RemoveRequest:
-		//TODO
+		if typed.Dir {
+			to := &RmDirOp{
+				Parent: InodeID(typed.Header.Node),
+				Name:   typed.Name,
+			}
+			o = to
+			co = &to.commonOp
+		} else {
+			to := &UnlinkOp{
+				Parent: InodeID(typed.Header.Node),
+				Name:   typed.Name,
+			}
+			o = to
+			co = &to.commonOp
+		}
 
 	case *bazilfuse.OpenRequest:
 		//TODO
