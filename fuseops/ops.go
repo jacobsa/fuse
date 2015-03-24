@@ -27,6 +27,7 @@ import (
 // Sent once when mounting the file system. It must succeed in order for the
 // mount to succeed.
 type InitOp struct {
+	Header RequestHeader
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -268,13 +269,6 @@ type ReleaseFileHandleOp struct {
 ////////////////////////////////////////////////////////////////////////
 // Requests and responses
 ////////////////////////////////////////////////////////////////////////
-
-type InitRequest struct {
-	Header RequestHeader
-}
-
-type InitResponse struct {
-}
 
 type LookUpInodeRequest struct {
 	Header RequestHeader
