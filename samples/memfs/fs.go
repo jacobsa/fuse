@@ -114,6 +114,21 @@ func (fs *memFS) ServeOps(c *fuse.Connection) {
 		case *fuseops.GetInodeAttributesOp:
 			fs.getInodeAttributes(typed)
 
+		case *fuseops.SetInodeAttributesOp:
+			fs.setInodeAttributes(typed)
+
+		case *fuseops.MkDirOp:
+			fs.mkDir(typed)
+
+		case *fuseops.CreateFileOp:
+			fs.createFile(typed)
+
+		case *fuseops.RmDirOp:
+			fs.rmDir(typed)
+
+		case *fuseops.UnlinkOp:
+			fs.unlink(typed)
+
 		case *fuseops.OpenDirOp:
 			fs.openDir(typed)
 
@@ -125,6 +140,9 @@ func (fs *memFS) ServeOps(c *fuse.Connection) {
 
 		case *fuseops.ReadFileOp:
 			fs.readFile(typed)
+
+		case *fuseops.WriteFileOp:
+			fs.writeFile(typed)
 
 		default:
 			typed.Respond(fuse.ENOSYS)
