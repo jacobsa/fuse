@@ -18,6 +18,8 @@
 package fuseops
 
 import (
+	"log"
+	"reflect"
 	"time"
 
 	"github.com/jacobsa/bazilfuse"
@@ -29,7 +31,7 @@ import (
 //
 // This function is an implementation detail of the fuse package, and must not
 // be called by anyone else.
-func Convert(r bazilfuse.Request) (o Op) {
+func Convert(r bazilfuse.Request, logger *log.Logger) (o Op) {
 	var co *commonOp
 
 	switch typed := r.(type) {
@@ -184,7 +186,7 @@ func Convert(r bazilfuse.Request) (o Op) {
 		return
 	}
 
-	co.init(r)
+	co.init(reflect.TypeOf(o).String(), r, logger)
 	return
 }
 
@@ -234,13 +236,20 @@ func convertChildInodeEntry(
 
 // A helper for embedding common behavior.
 type commonOp struct {
-	ctx context.Context
-	r   bazilfuse.Request
+	opType string
+	ctx    context.Context
+	r      bazilfuse.Request
+	logger *log.Logger
 }
 
-func (o *commonOp) init(r bazilfuse.Request) {
+func (o *commonOp) init(
+	opType string,
+	r bazilfuse.Request,
+	logger *log.Logger) {
+	o.opType = opType
 	o.ctx = context.Background()
 	o.r = r
+	o.logger = logger
 }
 
 func (o *commonOp) Header() OpHeader {
@@ -259,6 +268,11 @@ func (o *commonOp) respondErr(err error) {
 	if err == nil {
 		panic("Expect non-nil here.")
 	}
+
+	o.logger.Printf(
+		"Responding with error to %s: %v",
+		o.opType,
+		err)
 
 	o.r.RespondError(err)
 }
