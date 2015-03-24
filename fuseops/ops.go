@@ -23,278 +23,248 @@ import (
 	"time"
 
 	"github.com/jacobsa/bazilfuse"
-
-	"golang.org/x/net/context"
 )
 
-// An interface that must be implemented by file systems to be mounted with
-// FUSE. See also the comments on request and response structs.
+// This method is called once when mounting the file system. It must succeed
+// in order for the mount to succeed.
+type InitOp struct {
+}
+
+////////////////////////////////////////////////////////////////////////
+// Inodes
+////////////////////////////////////////////////////////////////////////
+
+// Look up a child by name within a parent directory. The kernel calls this
+// when resolving user paths to dentry structs, which are then cached.
+type LookUpInodeOp struct {
+}
+
+// Refresh the attributes for an inode whose ID was previously returned by
+// LookUpInode. The kernel calls this when the FUSE VFS layer's cache of
+// inode attributes is stale. This is controlled by the AttributesExpiration
+// field of responses to LookUp, etc.
+type GetInodeAttributesOp struct {
+}
+
+// Change attributes for an inode.
 //
-// Not all methods need to have interesting implementations. Embed a field of
-// type fuseutil.NotImplementedFileSystem to inherit defaults that return
-// ENOSYS to the kernel.
+// The kernel calls this for obvious cases like chmod(2), and for less
+// obvious cases like ftrunctate(2).
+type SetInodeAttributesOp struct {
+}
+
+// Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
+// kernel calls this when removing an inode from its internal caches.
+type ForgetInodeOp struct {
+}
+
+////////////////////////////////////////////////////////////////////////
+// Inode creation
+////////////////////////////////////////////////////////////////////////
+
+// Create a directory inode as a child of an existing directory inode. The
+// kernel sends this in response to a mkdir(2) call.
 //
-// Must be safe for concurrent access via all methods.
-type FileSystem interface {
-	// This method is called once when mounting the file system. It must succeed
-	// in order for the mount to succeed.
-	Init(
-		ctx context.Context,
-		req *InitRequest) (*InitResponse, error)
+// The kernel appears to verify the name doesn't already exist (mkdir calls
+// mkdirat calls user_path_create calls filename_create, which verifies:
+// http://goo.gl/FZpLu5). But volatile file systems and paranoid non-volatile
+// file systems should check for the reasons described below on CreateFile.
+type MkDirOp struct {
+}
 
-	///////////////////////////////////
-	// Inodes
-	///////////////////////////////////
+// Create a file inode and open it.
+//
+// The kernel calls this method when the user asks to open a file with the
+// O_CREAT flag and the kernel has observed that the file doesn't exist. (See
+// for example lookup_open, http://goo.gl/PlqE9d).
+//
+// However it's impossible to tell for sure that all kernels make this check
+// in all cases and the official fuse documentation is less than encouraging
+// (" the file does not exist, first create it with the specified mode, and
+// then open it"). Therefore file systems would be smart to be paranoid and
+// check themselves, returning EEXIST when the file already exists. This of
+// course particularly applies to file systems that are volatile from the
+// kernel's point of view.
+type CreateFileOp struct {
+}
 
-	// Look up a child by name within a parent directory. The kernel calls this
-	// when resolving user paths to dentry structs, which are then cached.
-	LookUpInode(
-		ctx context.Context,
-		req *LookUpInodeRequest) (*LookUpInodeResponse, error)
+////////////////////////////////////////////////////////////////////////
+// Unlinking
+////////////////////////////////////////////////////////////////////////
 
-	// Refresh the attributes for an inode whose ID was previously returned by
-	// LookUpInode. The kernel calls this when the FUSE VFS layer's cache of
-	// inode attributes is stale. This is controlled by the AttributesExpiration
-	// field of responses to LookUp, etc.
-	GetInodeAttributes(
-		ctx context.Context,
-		req *GetInodeAttributesRequest) (*GetInodeAttributesResponse, error)
+// Unlink a directory from its parent. Because directories cannot have a link
+// count above one, this means the directory inode should be deleted as well
+// once the kernel calls ForgetInode.
+//
+// The file system is responsible for checking that the directory is empty.
+//
+// Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
+type RmDirOp struct {
+}
 
-	// Change attributes for an inode.
-	//
-	// The kernel calls this for obvious cases like chmod(2), and for less
-	// obvious cases like ftrunctate(2).
-	SetInodeAttributes(
-		ctx context.Context,
-		req *SetInodeAttributesRequest) (*SetInodeAttributesResponse, error)
+// Unlink a file from its parent. If this brings the inode's link count to
+// zero, the inode should be deleted once the kernel calls ForgetInode. It
+// may still be referenced before then if a user still has the file open.
+//
+// Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
+type UnlinkOp struct {
+}
 
-	// Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
-	// kernel calls this when removing an inode from its internal caches.
-	ForgetInode(
-		ctx context.Context,
-		req *ForgetInodeRequest) (*ForgetInodeResponse, error)
+////////////////////////////////////////////////////////////////////////
+// Directory handles
+////////////////////////////////////////////////////////////////////////
 
-	///////////////////////////////////
-	// Inode creation
-	///////////////////////////////////
+// Open a directory inode.
+//
+// On Linux the kernel calls this method when setting up a struct file for a
+// particular inode with type directory, usually in response to an open(2)
+// call from a user-space process. On OS X it may not be called for every
+// open(2) (cf. https://github.com/osxfuse/osxfuse/issues/199).
+type OpenDirOp struct {
+}
 
-	// Create a directory inode as a child of an existing directory inode. The
-	// kernel sends this in response to a mkdir(2) call.
-	//
-	// The kernel appears to verify the name doesn't already exist (mkdir calls
-	// mkdirat calls user_path_create calls filename_create, which verifies:
-	// http://goo.gl/FZpLu5). But volatile file systems and paranoid non-volatile
-	// file systems should check for the reasons described below on CreateFile.
-	MkDir(
-		ctx context.Context,
-		req *MkDirRequest) (*MkDirResponse, error)
+// Read entries from a directory previously opened with OpenDir.
+type ReadDirOp struct {
+}
 
-	// Create a file inode and open it.
-	//
-	// The kernel calls this method when the user asks to open a file with the
-	// O_CREAT flag and the kernel has observed that the file doesn't exist. (See
-	// for example lookup_open, http://goo.gl/PlqE9d).
-	//
-	// However it's impossible to tell for sure that all kernels make this check
-	// in all cases and the official fuse documentation is less than encouraging
-	// (" the file does not exist, first create it with the specified mode, and
-	// then open it"). Therefore file systems would be smart to be paranoid and
-	// check themselves, returning EEXIST when the file already exists. This of
-	// course particularly applies to file systems that are volatile from the
-	// kernel's point of view.
-	CreateFile(
-		ctx context.Context,
-		req *CreateFileRequest) (*CreateFileResponse, error)
+// Release a previously-minted directory handle. The kernel calls this when
+// there are no more references to an open directory: all file descriptors
+// are closed and all memory mappings are unmapped.
+//
+// The kernel guarantees that the handle ID will not be used in further calls
+// to the file system (unless it is reissued by the file system).
+type ReleaseDirHandleOp struct {
+}
 
-	///////////////////////////////////
-	// Inode destruction
-	///////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+// File handles
+////////////////////////////////////////////////////////////////////////
 
-	// Unlink a directory from its parent. Because directories cannot have a link
-	// count above one, this means the directory inode should be deleted as well
-	// once the kernel calls ForgetInode.
-	//
-	// The file system is responsible for checking that the directory is empty.
-	//
-	// Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
-	RmDir(
-		ctx context.Context,
-		req *RmDirRequest) (*RmDirResponse, error)
+// Open a file inode.
+//
+// On Linux the kernel calls this method when setting up a struct file for a
+// particular inode with type file, usually in response to an open(2) call
+// from a user-space process. On OS X it may not be called for every open(2)
+// (cf.https://github.com/osxfuse/osxfuse/issues/199).
+type OpenFileOp struct {
+}
 
-	// Unlink a file from its parent. If this brings the inode's link count to
-	// zero, the inode should be deleted once the kernel calls ForgetInode. It
-	// may still be referenced before then if a user still has the file open.
-	//
-	// Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
-	Unlink(
-		ctx context.Context,
-		req *UnlinkRequest) (*UnlinkResponse, error)
+// Read data from a file previously opened with CreateFile or OpenFile.
+//
+// Note that this method is not called for every call to read(2) by the end
+// user; some reads may be served by the page cache. See notes on Write for
+// more.
+type ReadFileOp struct {
+}
 
-	///////////////////////////////////
-	// Directory handles
-	///////////////////////////////////
+// Write data to a file previously opened with CreateFile or OpenFile.
+//
+// When the user writes data using write(2), the write goes into the page
+// cache and the page is marked dirty. Later the kernel may write back the
+// page via the FUSE VFS layer, causing this method to be called:
+//
+//  *  The kernel calls address_space_operations::writepage when a dirty page
+//     needs to be written to backing store (cf. http://goo.gl/Ezbewg). Fuse
+//     sets this to fuse_writepage (cf. http://goo.gl/IeNvLT).
+//
+//  *  (http://goo.gl/Eestuy) fuse_writepage calls fuse_writepage_locked.
+//
+//  *  (http://goo.gl/RqYIxY) fuse_writepage_locked makes a write request to
+//     the userspace server.
+//
+// Note that writes *will* be received before a call to Flush when closing
+// the file descriptor to which they were written:
+//
+//  *  (http://goo.gl/PheZjf) fuse_flush calls write_inode_now, which appears
+//     to start a writeback in the background (it talks about a "flusher
+//     thread").
+//
+//  *  (http://goo.gl/1IiepM) fuse_flush then calls fuse_sync_writes, which
+//     "[waits] for all pending writepages on the inode to finish".
+//
+//  *  (http://goo.gl/zzvxWv) Only then does fuse_flush finally send the
+//     flush request.
+//
+type WriteFileOp struct {
+}
 
-	// Open a directory inode.
-	//
-	// On Linux the kernel calls this method when setting up a struct file for a
-	// particular inode with type directory, usually in response to an open(2)
-	// call from a user-space process. On OS X it may not be called for every
-	// open(2) (cf. https://github.com/osxfuse/osxfuse/issues/199).
-	OpenDir(
-		ctx context.Context,
-		req *OpenDirRequest) (*OpenDirResponse, error)
+// Synchronize the current contents of an open file to storage.
+//
+// vfs.txt documents this as being called for by the fsync(2) system call
+// (cf. http://goo.gl/j9X8nB). Code walk for that case:
+//
+//  *  (http://goo.gl/IQkWZa) sys_fsync calls do_fsync, calls vfs_fsync, calls
+//     vfs_fsync_range.
+//
+//  *  (http://goo.gl/5L2SMy) vfs_fsync_range calls f_op->fsync.
+//
+// Note that this is also called by fdatasync(2) (cf. http://goo.gl/01R7rF),
+// and may be called for msync(2) with the MS_SYNC flag (see the notes on
+// FlushFile).
+//
+// See also: FlushFile, which may perform a similar purpose when closing a
+// file (but which is not used in "real" file systems).
+type SyncFileOp struct {
+}
 
-	// Read entries from a directory previously opened with OpenDir.
-	ReadDir(
-		ctx context.Context,
-		req *ReadDirRequest) (*ReadDirResponse, error)
+// Flush the current state of an open file to storage upon closing a file
+// descriptor.
+//
+// vfs.txt documents this as being called for each close(2) system call (cf.
+// http://goo.gl/FSkbrq). Code walk for that case:
+//
+//  *  (http://goo.gl/e3lv0e) sys_close calls __close_fd, calls filp_close.
+//  *  (http://goo.gl/nI8fxD) filp_close calls f_op->flush (fuse_flush).
+//
+// But note that this is also called in other contexts where a file
+// descriptor is closed, such as dup2(2) (cf. http://goo.gl/NQDvFS). In the
+// case of close(2), a flush error is returned to the user. For dup2(2), it
+// is not.
+//
+// One potentially significant case where this may not be called is mmap'd
+// files, where the behavior is complicated:
+//
+//  *  munmap(2) does not cause flushes (cf. http://goo.gl/j8B9g0).
+//
+//  *  On OS X, if a user modifies a mapped file via the mapping before
+//     closing the file with close(2), the WriteFile calls for the
+//     modifications may not be received before the FlushFile request for the
+//     close(2) (cf. http://goo.gl/kVmNcx).
+//
+//  *  However, even on OS X you can arrange for writes via a mapping to be
+//     flushed by calling msync(2) followed by close(2). On OS X msync(2)
+//     will cause a WriteFile to go through and close(2) will cause a
+//     FlushFile as usual (cf. http://goo.gl/kVmNcx). On Linux, msync(2) does
+//     nothing unless you set the MS_SYNC flag, in which case it causes a
+//     SyncFile (cf. http://goo.gl/P3mErk).
+//
+// In summary: if you make data durable in both FlushFile and SyncFile, then
+// your users can get safe behavior from mapped files by calling msync(2)
+// with MS_SYNC, followed by munmap(2), followed by close(2). On Linux, the
+// msync(2) appears to be optional because close(2) implies dirty page
+// writeback (cf. http://goo.gl/HyzLTT).
+//
+// Because of cases like dup2(2), calls to FlushFile are not necessarily one
+// to one with calls to OpenFile. They should not be used for reference
+// counting, and the handle must remain valid even after the method is called
+// (use ReleaseFileHandle to dispose of it).
+//
+// Typical "real" file systems do not implement this, presumably relying on
+// the kernel to write out the page cache to the block device eventually.
+// They can get away with this because a later open(2) will see the same
+// data. A file system that writes to remote storage however probably wants
+// to at least schedule a real flush, and maybe do it immediately in order to
+// return any errors that occur.
+type FlushFileOp struct {
+}
 
-	// Release a previously-minted directory handle. The kernel calls this when
-	// there are no more references to an open directory: all file descriptors
-	// are closed and all memory mappings are unmapped.
-	//
-	// The kernel guarantees that the handle ID will not be used in further calls
-	// to the file system (unless it is reissued by the file system).
-	ReleaseDirHandle(
-		ctx context.Context,
-		req *ReleaseDirHandleRequest) (*ReleaseDirHandleResponse, error)
-
-	///////////////////////////////////
-	// File handles
-	///////////////////////////////////
-
-	// Open a file inode.
-	//
-	// On Linux the kernel calls this method when setting up a struct file for a
-	// particular inode with type file, usually in response to an open(2) call
-	// from a user-space process. On OS X it may not be called for every open(2)
-	// (cf.https://github.com/osxfuse/osxfuse/issues/199).
-	OpenFile(
-		ctx context.Context,
-		req *OpenFileRequest) (*OpenFileResponse, error)
-
-	// Read data from a file previously opened with CreateFile or OpenFile.
-	//
-	// Note that this method is not called for every call to read(2) by the end
-	// user; some reads may be served by the page cache. See notes on Write for
-	// more.
-	ReadFile(
-		ctx context.Context,
-		req *ReadFileRequest) (*ReadFileResponse, error)
-
-	// Write data to a file previously opened with CreateFile or OpenFile.
-	//
-	// When the user writes data using write(2), the write goes into the page
-	// cache and the page is marked dirty. Later the kernel may write back the
-	// page via the FUSE VFS layer, causing this method to be called:
-	//
-	//  *  The kernel calls address_space_operations::writepage when a dirty page
-	//     needs to be written to backing store (cf. http://goo.gl/Ezbewg). Fuse
-	//     sets this to fuse_writepage (cf. http://goo.gl/IeNvLT).
-	//
-	//  *  (http://goo.gl/Eestuy) fuse_writepage calls fuse_writepage_locked.
-	//
-	//  *  (http://goo.gl/RqYIxY) fuse_writepage_locked makes a write request to
-	//     the userspace server.
-	//
-	// Note that writes *will* be received before a call to Flush when closing
-	// the file descriptor to which they were written:
-	//
-	//  *  (http://goo.gl/PheZjf) fuse_flush calls write_inode_now, which appears
-	//     to start a writeback in the background (it talks about a "flusher
-	//     thread").
-	//
-	//  *  (http://goo.gl/1IiepM) fuse_flush then calls fuse_sync_writes, which
-	//     "[waits] for all pending writepages on the inode to finish".
-	//
-	//  *  (http://goo.gl/zzvxWv) Only then does fuse_flush finally send the
-	//     flush request.
-	//
-	WriteFile(
-		ctx context.Context,
-		req *WriteFileRequest) (*WriteFileResponse, error)
-
-	// Synchronize the current contents of an open file to storage.
-	//
-	// vfs.txt documents this as being called for by the fsync(2) system call
-	// (cf. http://goo.gl/j9X8nB). Code walk for that case:
-	//
-	//  *  (http://goo.gl/IQkWZa) sys_fsync calls do_fsync, calls vfs_fsync, calls
-	//     vfs_fsync_range.
-	//
-	//  *  (http://goo.gl/5L2SMy) vfs_fsync_range calls f_op->fsync.
-	//
-	// Note that this is also called by fdatasync(2) (cf. http://goo.gl/01R7rF),
-	// and may be called for msync(2) with the MS_SYNC flag (see the notes on
-	// FlushFile).
-	//
-	// See also: FlushFile, which may perform a similar purpose when closing a
-	// file (but which is not used in "real" file systems).
-	SyncFile(
-		ctx context.Context,
-		req *SyncFileRequest) (*SyncFileResponse, error)
-
-	// Flush the current state of an open file to storage upon closing a file
-	// descriptor.
-	//
-	// vfs.txt documents this as being called for each close(2) system call (cf.
-	// http://goo.gl/FSkbrq). Code walk for that case:
-	//
-	//  *  (http://goo.gl/e3lv0e) sys_close calls __close_fd, calls filp_close.
-	//  *  (http://goo.gl/nI8fxD) filp_close calls f_op->flush (fuse_flush).
-	//
-	// But note that this is also called in other contexts where a file
-	// descriptor is closed, such as dup2(2) (cf. http://goo.gl/NQDvFS). In the
-	// case of close(2), a flush error is returned to the user. For dup2(2), it
-	// is not.
-	//
-	// One potentially significant case where this may not be called is mmap'd
-	// files, where the behavior is complicated:
-	//
-	//  *  munmap(2) does not cause flushes (cf. http://goo.gl/j8B9g0).
-	//
-	//  *  On OS X, if a user modifies a mapped file via the mapping before
-	//     closing the file with close(2), the WriteFile calls for the
-	//     modifications may not be received before the FlushFile request for the
-	//     close(2) (cf. http://goo.gl/kVmNcx).
-	//
-	//  *  However, even on OS X you can arrange for writes via a mapping to be
-	//     flushed by calling msync(2) followed by close(2). On OS X msync(2)
-	//     will cause a WriteFile to go through and close(2) will cause a
-	//     FlushFile as usual (cf. http://goo.gl/kVmNcx). On Linux, msync(2) does
-	//     nothing unless you set the MS_SYNC flag, in which case it causes a
-	//     SyncFile (cf. http://goo.gl/P3mErk).
-	//
-	// In summary: if you make data durable in both FlushFile and SyncFile, then
-	// your users can get safe behavior from mapped files by calling msync(2)
-	// with MS_SYNC, followed by munmap(2), followed by close(2). On Linux, the
-	// msync(2) appears to be optional because close(2) implies dirty page
-	// writeback (cf. http://goo.gl/HyzLTT).
-	//
-	// Because of cases like dup2(2), calls to FlushFile are not necessarily one
-	// to one with calls to OpenFile. They should not be used for reference
-	// counting, and the handle must remain valid even after the method is called
-	// (use ReleaseFileHandle to dispose of it).
-	//
-	// Typical "real" file systems do not implement this, presumably relying on
-	// the kernel to write out the page cache to the block device eventually.
-	// They can get away with this because a later open(2) will see the same
-	// data. A file system that writes to remote storage however probably wants
-	// to at least schedule a real flush, and maybe do it immediately in order to
-	// return any errors that occur.
-	FlushFile(
-		ctx context.Context,
-		req *FlushFileRequest) (*FlushFileResponse, error)
-
-	// Release a previously-minted file handle. The kernel calls this when there
-	// are no more references to an open file: all file descriptors are closed
-	// and all memory mappings are unmapped.
-	//
-	// The kernel guarantees that the handle ID will not be used in further calls
-	// to the file system (unless it is reissued by the file system).
-	ReleaseFileHandle(
-		ctx context.Context,
-		req *ReleaseFileHandleRequest) (*ReleaseFileHandleResponse, error)
+// Release a previously-minted file handle. The kernel calls this when there
+// are no more references to an open file: all file descriptors are closed
+// and all memory mappings are unmapped.
+//
+// The kernel guarantees that the handle ID will not be used in further calls
+// to the file system (unless it is reissued by the file system).
+type ReleaseFileHandleOp struct {
 }
 
 ////////////////////////////////////////////////////////////////////////
