@@ -32,92 +32,128 @@ func Convert(r bazilfuse.Request) (o Op) {
 
 	switch r.(type) {
 	case *bazilfuse.InitRequest:
-		to := &InitOp{}
+		to := &InitOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &LookUpInodeOp{}
+		to := &LookUpInodeOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &GetInodeAttributesOp{}
+		to := &GetInodeAttributesOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &SetInodeAttributesOp{}
+		to := &SetInodeAttributesOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &ForgetInodeOp{}
+		to := &ForgetInodeOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &MkDirOp{}
+		to := &MkDirOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &CreateFileOp{}
+		to := &CreateFileOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &RmDirOp{}
+		to := &RmDirOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &UnlinkOp{}
+		to := &UnlinkOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &OpenDirOp{}
+		to := &OpenDirOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &ReadDirOp{}
+		to := &ReadDirOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &ReleaseDirHandleOp{}
+		to := &ReleaseDirHandleOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &OpenFileOp{}
+		to := &OpenFileOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &ReadFileOp{}
+		to := &ReadFileOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &WriteFileOp{}
+		to := &WriteFileOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &SyncFileOp{}
+		to := &SyncFileOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &FlushFileOp{}
+		to := &FlushFileOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.InitRequest:
-		to := &ReleaseFileHandleOp{}
+		to := &ReleaseFileHandleOp{
+		//TODO
+		}
 		o = to
 		co = &to.commonOp
 
