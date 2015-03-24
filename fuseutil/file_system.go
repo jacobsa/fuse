@@ -64,6 +64,29 @@ func NewFileSystemServer(fs FileSystem) fuse.Server {
 	return fileSystemServer{fs}
 }
 
+// A convenience function that makes it easy to ensure you respond to an
+// operation when a FileSystem method returns. Responds to op with the current
+// value of *err.
+//
+// For example:
+//
+//     func (fs *myFS) ReadFile(op *fuseops.ReadFileOp) {
+//       var err error
+//       defer fuseutil.RespondToOp(op, &err)
+//
+//       if err = fs.frobnicate(); err != nil {
+//         err = fmt.Errorf("frobnicate: %v", err)
+//         return
+//       }
+//
+//       // Lots more manipulation of err, and return paths.
+//       // [...]
+//     }
+//
+func RespondToOp(op fuseops.Op, err *error) {
+	op.Respond(*err)
+}
+
 type fileSystemServer struct {
 	fs FileSystem
 }
