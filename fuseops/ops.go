@@ -263,7 +263,14 @@ func (o *CreateFileOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	resp := bazilfuse.CreateResponse{
+		OpenResponse: bazilfuse.OpenResponse{
+			Handle: bazilfuse.HandleID(o.Handle),
+		},
+	}
+	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
+
+	o.r.(*bazilfuse.CreateRequest).Respond(&resp)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -292,7 +299,7 @@ func (o *RmDirOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	o.r.(*bazilfuse.RemoveRequest).Respond()
 }
 
 // Unlink a file from its parent. If this brings the inode's link count to
@@ -315,7 +322,7 @@ func (o *UnlinkOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	o.r.(*bazilfuse.RemoveRequest).Respond()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -354,7 +361,11 @@ func (o *OpenDirOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	resp := bazilfuse.OpenResponse{
+		Handle: bazilfuse.HandleID(o.Handle),
+	}
+
+	o.r.(*bazilfuse.OpenRequest).Respond(&resp)
 }
 
 // Read entries from a directory previously opened with OpenDir.
@@ -453,7 +464,11 @@ func (o *ReadDirOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	resp := bazilfuse.ReadResponse{
+		Data: o.Data,
+	}
+
+	o.r.(*bazilfuse.ReadRequest).Respond(&resp)
 }
 
 // Release a previously-minted directory handle. The kernel sends this when
@@ -477,7 +492,7 @@ func (o *ReleaseDirHandleOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	o.r.(*bazilfuse.ReleaseRequest).Respond()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -515,7 +530,11 @@ func (o *OpenFileOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	resp := bazilfuse.OpenResponse{
+		Handle: bazilfuse.HandleID(o.Handle),
+	}
+
+	o.r.(*bazilfuse.OpenRequest).Respond(&resp)
 }
 
 // Read data from a file previously opened with CreateFile or OpenFile.
@@ -553,7 +572,11 @@ func (o *ReadFileOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	resp := bazilfuse.ReadResponse{
+		Data: o.Data,
+	}
+
+	o.r.(*bazilfuse.ReadRequest).Respond(&resp)
 }
 
 // Write data to a file previously opened with CreateFile or OpenFile.
@@ -629,7 +652,11 @@ func (o *WriteFileOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	resp := bazilfuse.WriteResponse{
+		Size: len(o.Data),
+	}
+
+	o.r.(*bazilfuse.WriteRequest).Respond(&resp)
 }
 
 // Synchronize the current contents of an open file to storage.
@@ -662,7 +689,7 @@ func (o *SyncFileOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	o.r.(*bazilfuse.FsyncRequest).Respond()
 }
 
 // Flush the current state of an open file to storage upon closing a file
@@ -726,7 +753,7 @@ func (o *FlushFileOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	o.r.(*bazilfuse.FlushRequest).Respond()
 }
 
 // Release a previously-minted file handle. The kernel calls this when there
@@ -750,5 +777,5 @@ func (o *ReleaseFileHandleOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	o.r.(*bazilfuse.ReleaseRequest).Respond()
 }
