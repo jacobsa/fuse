@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fuseutil"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/gcloud/syncutil"
 	"golang.org/x/net/context"
 )
@@ -42,12 +42,12 @@ const (
 // requests. It also exposes methods for renumbering inodes and updating mtimes
 // that are useful in testing that these durations are honored.
 type CachingFS interface {
-	fuse.FileSystem
+	fuse.Server
 
 	// Return the current inode ID of the file/directory with the given name.
-	FooID() fuse.InodeID
-	DirID() fuse.InodeID
-	BarID() fuse.InodeID
+	FooID() fuseops.InodeID
+	DirID() fuseops.InodeID
+	BarID() fuseops.InodeID
 
 	// Cause the inode IDs to change to values that have never before been used.
 	RenumberInodes()
@@ -72,7 +72,7 @@ type CachingFS interface {
 func NewCachingFS(
 	lookupEntryTimeout time.Duration,
 	getattrTimeout time.Duration) (fs CachingFS, err error) {
-	roundUp := func(n fuse.InodeID) fuse.InodeID {
+	roundUp := func(n fuseops.InodeID) fuseops.InodeID {
 		return numInodes * ((n + numInodes - 1) / numInodes)
 	}
 
@@ -99,8 +99,6 @@ const (
 )
 
 type cachingFS struct {
-	fuseutil.NotImplementedFileSystem
-
 	/////////////////////////
 	// Constant data
 	/////////////////////////
@@ -120,7 +118,7 @@ type cachingFS struct {
 	// INVARIANT: baseID % numInodes == 0
 	//
 	// GUARDED_BY(mu)
-	baseID fuse.InodeID
+	baseID fuseops.InodeID
 
 	// GUARDED_BY(mu)
 	mtime time.Time
@@ -139,31 +137,31 @@ func (fs *cachingFS) checkInvariants() {
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) fooID() fuse.InodeID {
+func (fs *cachingFS) fooID() fuseops.InodeID {
 	return fs.baseID + fooOffset
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) dirID() fuse.InodeID {
+func (fs *cachingFS) dirID() fuseops.InodeID {
 	return fs.baseID + dirOffset
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) barID() fuse.InodeID {
+func (fs *cachingFS) barID() fuseops.InodeID {
 	return fs.baseID + barOffset
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) rootAttrs() fuse.InodeAttributes {
-	return fuse.InodeAttributes{
+func (fs *cachingFS) rootAttrs() fuseops.InodeAttributes {
+	return fuseops.InodeAttributes{
 		Mode:  os.ModeDir | 0777,
 		Mtime: fs.mtime,
 	}
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) fooAttrs() fuse.InodeAttributes {
-	return fuse.InodeAttributes{
+func (fs *cachingFS) fooAttrs() fuseops.InodeAttributes {
+	return fuseops.InodeAttributes{
 		Nlink: 1,
 		Size:  FooSize,
 		Mode:  0777,
@@ -172,8 +170,8 @@ func (fs *cachingFS) fooAttrs() fuse.InodeAttributes {
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) dirAttrs() fuse.InodeAttributes {
-	return fuse.InodeAttributes{
+func (fs *cachingFS) dirAttrs() fuseops.InodeAttributes {
+	return fuseops.InodeAttributes{
 		Nlink: 1,
 		Mode:  os.ModeDir | 0777,
 		Mtime: fs.mtime,
@@ -181,8 +179,8 @@ func (fs *cachingFS) dirAttrs() fuse.InodeAttributes {
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *cachingFS) barAttrs() fuse.InodeAttributes {
-	return fuse.InodeAttributes{
+func (fs *cachingFS) barAttrs() fuseops.InodeAttributes {
+	return fuseops.InodeAttributes{
 		Nlink: 1,
 		Size:  BarSize,
 		Mode:  0777,
@@ -195,7 +193,7 @@ func (fs *cachingFS) barAttrs() fuse.InodeAttributes {
 ////////////////////////////////////////////////////////////////////////
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) FooID() fuse.InodeID {
+func (fs *cachingFS) FooID() fuseops.InodeID {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -203,7 +201,7 @@ func (fs *cachingFS) FooID() fuse.InodeID {
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) DirID() fuse.InodeID {
+func (fs *cachingFS) DirID() fuseops.InodeID {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -211,7 +209,7 @@ func (fs *cachingFS) DirID() fuse.InodeID {
 }
 
 // LOCKS_EXCLUDED(fs.mu)
-func (fs *cachingFS) BarID() fuse.InodeID {
+func (fs *cachingFS) BarID() fuseops.InodeID {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -255,8 +253,8 @@ func (fs *cachingFS) LookUpInode(
 	defer fs.mu.Unlock()
 
 	// Find the ID and attributes.
-	var id fuse.InodeID
-	var attrs fuse.InodeAttributes
+	var id fuseops.InodeID
+	var attrs fuseops.InodeAttributes
 
 	switch req.Name {
 	case "foo":
@@ -313,7 +311,7 @@ func (fs *cachingFS) GetInodeAttributes(
 	defer fs.mu.Unlock()
 
 	// Figure out which inode the request is for.
-	var attrs fuse.InodeAttributes
+	var attrs fuseops.InodeAttributes
 
 	switch {
 	case req.Inode == fuse.RootInodeID:
