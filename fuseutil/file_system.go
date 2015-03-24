@@ -26,6 +26,9 @@ import (
 //
 // Each method should fill in appropriate response fields for the supplied op
 // and return an error status, but not call Repand.
+//
+// See NotImplementedFileSystem for a convenient way to embed default
+// implementations for methods you don't care about.
 type FileSystem interface {
 	Init(*fuseops.InitOp) error
 	LookUpInode(*fuseops.LookUpInodeOp) error
