@@ -91,21 +91,31 @@ func Convert(r bazilfuse.Request) (o Op) {
 
 	case *bazilfuse.WriteRequest:
 		to := &WriteFileOp{
-		//TODO
+			Inode:  InodeID(typed.Header.Node),
+			Handle: HandleID(typed.Handle),
+			Data:   typed.Data,
+			Offset: typed.Offset,
 		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.FsyncRequest:
+		// We don't currently support this for directories.
+		if typed.Dir {
+			return
+		}
+
 		to := &SyncFileOp{
-		//TODO
+			Inode:  InodeID(typed.Header.Node),
+			Handle: HandleID(typed.Handle),
 		}
 		o = to
 		co = &to.commonOp
 
 	case *bazilfuse.FlushRequest:
 		to := &FlushFileOp{
-		//TODO
+			Inode:  InodeID(typed.Header.Node),
+			Handle: HandleID(typed.Handle),
 		}
 		o = to
 		co = &to.commonOp
