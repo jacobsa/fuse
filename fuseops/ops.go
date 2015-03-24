@@ -225,6 +225,7 @@ func (o *MkDirOp) Respond(err error) {
 	}
 
 	resp := bazilfuse.MkdirResponse{}
+	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
 	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.MkdirRequest).Respond(&resp)
