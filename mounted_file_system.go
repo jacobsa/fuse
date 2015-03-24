@@ -22,9 +22,11 @@ import (
 	"golang.org/x/net/context"
 )
 
-// A Server is a function that reads ops from the supplied Connection,
-// responding to them as appropriate.
-type Server func(*Connection)
+// A type that knows how to serve ops read from a connection.
+type Server interface {
+	// Read and serve ops from the supplied connection until EOF.
+	ServeOps(*Connection)
+}
 
 // A struct representing the status of a mount operation, with a method that
 // waits for unmounting.
@@ -130,7 +132,7 @@ func Mount(
 
 	// Serve the connection in the background. When done, set the join status.
 	go func() {
-		server(connection)
+		server.ServeOps(connection)
 		mfs.joinStatus = connection.close()
 		close(mfs.joinStatusAvailable)
 	}()

@@ -33,11 +33,10 @@ import (
 //
 // Each file contains the string "Hello, world!".
 func NewHelloFS(clock timeutil.Clock) (server fuse.Server, err error) {
-	fs := &helloFS{
+	server = &helloFS{
 		Clock: clock,
 	}
 
-	server = fuse.Server(fs.serve)
 	return
 }
 
@@ -45,7 +44,7 @@ type helloFS struct {
 	Clock timeutil.Clock
 }
 
-func (fs *helloFS) serve(c *fuse.Connection) {
+func (fs *helloFS) ServeOps(c *fuse.Connection) {
 	for {
 		op, err := c.ReadOp()
 		if err == io.EOF {
