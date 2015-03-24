@@ -56,15 +56,6 @@ func (mfs *MountedFileSystem) Join(ctx context.Context) error {
 	}
 }
 
-// Attempt to unmount the file system. Use Join to wait for it to actually be
-// unmounted.
-//
-// TODO(jacobsa): Kill this in favor of an Unmount free function that can be
-// used even from outside of the daemon process.
-func (mfs *MountedFileSystem) Unmount() error {
-	return bazilfuse.Unmount(mfs.dir)
-}
-
 // Optional configuration accepted by Mount.
 type MountConfig struct {
 	// OS X only.
