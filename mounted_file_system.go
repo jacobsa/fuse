@@ -15,7 +15,7 @@
 package fuse
 
 import (
-	"errors"
+	"fmt"
 	"runtime"
 
 	"github.com/jacobsa/bazilfuse"
@@ -30,11 +30,6 @@ type Server func(*Connection)
 // waits for unmounting.
 type MountedFileSystem struct {
 	dir string
-
-	// The result of opening a bazilfuse connection and beginning to serve. Not
-	// valid until the channel is closed.
-	readyStatus          error
-	readyStatusAvailable chan struct{}
 
 	// The result to return from Join. Not valid until the channel is closed.
 	joinStatus          error
@@ -66,46 +61,6 @@ func (mfs *MountedFileSystem) Join(ctx context.Context) error {
 // used even from outside of the daemon process.
 func (mfs *MountedFileSystem) Unmount() error {
 	return bazilfuse.Unmount(mfs.dir)
-}
-
-// Runs in the background.
-func (mfs *MountedFileSystem) mountAndServe(
-	server *server,
-	options []bazilfuse.MountOption) {
-	logger := getLogger()
-
-	// Open a FUSE connection.
-	logger.Println("Opening a FUSE connection.")
-	c, err := bazilfuse.Mount(mfs.dir, options...)
-	if err != nil {
-		mfs.readyStatus = errors.New("bazilfuse.Mount: " + err.Error())
-		close(mfs.readyStatusAvailable)
-		return
-	}
-
-	defer c.Close()
-
-	// Start a goroutine that will notify the MountedFileSystem object when the
-	// connection says it is ready (or it fails to become ready).
-	go func() {
-		logger.Println("Waiting for the FUSE connection to be ready.")
-		<-c.Ready
-		logger.Println("The FUSE connection is ready.")
-
-		mfs.readyStatus = c.MountError
-		close(mfs.readyStatusAvailable)
-	}()
-
-	// Serve the connection using the file system object.
-	logger.Println("Serving the FUSE connection.")
-	if err := server.Serve(c); err != nil {
-		mfs.joinStatus = errors.New("Serve: " + err.Error())
-		close(mfs.joinStatusAvailable)
-		return
-	}
-
-	// Signal that everything is okay.
-	close(mfs.joinStatusAvailable)
 }
 
 // Optional configuration accepted by Mount.
@@ -149,19 +104,42 @@ func Mount(
 	dir string,
 	server Server,
 	config *MountConfig) (mfs *MountedFileSystem, err error) {
+	logger := getLogger()
+
 	// Initialize the struct.
 	mfs = &MountedFileSystem{
-		dir:                  dir,
-		readyStatusAvailable: make(chan struct{}),
-		joinStatusAvailable:  make(chan struct{}),
+		dir:                 dir,
+		joinStatusAvailable: make(chan struct{}),
 	}
 
-	// Mount in the background.
-	go mfs.mountAndServe(server, config.bazilfuseOptions())
+	// Open a bazilfuse connection.
+	logger.Println("Opening a bazilfuse connection.")
+	bfConn, err := bazilfuse.Mount(mfs.dir, config.bazilfuseOptions()...)
+	if err != nil {
+		err = fmt.Errorf("bazilfuse.Mount: %v", err)
+		return
+	}
 
-	// Wait for ready.
-	<-mfs.readyStatusAvailable
-	err = mfs.readyStatus
+	// Create our own Connection object wrapping it.
+	connection, err := newConnection(logger, bfConn)
+	if err != nil {
+		bfConn.Close()
+		err = fmt.Errorf("newConnection: %v", err)
+		return
+	}
+
+	// Serve the connection in the background. When done, set the join status.
+	go func() {
+		server(connection)
+		mfs.joinStatus = connection.close()
+		close(mfs.joinStatusAvailable)
+	}()
+
+	// Wait for the connection to say it is ready.
+	if err = connection.waitForReady(); err != nil {
+		err = fmt.Errorf("WaitForReady: %v", err)
+		return
+	}
 
 	return
 }

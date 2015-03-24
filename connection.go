@@ -27,7 +27,11 @@ type Connection struct {
 	wrapped *bazilfuse.Conn
 }
 
-func newConnection(wrapped *bazilfuse.Conn) (c *Connection, err error)
+// Responsibility for closing the wrapped connection is transferred to the
+// result. You must call c.close() eventually.
+func newConnection(
+	logger *log.Logger,
+	wrapped *bazilfuse.Conn) (c *Connection, err error)
 
 // Read the next op from the kernel process. Return io.EOF if the kernel has
 // closed the connection.
@@ -59,3 +63,7 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		return
 	}
 }
+
+func (c *Connection) waitForReady() (err error)
+
+func (c *Connection) close() (err error)
