@@ -20,7 +20,7 @@ import (
 	"sync"
 
 	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fuseutil"
+	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
 
@@ -34,8 +34,8 @@ import (
 // The directory cannot be modified.
 func NewFileSystem(
 	reportFlush func(string) error,
-	reportFsync func(string) error) (fs fuse.FileSystem, err error) {
-	fs = &flushFS{
+	reportFsync func(string) error) (server fuse.Server, err error) {
+	server = &flushFS{
 		reportFlush: reportFlush,
 		reportFsync: reportFsync,
 	}
@@ -44,12 +44,11 @@ func NewFileSystem(
 }
 
 const (
-	fooID = fuse.RootInodeID + 1 + iota
+	fooID = fuseops.RootInodeID + 1 + iota
 	barID
 )
 
 type flushFS struct {
-	fuseutil.NotImplementedFileSystem
 	reportFlush func(string) error
 	reportFsync func(string) error
 
@@ -62,16 +61,16 @@ type flushFS struct {
 ////////////////////////////////////////////////////////////////////////
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *flushFS) rootAttributes() fuse.InodeAttributes {
-	return fuse.InodeAttributes{
+func (fs *flushFS) rootAttributes() fuseops.InodeAttributes {
+	return fuseops.InodeAttributes{
 		Nlink: 1,
 		Mode:  0777 | os.ModeDir,
 	}
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *flushFS) fooAttributes() fuse.InodeAttributes {
-	return fuse.InodeAttributes{
+func (fs *flushFS) fooAttributes() fuseops.InodeAttributes {
+	return fuseops.InodeAttributes{
 		Nlink: 1,
 		Mode:  0777,
 		Size:  uint64(len(fs.fooContents)),
@@ -79,15 +78,18 @@ func (fs *flushFS) fooAttributes() fuse.InodeAttributes {
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *flushFS) barAttributes() fuse.InodeAttributes {
-	return fuse.InodeAttributes{
+func (fs *flushFS) barAttributes() fuseops.InodeAttributes {
+	return fuseops.InodeAttributes{
 		Nlink: 1,
 		Mode:  0777 | os.ModeDir,
 	}
 }
 
+// LOCKS_REQUIRED(fs.mu)
+func (fs *flushFS) ServeOps(c *fuse.Connection)
+
 ////////////////////////////////////////////////////////////////////////
-// File system methods
+// Op methods
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *flushFS) Init(
@@ -108,7 +110,7 @@ func (fs *flushFS) LookUpInode(
 	defer fs.mu.Unlock()
 
 	// Sanity check.
-	if req.Parent != fuse.RootInodeID {
+	if req.Parent != fuseops.RootInodeID {
 		err = fuse.ENOENT
 		return
 	}
@@ -145,7 +147,7 @@ func (fs *flushFS) GetInodeAttributes(
 	defer fs.mu.Unlock()
 
 	switch req.Inode {
-	case fuse.RootInodeID:
+	case fuseops.RootInodeID:
 		resp.Attributes = fs.rootAttributes()
 		return
 
