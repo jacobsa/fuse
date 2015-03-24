@@ -117,7 +117,12 @@ func (o *GetInodeAttributesOp) Respond(err error) {
 		return
 	}
 
-	panic("TODO")
+	resp := bazilfuse.GetattrResponse{
+		Attr:      convertAttributes(o.Inode, o.Attributes),
+		AttrValid: convertExpirationTime(o.AttributesExpiration),
+	}
+
+	o.r.(*bazilfuse.GetattrRequest).Respond(&resp)
 }
 
 // Change attributes for an inode.
