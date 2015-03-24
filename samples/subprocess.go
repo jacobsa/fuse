@@ -35,6 +35,8 @@ var fToolPath = flag.String(
 	"",
 	"Path to the mount_sample tool. If unset, we will compile it.")
 
+var fDebug = flag.Bool("debug", false, "If true, print fuse debug info.")
+
 // A struct that implements common behavior needed by tests in the samples/
 // directory where the file system is mounted by a subprocess. Use it as an
 // embedded field in your test fixture, calling its SetUp method from your
@@ -273,7 +275,13 @@ func (t *SubprocessTest) initialize() (err error) {
 	mountCmd.Stderr = &stderr
 	mountCmd.ExtraFiles = extraFiles
 
-	// Start it.
+	// Handle debug mode.
+	if *fDebug {
+		mountCmd.Stderr = os.Stderr
+		mountCmd.Args = append(mountCmd.Args, "--fuse.debug")
+	}
+
+	// Start the command.
 	if err = mountCmd.Start(); err != nil {
 		err = fmt.Errorf("mountCmd.Start: %v", err)
 		return
