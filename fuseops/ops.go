@@ -147,6 +147,30 @@ type MkDirOp struct {
 // course particularly applies to file systems that are volatile from the
 // kernel's point of view.
 type CreateFileOp struct {
+	Header RequestHeader
+
+	// The ID of parent directory inode within which to create the child file.
+	Parent InodeID
+
+	// The name of the child to create, and the mode with which to create it.
+	Name string
+	Mode os.FileMode
+
+	// Flags for the open operation.
+	Flags bazilfuse.OpenFlags
+
+	// Set by the file system: information about the inode that was created.
+	Entry ChildInodeEntry
+
+	// Set by the file system: an opaque ID that will be echoed in follow-up
+	// calls for this file using the same struct file in the kernel. In practice
+	// this usually means follow-up calls using the file descriptor returned by
+	// open(2).
+	//
+	// The handle may be supplied in future ops like ReadFileOp that contain a
+	// file handle. The file system must ensure this ID remains valid until a
+	// later call to ReleaseFileHandle.
+	Handle HandleID
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -161,6 +185,12 @@ type CreateFileOp struct {
 //
 // Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
 type RmDirOp struct {
+	Header RequestHeader
+
+	// The ID of parent directory inode, and the name of the directory being
+	// removed within it.
+	Parent InodeID
+	Name   string
 }
 
 // Unlink a file from its parent. If this brings the inode's link count to
@@ -169,6 +199,12 @@ type RmDirOp struct {
 //
 // Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
 type UnlinkOp struct {
+	Header RequestHeader
+
+	// The ID of parent directory inode, and the name of the file being removed
+	// within it.
+	Parent InodeID
+	Name   string
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -182,6 +218,23 @@ type UnlinkOp struct {
 // user-space process. On OS X it may not be sent for every open(2) (cf.
 // https://github.com/osxfuse/osxfuse/issues/199).
 type OpenDirOp struct {
+	Header RequestHeader
+
+	// The ID of the inode to be opened.
+	Inode InodeID
+
+	// Mode and options flags.
+	Flags bazilfuse.OpenFlags
+
+	// Set by the file system: an opaque ID that will be echoed in follow-up
+	// calls for this directory using the same struct file in the kernel. In
+	// practice this usually means follow-up calls using the file descriptor
+	// returned by open(2).
+	//
+	// The handle may be supplied in future ops like ReadDirOp that contain a
+	// directory handle. The file system must ensure this ID remains valid until
+	// a later call to ReleaseDirHandle.
+	Handle HandleID
 }
 
 // Read entries from a directory previously opened with OpenDir.
@@ -330,79 +383,6 @@ type ReleaseFileHandleOp struct {
 ////////////////////////////////////////////////////////////////////////
 // Requests and responses
 ////////////////////////////////////////////////////////////////////////
-
-type CreateFileRequest struct {
-	Header RequestHeader
-
-	// The ID of parent directory inode within which to create the child file.
-	Parent InodeID
-
-	// The name of the child to create, and the mode with which to create it.
-	Name string
-	Mode os.FileMode
-
-	// Flags for the open operation.
-	Flags bazilfuse.OpenFlags
-}
-
-type CreateFileResponse struct {
-	// Information about the inode that was created.
-	Entry ChildInodeEntry
-
-	// An opaque ID that will be echoed in follow-up calls for this file using
-	// the same struct file in the kernel. In practice this usually means
-	// follow-up calls using the file descriptor returned by open(2).
-	//
-	// The handle may be supplied in future ops like ReadFileOp that contain a
-	// file handle. The file system must ensure this ID remains valid until a
-	// later call to ReleaseFileHandle.
-	Handle HandleID
-}
-
-type RmDirRequest struct {
-	Header RequestHeader
-
-	// The ID of parent directory inode, and the name of the directory being
-	// removed within it.
-	Parent InodeID
-	Name   string
-}
-
-type UnlinkResponse struct {
-}
-
-type UnlinkRequest struct {
-	Header RequestHeader
-
-	// The ID of parent directory inode, and the name of the file being removed
-	// within it.
-	Parent InodeID
-	Name   string
-}
-
-type RmDirResponse struct {
-}
-
-type OpenDirRequest struct {
-	Header RequestHeader
-
-	// The ID of the inode to be opened.
-	Inode InodeID
-
-	// Mode and options flags.
-	Flags bazilfuse.OpenFlags
-}
-
-type OpenDirResponse struct {
-	// An opaque ID that will be echoed in follow-up calls for this directory
-	// using the same struct file in the kernel. In practice this usually means
-	// follow-up calls using the file descriptor returned by open(2).
-	//
-	// The handle may be supplied in future ops like ReadDirOp that contain a
-	// directory handle. The file system must ensure this ID remains valid until
-	// a later call to ReleaseDirHandle.
-	Handle HandleID
-}
 
 type ReadDirRequest struct {
 	Header RequestHeader
