@@ -60,6 +60,24 @@ func (fs *helloFS) serve(c *fuse.Connection) {
 		case *fuseops.InitOp:
 			fs.init(typed)
 
+		case *fuseops.LookUpInodeOp:
+			fs.lookUpInode(typed)
+
+		case *fuseops.GetInodeAttributesOp:
+			fs.getInodeAttributes(typed)
+
+		case *fuseops.OpenDirOp:
+			fs.openDir(typed)
+
+		case *fuseops.ReadDirOp:
+			fs.readDir(typed)
+
+		case *fuseops.OpenFileOp:
+			fs.openFile(typed)
+
+		case *fuseops.ReadFileOp:
+			fs.readFile(typed)
+
 		default:
 			typed.Respond(fuse.ENOSYS)
 		}
@@ -222,7 +240,7 @@ func (fs *helloFS) openDir(op *fuseops.OpenDirOp) {
 	op.Respond(nil)
 }
 
-func (fs *helloFS) readDir(op fuseops.ReadDirOp) {
+func (fs *helloFS) readDir(op *fuseops.ReadDirOp) {
 	var err error
 	defer func() { op.Respond(err) }()
 
