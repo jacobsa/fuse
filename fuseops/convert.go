@@ -95,13 +95,57 @@ func Convert(r bazilfuse.Request) (o Op) {
 		}
 
 	case *bazilfuse.OpenRequest:
-		//TODO
+		if typed.Dir {
+			to := &OpenDirOp{
+				Inode: InodeID(typed.Header.Node),
+				Flags: typed.Flags,
+			}
+			o = to
+			co = &to.commonOp
+		} else {
+			to := &OpenFileOp{
+				Inode: InodeID(typed.Header.Node),
+				Flags: typed.Flags,
+			}
+			o = to
+			co = &to.commonOp
+		}
 
 	case *bazilfuse.ReadRequest:
-		//TODO
+		if typed.Dir {
+			to := &ReadDirOp{
+				Inode:  InodeID(typed.Header.Node),
+				Handle: HandleID(typed.Handle),
+				Offset: DirOffset(typed.Offset),
+				Size:   typed.Size,
+			}
+			o = to
+			co = &to.commonOp
+		} else {
+			to := &ReadFileOp{
+				Inode:  InodeID(typed.Header.Node),
+				Handle: HandleID(typed.Handle),
+				Offset: typed.Offset,
+				Size:   typed.Size,
+			}
+			o = to
+			co = &to.commonOp
+		}
 
 	case *bazilfuse.ReleaseRequest:
-		//TODO
+		if typed.Dir {
+			to := &ReleaseDirHandleOp{
+				Handle: HandleID(typed.Handle),
+			}
+			o = to
+			co = &to.commonOp
+		} else {
+			to := &ReadFileOp{
+				Handle: HandleID(typed.Handle),
+			}
+			o = to
+			co = &to.commonOp
+		}
 
 	case *bazilfuse.WriteRequest:
 		to := &WriteFileOp{
