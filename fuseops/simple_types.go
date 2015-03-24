@@ -125,8 +125,8 @@ type HandleID uint64
 // ReadDirOp.Offset for details.
 type DirOffset uint64
 
-// A header that is included with every request.
-type RequestHeader struct {
+// A header that is included with every op.
+type Header struct {
 	// Credentials information for the process making the request.
 	Uid uint32
 	Gid uint32

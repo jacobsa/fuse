@@ -24,8 +24,8 @@ import (
 	"github.com/jacobsa/bazilfuse"
 )
 
-// This method is called once when mounting the file system. It must succeed
-// in order for the mount to succeed.
+// Sent once when mounting the file system. It must succeed in order for the
+// mount to succeed.
 type InitOp struct {
 }
 
@@ -33,27 +33,27 @@ type InitOp struct {
 // Inodes
 ////////////////////////////////////////////////////////////////////////
 
-// Look up a child by name within a parent directory. The kernel calls this
+// Look up a child by name within a parent directory. The kernel sends this
 // when resolving user paths to dentry structs, which are then cached.
 type LookUpInodeOp struct {
 }
 
 // Refresh the attributes for an inode whose ID was previously returned by
-// LookUpInode. The kernel calls this when the FUSE VFS layer's cache of
-// inode attributes is stale. This is controlled by the AttributesExpiration
-// field of responses to LookUp, etc.
+// LookUpInode. The kernel sends this when the FUSE VFS layer's cache of inode
+// attributes is stale. This is controlled by the AttributesExpiration field of
+// responses to LookUp, etc.
 type GetInodeAttributesOp struct {
 }
 
 // Change attributes for an inode.
 //
-// The kernel calls this for obvious cases like chmod(2), and for less
-// obvious cases like ftrunctate(2).
+// The kernel sends this for obvious cases like chmod(2), and for less obvious
+// cases like ftrunctate(2).
 type SetInodeAttributesOp struct {
 }
 
 // Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
-// kernel calls this when removing an inode from its internal caches.
+// kernel sends this when removing an inode from its internal caches.
 type ForgetInodeOp struct {
 }
 
@@ -73,9 +73,9 @@ type MkDirOp struct {
 
 // Create a file inode and open it.
 //
-// The kernel calls this method when the user asks to open a file with the
-// O_CREAT flag and the kernel has observed that the file doesn't exist. (See
-// for example lookup_open, http://goo.gl/PlqE9d).
+// The kernel sends this when the user asks to open a file with the O_CREAT
+// flag and the kernel has observed that the file doesn't exist. (See for
+// example lookup_open, http://goo.gl/PlqE9d).
 //
 // However it's impossible to tell for sure that all kernels make this check
 // in all cases and the official fuse documentation is less than encouraging
@@ -93,7 +93,7 @@ type CreateFileOp struct {
 
 // Unlink a directory from its parent. Because directories cannot have a link
 // count above one, this means the directory inode should be deleted as well
-// once the kernel calls ForgetInode.
+// once the kernel sends ForgetInodeOp.
 //
 // The file system is responsible for checking that the directory is empty.
 //
@@ -102,7 +102,7 @@ type RmDirOp struct {
 }
 
 // Unlink a file from its parent. If this brings the inode's link count to
-// zero, the inode should be deleted once the kernel calls ForgetInode. It
+// zero, the inode should be deleted once the kernel sends ForgetInodeOp. It
 // may still be referenced before then if a user still has the file open.
 //
 // Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
@@ -115,10 +115,10 @@ type UnlinkOp struct {
 
 // Open a directory inode.
 //
-// On Linux the kernel calls this method when setting up a struct file for a
-// particular inode with type directory, usually in response to an open(2)
-// call from a user-space process. On OS X it may not be called for every
-// open(2) (cf. https://github.com/osxfuse/osxfuse/issues/199).
+// On Linux the sends this when setting up a struct file for a particular inode
+// with type directory, usually in response to an open(2) call from a
+// user-space process. On OS X it may not be sent for every open(2) (cf.
+// https://github.com/osxfuse/osxfuse/issues/199).
 type OpenDirOp struct {
 }
 
@@ -126,12 +126,12 @@ type OpenDirOp struct {
 type ReadDirOp struct {
 }
 
-// Release a previously-minted directory handle. The kernel calls this when
-// there are no more references to an open directory: all file descriptors
-// are closed and all memory mappings are unmapped.
+// Release a previously-minted directory handle. The kernel sends this when
+// there are no more references to an open directory: all file descriptors are
+// closed and all memory mappings are unmapped.
 //
-// The kernel guarantees that the handle ID will not be used in further calls
-// to the file system (unless it is reissued by the file system).
+// The kernel guarantees that the handle ID will not be used in further ops
+// sent to the file system (unless it is reissued by the file system).
 type ReleaseDirHandleOp struct {
 }
 
@@ -141,17 +141,17 @@ type ReleaseDirHandleOp struct {
 
 // Open a file inode.
 //
-// On Linux the kernel calls this method when setting up a struct file for a
-// particular inode with type file, usually in response to an open(2) call
-// from a user-space process. On OS X it may not be called for every open(2)
+// On Linux the sends this when setting up a struct file for a particular inode
+// with type file, usually in response to an open(2) call from a user-space
+// process. On OS X it may not be sent for every open(2)
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
 type OpenFileOp struct {
 }
 
 // Read data from a file previously opened with CreateFile or OpenFile.
 //
-// Note that this method is not called for every call to read(2) by the end
-// user; some reads may be served by the page cache. See notes on Write for
+// Note that this op is not sent for every call to read(2) by the end user;
+// some reads may be served by the page cache. See notes on WriteFileOp for
 // more.
 type ReadFileOp struct {
 }
@@ -160,7 +160,7 @@ type ReadFileOp struct {
 //
 // When the user writes data using write(2), the write goes into the page
 // cache and the page is marked dirty. Later the kernel may write back the
-// page via the FUSE VFS layer, causing this method to be called:
+// page via the FUSE VFS layer, causing this op to be sent:
 //
 //  *  The kernel calls address_space_operations::writepage when a dirty page
 //     needs to be written to backing store (cf. http://goo.gl/Ezbewg). Fuse
@@ -171,8 +171,8 @@ type ReadFileOp struct {
 //  *  (http://goo.gl/RqYIxY) fuse_writepage_locked makes a write request to
 //     the userspace server.
 //
-// Note that writes *will* be received before a call to Flush when closing
-// the file descriptor to which they were written:
+// Note that writes *will* be received before a FlushOp when closing the file
+// descriptor to which they were written:
 //
 //  *  (http://goo.gl/PheZjf) fuse_flush calls write_inode_now, which appears
 //     to start a writeback in the background (it talks about a "flusher
@@ -197,11 +197,11 @@ type WriteFileOp struct {
 //
 //  *  (http://goo.gl/5L2SMy) vfs_fsync_range calls f_op->fsync.
 //
-// Note that this is also called by fdatasync(2) (cf. http://goo.gl/01R7rF),
-// and may be called for msync(2) with the MS_SYNC flag (see the notes on
-// FlushFile).
+// Note that this is also sent by fdatasync(2) (cf. http://goo.gl/01R7rF), and
+// may be sent for msync(2) with the MS_SYNC flag (see the notes on
+// FlushFileOp).
 //
-// See also: FlushFile, which may perform a similar purpose when closing a
+// See also: FlushFileOp, which may perform a similar function when closing a
 // file (but which is not used in "real" file systems).
 type SyncFileOp struct {
 }
@@ -209,26 +209,25 @@ type SyncFileOp struct {
 // Flush the current state of an open file to storage upon closing a file
 // descriptor.
 //
-// vfs.txt documents this as being called for each close(2) system call (cf.
+// vfs.txt documents this as being sent for each close(2) system call (cf.
 // http://goo.gl/FSkbrq). Code walk for that case:
 //
 //  *  (http://goo.gl/e3lv0e) sys_close calls __close_fd, calls filp_close.
 //  *  (http://goo.gl/nI8fxD) filp_close calls f_op->flush (fuse_flush).
 //
-// But note that this is also called in other contexts where a file
-// descriptor is closed, such as dup2(2) (cf. http://goo.gl/NQDvFS). In the
-// case of close(2), a flush error is returned to the user. For dup2(2), it
-// is not.
+// But note that this is also sent in other contexts where a file descriptor is
+// closed, such as dup2(2) (cf. http://goo.gl/NQDvFS). In the case of close(2),
+// a flush error is returned to the user. For dup2(2), it is not.
 //
-// One potentially significant case where this may not be called is mmap'd
-// files, where the behavior is complicated:
+// One potentially significant case where this may not be sent is mmap'd files,
+// where the behavior is complicated:
 //
 //  *  munmap(2) does not cause flushes (cf. http://goo.gl/j8B9g0).
 //
 //  *  On OS X, if a user modifies a mapped file via the mapping before
-//     closing the file with close(2), the WriteFile calls for the
-//     modifications may not be received before the FlushFile request for the
-//     close(2) (cf. http://goo.gl/kVmNcx).
+//     closing the file with close(2), the WriteFileOps for the modifications
+//     may not be received before the FlushFileOp for the close(2) (cf.
+//     http://goo.gl/kVmNcx).
 //
 //  *  However, even on OS X you can arrange for writes via a mapping to be
 //     flushed by calling msync(2) followed by close(2). On OS X msync(2)
@@ -243,10 +242,10 @@ type SyncFileOp struct {
 // msync(2) appears to be optional because close(2) implies dirty page
 // writeback (cf. http://goo.gl/HyzLTT).
 //
-// Because of cases like dup2(2), calls to FlushFile are not necessarily one
-// to one with calls to OpenFile. They should not be used for reference
-// counting, and the handle must remain valid even after the method is called
-// (use ReleaseFileHandle to dispose of it).
+// Because of cases like dup2(2), FlushFileOps are not necessarily one to one
+// with OpenFileOps. They should not be used for reference counting, and the
+// handle must remain valid even after the flush op is received (use
+// ReleaseFileHandleOp for disposing of it).
 //
 // Typical "real" file systems do not implement this, presumably relying on
 // the kernel to write out the page cache to the block device eventually.
@@ -383,9 +382,9 @@ type CreateFileResponse struct {
 	// the same struct file in the kernel. In practice this usually means
 	// follow-up calls using the file descriptor returned by open(2).
 	//
-	// The handle may be supplied in future calls to methods like ReadFile that
-	// accept a file handle. The file system must ensure this ID remains valid
-	// until a later call to ReleaseFileHandle.
+	// The handle may be supplied in future ops like ReadFileOp that contain a
+	// file handle. The file system must ensure this ID remains valid until a
+	// later call to ReleaseFileHandle.
 	Handle HandleID
 }
 
@@ -428,9 +427,9 @@ type OpenDirResponse struct {
 	// using the same struct file in the kernel. In practice this usually means
 	// follow-up calls using the file descriptor returned by open(2).
 	//
-	// The handle may be supplied in future calls to methods like ReadDir that
-	// accept a directory handle. The file system must ensure this ID remains
-	// valid until a later call to ReleaseDirHandle.
+	// The handle may be supplied in future ops like ReadDirOp that contain a
+	// directory handle. The file system must ensure this ID remains valid until
+	// a later call to ReleaseDirHandle.
 	Handle HandleID
 }
 
@@ -552,9 +551,9 @@ type OpenFileResponse struct {
 	// the same struct file in the kernel. In practice this usually means
 	// follow-up calls using the file descriptor returned by open(2).
 	//
-	// The handle may be supplied in future calls to methods like ReadFile that
-	// accept a file handle. The file system must ensure this ID remains valid
-	// until a later call to ReleaseFileHandle.
+	// The handle may be supplied in future ops like ReadFileOp that contain a
+	// file handle. The file system must ensure this ID remains valid until a
+	// later call to ReleaseFileHandle.
 	Handle HandleID
 }
 
