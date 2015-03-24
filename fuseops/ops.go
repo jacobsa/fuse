@@ -25,6 +25,9 @@ import (
 	"golang.org/x/net/context"
 )
 
+// A common interface implemented by all ops in this package. Use a type switch
+// to find particular concrete types, responding with fuse.ENOSYS if a type is
+// not supported.
 type Op interface {
 	// Return the fields common to all operations.
 	Header() OpHeader
