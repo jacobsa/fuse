@@ -496,6 +496,8 @@ func (o *ReadDirOp) Respond(err error) {
 //
 // The kernel guarantees that the handle ID will not be used in further ops
 // sent to the file system (unless it is reissued by the file system).
+//
+// Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
 type ReleaseDirHandleOp struct {
 	commonOp
 
@@ -787,6 +789,8 @@ func (o *FlushFileOp) Respond(err error) {
 //
 // The kernel guarantees that the handle ID will not be used in further calls
 // to the file system (unless it is reissued by the file system).
+//
+// Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
 type ReleaseFileHandleOp struct {
 	commonOp
 
