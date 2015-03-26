@@ -58,6 +58,26 @@ func (o *InitOp) Respond(err error) {
 
 	resp := &bazilfuse.InitResponse{}
 
+	// Unconditionally enable large WriteFile ops from the kernel on Linux.
+	//
+	// As of 2015-03-26, the behavior in the kernel is:
+	//
+	//  *  (http://goo.gl/jMKHMZ, http://goo.gl/XTF4ZH) Cap the max write size at
+	//     the maximum of 4096 and init_response->max_write.
+	//
+	//  *  (http://goo.gl/gEIvHZ) If FUSE_BIG_WRITES isn't set, don't return more
+	//     than one page.
+	//
+	//  *  (http://goo.gl/4RLhxZ, http://goo.gl/hi0Cm2) Never write more than
+	//     FUSE_MAX_PAGES_PER_REQ pages (128 KiB on x86).
+	//
+	// 4 KiB is crazy small. Ask for significantly more, and take what the kernel
+	// will give us.
+	const maxWrite = 1 << 21
+	resp.Flags |= bazilfuse.InitBigWrites
+	resp.MaxWrite = maxWrite
+
+	// Respond.
 	o.commonOp.logger.Printf("Responding: %v", &resp)
 	o.r.(*bazilfuse.InitRequest).Respond(resp)
 }
