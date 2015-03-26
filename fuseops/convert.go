@@ -36,7 +36,10 @@ func Convert(r bazilfuse.Request, logger *log.Logger) (o Op) {
 
 	switch typed := r.(type) {
 	case *bazilfuse.InitRequest:
-		to := &InitOp{}
+		to := &InitOp{
+			maxReadahead: typed.MaxReadahead,
+		}
+
 		o = to
 		co = &to.commonOp
 
