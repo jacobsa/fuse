@@ -58,7 +58,7 @@ func (o *InitOp) Respond(err error) {
 		return
 	}
 
-	resp := &bazilfuse.InitResponse{}
+	resp := bazilfuse.InitResponse{}
 
 	// Ask the Linux kernel for larger write requests.
 	//
@@ -101,7 +101,7 @@ func (o *InitOp) Respond(err error) {
 
 	// Respond.
 	o.commonOp.logger.Printf("Responding: %v", &resp)
-	o.r.(*bazilfuse.InitRequest).Respond(resp)
+	o.r.(*bazilfuse.InitRequest).Respond(&resp)
 }
 
 ////////////////////////////////////////////////////////////////////////
