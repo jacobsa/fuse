@@ -15,6 +15,7 @@
 package memfs_test
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"os"
@@ -823,6 +824,27 @@ func (t *MemFSTest) WriteAtDoesntChangeOffset_AppendMode() {
 	offset, err := getFileOffset(f)
 	AssertEq(nil, err)
 	ExpectEq(4, offset)
+}
+
+func (t *MemFSTest) LargeFile() {
+	var err error
+
+	// Create a file.
+	f, err := os.Create(path.Join(t.Dir, "foo"))
+	t.ToClose = append(t.ToClose, f)
+	AssertEq(nil, err)
+
+	// Copy in large contents.
+	const size = 1 << 24
+	contents := bytes.Repeat([]byte{0x20}, size)
+
+	_, err = io.Copy(f, bytes.NewReader(contents))
+	AssertEq(nil, err)
+
+	// Read the full contents of the file.
+	contents, err = ioutil.ReadFile(f.Name())
+	AssertEq(nil, err)
+	ExpectEq(size, len(contents))
 }
 
 func (t *MemFSTest) AppendMode() {
