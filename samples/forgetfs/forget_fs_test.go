@@ -137,7 +137,19 @@ func (t *ForgetFSTest) Stat_ManyTimes() {
 }
 
 func (t *ForgetFSTest) CreateFile() {
-	AssertTrue(false, "TODO")
+	// Create and close many files within the root.
+	for i := 0; i < 100; i++ {
+		f, err := os.Create(path.Join(t.Dir, "blah"))
+		AssertEq(nil, err)
+		AssertEq(nil, f.Close())
+	}
+
+	// Create and close many files within the sub-directory.
+	for i := 0; i < 100; i++ {
+		f, err := os.Create(path.Join(t.Dir, "bar", "blah"))
+		AssertEq(nil, err)
+		AssertEq(nil, f.Close())
+	}
 }
 
 func (t *ForgetFSTest) MkDir() {
