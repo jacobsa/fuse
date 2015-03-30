@@ -220,10 +220,11 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 // Decrement the reference count for an inode ID previously issued by the file
 // system.
 //
-// The comments for the ops that implicitly increment the reference
-// count contain a note of this. For example, LookUpInodeOp and MkDirOp. The
-// authoritative source is the libfuse documentation, which states that any op
-// that returns fuse_reply_entry fuse_reply_create implicitly increments (cf.
+// The comments for the ops that implicitly increment the reference count
+// contain a note of this (but see also the note about the root inode below).
+// For example, LookUpInodeOp and MkDirOp. The authoritative source is the
+// libfuse documentation, which states that any op that returns
+// fuse_reply_entry fuse_reply_create implicitly increments (cf.
 // http://goo.gl/o5C7Dx).
 //
 // If the reference count hits zero, the file system can forget about that ID
@@ -238,6 +239,16 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 //  *  (http://goo.gl/IlcxWv) fuse_create_open calls fuse_iget.
 //  *  (http://goo.gl/VQMQul) fuse_dentry_revalidate increments after
 //     revalidating.
+//
+// In contrast to all other inodes, RootInodeID begins with an implicit
+// reference count of one, without a corresponding op to increase it:
+//
+//  *  (http://goo.gl/gWAheU) fuse_fill_super calls fuse_get_root_inode.
+//
+//  *  (http://goo.gl/AoLsbb) fuse_get_root_inode calls fuse_iget without
+//     sending any particular request.
+//
+//  *  (http://goo.gl/vPD9Oh) fuse_iget increments nlookup.
 //
 type ForgetInodeOp struct {
 	commonOp
