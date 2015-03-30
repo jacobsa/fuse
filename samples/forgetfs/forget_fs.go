@@ -16,6 +16,7 @@ package forgetfs
 
 import (
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 )
 
@@ -68,4 +69,12 @@ func (fs *ForgetFS) Check() {
 
 type fsImpl struct {
 	fuseutil.NotImplementedFileSystem
+}
+
+func (fs *fsImpl) Init(
+	op *fuseops.InitOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	return
 }
