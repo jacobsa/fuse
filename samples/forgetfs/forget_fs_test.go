@@ -101,7 +101,13 @@ func (t *ForgetFSTest) Open_ManyTimes() {
 }
 
 func (t *ForgetFSTest) Stat_Foo() {
-	AssertTrue(false, "TODO")
+	var fi os.FileInfo
+	var err error
+
+	fi, err = os.Stat(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+	AssertEq("foo", fi.Name())
+	AssertEq(os.FileMode(0777), fi.Mode())
 }
 
 func (t *ForgetFSTest) Stat_Bar() {
