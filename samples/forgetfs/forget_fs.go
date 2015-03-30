@@ -267,3 +267,17 @@ func (fs *fsImpl) GetInodeAttributes(
 
 	return
 }
+
+func (fs *fsImpl) OpenFile(
+	op *fuseops.OpenFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Verify that the inode has not been forgotten.
+	_ = fs.findInodeByID(op.Inode)
+
+	return
+}
