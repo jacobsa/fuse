@@ -15,6 +15,7 @@
 package forgetfs_test
 
 import (
+	"io"
 	"os"
 	"path"
 	"testing"
@@ -76,7 +77,27 @@ func (t *ForgetFSTest) Open_Bar() {
 }
 
 func (t *ForgetFSTest) Open_ManyTimes() {
-	AssertTrue(false, "TODO")
+	// Set up a slice of files that will be closed when we're done.
+	var toClose []io.Closer
+	defer func() {
+		for _, c := range toClose {
+			ExpectEq(nil, c.Close())
+		}
+	}()
+
+	// Open foo many times.
+	for i := 0; i < 100; i++ {
+		f, err := os.Open(path.Join(t.Dir, "foo"))
+		AssertEq(nil, err)
+		toClose = append(toClose, f)
+	}
+
+	// Open bar many times.
+	for i := 0; i < 100; i++ {
+		f, err := os.Open(path.Join(t.Dir, "bar"))
+		AssertEq(nil, err)
+		toClose = append(toClose, f)
+	}
 }
 
 func (t *ForgetFSTest) Stat_Foo() {
