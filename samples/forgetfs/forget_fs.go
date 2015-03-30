@@ -308,3 +308,17 @@ func (fs *fsImpl) OpenFile(
 
 	return
 }
+
+func (fs *fsImpl) OpenDir(
+	op *fuseops.OpenDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Verify that the inode has not been forgotten.
+	_ = fs.findInodeByID(op.Inode)
+
+	return
+}
