@@ -128,6 +128,9 @@ type LookUpInodeOp struct {
 	Name string
 
 	// The resulting entry. Must be filled out by the file system.
+	//
+	// The lookup count for the inode is implicitly incremented. See notes on
+	// ForgetInodeOp for more information.
 	Entry ChildInodeEntry
 }
 
@@ -278,6 +281,9 @@ type MkDirOp struct {
 	Mode os.FileMode
 
 	// Set by the file system: information about the inode that was created.
+	//
+	// The lookup count for the inode is implicitly incremented. See notes on
+	// ForgetInodeOp for more information.
 	Entry ChildInodeEntry
 }
 
@@ -321,6 +327,9 @@ type CreateFileOp struct {
 	Flags bazilfuse.OpenFlags
 
 	// Set by the file system: information about the inode that was created.
+	//
+	// The lookup count for the inode is implicitly incremented. See notes on
+	// ForgetInodeOp for more information.
 	Entry ChildInodeEntry
 
 	// Set by the file system: an opaque ID that will be echoed in follow-up
