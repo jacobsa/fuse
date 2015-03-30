@@ -35,7 +35,7 @@ import (
 // The file system maintains reference counts for the inodes involved. It will
 // panic if a reference count becomes negative or if an inode ID is re-used
 // after we expect it to be dead. Its Check method may be used to check that
-// there are no inodes with non-zero reference counts remaining, after
+// there are no inodes with unexpected reference counts remaining, after
 // unmounting.
 func NewFileSystem() (fs *ForgetFS) {
 	// Set up the actual file system.
@@ -179,6 +179,16 @@ func (fs *fsImpl) Check() {
 	defer fs.mu.Unlock()
 
 	for k, v := range fs.inodes {
+		// Special case: the root inode should have an implicit lookup count of 1.
+		if k == fuseops.RootInodeID {
+			if v.lookupCount != 1 {
+				panic(fmt.Sprintf("Root has lookup count %v", v.lookupCount))
+			}
+
+			continue
+		}
+
+		// Check other inodes.
 		if v.lookupCount != 0 {
 			panic(fmt.Sprintf("Inode %v has lookup count %v", k, v.lookupCount))
 		}

@@ -241,7 +241,8 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 //     revalidating.
 //
 // In contrast to all other inodes, RootInodeID begins with an implicit
-// reference count of one, without a corresponding op to increase it:
+// reference count of one, without a corresponding op to increase it. It also
+// is never decremented to zero. Code walk:
 //
 //  *  (http://goo.gl/gWAheU) fuse_fill_super calls fuse_get_root_inode.
 //
