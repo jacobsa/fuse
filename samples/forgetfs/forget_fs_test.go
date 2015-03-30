@@ -15,6 +15,7 @@
 package forgetfs_test
 
 import (
+	"io"
 	"os"
 	"path"
 	"testing"
@@ -65,22 +66,102 @@ func (t *ForgetFSTest) Open_Foo() {
 	AssertEq(nil, err)
 }
 
-func (t *ForgetFSTest) Open_Dir() {
-	AssertTrue(false, "TODO")
+func (t *ForgetFSTest) Open_Bar() {
+	var err error
+
+	f, err := os.Open(path.Join(t.Dir, "bar"))
+	AssertEq(nil, err)
+
+	err = f.Close()
+	AssertEq(nil, err)
+}
+
+func (t *ForgetFSTest) Open_ManyTimes() {
+	// Set up a slice of files that will be closed when we're done.
+	var toClose []io.Closer
+	defer func() {
+		for _, c := range toClose {
+			ExpectEq(nil, c.Close())
+		}
+	}()
+
+	// Open foo many times.
+	for i := 0; i < 100; i++ {
+		f, err := os.Open(path.Join(t.Dir, "foo"))
+		AssertEq(nil, err)
+		toClose = append(toClose, f)
+	}
+
+	// Open bar many times.
+	for i := 0; i < 100; i++ {
+		f, err := os.Open(path.Join(t.Dir, "bar"))
+		AssertEq(nil, err)
+		toClose = append(toClose, f)
+	}
 }
 
 func (t *ForgetFSTest) Stat_Foo() {
-	AssertTrue(false, "TODO")
+	var fi os.FileInfo
+	var err error
+
+	fi, err = os.Stat(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+	AssertEq("foo", fi.Name())
+	AssertEq(os.FileMode(0777), fi.Mode())
 }
 
-func (t *ForgetFSTest) Stat_Dir() {
-	AssertTrue(false, "TODO")
+func (t *ForgetFSTest) Stat_Bar() {
+	var fi os.FileInfo
+	var err error
+
+	fi, err = os.Stat(path.Join(t.Dir, "bar"))
+	AssertEq(nil, err)
+	AssertEq("bar", fi.Name())
+	AssertEq(0777|os.ModeDir, fi.Mode())
+}
+
+func (t *ForgetFSTest) Stat_ManyTimes() {
+	var err error
+
+	// Stat foo many times.
+	for i := 0; i < 100; i++ {
+		_, err = os.Stat(path.Join(t.Dir, "foo"))
+		AssertEq(nil, err)
+	}
+
+	// Stat bar many times.
+	for i := 0; i < 100; i++ {
+		_, err = os.Stat(path.Join(t.Dir, "bar"))
+		AssertEq(nil, err)
+	}
 }
 
 func (t *ForgetFSTest) CreateFile() {
-	AssertTrue(false, "TODO")
+	// Create and close many files within the root.
+	for i := 0; i < 100; i++ {
+		f, err := os.Create(path.Join(t.Dir, "blah"))
+		AssertEq(nil, err)
+		AssertEq(nil, f.Close())
+	}
+
+	// Create and close many files within the sub-directory.
+	for i := 0; i < 100; i++ {
+		f, err := os.Create(path.Join(t.Dir, "bar", "blah"))
+		AssertEq(nil, err)
+		AssertEq(nil, f.Close())
+	}
 }
 
 func (t *ForgetFSTest) MkDir() {
-	AssertTrue(false, "TODO")
+	// Create many directories within the root.
+	for i := 0; i < 100; i++ {
+		err := os.Mkdir(path.Join(t.Dir, "blah"), 0777)
+		AssertEq(nil, err)
+	}
+
+	// Create many directories within the sub-directory.
+	for i := 0; i < 100; i++ {
+		err := os.Mkdir(path.Join(t.Dir, "bar", "blah"), 0777)
+		AssertEq(nil, err)
+	}
 }
