@@ -121,7 +121,19 @@ func (t *ForgetFSTest) Stat_Bar() {
 }
 
 func (t *ForgetFSTest) Stat_ManyTimes() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Stat foo many times.
+	for i := 0; i < 100; i++ {
+		_, err = os.Stat(path.Join(t.Dir, "foo"))
+		AssertEq(nil, err)
+	}
+
+	// Stat bar many times.
+	for i := 0; i < 100; i++ {
+		_, err = os.Stat(path.Join(t.Dir, "bar"))
+		AssertEq(nil, err)
+	}
 }
 
 func (t *ForgetFSTest) CreateFile() {
