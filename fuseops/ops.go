@@ -128,6 +128,9 @@ type LookUpInodeOp struct {
 	Name string
 
 	// The resulting entry. Must be filled out by the file system.
+	//
+	// The lookup count for the inode is implicitly incremented. See notes on
+	// ForgetInodeOp for more information.
 	Entry ChildInodeEntry
 }
 
@@ -214,15 +217,36 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 	o.r.(*bazilfuse.SetattrRequest).Respond(&resp)
 }
 
-// Forget an inode ID previously issued (e.g. by LookUpInode or MkDir). The
-// kernel sends this when removing an inode from its internal caches.
+// Decrement the reference count for an inode ID previously issued by the file
+// system.
+//
+// The comments for the ops that implicitly increment the reference
+// count contain a note of this. For example, LookUpInodeOp and MkDirOp. The
+// authoritative source is the libfuse documentation, which states that any op
+// that returns fuse_reply_entry fuse_reply_create implicitly increments (cf.
+// http://goo.gl/o5C7Dx).
+//
+// If the reference count hits zero, the file system can forget about that ID
+// entirely, and even re-use it in future responses. The kernel guarantees that
+// it will not otherwise use it again.
+//
+// The reference count corresponds to fuse_inode::nlookup
+// (http://goo.gl/ut48S4). Some examples of where the kernel manipulates it:
+//
+//  *  (http://goo.gl/vPD9Oh) Any caller to fuse_iget increases the count.
+//  *  (http://goo.gl/B6tTTC) fuse_lookup_name calls fuse_iget.
+//  *  (http://goo.gl/IlcxWv) fuse_create_open calls fuse_iget.
+//  *  (http://goo.gl/VQMQul) fuse_dentry_revalidate increments after
+//     revalidating.
+//
 type ForgetInodeOp struct {
 	commonOp
 
-	// The inode to be forgotten. The kernel guarantees that the node ID will not
-	// be used in further calls to the file system (unless it is reissued by the
-	// file system).
+	// The inode whose reference count should be decremented.
 	ID InodeID
+
+	// The amount to decrement the reference count.
+	N int
 }
 
 func (o *ForgetInodeOp) Respond(err error) {
@@ -257,6 +281,9 @@ type MkDirOp struct {
 	Mode os.FileMode
 
 	// Set by the file system: information about the inode that was created.
+	//
+	// The lookup count for the inode is implicitly incremented. See notes on
+	// ForgetInodeOp for more information.
 	Entry ChildInodeEntry
 }
 
@@ -300,6 +327,9 @@ type CreateFileOp struct {
 	Flags bazilfuse.OpenFlags
 
 	// Set by the file system: information about the inode that was created.
+	//
+	// The lookup count for the inode is implicitly incremented. See notes on
+	// ForgetInodeOp for more information.
 	Entry ChildInodeEntry
 
 	// Set by the file system: an opaque ID that will be echoed in follow-up
