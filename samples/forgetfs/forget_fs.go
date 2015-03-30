@@ -18,6 +18,7 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
+	"github.com/jacobsa/gcloud/syncutil"
 )
 
 // Create a file system whose sole contents are a file named "foo" and a
@@ -34,8 +35,19 @@ import (
 // there are no inodes with non-zero reference counts remaining, after
 // unmounting.
 func NewFileSystem() (fs *ForgetFS) {
-	impl := &fsImpl{}
+	// Set up the actual file system.
+	impl := &fsImpl{
+		inodes: map[fuseops.InodeID]*inode{
+			cannedID_Root: &inode{},
+			cannedID_Foo:  &inode{},
+			cannedID_Bar:  &inode{},
+		},
+		nextInodeID: cannedID_Next,
+	}
 
+	impl.mu = syncutil.NewInvariantMutex(impl.checkInvariants)
+
+	// Set up a wrapper that exposes only certain methods.
 	fs = &ForgetFS{
 		impl:   impl,
 		server: fuseutil.NewFileSystemServer(impl),
@@ -67,9 +79,44 @@ func (fs *ForgetFS) Check() {
 // Actual implementation
 ////////////////////////////////////////////////////////////////////////
 
+const (
+	cannedID_Root = fuseops.RootInodeID + iota
+	cannedID_Foo
+	cannedID_Bar
+	cannedID_Next
+)
+
 type fsImpl struct {
 	fuseutil.NotImplementedFileSystem
+
+	/////////////////////////
+	// Mutable state
+	/////////////////////////
+
+	mu syncutil.InvariantMutex
+
+	// An index of inode by ID, for all IDs we have issued.
+	//
+	// INVARIANT: For each v, v.lookupCount >= 0
+	//
+	// GUARDED_BY(mu)
+	inodes map[fuseops.InodeID]*inode
+
+	// The next ID to issue.
+	//
+	// INVARIANT: For each k in inodes, k < nextInodeID
+	//
+	// GUARDED_BY(mu)
+	nextInodeID fuseops.InodeID
 }
+
+type inode struct {
+	// The current lookup count.
+	lookupCount int
+}
+
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fsImpl) checkInvariants()
 
 func (fs *fsImpl) Init(
 	op *fuseops.InitOp) {

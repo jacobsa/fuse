@@ -42,7 +42,11 @@ func (t *ForgetFSTest) SetUp(ti *TestInfo) {
 }
 
 func (t *ForgetFSTest) TearDown() {
-	panic("TODO: Unmount then call Check")
+	// Unmount.
+	t.SampleTest.TearDown()
+
+	// Crash if anything is left.
+	t.fs.Check()
 }
 
 ////////////////////////////////////////////////////////////////////////
