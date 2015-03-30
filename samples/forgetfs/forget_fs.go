@@ -136,6 +136,10 @@ type inode struct {
 	lookupCount int
 }
 
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
 // LOCKS_REQUIRED(fs.mu)
 func (fs *fsImpl) checkInvariants() {
 	// INVARIANT: For each v in inodes, v.lookupCount >= 0
@@ -165,10 +169,70 @@ func (fs *fsImpl) Check() {
 	}
 }
 
+// Look up the inode and verify it hasn't been forgotten.
+//
+// LOCKS_REQUIRED(fs.mu)
+func (fs *fsImpl) findInodeByID(id fuseops.InodeID) (in *inode) {
+	in = fs.inodes[id]
+	if in == nil {
+		panic(fmt.Sprintf("Unknown inode: %v", id))
+	}
+
+	if in.lookupCount <= 0 {
+		panic(fmt.Sprintf("Forgotten inode: %v", id))
+	}
+
+	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// FileSystem methods
+////////////////////////////////////////////////////////////////////////
+
 func (fs *fsImpl) Init(
 	op *fuseops.InitOp) {
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
+
+	return
+}
+
+func (fs *fsImpl) LookUpInode(
+	op *fuseops.LookUpInodeOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Make sure the parent exists and has not been forgotten.
+	_ = fs.findInodeByID(op.Parent)
+
+	// Handle the names we support.
+	var childID fuseops.InodeID
+	switch {
+	case op.Parent == cannedID_Root && op.Name == "foo":
+		childID = cannedID_Foo
+
+	case op.Parent == cannedID_Root && op.Name == "bar":
+		childID = cannedID_Bar
+
+	default:
+		err = fuse.ENOENT
+		return
+	}
+
+	// Find the child.
+	child := fs.findInodeByID(childID)
+
+	// Increment the child's lookup count.
+	child.lookupCount++
+
+	// Return an appropriate entry.
+	op.Entry = fuseops.ChildInodeEntry{
+		Child:      childID,
+		Attributes: child.attributes,
+	}
 
 	return
 }
@@ -182,14 +246,7 @@ func (fs *fsImpl) GetInodeAttributes(
 	defer fs.mu.Unlock()
 
 	// Find the inode, verifying that it has not been forgotten.
-	in := fs.inodes[op.Inode]
-	if in == nil {
-		panic(fmt.Sprintf("Unknown inode: %v", op.Inode))
-	}
-
-	if in.lookupCount <= 0 {
-		panic(fmt.Sprintf("Forgotten inode: %v", op.Inode))
-	}
+	in := fs.findInodeByID(op.Inode)
 
 	// Return appropriate attributes.
 	op.Attributes = in.attributes
