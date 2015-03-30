@@ -35,7 +35,10 @@ func NewFileSystem() (fs *ForgetFS) {
 }
 
 type ForgetFS struct {
-	fuse.Server
+}
+
+func (fs *ForgetFS) ServeOps(c *fuse.Connection) {
+	panic("TODO: Export dispatch function from fuseutil and use it here.")
 }
 
 // Panic if there are any inodes that have a non-zero reference count. For use
