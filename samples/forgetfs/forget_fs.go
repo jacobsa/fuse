@@ -298,6 +298,40 @@ func (fs *fsImpl) ForgetInode(
 	return
 }
 
+func (fs *fsImpl) MkDir(
+	op *fuseops.MkDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Make sure the parent exists and has not been forgotten.
+	_ = fs.findInodeByID(op.Parent)
+
+	// Mint a child inode.
+	childID := fs.nextInodeID
+	fs.nextInodeID++
+
+	child := &inode{
+		attributes: fuseops.InodeAttributes{
+			Nlink: 0,
+			Mode:  0777 | os.ModeDir,
+		},
+	}
+
+	fs.inodes[childID] = child
+	child.IncrementLookupCount()
+
+	// Return an appropriate entry.
+	op.Entry = fuseops.ChildInodeEntry{
+		Child:      childID,
+		Attributes: child.attributes,
+	}
+
+	return
+}
+
 func (fs *fsImpl) CreateFile(
 	op *fuseops.CreateFileOp) {
 	var err error
