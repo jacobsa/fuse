@@ -97,7 +97,7 @@ type fsImpl struct {
 
 	// An index of inode by ID, for all IDs we have issued.
 	//
-	// INVARIANT: For each v, v.lookupCount >= 0
+	// INVARIANT: For each v in inodes, v.lookupCount >= 0
 	//
 	// GUARDED_BY(mu)
 	inodes map[fuseops.InodeID]*inode
@@ -116,7 +116,21 @@ type inode struct {
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *fsImpl) checkInvariants()
+func (fs *fsImpl) checkInvariants() {
+	// INVARIANT: For each v in inodes, v.lookupCount >= 0
+	for _, v := range fs.inodes {
+		if !(v.lookupCount >= 0) {
+			panic("Negative lookup count")
+		}
+	}
+
+	// INVARIANT: For each k in inodes, k < nextInodeID
+	for k, _ := range fs.inodes {
+		if !(k < fs.nextInodeID) {
+			panic("Unexpectedly large inode ID")
+		}
+	}
+}
 
 func (fs *fsImpl) Init(
 	op *fuseops.InitOp) {
