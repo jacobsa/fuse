@@ -14,7 +14,10 @@
 
 package forgetfs
 
-import "github.com/jacobsa/fuse"
+import (
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/fuseutil"
+)
 
 // Create a file system whose sole contents are a file named "foo" and a
 // directory named "bar".
@@ -30,19 +33,39 @@ import "github.com/jacobsa/fuse"
 // there are no inodes with non-zero reference counts remaining, after
 // unmounting.
 func NewFileSystem() (fs *ForgetFS) {
-	fs = &ForgetFS{}
+	impl := &fsImpl{}
+
+	fs = &ForgetFS{
+		impl:   impl,
+		server: fuseutil.NewFileSystemServer(impl),
+	}
+
 	return
 }
 
+////////////////////////////////////////////////////////////////////////
+// ForgetFS
+////////////////////////////////////////////////////////////////////////
+
 type ForgetFS struct {
+	impl   *fsImpl
+	server fuse.Server
 }
 
 func (fs *ForgetFS) ServeOps(c *fuse.Connection) {
-	panic("TODO: Export dispatch function from fuseutil and use it here.")
+	fs.server.ServeOps(c)
 }
 
 // Panic if there are any inodes that have a non-zero reference count. For use
 // after unmounting.
 func (fs *ForgetFS) Check() {
 	panic("TODO")
+}
+
+////////////////////////////////////////////////////////////////////////
+// Actual implementation
+////////////////////////////////////////////////////////////////////////
+
+type fsImpl struct {
+	fuseutil.NotImplementedFileSystem
 }
