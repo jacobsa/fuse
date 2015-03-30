@@ -15,6 +15,8 @@
 package forgetfs
 
 import (
+	"fmt"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -72,7 +74,7 @@ func (fs *ForgetFS) ServeOps(c *fuse.Connection) {
 // Panic if there are any inodes that have a non-zero reference count. For use
 // after unmounting.
 func (fs *ForgetFS) Check() {
-	panic("TODO")
+	fs.impl.Check()
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -128,6 +130,18 @@ func (fs *fsImpl) checkInvariants() {
 	for k, _ := range fs.inodes {
 		if !(k < fs.nextInodeID) {
 			panic("Unexpectedly large inode ID")
+		}
+	}
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *fsImpl) Check() {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	for k, v := range fs.inodes {
+		if v.lookupCount != 0 {
+			panic(fmt.Sprintf("Inode %v has lookup count %v", k, v.lookupCount))
 		}
 	}
 }
