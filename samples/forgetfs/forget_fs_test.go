@@ -15,6 +15,8 @@
 package forgetfs_test
 
 import (
+	"os"
+	"path"
 	"testing"
 
 	"github.com/jacobsa/fuse/samples"
@@ -54,7 +56,13 @@ func (t *ForgetFSTest) TearDown() {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *ForgetFSTest) Open_Foo() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	f, err := os.Open(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	err = f.Close()
+	AssertEq(nil, err)
 }
 
 func (t *ForgetFSTest) Open_Dir() {
