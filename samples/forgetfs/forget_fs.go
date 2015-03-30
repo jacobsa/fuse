@@ -129,11 +129,27 @@ type fsImpl struct {
 	nextInodeID fuseops.InodeID
 }
 
+////////////////////////////////////////////////////////////////////////
+// inode
+////////////////////////////////////////////////////////////////////////
+
 type inode struct {
 	attributes fuseops.InodeAttributes
 
 	// The current lookup count.
 	lookupCount int
+
+	// true if lookupCount has ever been positive.
+	lookedUp bool
+}
+
+func (in *inode) Forgotten() bool {
+	return in.lookedUp && in.lookupCount <= 0
+}
+
+func (in *inode) IncrementLookupCount() {
+	in.lookupCount++
+	in.lookedUp = true
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -178,7 +194,7 @@ func (fs *fsImpl) findInodeByID(id fuseops.InodeID) (in *inode) {
 		panic(fmt.Sprintf("Unknown inode: %v", id))
 	}
 
-	if in.lookupCount <= 0 {
+	if in.Forgotten() {
 		panic(fmt.Sprintf("Forgotten inode: %v", id))
 	}
 
@@ -222,11 +238,9 @@ func (fs *fsImpl) LookUpInode(
 		return
 	}
 
-	// Find the child.
+	// Look up the child.
 	child := fs.findInodeByID(childID)
-
-	// Increment the child's lookup count.
-	child.lookupCount++
+	child.IncrementLookupCount()
 
 	// Return an appropriate entry.
 	op.Entry = fuseops.ChildInodeEntry{
