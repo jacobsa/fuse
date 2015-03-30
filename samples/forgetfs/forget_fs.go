@@ -16,6 +16,7 @@ package forgetfs
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -40,9 +41,25 @@ func NewFileSystem() (fs *ForgetFS) {
 	// Set up the actual file system.
 	impl := &fsImpl{
 		inodes: map[fuseops.InodeID]*inode{
-			cannedID_Root: &inode{lookupCount: 1},
-			cannedID_Foo:  &inode{},
-			cannedID_Bar:  &inode{},
+			cannedID_Root: &inode{
+				lookupCount: 1,
+				attributes: fuseops.InodeAttributes{
+					Nlink: 1,
+					Mode:  0777 | os.ModeDir,
+				},
+			},
+			cannedID_Foo: &inode{
+				attributes: fuseops.InodeAttributes{
+					Nlink: 1,
+					Mode:  0777,
+				},
+			},
+			cannedID_Bar: &inode{
+				attributes: fuseops.InodeAttributes{
+					Nlink: 1,
+					Mode:  0777 | os.ModeDir,
+				},
+			},
 		},
 		nextInodeID: cannedID_Next,
 	}
@@ -113,6 +130,8 @@ type fsImpl struct {
 }
 
 type inode struct {
+	attributes fuseops.InodeAttributes
+
 	// The current lookup count.
 	lookupCount int
 }
@@ -150,6 +169,30 @@ func (fs *fsImpl) Init(
 	op *fuseops.InitOp) {
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
+
+	return
+}
+
+func (fs *fsImpl) GetInodeAttributes(
+	op *fuseops.GetInodeAttributesOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the inode, verifying that it has not been forgotten.
+	in := fs.inodes[op.Inode]
+	if in == nil {
+		panic(fmt.Sprintf("Unknown inode: %v", op.Inode))
+	}
+
+	if in.lookupCount <= 0 {
+		panic(fmt.Sprintf("Forgotten inode: %v", op.Inode))
+	}
+
+	// Return appropriate attributes.
+	op.Attributes = in.attributes
 
 	return
 }
