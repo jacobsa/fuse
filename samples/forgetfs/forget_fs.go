@@ -42,7 +42,6 @@ func NewFileSystem() (fs *ForgetFS) {
 	impl := &fsImpl{
 		inodes: map[fuseops.InodeID]*inode{
 			cannedID_Root: &inode{
-				lookupCount: 1,
 				attributes: fuseops.InodeAttributes{
 					Nlink: 1,
 					Mode:  0777 | os.ModeDir,
@@ -64,6 +63,10 @@ func NewFileSystem() (fs *ForgetFS) {
 		nextInodeID: cannedID_Next,
 	}
 
+	// The root inode starts with a lookup count of one.
+	impl.inodes[cannedID_Root].IncrementLookupCount()
+
+	// Set up the mutex.
 	impl.mu = syncutil.NewInvariantMutex(impl.checkInvariants)
 
 	// Set up a wrapper that exposes only certain methods.
@@ -295,8 +298,90 @@ func (fs *fsImpl) ForgetInode(
 	return
 }
 
+func (fs *fsImpl) MkDir(
+	op *fuseops.MkDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Make sure the parent exists and has not been forgotten.
+	_ = fs.findInodeByID(op.Parent)
+
+	// Mint a child inode.
+	childID := fs.nextInodeID
+	fs.nextInodeID++
+
+	child := &inode{
+		attributes: fuseops.InodeAttributes{
+			Nlink: 0,
+			Mode:  0777 | os.ModeDir,
+		},
+	}
+
+	fs.inodes[childID] = child
+	child.IncrementLookupCount()
+
+	// Return an appropriate entry.
+	op.Entry = fuseops.ChildInodeEntry{
+		Child:      childID,
+		Attributes: child.attributes,
+	}
+
+	return
+}
+
+func (fs *fsImpl) CreateFile(
+	op *fuseops.CreateFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Make sure the parent exists and has not been forgotten.
+	_ = fs.findInodeByID(op.Parent)
+
+	// Mint a child inode.
+	childID := fs.nextInodeID
+	fs.nextInodeID++
+
+	child := &inode{
+		attributes: fuseops.InodeAttributes{
+			Nlink: 0,
+			Mode:  0777,
+		},
+	}
+
+	fs.inodes[childID] = child
+	child.IncrementLookupCount()
+
+	// Return an appropriate entry.
+	op.Entry = fuseops.ChildInodeEntry{
+		Child:      childID,
+		Attributes: child.attributes,
+	}
+
+	return
+}
+
 func (fs *fsImpl) OpenFile(
 	op *fuseops.OpenFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Verify that the inode has not been forgotten.
+	_ = fs.findInodeByID(op.Inode)
+
+	return
+}
+
+func (fs *fsImpl) OpenDir(
+	op *fuseops.OpenDirOp) {
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
