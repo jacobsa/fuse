@@ -153,5 +153,15 @@ func (t *ForgetFSTest) CreateFile() {
 }
 
 func (t *ForgetFSTest) MkDir() {
-	AssertTrue(false, "TODO")
+	// Create many directories within the root.
+	for i := 0; i < 100; i++ {
+		err := os.Mkdir(path.Join(t.Dir, "blah"), 0777)
+		AssertEq(nil, err)
+	}
+
+	// Create many directories within the sub-directory.
+	for i := 0; i < 100; i++ {
+		err := os.Mkdir(path.Join(t.Dir, "bar", "blah"), 0777)
+		AssertEq(nil, err)
+	}
 }
