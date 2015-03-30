@@ -82,6 +82,14 @@ func Convert(r bazilfuse.Request, logger *log.Logger) (o Op) {
 		o = to
 		co = &to.commonOp
 
+	case *bazilfuse.ForgetRequest:
+		to := &ForgetInodeOp{
+			Inode: InodeID(typed.Header.Node),
+			N:     typed.N,
+		}
+		o = to
+		co = &to.commonOp
+
 	case *bazilfuse.MkdirRequest:
 		to := &MkDirOp{
 			Parent: InodeID(typed.Header.Node),

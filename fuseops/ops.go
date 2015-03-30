@@ -255,10 +255,10 @@ type ForgetInodeOp struct {
 	commonOp
 
 	// The inode whose reference count should be decremented.
-	ID InodeID
+	Inode InodeID
 
 	// The amount to decrement the reference count.
-	N int
+	N uint64
 }
 
 func (o *ForgetInodeOp) Respond(err error) {
