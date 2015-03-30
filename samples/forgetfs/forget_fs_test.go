@@ -65,7 +65,17 @@ func (t *ForgetFSTest) Open_Foo() {
 	AssertEq(nil, err)
 }
 
-func (t *ForgetFSTest) Open_Dir() {
+func (t *ForgetFSTest) Open_Bar() {
+	var err error
+
+	f, err := os.Open(path.Join(t.Dir, "bar"))
+	AssertEq(nil, err)
+
+	err = f.Close()
+	AssertEq(nil, err)
+}
+
+func (t *ForgetFSTest) Open_ManyTimes() {
 	AssertTrue(false, "TODO")
 }
 
@@ -73,7 +83,11 @@ func (t *ForgetFSTest) Stat_Foo() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *ForgetFSTest) Stat_Dir() {
+func (t *ForgetFSTest) Stat_Bar() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ForgetFSTest) Stat_ManyTimes() {
 	AssertTrue(false, "TODO")
 }
 
