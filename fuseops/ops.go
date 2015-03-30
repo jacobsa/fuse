@@ -215,8 +215,13 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 }
 
 // Decrement the reference count for an inode ID previously issued by the file
-// system. The comments for the ops that implicitly increment the reference
-// count contain a note of this. For example, LookUpInodeOp and MkDirOp.
+// system.
+//
+// The comments for the ops that implicitly increment the reference
+// count contain a note of this. For example, LookUpInodeOp and MkDirOp. The
+// authoritative source is the libfuse documentation, which states that any op
+// that returns fuse_reply_entry fuse_reply_create implicitly increments (cf.
+// http://goo.gl/o5C7Dx).
 //
 // If the reference count hits zero, the file system can forget about that ID
 // entirely, and even re-use it in future responses. The kernel guarantees that
