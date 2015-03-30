@@ -29,7 +29,7 @@ import "github.com/jacobsa/fuse"
 // after we expect it to be dead. Its Check method may be used to check that
 // there are no inodes with non-zero reference counts remaining, after
 // unmounting.
-func NewFileSystem() (fs *ForgetFS, err error) {
+func NewFileSystem() (fs *ForgetFS) {
 	fs = &ForgetFS{}
 	return
 }

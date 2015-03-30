@@ -36,7 +36,9 @@ type ForgetFSTest struct {
 func init() { RegisterTestSuite(&ForgetFSTest{}) }
 
 func (t *ForgetFSTest) SetUp(ti *TestInfo) {
-	panic("TODO")
+	t.fs = forgetfs.NewFileSystem()
+	t.Server = t.fs
+	t.SampleTest.SetUp(ti)
 }
 
 func (t *ForgetFSTest) TearDown() {
