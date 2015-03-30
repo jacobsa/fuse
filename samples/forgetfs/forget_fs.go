@@ -20,9 +20,9 @@ import "github.com/jacobsa/fuse"
 // directory named "bar".
 //
 // The file "foo" may be opened for reading and/or writing, but reads and
-// writes aren't supported. Additionally, a file named "bar" may be created
-// anew an arbitrary number of times in any directory, but it will never exist
-// in lookups by name.
+// writes aren't supported. Additionally, any non-existent file or directory
+// name may be created within any directory, but the resulting inode will
+// appear to have been unlinked immediately.
 //
 // The file system maintains reference counts for the inodes involved. It will
 // panic if a reference count becomes negative or if an inode ID is re-used

@@ -47,6 +47,26 @@ func (t *ForgetFSTest) TearDown() {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ForgetFSTest) DoesFoo() {
+func (t *ForgetFSTest) Open_Foo() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ForgetFSTest) Open_Dir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ForgetFSTest) Stat_Foo() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ForgetFSTest) Stat_Dir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ForgetFSTest) CreateFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ForgetFSTest) MkDir() {
 	AssertTrue(false, "TODO")
 }
