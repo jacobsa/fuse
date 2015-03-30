@@ -40,7 +40,7 @@ func NewFileSystem() (fs *ForgetFS) {
 	// Set up the actual file system.
 	impl := &fsImpl{
 		inodes: map[fuseops.InodeID]*inode{
-			cannedID_Root: &inode{},
+			cannedID_Root: &inode{lookupCount: 1},
 			cannedID_Foo:  &inode{},
 			cannedID_Bar:  &inode{},
 		},
