@@ -116,8 +116,6 @@ type fsImpl struct {
 
 	// An index of inode by ID, for all IDs we have issued.
 	//
-	// INVARIANT: For each v in inodes, v.lookupCount >= 0
-	//
 	// GUARDED_BY(mu)
 	inodes map[fuseops.InodeID]*inode
 
@@ -137,19 +135,30 @@ type inode struct {
 	attributes fuseops.InodeAttributes
 
 	// The current lookup count.
-	lookupCount int
+	lookupCount uint64
 
 	// true if lookupCount has ever been positive.
 	lookedUp bool
 }
 
 func (in *inode) Forgotten() bool {
-	return in.lookedUp && in.lookupCount <= 0
+	return in.lookedUp && in.lookupCount == 0
 }
 
 func (in *inode) IncrementLookupCount() {
 	in.lookupCount++
 	in.lookedUp = true
+}
+
+func (in *inode) DecrementLookupCount(n uint64) {
+	if in.lookupCount < n {
+		panic(fmt.Sprintf(
+			"Overly large decrement: %v, %v",
+			in.lookupCount,
+			n))
+	}
+
+	in.lookupCount -= n
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -158,13 +167,6 @@ func (in *inode) IncrementLookupCount() {
 
 // LOCKS_REQUIRED(fs.mu)
 func (fs *fsImpl) checkInvariants() {
-	// INVARIANT: For each v in inodes, v.lookupCount >= 0
-	for _, v := range fs.inodes {
-		if !(v.lookupCount >= 0) {
-			panic("Negative lookup count")
-		}
-	}
-
 	// INVARIANT: For each k in inodes, k < nextInodeID
 	for k, _ := range fs.inodes {
 		if !(k < fs.nextInodeID) {
@@ -274,6 +276,21 @@ func (fs *fsImpl) GetInodeAttributes(
 
 	// Return appropriate attributes.
 	op.Attributes = in.attributes
+
+	return
+}
+
+func (fs *fsImpl) ForgetInode(
+	op *fuseops.ForgetInodeOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the inode and decrement its count.
+	in := fs.findInodeByID(op.Inode)
+	in.DecrementLookupCount(op.N)
 
 	return
 }
