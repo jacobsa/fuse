@@ -41,6 +41,14 @@ func ReadDirPicky(dirname string) (entries []os.FileInfo, err error) {
 		return
 	}
 
+	// Don't forget to close it later.
+	defer func() {
+		closeErr := f.Close()
+		if closeErr != nil && err == nil {
+			err = fmt.Errorf("Close: %v", closeErr)
+		}
+	}()
+
 	// Read all of the names from the directory.
 	names, err := f.Readdirnames(-1)
 	if err != nil {
