@@ -410,11 +410,11 @@ func (t *PosixTest) RmdirWhileOpenedForReading() {
 	// Attempt to read from the directory. This shouldn't see any junk from the
 	// new directory. It should either succeed with an empty result or should
 	// return ENOENT.
-	entries, err := f.Readdir(0)
+	names, err := f.Readdirnames(0)
 
 	if err != nil {
 		ExpectThat(err, Error(HasSubstr("no such file")))
 	} else {
-		ExpectThat(entries, ElementsAre())
+		ExpectThat(names, ElementsAre())
 	}
 }
