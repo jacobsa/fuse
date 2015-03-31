@@ -254,7 +254,8 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 //
 // File systems should not make assumptions about whether they will or will not
 // receive a ForgetInodeOp for the root inode. Experimentally, OS X seems to
-// never send one, while Linux appears to send one only sometimes.
+// never send one, while Linux appears to send one only sometimes. (Cf.
+// http://goo.gl/EUbxEg, fuse-devel thread "Root inode lookup count").
 type ForgetInodeOp struct {
 	commonOp
 
