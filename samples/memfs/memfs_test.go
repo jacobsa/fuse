@@ -98,7 +98,7 @@ func (t *MemFSTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *MemFSTest) ContentsOfEmptyFileSystem() {
-	entries, err := ioutil.ReadDir(t.Dir)
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
@@ -148,13 +148,13 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq(0, fi.ModTime().Sub(createTime))
 
 	// Read the directory.
-	entries, err = ioutil.ReadDir(dirName)
+	entries, err = fusetesting.ReadDirPicky(dirName)
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 
 	// Read the root.
-	entries, err = ioutil.ReadDir(t.Dir)
+	entries, err = fusetesting.ReadDirPicky(t.Dir)
 
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
@@ -209,13 +209,13 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	ExpectEq(0, fi.ModTime().Sub(createTime))
 
 	// Read the directory.
-	entries, err = ioutil.ReadDir(path.Join(t.Dir, "parent/dir"))
+	entries, err = fusetesting.ReadDirPicky(path.Join(t.Dir, "parent/dir"))
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 
 	// Read the parent.
-	entries, err = ioutil.ReadDir(path.Join(t.Dir, "parent"))
+	entries, err = fusetesting.ReadDirPicky(path.Join(t.Dir, "parent"))
 
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
@@ -496,7 +496,7 @@ func (t *MemFSTest) UnlinkFile_Exists() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 
 	// Nothing should be in the directory.
-	entries, err := ioutil.ReadDir(t.Dir)
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 }
@@ -526,7 +526,7 @@ func (t *MemFSTest) UnlinkFile_StillOpen() {
 	AssertEq(nil, err)
 
 	// The directory should no longer contain it.
-	entries, err := ioutil.ReadDir(t.Dir)
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
 
@@ -586,7 +586,7 @@ func (t *MemFSTest) Rmdir_Empty() {
 	t.Clock.AdvanceTime(time.Second)
 
 	// There should be nothing left in the parent.
-	entries, err = ioutil.ReadDir(path.Join(t.Dir, "foo"))
+	entries, err = fusetesting.ReadDirPicky(path.Join(t.Dir, "foo"))
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
@@ -601,7 +601,7 @@ func (t *MemFSTest) Rmdir_Empty() {
 	AssertEq(nil, err)
 
 	// Now the root directory should be empty, too.
-	entries, err = ioutil.ReadDir(t.Dir)
+	entries, err = fusetesting.ReadDirPicky(t.Dir)
 
 	AssertEq(nil, err)
 	ExpectThat(entries, ElementsAre())
@@ -661,12 +661,12 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 	// Attempt to read from the directory. This shouldn't see any junk from the
 	// new directory. It should either succeed with an empty result or should
 	// return ENOENT.
-	entries, err := f.Readdir(0)
+	names, err := f.Readdirnames(0)
 
 	if err != nil {
 		ExpectThat(err, Error(HasSubstr("no such file")))
 	} else {
-		ExpectThat(entries, ElementsAre())
+		ExpectThat(names, ElementsAre())
 	}
 }
 
