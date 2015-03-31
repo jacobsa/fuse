@@ -241,8 +241,9 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 //     revalidating.
 //
 // In contrast to all other inodes, RootInodeID begins with an implicit
-// reference count of one, without a corresponding op to increase it. It also
-// is never decremented to zero. Code walk:
+// reference count of one, without a corresponding op to increase it. (There
+// could be no such op, because the root cannot be referred to by name.) Code
+// walk:
 //
 //  *  (http://goo.gl/gWAheU) fuse_fill_super calls fuse_get_root_inode.
 //
@@ -251,6 +252,9 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 //
 //  *  (http://goo.gl/vPD9Oh) fuse_iget increments nlookup.
 //
+// File systems should not make assumptions about whether they will or will not
+// receive a ForgetInodeOp for the root inode. Experimentally, OS X seems to
+// never send one, while Linux appears to send one only sometimes.
 type ForgetInodeOp struct {
 	commonOp
 
