@@ -17,6 +17,7 @@ package forgetfs
 import (
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -182,6 +183,16 @@ func (fs *fsImpl) checkInvariants() {
 func (fs *fsImpl) Check() {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
+
+	// On Linux we often don't receive forget ops, and never receive destroy ops
+	// (cf. http://goo.gl/EUbxEg, fuse-devel thread "Root inode lookup count").
+	// So there's not really much we can check here.
+	//
+	// TODO(jacobsa): Figure out why we don't receive destroy. If we can reliably
+	// receive it, we can treat it as "forget all".
+	if runtime.GOOS == "linux" {
+		return
+	}
 
 	for k, v := range fs.inodes {
 		// Special case: we don't require the root inode to have reached zero.
