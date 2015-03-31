@@ -17,14 +17,52 @@ package fusetesting
 import (
 	"fmt"
 	"os"
+	"path"
+	"sort"
 )
+
+type sortedEntries []os.FileInfo
+
+func (f sortedEntries) Len() int           { return len(f) }
+func (f sortedEntries) Less(i, j int) bool { return f[i].Name() < f[j].Name() }
+func (f sortedEntries) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
 
 // Read the directory with the given name and return a list of directory
 // entries, sorted by name.
 //
-// Unlike ioutil.ReadDir, this function does not silently ignore "file not
-// found" errors when stat'ing the names read from the directory.
+// Unlike ioutil.ReadDir (cf. http://goo.gl/i0nNP4), this function does not
+// silently ignore "file not found" errors when stat'ing the names read from
+// the directory.
 func ReadDirPicky(dirname string) (entries []os.FileInfo, err error) {
-	err = fmt.Errorf("TODO: ReadDirPicky")
+	// Open the directory.
+	f, err := os.Open(dirname)
+	if err != nil {
+		err = fmt.Errorf("Open: %v", err)
+		return
+	}
+
+	// Read all of the names from the directory.
+	names, err := f.Readdirnames(-1)
+	if err != nil {
+		err = fmt.Errorf("Readdirnames: %v", err)
+		return
+	}
+
+	// Stat each one.
+	for _, name := range names {
+		var fi os.FileInfo
+
+		fi, err = os.Lstat(path.Join(dirname, name))
+		if err != nil {
+			err = fmt.Errorf("Lstat(%s): %v", name, err)
+			return
+		}
+
+		entries = append(entries, fi)
+	}
+
+	// Sort the entries by name.
+	sort.Sort(sortedEntries(entries))
+
 	return
 }
