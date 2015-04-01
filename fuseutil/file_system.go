@@ -55,12 +55,12 @@ type FileSystem interface {
 // method.Respond with the resulting error. Unsupported ops are responded to
 // directly with ENOSYS.
 //
-// FileSystem methods are called ine exactly the order of supported ops
-// received by the connection, on a single goroutine. The methods should
-// probably not block, instead continuing long-running operations in the
-// background. It is safe to naively do so, because the kernel guarantees to
-// serialize operations that the user expects to happen in order (cf.
-// http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
+// Each call to a FileSystem method is made on its own goroutine, and is free
+// to block.
+//
+// (It is safe to naively process ops concurrently because the kernel
+// guarantees to serialize operations that the user expects to happen in order,
+// cf. http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
 // requests").
 func NewFileSystemServer(fs FileSystem) fuse.Server {
 	return fileSystemServer{fs}
