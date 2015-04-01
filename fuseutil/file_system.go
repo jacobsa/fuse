@@ -104,63 +104,67 @@ func (s fileSystemServer) ServeOps(c *fuse.Connection) {
 			panic(err)
 		}
 
-		switch typed := op.(type) {
-		default:
-			op.Respond(fuse.ENOSYS)
+		go s.handleOp(op)
+	}
+}
 
-		case *fuseops.InitOp:
-			s.fs.Init(typed)
+func (s fileSystemServer) handleOp(op fuseops.Op) {
+	switch typed := op.(type) {
+	default:
+		op.Respond(fuse.ENOSYS)
 
-		case *fuseops.LookUpInodeOp:
-			s.fs.LookUpInode(typed)
+	case *fuseops.InitOp:
+		s.fs.Init(typed)
 
-		case *fuseops.GetInodeAttributesOp:
-			s.fs.GetInodeAttributes(typed)
+	case *fuseops.LookUpInodeOp:
+		s.fs.LookUpInode(typed)
 
-		case *fuseops.SetInodeAttributesOp:
-			s.fs.SetInodeAttributes(typed)
+	case *fuseops.GetInodeAttributesOp:
+		s.fs.GetInodeAttributes(typed)
 
-		case *fuseops.ForgetInodeOp:
-			s.fs.ForgetInode(typed)
+	case *fuseops.SetInodeAttributesOp:
+		s.fs.SetInodeAttributes(typed)
 
-		case *fuseops.MkDirOp:
-			s.fs.MkDir(typed)
+	case *fuseops.ForgetInodeOp:
+		s.fs.ForgetInode(typed)
 
-		case *fuseops.CreateFileOp:
-			s.fs.CreateFile(typed)
+	case *fuseops.MkDirOp:
+		s.fs.MkDir(typed)
 
-		case *fuseops.RmDirOp:
-			s.fs.RmDir(typed)
+	case *fuseops.CreateFileOp:
+		s.fs.CreateFile(typed)
 
-		case *fuseops.UnlinkOp:
-			s.fs.Unlink(typed)
+	case *fuseops.RmDirOp:
+		s.fs.RmDir(typed)
 
-		case *fuseops.OpenDirOp:
-			s.fs.OpenDir(typed)
+	case *fuseops.UnlinkOp:
+		s.fs.Unlink(typed)
 
-		case *fuseops.ReadDirOp:
-			s.fs.ReadDir(typed)
+	case *fuseops.OpenDirOp:
+		s.fs.OpenDir(typed)
 
-		case *fuseops.ReleaseDirHandleOp:
-			s.fs.ReleaseDirHandle(typed)
+	case *fuseops.ReadDirOp:
+		s.fs.ReadDir(typed)
 
-		case *fuseops.OpenFileOp:
-			s.fs.OpenFile(typed)
+	case *fuseops.ReleaseDirHandleOp:
+		s.fs.ReleaseDirHandle(typed)
 
-		case *fuseops.ReadFileOp:
-			s.fs.ReadFile(typed)
+	case *fuseops.OpenFileOp:
+		s.fs.OpenFile(typed)
 
-		case *fuseops.WriteFileOp:
-			s.fs.WriteFile(typed)
+	case *fuseops.ReadFileOp:
+		s.fs.ReadFile(typed)
 
-		case *fuseops.SyncFileOp:
-			s.fs.SyncFile(typed)
+	case *fuseops.WriteFileOp:
+		s.fs.WriteFile(typed)
 
-		case *fuseops.FlushFileOp:
-			s.fs.FlushFile(typed)
+	case *fuseops.SyncFileOp:
+		s.fs.SyncFile(typed)
 
-		case *fuseops.ReleaseFileHandleOp:
-			s.fs.ReleaseFileHandle(typed)
-		}
+	case *fuseops.FlushFileOp:
+		s.fs.FlushFile(typed)
+
+	case *fuseops.ReleaseFileHandleOp:
+		s.fs.ReleaseFileHandle(typed)
 	}
 }
