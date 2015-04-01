@@ -720,6 +720,22 @@ func (o *ReadFileOp) Respond(err error) {
 //  *  (http://goo.gl/zzvxWv) Only then does fuse_flush finally send the
 //     flush request.
 //
+// Beware however that this is only the receipt of the write ops. fuse_flush
+// doesn't actually wait for the responses to the write ops that it ensures it
+// delivers:
+//
+//  *  (http://goo.gl/NdARvf) fuse_flush_writepages calls fuse_send_writepage.
+//
+//  *  (http://goo.gl/smVC67) fuse_send_writepage calls
+//     fuse_request_send_background_locked.
+//
+//  *  (http://goo.gl/WUqfFv) fuse_request_send_background_locked calls
+//     fuse_request_send_nowait_locked, which doesn't wait for a response.
+//
+// This package faithfully delivers requests in the order they were received
+// from /dev/fuse, so this is not an issue unless the file system makes an
+// effort to be parallel. In that case, it probably wants to ensure that write
+// and flush ops are properly serialized.
 type WriteFileOp struct {
 	commonOp
 
