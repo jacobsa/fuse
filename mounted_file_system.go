@@ -76,13 +76,24 @@ type MountConfig struct {
 
 // Convert to mount options to be passed to package bazilfuse.
 func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
+	isDarwin := runtime.GOOS == "darwin"
+
 	// Enable permissions checking in the kernel. See the comments on
 	// InodeAttributes.Mode.
 	opts = append(opts, bazilfuse.SetOption("default_permissions", ""))
 
-	// OS X only: set novncache when appropriate.
-	if runtime.GOOS == "darwin" && !c.EnableVnodeCaching {
+	// OS X: set novncache when appropriate.
+	if isDarwin && !c.EnableVnodeCaching {
 		opts = append(opts, bazilfuse.SetOption("novncache", ""))
+	}
+
+	// OS X: disable the use of "Apple Double" (._foo and .DS_Store) files, which
+	// just add noise to debug output and can have significant cost on
+	// network-based file systems.
+	//
+	// Cf. https://github.com/osxfuse/osxfuse/wiki/Mount-options
+	if isDarwin {
+		opts = append(opts, bazilfuse.SetOption("noappledouble", ""))
 	}
 
 	return
