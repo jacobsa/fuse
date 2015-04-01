@@ -58,8 +58,10 @@ type FileSystem interface {
 // FileSystem methods are called ine exactly the order of supported ops
 // received by the connection, on a single goroutine. The methods should
 // probably not block, instead continuing long-running operations in the
-// background. Note however that there are subtleties here: for example, you
-// probably want to serialize the order of write and flush operations.
+// background. It is safe to naively do so, because the kernel guarantees to
+// serialize operations that the user expects to happen in order (cf.
+// http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
+// requests").
 func NewFileSystemServer(fs FileSystem) fuse.Server {
 	return fileSystemServer{fs}
 }

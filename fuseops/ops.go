@@ -707,7 +707,8 @@ func (o *ReadFileOp) Respond(err error) {
 //  *  (http://goo.gl/RqYIxY) fuse_writepage_locked makes a write request to
 //     the userspace server.
 //
-// Note that writes *will* be received before a FlushOp when closing the file
+// Note that the kernel *will* ensure that writes are received and acknowledged
+// by the file system before sending a FlushFileOp when closing the file
 // descriptor to which they were written:
 //
 //  *  (http://goo.gl/PheZjf) fuse_flush calls write_inode_now, which appears
@@ -720,22 +721,8 @@ func (o *ReadFileOp) Respond(err error) {
 //  *  (http://goo.gl/zzvxWv) Only then does fuse_flush finally send the
 //     flush request.
 //
-// Beware however that this is only the receipt of the write ops. fuse_flush
-// doesn't actually wait for the responses to the write ops that it ensures it
-// delivers:
-//
-//  *  (http://goo.gl/NdARvf) fuse_flush_writepages calls fuse_send_writepage.
-//
-//  *  (http://goo.gl/smVC67) fuse_send_writepage calls
-//     fuse_request_send_background_locked.
-//
-//  *  (http://goo.gl/WUqfFv) fuse_request_send_background_locked calls
-//     fuse_request_send_nowait_locked, which doesn't wait for a response.
-//
-// This package faithfully delivers requests in the order they were received
-// from /dev/fuse, so this is not an issue unless the file system makes an
-// effort to be parallel. In that case, it probably wants to ensure that write
-// and flush ops are properly serialized.
+// (See also http://goo.gl/ocdTdM, fuse-devel thread "Fuse guarantees on
+// concurrent requests".)
 type WriteFileOp struct {
 	commonOp
 
@@ -805,11 +792,6 @@ func (o *WriteFileOp) Respond(err error) {
 //
 // See also: FlushFileOp, which may perform a similar function when closing a
 // file (but which is not used in "real" file systems).
-//
-// In contrast to fuse_flush (see notes on FlushFileOp), fuse_fsync does appear
-// to wait for write responses before sending the sync request (cf.
-// http://goo.gl/grmAVH). However careful implementers would be well-advised to
-// ensure the serialization themselves.
 type SyncFileOp struct {
 	commonOp
 
@@ -853,16 +835,16 @@ func (o *SyncFileOp) Respond(err error) {
 //
 //  *  However, even on OS X you can arrange for writes via a mapping to be
 //     flushed by calling msync(2) followed by close(2). On OS X msync(2)
-//     will cause a WriteFile to go through and close(2) will cause a
+//     will cause a WriteFileOps to go through and close(2) will cause a
 //     FlushFile as usual (cf. http://goo.gl/kVmNcx). On Linux, msync(2) does
 //     nothing unless you set the MS_SYNC flag, in which case it causes a
-//     SyncFile (cf. http://goo.gl/P3mErk).
+//     SyncFileOp to be sent (cf. http://goo.gl/P3mErk).
 //
 // In summary: if you make data durable in both FlushFile and SyncFile, then
-// your users can get safe behavior from mapped files by calling msync(2)
-// with MS_SYNC, followed by munmap(2), followed by close(2). On Linux, the
-// msync(2) appears to be optional because close(2) implies dirty page
-// writeback (cf. http://goo.gl/HyzLTT).
+// your users can get safe behavior from mapped files on both operating systems
+// by calling msync(2) with MS_SYNC, followed by munmap(2), followed by
+// close(2). On Linux, the msync(2) is optional (cf. http://goo.gl/EIhAxv and
+// the notes on WriteFileOp).
 //
 // Because of cases like dup2(2), FlushFileOps are not necessarily one to one
 // with OpenFileOps. They should not be used for reference counting, and the
