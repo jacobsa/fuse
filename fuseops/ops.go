@@ -805,6 +805,11 @@ func (o *WriteFileOp) Respond(err error) {
 //
 // See also: FlushFileOp, which may perform a similar function when closing a
 // file (but which is not used in "real" file systems).
+//
+// In contrast to fuse_flush (see notes on FlushFileOp), fuse_fsync does appear
+// to wait for write responses before sending the sync request (cf.
+// http://goo.gl/grmAVH). However careful implementers would be well-advised to
+// ensure the serialization themselves.
 type SyncFileOp struct {
 	commonOp
 
