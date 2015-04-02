@@ -44,9 +44,12 @@ func (mfs *MountedFileSystem) Dir() string {
 	return mfs.dir
 }
 
-// Block until a mounted file system has been unmounted. The return value will
-// be non-nil if anything unexpected happened while serving. May be called
-// multiple times.
+// Block until a mounted file system has been unmounted. Do not return
+// successfully until all ops read from the connection have been responded to
+// (i.e. the file system server has finished processing all in-flight ops).
+//
+// The return value will be non-nil if anything unexpected happened while
+// serving. May be called multiple times.
 func (mfs *MountedFileSystem) Join(ctx context.Context) error {
 	select {
 	case <-mfs.joinStatusAvailable:

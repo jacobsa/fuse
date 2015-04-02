@@ -15,11 +15,18 @@
 package fuseutil
 
 import (
+	"flag"
 	"io"
+	"math/rand"
+	"time"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 )
+
+var fRandomDelays = flag.Bool(
+	"fuseutil.random_delays", false,
+	"If set, randomly delay each op received, to help expose concurrency issues.")
 
 // An interface with a method for each op type in the fuseops package. This can
 // be used in conjunction with NewFileSystemServer to avoid writing a "dispatch
@@ -55,12 +62,12 @@ type FileSystem interface {
 // method.Respond with the resulting error. Unsupported ops are responded to
 // directly with ENOSYS.
 //
-// FileSystem methods are called ine exactly the order of supported ops
-// received by the connection, on a single goroutine. The methods should
-// probably not block, instead continuing long-running operations in the
-// background. It is safe to naively do so, because the kernel guarantees to
-// serialize operations that the user expects to happen in order (cf.
-// http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
+// Each call to a FileSystem method is made on its own goroutine, and is free
+// to block.
+//
+// (It is safe to naively process ops concurrently because the kernel
+// guarantees to serialize operations that the user expects to happen in order,
+// cf. http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
 // requests").
 func NewFileSystemServer(fs FileSystem) fuse.Server {
 	return fileSystemServer{fs}
@@ -104,63 +111,75 @@ func (s fileSystemServer) ServeOps(c *fuse.Connection) {
 			panic(err)
 		}
 
-		switch typed := op.(type) {
-		default:
-			op.Respond(fuse.ENOSYS)
+		go s.handleOp(op)
+	}
+}
 
-		case *fuseops.InitOp:
-			s.fs.Init(typed)
+func (s fileSystemServer) handleOp(op fuseops.Op) {
+	// Delay if requested.
+	if *fRandomDelays {
+		const delayLimit = 100 * time.Microsecond
+		delay := time.Duration(rand.Int63n(int64(delayLimit)))
+		time.Sleep(delay)
+	}
 
-		case *fuseops.LookUpInodeOp:
-			s.fs.LookUpInode(typed)
+	// Dispatch to the appropriate method.
+	switch typed := op.(type) {
+	default:
+		op.Respond(fuse.ENOSYS)
 
-		case *fuseops.GetInodeAttributesOp:
-			s.fs.GetInodeAttributes(typed)
+	case *fuseops.InitOp:
+		s.fs.Init(typed)
 
-		case *fuseops.SetInodeAttributesOp:
-			s.fs.SetInodeAttributes(typed)
+	case *fuseops.LookUpInodeOp:
+		s.fs.LookUpInode(typed)
 
-		case *fuseops.ForgetInodeOp:
-			s.fs.ForgetInode(typed)
+	case *fuseops.GetInodeAttributesOp:
+		s.fs.GetInodeAttributes(typed)
 
-		case *fuseops.MkDirOp:
-			s.fs.MkDir(typed)
+	case *fuseops.SetInodeAttributesOp:
+		s.fs.SetInodeAttributes(typed)
 
-		case *fuseops.CreateFileOp:
-			s.fs.CreateFile(typed)
+	case *fuseops.ForgetInodeOp:
+		s.fs.ForgetInode(typed)
 
-		case *fuseops.RmDirOp:
-			s.fs.RmDir(typed)
+	case *fuseops.MkDirOp:
+		s.fs.MkDir(typed)
 
-		case *fuseops.UnlinkOp:
-			s.fs.Unlink(typed)
+	case *fuseops.CreateFileOp:
+		s.fs.CreateFile(typed)
 
-		case *fuseops.OpenDirOp:
-			s.fs.OpenDir(typed)
+	case *fuseops.RmDirOp:
+		s.fs.RmDir(typed)
 
-		case *fuseops.ReadDirOp:
-			s.fs.ReadDir(typed)
+	case *fuseops.UnlinkOp:
+		s.fs.Unlink(typed)
 
-		case *fuseops.ReleaseDirHandleOp:
-			s.fs.ReleaseDirHandle(typed)
+	case *fuseops.OpenDirOp:
+		s.fs.OpenDir(typed)
 
-		case *fuseops.OpenFileOp:
-			s.fs.OpenFile(typed)
+	case *fuseops.ReadDirOp:
+		s.fs.ReadDir(typed)
 
-		case *fuseops.ReadFileOp:
-			s.fs.ReadFile(typed)
+	case *fuseops.ReleaseDirHandleOp:
+		s.fs.ReleaseDirHandle(typed)
 
-		case *fuseops.WriteFileOp:
-			s.fs.WriteFile(typed)
+	case *fuseops.OpenFileOp:
+		s.fs.OpenFile(typed)
 
-		case *fuseops.SyncFileOp:
-			s.fs.SyncFile(typed)
+	case *fuseops.ReadFileOp:
+		s.fs.ReadFile(typed)
 
-		case *fuseops.FlushFileOp:
-			s.fs.FlushFile(typed)
+	case *fuseops.WriteFileOp:
+		s.fs.WriteFile(typed)
 
-		case *fuseops.ReleaseFileHandleOp:
-			s.fs.ReleaseFileHandle(typed)
-		}
+	case *fuseops.SyncFileOp:
+		s.fs.SyncFile(typed)
+
+	case *fuseops.FlushFileOp:
+		s.fs.FlushFile(typed)
+
+	case *fuseops.ReleaseFileHandleOp:
+		s.fs.ReleaseFileHandle(typed)
 	}
 }
