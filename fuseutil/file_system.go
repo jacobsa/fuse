@@ -24,8 +24,8 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 )
 
-var fRandDelays = flag.Bool(
-	"fuseutil.rand_delays", false,
+var fRandomDelays = flag.Bool(
+	"fuseutil.random_delays", false,
 	"If set, randomly delay each op received, to help expose concurrency issues.")
 
 // An interface with a method for each op type in the fuseops package. This can
@@ -117,7 +117,7 @@ func (s fileSystemServer) ServeOps(c *fuse.Connection) {
 
 func (s fileSystemServer) handleOp(op fuseops.Op) {
 	// Delay if requested.
-	if *fRandDelays {
+	if *fRandomDelays {
 		const delayLimit = 100 * time.Microsecond
 		delay := time.Duration(rand.Int63n(int64(delayLimit)))
 		time.Sleep(delay)
