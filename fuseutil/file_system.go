@@ -15,11 +15,18 @@
 package fuseutil
 
 import (
+	"flag"
 	"io"
+	"math/rand"
+	"time"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 )
+
+var fRandDelays = flag.Bool(
+	"fuseutil.rand_delays", false,
+	"If set, randomly delay each op received, to help expose concurrency issues.")
 
 // An interface with a method for each op type in the fuseops package. This can
 // be used in conjunction with NewFileSystemServer to avoid writing a "dispatch
@@ -109,6 +116,14 @@ func (s fileSystemServer) ServeOps(c *fuse.Connection) {
 }
 
 func (s fileSystemServer) handleOp(op fuseops.Op) {
+	// Delay if requested.
+	if *fRandDelays {
+		const delayLimit = 100 * time.Microsecond
+		delay := time.Duration(rand.Int63n(int64(delayLimit)))
+		time.Sleep(delay)
+	}
+
+	// Dispatch to the appropriate method.
 	switch typed := op.(type) {
 	default:
 		op.Respond(fuse.ENOSYS)
