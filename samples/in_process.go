@@ -129,5 +129,12 @@ func (t *SampleTest) destroy() (err error) {
 		return
 	}
 
+	// Join the file system.
+	err = t.mfs.Join(t.Ctx)
+	if err != nil {
+		err = fmt.Errorf("mfs.Join: %v", err)
+		return
+	}
+
 	return
 }

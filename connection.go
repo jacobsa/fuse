@@ -16,6 +16,7 @@ package fuse
 
 import (
 	"log"
+	"sync"
 
 	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -23,8 +24,9 @@ import (
 
 // A connection to the fuse kernel process.
 type Connection struct {
-	logger  *log.Logger
-	wrapped *bazilfuse.Conn
+	logger      *log.Logger
+	wrapped     *bazilfuse.Conn
+	opsInFlight sync.WaitGroup
 }
 
 // Responsibility for closing the wrapped connection is transferred to the
@@ -72,12 +74,13 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		}
 
 		// Convert it, if possible.
-		if op = fuseops.Convert(bfReq, c.logger); op == nil {
+		if op = fuseops.Convert(bfReq, c.logger, &c.opsInFlight); op == nil {
 			c.logger.Printf("Returning ENOSYS for unknown bazilfuse request: %v", bfReq)
 			bfReq.RespondError(ENOSYS)
 			continue
 		}
 
+		c.opsInFlight.Add(1)
 		return
 	}
 }
@@ -88,7 +91,9 @@ func (c *Connection) waitForReady() (err error) {
 	return
 }
 
+// Close the connection and wait for in-flight ops.
 func (c *Connection) close() (err error) {
 	err = c.wrapped.Close()
+	c.opsInFlight.Wait()
 	return
 }
