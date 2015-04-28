@@ -34,5 +34,6 @@ func getLogger() *log.Logger {
 		writer = os.Stderr
 	}
 
-	return log.New(writer, "fuse: ", log.LstdFlags)
+	const flags = log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile
+	return log.New(writer, "fuse: ", flags)
 }
