@@ -299,6 +299,10 @@ func (o *commonOp) Context() context.Context {
 	return o.ctx
 }
 
+func (o *commonOp) Logf(format string, v ...interface{}) {
+	o.logger.Printf(format, v...)
+}
+
 func (o *commonOp) respondErr(err error) {
 	if err == nil {
 		panic("Expect non-nil here.")
