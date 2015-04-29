@@ -65,12 +65,13 @@ func (c *Connection) log(
 		file = "???"
 	}
 
+	fileLine := fmt.Sprintf("%v:%v", path.Base(file), line)
+
 	// Format the actual message to be printed.
 	msg := fmt.Sprintf(
-		"Op 0x%08x %v:%v] %v",
+		"Op 0x%08x %24s] %v",
 		opID,
-		path.Base(file),
-		line,
+		fileLine,
 		fmt.Sprintf(format, v...))
 
 	// Print it.
