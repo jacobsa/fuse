@@ -18,7 +18,6 @@
 package fuseops
 
 import (
-	"log"
 	"reflect"
 	"sync"
 	"time"
@@ -34,7 +33,7 @@ import (
 // be called by anyone else.
 func Convert(
 	r bazilfuse.Request,
-	logger *log.Logger,
+	logForOp func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) (o Op) {
 	var co *commonOp
 
@@ -218,7 +217,7 @@ func Convert(
 		return
 	}
 
-	co.init(reflect.TypeOf(o).String(), r, logger, opsInFlight)
+	co.init(reflect.TypeOf(o).String(), r, logForOp, opsInFlight)
 	return
 }
 
@@ -271,19 +270,19 @@ type commonOp struct {
 	opType      string
 	ctx         context.Context
 	r           bazilfuse.Request
-	logger      *log.Logger
+	log         func(int, string, ...interface{})
 	opsInFlight *sync.WaitGroup
 }
 
 func (o *commonOp) init(
 	opType string,
 	r bazilfuse.Request,
-	logger *log.Logger,
+	log func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) {
 	o.opType = opType
 	o.ctx = context.Background()
 	o.r = r
-	o.logger = logger
+	o.log = log
 	o.opsInFlight = opsInFlight
 }
 
@@ -299,12 +298,17 @@ func (o *commonOp) Context() context.Context {
 	return o.ctx
 }
 
+func (o *commonOp) Logf(format string, v ...interface{}) {
+	const calldepth = 2
+	o.log(calldepth, format, v...)
+}
+
 func (o *commonOp) respondErr(err error) {
 	if err == nil {
 		panic("Expect non-nil here.")
 	}
 
-	o.logger.Printf(
+	o.Logf(
 		"Responding with error to %s: %v",
 		o.opType,
 		err)

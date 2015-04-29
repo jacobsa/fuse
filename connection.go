@@ -15,7 +15,10 @@
 package fuse
 
 import (
+	"fmt"
 	"log"
+	"path"
+	"runtime"
 	"sync"
 
 	"github.com/jacobsa/bazilfuse"
@@ -27,6 +30,9 @@ type Connection struct {
 	logger      *log.Logger
 	wrapped     *bazilfuse.Conn
 	opsInFlight sync.WaitGroup
+
+	// For logging purposes only.
+	nextOpID uint32
 }
 
 // Responsibility for closing the wrapped connection is transferred to the
@@ -40,6 +46,35 @@ func newConnection(
 	}
 
 	return
+}
+
+// Log information for an operation with the given ID. calldepth is the depth
+// to use when recovering file:line information with runtime.Caller.
+func (c *Connection) log(
+	opID uint32,
+	calldepth int,
+	format string,
+	v ...interface{}) {
+	// Get file:line info.
+	var file string
+	var line int
+	var ok bool
+
+	_, file, line, ok = runtime.Caller(calldepth)
+	if !ok {
+		file = "???"
+	}
+
+	// Format the actual message to be printed.
+	msg := fmt.Sprintf(
+		"Op 0x%08x %v:%v] %v",
+		opID,
+		path.Base(file),
+		line,
+		fmt.Sprintf(format, v...))
+
+	// Print it.
+	c.logger.Println(msg)
 }
 
 // Read the next op from the kernel process. Return io.EOF if the kernel has
@@ -58,20 +93,29 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			return
 		}
 
-		c.logger.Printf("Received: %v", bfReq)
+		// Choose an ID for this operation.
+		opID := c.nextOpID
+		c.nextOpID++
+
+		// Log the receipt of the operation.
+		c.log(opID, 1, "Received: %v", bfReq)
 
 		// Special case: responding to this is required to make mounting work on OS
 		// X. We don't currently expose the capability for the file system to
 		// intercept this.
 		if statfsReq, ok := bfReq.(*bazilfuse.StatfsRequest); ok {
-			c.logger.Println("Responding OK to Statfs.")
+			c.log(opID, 1, "Responding OK to Statfs.")
 			statfsReq.Respond(&bazilfuse.StatfsResponse{})
 			continue
 		}
 
 		// Convert it, if possible.
-		if op = fuseops.Convert(bfReq, c.logger, &c.opsInFlight); op == nil {
-			c.logger.Printf("Returning ENOSYS for unknown bazilfuse request: %v", bfReq)
+		logForOp := func(calldepth int, format string, v ...interface{}) {
+			c.log(opID, calldepth+1, format, v)
+		}
+
+		if op = fuseops.Convert(bfReq, logForOp, &c.opsInFlight); op == nil {
+			c.log(opID, 1, "Returning ENOSYS for unknown bazilfuse request: %v", bfReq)
 			bfReq.RespondError(ENOSYS)
 			continue
 		}
