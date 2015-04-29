@@ -85,7 +85,11 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		}
 
 		// Convert it, if possible.
-		if op = fuseops.Convert(bfReq, c.logger, &c.opsInFlight); op == nil {
+		logForOp := func(format string, v ...interface{}) {
+			c.log(opID, format, v)
+		}
+
+		if op = fuseops.Convert(bfReq, logForOp, &c.opsInFlight); op == nil {
 			c.log(opID, "Returning ENOSYS for unknown bazilfuse request: %v", bfReq)
 			bfReq.RespondError(ENOSYS)
 			continue
