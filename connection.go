@@ -27,6 +27,7 @@ type Connection struct {
 	logger      *log.Logger
 	wrapped     *bazilfuse.Conn
 	opsInFlight sync.WaitGroup
+	nextOpID    uint64
 }
 
 // Responsibility for closing the wrapped connection is transferred to the
@@ -40,6 +41,15 @@ func newConnection(
 	}
 
 	return
+}
+
+// Log information for an operation with the given unique ID.
+func (c *Connection) log(
+	opID uint64,
+	format string,
+	v ...interface{}) {
+	// TODO(jacobsa): Add op ID and fixed-width file:line to output.
+	c.logger.Printf(format, v...)
 }
 
 // Read the next op from the kernel process. Return io.EOF if the kernel has
@@ -58,20 +68,25 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			return
 		}
 
-		c.logger.Printf("Received: %v", bfReq)
+		// Choose an ID for this operation.
+		opID := c.nextOpID
+		c.nextOpID++
+
+		// Log the receipt of the operation.
+		c.log(opID, "Received: %v", bfReq)
 
 		// Special case: responding to this is required to make mounting work on OS
 		// X. We don't currently expose the capability for the file system to
 		// intercept this.
 		if statfsReq, ok := bfReq.(*bazilfuse.StatfsRequest); ok {
-			c.logger.Println("Responding OK to Statfs.")
+			c.log(opID, "Responding OK to Statfs.")
 			statfsReq.Respond(&bazilfuse.StatfsResponse{})
 			continue
 		}
 
 		// Convert it, if possible.
 		if op = fuseops.Convert(bfReq, c.logger, &c.opsInFlight); op == nil {
-			c.logger.Printf("Returning ENOSYS for unknown bazilfuse request: %v", bfReq)
+			c.log(opID, "Returning ENOSYS for unknown bazilfuse request: %v", bfReq)
 			bfReq.RespondError(ENOSYS)
 			continue
 		}
