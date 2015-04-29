@@ -30,7 +30,9 @@ type Connection struct {
 	logger      *log.Logger
 	wrapped     *bazilfuse.Conn
 	opsInFlight sync.WaitGroup
-	nextOpID    uint64
+
+	// For logging purposes only.
+	nextOpID uint32
 }
 
 // Responsibility for closing the wrapped connection is transferred to the
@@ -46,10 +48,10 @@ func newConnection(
 	return
 }
 
-// Log information for an operation with the given unique ID. calldepth is the
-// depth to use when recovering file:line information with runtime.Caller.
+// Log information for an operation with the given ID. calldepth is the depth
+// to use when recovering file:line information with runtime.Caller.
 func (c *Connection) log(
-	opID uint64,
+	opID uint32,
 	calldepth int,
 	format string,
 	v ...interface{}) {
@@ -65,7 +67,7 @@ func (c *Connection) log(
 
 	// Format the actual message to be printed.
 	msg := fmt.Sprintf(
-		"Op 0x%016x %v:%v] %v",
+		"Op 0x%08x %v:%v] %v",
 		opID,
 		path.Base(file),
 		line,
