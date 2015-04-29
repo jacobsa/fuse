@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"sync"
 )
 
 var fEnableDebug = flag.Bool(
@@ -27,13 +28,24 @@ var fEnableDebug = flag.Bool(
 	false,
 	"Write FUSE debugging messages to stderr.")
 
-// Create a logger based on command-line flag settings.
-func getLogger() *log.Logger {
+var gLogger *log.Logger
+var gLoggerOnce sync.Once
+
+func initLogger() {
+	if !flag.Parsed() {
+		panic("initLogger called before flags available.")
+	}
+
 	var writer io.Writer = ioutil.Discard
 	if *fEnableDebug {
 		writer = os.Stderr
 	}
 
 	const flags = log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile
-	return log.New(writer, "fuse: ", flags)
+	gLogger = log.New(writer, "fuse: ", flags)
+}
+
+func getLogger() *log.Logger {
+	gLoggerOnce.Do(initLogger)
+	return gLogger
 }
