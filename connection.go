@@ -46,11 +46,7 @@ func newConnection(
 // closed the connection.
 //
 // This function delivers ops in exactly the order they are received from
-// /dev/fuse. Be wary of naively calling it concurrently: you probably want
-// ordering guarantees between e.g. write ops and flush ops. For example,
-// close(2) causes WriteFileOps to be issued before a FlushFileOp, but doesn't
-// wait for their response before issuing the latter (cf.
-// https://github.com/jacobsa/fuse/issues/3).
+// /dev/fuse. It must not be called multiple times concurrently.
 func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 	var bfReq bazilfuse.Request
 
