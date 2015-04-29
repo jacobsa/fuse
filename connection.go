@@ -15,7 +15,10 @@
 package fuse
 
 import (
+	"fmt"
 	"log"
+	"path"
+	"runtime"
 	"sync"
 
 	"github.com/jacobsa/bazilfuse"
@@ -43,13 +46,32 @@ func newConnection(
 	return
 }
 
-// Log information for an operation with the given unique ID.
+// Log information for an operation with the given unique ID. calldepth is the
+// depth to use when recovering file:line information with runtime.Caller.
 func (c *Connection) log(
 	opID uint64,
+	calldepth int,
 	format string,
 	v ...interface{}) {
-	// TODO(jacobsa): Add op ID and fixed-width file:line to output.
-	c.logger.Printf(format, v...)
+	// Get file:line info.
+	var file string
+	var line int
+	var ok bool
+
+	_, file, line, ok = runtime.Caller(calldepth)
+	if !ok {
+		file = "???"
+	}
+
+	// Format the actual message to be printed.
+	msg := fmt.Sprintf(
+		"%v:%v] %v",
+		path.Base(file),
+		line,
+		fmt.Sprintf(format, v...))
+
+	// Print it.
+	c.logger.Println(msg)
 }
 
 // Read the next op from the kernel process. Return io.EOF if the kernel has
@@ -73,24 +95,24 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		c.nextOpID++
 
 		// Log the receipt of the operation.
-		c.log(opID, "Received: %v", bfReq)
+		c.log(opID, 1, "Received: %v", bfReq)
 
 		// Special case: responding to this is required to make mounting work on OS
 		// X. We don't currently expose the capability for the file system to
 		// intercept this.
 		if statfsReq, ok := bfReq.(*bazilfuse.StatfsRequest); ok {
-			c.log(opID, "Responding OK to Statfs.")
+			c.log(opID, 1, "Responding OK to Statfs.")
 			statfsReq.Respond(&bazilfuse.StatfsResponse{})
 			continue
 		}
 
 		// Convert it, if possible.
-		logForOp := func(format string, v ...interface{}) {
-			c.log(opID, format, v)
+		logForOp := func(calldepth int, format string, v ...interface{}) {
+			c.log(opID, calldepth+1, format, v)
 		}
 
 		if op = fuseops.Convert(bfReq, logForOp, &c.opsInFlight); op == nil {
-			c.log(opID, "Returning ENOSYS for unknown bazilfuse request: %v", bfReq)
+			c.log(opID, 1, "Returning ENOSYS for unknown bazilfuse request: %v", bfReq)
 			bfReq.RespondError(ENOSYS)
 			continue
 		}

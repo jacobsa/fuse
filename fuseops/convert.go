@@ -33,7 +33,7 @@ import (
 // be called by anyone else.
 func Convert(
 	r bazilfuse.Request,
-	logForOp func(string, ...interface{}),
+	logForOp func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) (o Op) {
 	var co *commonOp
 
@@ -270,14 +270,14 @@ type commonOp struct {
 	opType      string
 	ctx         context.Context
 	r           bazilfuse.Request
-	log         func(string, ...interface{})
+	log         func(int, string, ...interface{})
 	opsInFlight *sync.WaitGroup
 }
 
 func (o *commonOp) init(
 	opType string,
 	r bazilfuse.Request,
-	log func(string, ...interface{}),
+	log func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) {
 	o.opType = opType
 	o.ctx = context.Background()
@@ -299,7 +299,8 @@ func (o *commonOp) Context() context.Context {
 }
 
 func (o *commonOp) Logf(format string, v ...interface{}) {
-	o.log(format, v...)
+	const calldepth = 2
+	o.log(calldepth, format, v...)
 }
 
 func (o *commonOp) respondErr(err error) {
@@ -307,7 +308,7 @@ func (o *commonOp) respondErr(err error) {
 		panic("Expect non-nil here.")
 	}
 
-	o.log(
+	o.Logf(
 		"Responding with error to %s: %v",
 		o.opType,
 		err)

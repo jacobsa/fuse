@@ -41,7 +41,7 @@ func initLogger() {
 		writer = os.Stderr
 	}
 
-	const flags = log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile
+	const flags = log.Ldate | log.Ltime | log.Lmicroseconds
 	gLogger = log.New(writer, "fuse: ", flags)
 }
 
