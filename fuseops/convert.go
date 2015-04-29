@@ -309,7 +309,7 @@ func (o *commonOp) respondErr(err error) {
 	}
 
 	o.Logf(
-		"Responding with error to %s: %v",
+		"-> (%s) error: %v",
 		o.opType,
 		err)
 

@@ -107,7 +107,7 @@ func (o *InitOp) Respond(err error) {
 	resp.MaxReadahead = o.maxReadahead
 
 	// Respond.
-	o.Logf("Responding: %v", &resp)
+	o.Logf("-> %v", &resp)
 	o.r.(*bazilfuse.InitRequest).Respond(&resp)
 }
 
@@ -152,7 +152,7 @@ func (o *LookUpInodeOp) Respond(err error) {
 	resp := bazilfuse.LookupResponse{}
 	convertChildInodeEntry(&o.Entry, &resp)
 
-	o.Logf("Responding: %v", &resp)
+	o.Logf("-> %v", &resp)
 	o.r.(*bazilfuse.LookupRequest).Respond(&resp)
 }
 
@@ -186,7 +186,7 @@ func (o *GetInodeAttributesOp) Respond(err error) {
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
 	}
 
-	o.Logf("Responding: %v", &resp)
+	o.Logf("-> %v", &resp)
 	o.r.(*bazilfuse.GetattrRequest).Respond(&resp)
 }
 
@@ -226,7 +226,7 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
 	}
 
-	o.Logf("Responding: %v", &resp)
+	o.Logf("-> %v", &resp)
 	o.r.(*bazilfuse.SetattrRequest).Respond(&resp)
 }
 
@@ -287,7 +287,7 @@ func (o *ForgetInodeOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("Responding OK to ForgetInodeOp")
+	o.Logf("-> (ForgetInodeOp) OK")
 	o.r.(*bazilfuse.ForgetRequest).Respond()
 }
 
@@ -330,7 +330,7 @@ func (o *MkDirOp) Respond(err error) {
 	resp := bazilfuse.MkdirResponse{}
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
-	o.Logf("Responding: %v", &resp)
+	o.Logf("-> %v", &resp)
 	o.r.(*bazilfuse.MkdirRequest).Respond(&resp)
 }
 
@@ -392,7 +392,7 @@ func (o *CreateFileOp) Respond(err error) {
 	}
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
-	o.Logf("Responding: %v", &resp)
+	o.Logf("-> %v", &resp)
 	o.r.(*bazilfuse.CreateRequest).Respond(&resp)
 }
 
@@ -424,7 +424,7 @@ func (o *RmDirOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("Responding OK to RmDirOp")
+	o.Logf("-> (RmDirOp) OK")
 	o.r.(*bazilfuse.RemoveRequest).Respond()
 }
 
@@ -450,7 +450,7 @@ func (o *UnlinkOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("Responding OK to UnlinkOp")
+	o.Logf("-> (UnlinkOp) OK")
 	o.r.(*bazilfuse.RemoveRequest).Respond()
 }
 
@@ -496,7 +496,7 @@ func (o *OpenDirOp) Respond(err error) {
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
 
-	o.Logf("Responding: %v", &resp)
+	o.Logf("-> %v", &resp)
 	o.r.(*bazilfuse.OpenRequest).Respond(&resp)
 }
 
@@ -602,7 +602,7 @@ func (o *ReadDirOp) Respond(err error) {
 		Data: o.Data,
 	}
 
-	o.Logf("Responding: %v", &resp)
+	o.Logf("-> %v", &resp)
 	o.r.(*bazilfuse.ReadRequest).Respond(&resp)
 }
 
@@ -631,7 +631,7 @@ func (o *ReleaseDirHandleOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("Responding OK to ReleaseDirHandleOp")
+	o.Logf("-> (ReleaseDirHandleOp) OK")
 	o.r.(*bazilfuse.ReleaseRequest).Respond()
 }
 
@@ -676,7 +676,7 @@ func (o *OpenFileOp) Respond(err error) {
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
 
-	o.Logf("Responding: %v", &resp)
+	o.Logf("-> %v", &resp)
 	o.r.(*bazilfuse.OpenRequest).Respond(&resp)
 }
 
@@ -721,7 +721,7 @@ func (o *ReadFileOp) Respond(err error) {
 		Data: o.Data,
 	}
 
-	o.Logf("Responding: %v", &resp)
+	o.Logf("-> %v", &resp)
 	o.r.(*bazilfuse.ReadRequest).Respond(&resp)
 }
 
@@ -807,7 +807,7 @@ func (o *WriteFileOp) Respond(err error) {
 		Size: len(o.Data),
 	}
 
-	o.Logf("Responding: %v", &resp)
+	o.Logf("-> %v", &resp)
 	o.r.(*bazilfuse.WriteRequest).Respond(&resp)
 }
 
@@ -843,7 +843,7 @@ func (o *SyncFileOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("Responding OK to SyncFileOp")
+	o.Logf("-> (SyncFileOp) OK")
 	o.r.(*bazilfuse.FsyncRequest).Respond()
 }
 
@@ -910,7 +910,7 @@ func (o *FlushFileOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("Responding OK to FlushFileOp")
+	o.Logf("-> (FlushFileOp) OK")
 	o.r.(*bazilfuse.FlushRequest).Respond()
 }
 
@@ -939,6 +939,6 @@ func (o *ReleaseFileHandleOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("Responding OK to ReleaseFileHandleOp")
+	o.Logf("-> (ReleaseFileHandleOp) OK")
 	o.r.(*bazilfuse.ReleaseRequest).Respond()
 }

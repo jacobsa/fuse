@@ -98,24 +98,24 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		c.nextOpID++
 
 		// Log the receipt of the operation.
-		c.log(opID, 1, "Received: %v", bfReq)
+		c.log(opID, 1, "<- %v", bfReq)
 
 		// Special case: responding to this is required to make mounting work on OS
 		// X. We don't currently expose the capability for the file system to
 		// intercept this.
 		if statfsReq, ok := bfReq.(*bazilfuse.StatfsRequest); ok {
-			c.log(opID, 1, "Responding OK to Statfs.")
+			c.log(opID, 1, "-> (Statfs) OK")
 			statfsReq.Respond(&bazilfuse.StatfsResponse{})
 			continue
 		}
 
 		// Convert it, if possible.
 		logForOp := func(calldepth int, format string, v ...interface{}) {
-			c.log(opID, calldepth+1, format, v)
+			c.log(opID, calldepth+1, format, v...)
 		}
 
 		if op = fuseops.Convert(bfReq, logForOp, &c.opsInFlight); op == nil {
-			c.log(opID, 1, "Returning ENOSYS for unknown bazilfuse request: %v", bfReq)
+			c.log(opID, 1, "-> ENOSYS: %v", bfReq)
 			bfReq.RespondError(ENOSYS)
 			continue
 		}
