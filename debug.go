@@ -42,7 +42,7 @@ func initLogger() {
 	}
 
 	const flags = log.Ldate | log.Ltime | log.Lmicroseconds
-	gLogger = log.New(writer, "fuse: ", flags)
+	gLogger = log.New(writer, "", flags)
 }
 
 func getLogger() *log.Logger {
