@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package fuseops contains implementations of the fuse.Op interface that may
-// be returned by fuse.Connection.ReadOp. See documentation in that package for
-// more.
 package fuseops
 
 import (
@@ -23,7 +20,6 @@ import (
 	"time"
 
 	"github.com/jacobsa/bazilfuse"
-	"golang.org/x/net/context"
 )
 
 // Convert the supplied bazilfuse request struct to an Op, returning nil if it
@@ -263,55 +259,4 @@ func convertChildInodeEntry(
 	out.Attr = convertAttributes(in.Child, in.Attributes)
 	out.AttrValid = convertExpirationTime(in.AttributesExpiration)
 	out.EntryValid = convertExpirationTime(in.EntryExpiration)
-}
-
-// A helper for embedding common behavior.
-type commonOp struct {
-	opType      string
-	ctx         context.Context
-	r           bazilfuse.Request
-	log         func(int, string, ...interface{})
-	opsInFlight *sync.WaitGroup
-}
-
-func (o *commonOp) init(
-	opType string,
-	r bazilfuse.Request,
-	log func(int, string, ...interface{}),
-	opsInFlight *sync.WaitGroup) {
-	o.opType = opType
-	o.ctx = context.Background()
-	o.r = r
-	o.log = log
-	o.opsInFlight = opsInFlight
-}
-
-func (o *commonOp) Header() OpHeader {
-	bh := o.r.Hdr()
-	return OpHeader{
-		Uid: bh.Uid,
-		Gid: bh.Gid,
-	}
-}
-
-func (o *commonOp) Context() context.Context {
-	return o.ctx
-}
-
-func (o *commonOp) Logf(format string, v ...interface{}) {
-	const calldepth = 2
-	o.log(calldepth, format, v...)
-}
-
-func (o *commonOp) respondErr(err error) {
-	if err == nil {
-		panic("Expect non-nil here.")
-	}
-
-	o.Logf(
-		"-> (%s) error: %v",
-		o.opType,
-		err)
-
-	o.r.RespondError(err)
 }
