@@ -19,16 +19,18 @@ import (
 	"sync"
 
 	"github.com/jacobsa/bazilfuse"
+	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
 )
 
 // A helper for embedding common behavior.
 type commonOp struct {
-	opType      string
 	ctx         context.Context
+	opType      string
 	r           bazilfuse.Request
 	log         func(int, string, ...interface{})
 	opsInFlight *sync.WaitGroup
+	report      reqtrace.ReportFunc
 }
 
 func describeOpType(t reflect.Type) (desc string) {
@@ -42,11 +44,15 @@ func (o *commonOp) init(
 	r bazilfuse.Request,
 	log func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) {
+	// Initialize basic fields.
 	o.opType = describeOpType(opType)
 	o.ctx = context.Background()
 	o.r = r
 	o.log = log
 	o.opsInFlight = opsInFlight
+
+	// Set up a trace span for this op.
+	o.ctx, o.report = reqtrace.StartSpan(o.ctx, o.opType)
 }
 
 func (o *commonOp) Header() OpHeader {
@@ -71,6 +77,8 @@ func (o *commonOp) respondErr(err error) {
 		panic("Expect non-nil here.")
 	}
 
+	o.report(err)
+
 	o.Logf(
 		"-> (%s) error: %v",
 		o.opType,
@@ -84,6 +92,9 @@ func (o *commonOp) respondErr(err error) {
 //
 // Special case: nil means o.r.Respond accepts no parameters.
 func (o *commonOp) respond(resp interface{}) {
+	// We were successful.
+	o.report(nil)
+
 	// Find the Respond method.
 	v := reflect.ValueOf(o.r)
 	respond := v.MethodByName("Respond")
