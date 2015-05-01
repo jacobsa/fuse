@@ -38,30 +38,19 @@ var fTraceByPID = flag.Bool(
 
 // A helper for embedding common behavior.
 type commonOp struct {
-	opType      string
-	r           bazilfuse.Request
+	// The op in which this struct is embedded, and a short description of it.
+	op Op
+
+	// The underlying bazilfuse request for this op.
+	bazilReq bazilfuse.Request
+
+	// Dependencies.
 	log         func(int, string, ...interface{})
 	opsInFlight *sync.WaitGroup
 
+	// Context and tracing information.
 	ctx    context.Context
 	report reqtrace.ReportFunc
-}
-
-func describeOpType(t reflect.Type) (desc string) {
-	name := t.String()
-
-	// The usual case: a string that looks like "*fuseops.GetInodeAttributesOp".
-	const prefix = "*fuseops."
-	const suffix = "Op"
-	if strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix) {
-		desc = name[len(prefix) : len(name)-len(suffix)]
-		return
-	}
-
-	// Otherwise, it's not clear what to do.
-	desc = t.String()
-
-	return
 }
 
 var gPIDMapMu sync.Mutex
@@ -133,7 +122,7 @@ func (o *commonOp) maybeTraceByPID(
 
 	// Set up a new one and stick it in the map.
 	var report reqtrace.ReportFunc
-	out, report = reqtrace.Trace(in, fmt.Sprintf("PID %v", pid))
+	out, report = reqtrace.Trace(in, fmt.Sprintf("Requests from PID %v", pid))
 	gPIDMap[pid] = out
 
 	// Ensure we close the trace and remove it from the map eventually.
@@ -142,27 +131,44 @@ func (o *commonOp) maybeTraceByPID(
 	return
 }
 
+func (o *commonOp) ShortDesc() (desc string) {
+	opName := reflect.TypeOf(o.op).String()
+
+	// Attempt to better handle the usual case: a string that looks like
+	// "*fuseops.GetInodeAttributesOp".
+	const prefix = "*fuseops."
+	const suffix = "Op"
+	if strings.HasPrefix(opName, prefix) && strings.HasSuffix(opName, suffix) {
+		opName = opName[len(prefix) : len(opName)-len(suffix)]
+	}
+
+	// Include the inode number to which the op applies.
+	desc = fmt.Sprintf("%s(inode=%v)", opName, o.bazilReq.Hdr().Node)
+
+	return
+}
+
 func (o *commonOp) init(
 	ctx context.Context,
-	opType reflect.Type,
-	r bazilfuse.Request,
+	op Op,
+	bazilReq bazilfuse.Request,
 	log func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) {
 	// Set up a context that reflects per-PID tracing if appropriate.
-	ctx = o.maybeTraceByPID(ctx, int(r.Hdr().Pid))
+	ctx = o.maybeTraceByPID(ctx, int(bazilReq.Hdr().Pid))
 
 	// Initialize basic fields.
-	o.opType = describeOpType(opType)
-	o.r = r
+	o.op = op
+	o.bazilReq = bazilReq
 	o.log = log
 	o.opsInFlight = opsInFlight
 
 	// Set up a trace span for this op.
-	o.ctx, o.report = reqtrace.StartSpan(ctx, o.opType)
+	o.ctx, o.report = reqtrace.StartSpan(ctx, o.op.ShortDesc())
 }
 
 func (o *commonOp) Header() OpHeader {
-	bh := o.r.Hdr()
+	bh := o.bazilReq.Hdr()
 	return OpHeader{
 		Uid: bh.Uid,
 		Gid: bh.Gid,
@@ -187,27 +193,27 @@ func (o *commonOp) respondErr(err error) {
 
 	o.Logf(
 		"-> (%s) error: %v",
-		o.opType,
+		o.op.ShortDesc(),
 		err)
 
-	o.r.RespondError(err)
+	o.bazilReq.RespondError(err)
 }
 
 // Respond with the supplied response struct, which must be accepted by a
-// method called Respond on o.r.
+// method called Respond on o.bazilReq.
 //
-// Special case: nil means o.r.Respond accepts no parameters.
+// Special case: nil means o.bazilReq.Respond accepts no parameters.
 func (o *commonOp) respond(resp interface{}) {
 	// We were successful.
 	o.report(nil)
 
 	// Find the Respond method.
-	v := reflect.ValueOf(o.r)
+	v := reflect.ValueOf(o.bazilReq)
 	respond := v.MethodByName("Respond")
 
 	// Special case: handle successful ops with no response struct.
 	if resp == nil {
-		o.Logf("-> (%s) OK", o.opType)
+		o.Logf("-> (%s) OK", o.op.ShortDesc())
 		respond.Call([]reflect.Value{})
 		return
 	}

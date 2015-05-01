@@ -15,7 +15,6 @@
 package fuseops
 
 import (
-	"reflect"
 	"sync"
 	"time"
 
@@ -216,7 +215,7 @@ func Convert(
 		return
 	}
 
-	co.init(parentCtx, reflect.TypeOf(o), r, logForOp, opsInFlight)
+	co.init(parentCtx, o, r, logForOp, opsInFlight)
 	return
 }
 
