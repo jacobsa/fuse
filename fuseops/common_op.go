@@ -164,7 +164,7 @@ func (o *commonOp) init(
 	o.opsInFlight = opsInFlight
 
 	// Set up a trace span for this op.
-	o.ctx, o.report = reqtrace.StartSpan(ctx, o.ShortDesc())
+	o.ctx, o.report = reqtrace.StartSpan(ctx, o.op.ShortDesc())
 }
 
 func (o *commonOp) Header() OpHeader {
@@ -193,7 +193,7 @@ func (o *commonOp) respondErr(err error) {
 
 	o.Logf(
 		"-> (%s) error: %v",
-		o.ShortDesc(),
+		o.op.ShortDesc(),
 		err)
 
 	o.bazilReq.RespondError(err)
@@ -213,7 +213,7 @@ func (o *commonOp) respond(resp interface{}) {
 
 	// Special case: handle successful ops with no response struct.
 	if resp == nil {
-		o.Logf("-> (%s) OK", o.ShortDesc())
+		o.Logf("-> (%s) OK", o.op.ShortDesc())
 		respond.Call([]reflect.Value{})
 		return
 	}

@@ -18,6 +18,7 @@
 package fuseops
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -141,6 +142,11 @@ type LookUpInodeOp struct {
 	// The lookup count for the inode is implicitly incremented. See notes on
 	// ForgetInodeOp for more information.
 	Entry ChildInodeEntry
+}
+
+func (o *LookUpInodeOp) ShortDesc() (desc string) {
+	desc = fmt.Sprintf("LookUpInode(parent=%v, name=%q)", o.Parent, o.Name)
+	return
 }
 
 func (o *LookUpInodeOp) Respond(err error) {
@@ -317,6 +323,11 @@ type MkDirOp struct {
 	Entry ChildInodeEntry
 }
 
+func (o *MkDirOp) ShortDesc() (desc string) {
+	desc = fmt.Sprintf("MkDir(parent=%v, name=%q)", o.Parent, o.Name)
+	return
+}
+
 func (o *MkDirOp) Respond(err error) {
 	defer o.commonOp.opsInFlight.Done()
 
@@ -372,6 +383,11 @@ type CreateFileOp struct {
 	// file handle. The file system must ensure this ID remains valid until a
 	// later call to ReleaseFileHandle.
 	Handle HandleID
+}
+
+func (o *CreateFileOp) ShortDesc() (desc string) {
+	desc = fmt.Sprintf("CreateFile(parent=%v, name=%q)", o.Parent, o.Name)
+	return
 }
 
 func (o *CreateFileOp) Respond(err error) {
