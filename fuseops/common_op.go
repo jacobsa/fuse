@@ -53,7 +53,7 @@ func (o *commonOp) init(
 	o.opsInFlight = opsInFlight
 
 	// Set up a trace span for this op.
-	o.ctx, o.report = reqtrace.StartSpan(o.ctx, o.opType)
+	o.ctx, o.report = reqtrace.StartSpan(ctx, o.opType)
 }
 
 func (o *commonOp) Header() OpHeader {
