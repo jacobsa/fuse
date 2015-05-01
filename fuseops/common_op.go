@@ -15,6 +15,7 @@
 package fuseops
 
 import (
+	"flag"
 	"reflect"
 	"strings"
 	"sync"
@@ -23,6 +24,13 @@ import (
 	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
 )
+
+var fPerPIDTracing = flag.Bool(
+	"fuse.per_pid_tracing",
+	false,
+	"Enable a hacky mode that uses reqtrace to group all ops from each "+
+		"individual PID. Not a good idea to use in production; races, bugs, and "+
+		"resource leaks likely lurk.")
 
 // A helper for embedding common behavior.
 type commonOp struct {
@@ -52,12 +60,27 @@ func describeOpType(t reflect.Type) (desc string) {
 	return
 }
 
+func (o *commonOp) maybeTraceByPID(in context.Context) (out context.Context) {
+	// Is there anything to do?
+	if !*fPerPIDTracing {
+		out = in
+		return
+	}
+
+	// TODO(jacobsa): Do something interesting.
+	out = in
+	return
+}
+
 func (o *commonOp) init(
 	ctx context.Context,
 	opType reflect.Type,
 	r bazilfuse.Request,
 	log func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) {
+	// Set up a context that reflects per-PID tracing if appropriate.
+	ctx = o.maybeTraceByPID(ctx)
+
 	// Initialize basic fields.
 	o.opType = describeOpType(opType)
 	o.r = r
