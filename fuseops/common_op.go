@@ -38,11 +38,14 @@ var fTraceByPID = flag.Bool(
 
 // A helper for embedding common behavior.
 type commonOp struct {
-	opType      string
-	r           bazilfuse.Request
+	opType   string
+	bazilReq bazilfuse.Request
+
+	// Dependencies.
 	log         func(int, string, ...interface{})
 	opsInFlight *sync.WaitGroup
 
+	// Context and tracing information.
 	ctx    context.Context
 	report reqtrace.ReportFunc
 }
@@ -145,15 +148,15 @@ func (o *commonOp) maybeTraceByPID(
 func (o *commonOp) init(
 	ctx context.Context,
 	opType reflect.Type,
-	r bazilfuse.Request,
+	bazilReq bazilfuse.Request,
 	log func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) {
 	// Set up a context that reflects per-PID tracing if appropriate.
-	ctx = o.maybeTraceByPID(ctx, int(r.Hdr().Pid))
+	ctx = o.maybeTraceByPID(ctx, int(bazilReq.Hdr().Pid))
 
 	// Initialize basic fields.
 	o.opType = describeOpType(opType)
-	o.r = r
+	o.bazilReq = bazilReq
 	o.log = log
 	o.opsInFlight = opsInFlight
 
@@ -162,7 +165,7 @@ func (o *commonOp) init(
 }
 
 func (o *commonOp) Header() OpHeader {
-	bh := o.r.Hdr()
+	bh := o.bazilReq.Hdr()
 	return OpHeader{
 		Uid: bh.Uid,
 		Gid: bh.Gid,
@@ -190,19 +193,19 @@ func (o *commonOp) respondErr(err error) {
 		o.opType,
 		err)
 
-	o.r.RespondError(err)
+	o.bazilReq.RespondError(err)
 }
 
 // Respond with the supplied response struct, which must be accepted by a
-// method called Respond on o.r.
+// method called Respond on o.bazilReq.
 //
-// Special case: nil means o.r.Respond accepts no parameters.
+// Special case: nil means o.bazilReq.Respond accepts no parameters.
 func (o *commonOp) respond(resp interface{}) {
 	// We were successful.
 	o.report(nil)
 
 	// Find the Respond method.
-	v := reflect.ValueOf(o.r)
+	v := reflect.ValueOf(o.bazilReq)
 	respond := v.MethodByName("Respond")
 
 	// Special case: handle successful ops with no response struct.
