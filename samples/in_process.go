@@ -70,8 +70,14 @@ func (t *SampleTest) initialize(
 	ctx context.Context,
 	server fuse.Server,
 	config *fuse.MountConfig) (err error) {
-	// Initialize the context.
+	// Initialize the context used by the test.
 	t.Ctx = ctx
+
+	// Make the server share that context, if the test hasn't already set some
+	// other one.
+	if config.OpContext == nil {
+		config.OpContext = ctx
+	}
 
 	// Initialize the clock.
 	t.Clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
