@@ -16,6 +16,7 @@ package fuseops
 
 import (
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/jacobsa/bazilfuse"
@@ -35,8 +36,19 @@ type commonOp struct {
 }
 
 func describeOpType(t reflect.Type) (desc string) {
-	// TODO(jacobsa): Make this nicer.
+	name := t.String()
+
+	// The usual case: a string that looks like "*fuseops.GetInodeAttributesOp".
+	const prefix = "*fuseops."
+	const suffix = "Op"
+	if strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix) {
+		desc = name[len(prefix) : len(name)-len(suffix)]
+		return
+	}
+
+	// Otherwise, it's not clear what to do.
 	desc = t.String()
+
 	return
 }
 
