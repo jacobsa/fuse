@@ -31,12 +31,18 @@ type commonOp struct {
 	opsInFlight *sync.WaitGroup
 }
 
+func describeOpType(t reflect.Type) (desc string) {
+	// TODO(jacobsa): Make this nicer.
+	desc = t.String()
+	return
+}
+
 func (o *commonOp) init(
-	opType string,
+	opType reflect.Type,
 	r bazilfuse.Request,
 	log func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) {
-	o.opType = opType
+	o.opType = describeOpType(opType)
 	o.ctx = context.Background()
 	o.r = r
 	o.log = log

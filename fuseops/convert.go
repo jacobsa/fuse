@@ -213,7 +213,7 @@ func Convert(
 		return
 	}
 
-	co.init(reflect.TypeOf(o).String(), r, logForOp, opsInFlight)
+	co.init(reflect.TypeOf(o), r, logForOp, opsInFlight)
 	return
 }
 
