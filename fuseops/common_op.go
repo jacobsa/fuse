@@ -20,10 +20,12 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 var fTraceByPID = flag.Bool(
@@ -68,10 +70,34 @@ var gPIDMapMu sync.Mutex
 // GUARDED_BY(gPIDMapMu)
 var gPIDMap = make(map[int]context.Context)
 
+// Wait until the process completes, then close off the trace and remove the
+// context from the map.
 func reportWhenPIDGone(
 	pid int,
 	ctx context.Context,
-	report reqtrace.ReportFunc)
+	report reqtrace.ReportFunc) {
+	// HACK(jacobsa): Poll for completion.
+	const pollPeriod = 50 * time.Millisecond
+	for {
+		err := unix.Kill(pid, 0)
+		if err == unix.ESRCH {
+			break
+		}
+
+		if err != nil {
+			panic(fmt.Errorf("Kill(%v): %v", pid, err))
+		}
+
+		time.Sleep(pollPeriod)
+	}
+
+	// Finish up.
+	report(nil)
+
+	gPIDMapMu.Lock()
+	delete(gPIDMap, pid)
+	gPIDMapMu.Unlock()
+}
 
 func (o *commonOp) maybeTraceByPID(
 	in context.Context,
