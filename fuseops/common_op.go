@@ -16,31 +16,56 @@ package fuseops
 
 import (
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/jacobsa/bazilfuse"
+	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
 )
 
 // A helper for embedding common behavior.
 type commonOp struct {
 	opType      string
-	ctx         context.Context
 	r           bazilfuse.Request
 	log         func(int, string, ...interface{})
 	opsInFlight *sync.WaitGroup
+
+	ctx    context.Context
+	report reqtrace.ReportFunc
+}
+
+func describeOpType(t reflect.Type) (desc string) {
+	name := t.String()
+
+	// The usual case: a string that looks like "*fuseops.GetInodeAttributesOp".
+	const prefix = "*fuseops."
+	const suffix = "Op"
+	if strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix) {
+		desc = name[len(prefix) : len(name)-len(suffix)]
+		return
+	}
+
+	// Otherwise, it's not clear what to do.
+	desc = t.String()
+
+	return
 }
 
 func (o *commonOp) init(
-	opType string,
+	ctx context.Context,
+	opType reflect.Type,
 	r bazilfuse.Request,
 	log func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) {
-	o.opType = opType
-	o.ctx = context.Background()
+	// Initialize basic fields.
+	o.opType = describeOpType(opType)
 	o.r = r
 	o.log = log
 	o.opsInFlight = opsInFlight
+
+	// Set up a trace span for this op.
+	o.ctx, o.report = reqtrace.StartSpan(ctx, o.opType)
 }
 
 func (o *commonOp) Header() OpHeader {
@@ -65,6 +90,8 @@ func (o *commonOp) respondErr(err error) {
 		panic("Expect non-nil here.")
 	}
 
+	o.report(err)
+
 	o.Logf(
 		"-> (%s) error: %v",
 		o.opType,
@@ -78,6 +105,9 @@ func (o *commonOp) respondErr(err error) {
 //
 // Special case: nil means o.r.Respond accepts no parameters.
 func (o *commonOp) respond(resp interface{}) {
+	// We were successful.
+	o.report(nil)
+
 	// Find the Respond method.
 	v := reflect.ValueOf(o.r)
 	respond := v.MethodByName("Respond")

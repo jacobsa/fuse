@@ -68,7 +68,7 @@ type SubprocessTest struct {
 // Mount the file system and initialize the other exported fields of the
 // struct. Panics on error.
 func (t *SubprocessTest) SetUp(ti *ogletest.TestInfo) {
-	err := t.initialize()
+	err := t.initialize(ti.Ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -184,9 +184,9 @@ func waitForReady(readyReader *os.File, c chan<- struct{}) {
 }
 
 // Like SetUp, but doens't panic.
-func (t *SubprocessTest) initialize() (err error) {
+func (t *SubprocessTest) initialize(ctx context.Context) (err error) {
 	// Initialize the context.
-	t.Ctx = context.Background()
+	t.Ctx = ctx
 
 	// Set up a temporary directory.
 	t.Dir, err = ioutil.TempDir("", "sample_test")

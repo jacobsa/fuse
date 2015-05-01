@@ -61,6 +61,10 @@ func (mfs *MountedFileSystem) Join(ctx context.Context) error {
 
 // Optional configuration accepted by Mount.
 type MountConfig struct {
+	// The context from which every op read from the connetion by the sever
+	// should inherit. If nil, context.Background() will be used.
+	OpContext context.Context
+
 	// OS X only.
 	//
 	// Normally on OS X we mount with the novncache option
@@ -127,8 +131,14 @@ func Mount(
 		return
 	}
 
+	// Choose a parent context for ops.
+	opContext := config.OpContext
+	if opContext == nil {
+		opContext = context.Background()
+	}
+
 	// Create our own Connection object wrapping it.
-	connection, err := newConnection(logger, bfConn)
+	connection, err := newConnection(opContext, logger, bfConn)
 	if err != nil {
 		bfConn.Close()
 		err = fmt.Errorf("newConnection: %v", err)
