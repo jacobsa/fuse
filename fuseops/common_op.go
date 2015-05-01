@@ -25,8 +25,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-var fPerPIDTracing = flag.Bool(
-	"fuse.per_pid_tracing",
+var fTraceByPID = flag.Bool(
+	"fuse.trace_by_pid",
 	false,
 	"Enable a hacky mode that uses reqtrace to group all ops from each "+
 		"individual PID. Not a good idea to use in production; races, bugs, and "+
@@ -62,7 +62,7 @@ func describeOpType(t reflect.Type) (desc string) {
 
 func (o *commonOp) maybeTraceByPID(in context.Context) (out context.Context) {
 	// Is there anything to do?
-	if !*fPerPIDTracing {
+	if !*fTraceByPID {
 		out = in
 		return
 	}
