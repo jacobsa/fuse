@@ -39,8 +39,7 @@ var fTraceByPID = flag.Bool(
 // A helper for embedding common behavior.
 type commonOp struct {
 	// The op in which this struct is embedded, and a short description of it.
-	op     Op
-	opDesc string
+	op Op
 
 	// The underlying bazilfuse request for this op.
 	bazilReq bazilfuse.Request
@@ -52,23 +51,6 @@ type commonOp struct {
 	// Context and tracing information.
 	ctx    context.Context
 	report reqtrace.ReportFunc
-}
-
-func describeOp(op Op) (desc string) {
-	name := reflect.TypeOf(op).String()
-
-	// The usual case: a string that looks like "*fuseops.GetInodeAttributesOp".
-	const prefix = "*fuseops."
-	const suffix = "Op"
-	if strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix) {
-		desc = name[len(prefix) : len(name)-len(suffix)]
-		return
-	}
-
-	// Otherwise, it's not clear what to do.
-	desc = name
-
-	return
 }
 
 var gPIDMapMu sync.Mutex
@@ -149,6 +131,23 @@ func (o *commonOp) maybeTraceByPID(
 	return
 }
 
+func (o *commonOp) ShortDesc() (desc string) {
+	name := reflect.TypeOf(o.op).String()
+
+	// The usual case: a string that looks like "*fuseops.GetInodeAttributesOp".
+	const prefix = "*fuseops."
+	const suffix = "Op"
+	if strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix) {
+		desc = name[len(prefix) : len(name)-len(suffix)]
+		return
+	}
+
+	// Otherwise, it's not clear what to do.
+	desc = name
+
+	return
+}
+
 func (o *commonOp) init(
 	ctx context.Context,
 	op Op,
@@ -160,13 +159,12 @@ func (o *commonOp) init(
 
 	// Initialize basic fields.
 	o.op = op
-	o.opDesc = describeOp(op)
 	o.bazilReq = bazilReq
 	o.log = log
 	o.opsInFlight = opsInFlight
 
 	// Set up a trace span for this op.
-	o.ctx, o.report = reqtrace.StartSpan(ctx, o.opDesc)
+	o.ctx, o.report = reqtrace.StartSpan(ctx, o.ShortDesc())
 }
 
 func (o *commonOp) Header() OpHeader {
@@ -195,7 +193,7 @@ func (o *commonOp) respondErr(err error) {
 
 	o.Logf(
 		"-> (%s) error: %v",
-		o.opDesc,
+		o.ShortDesc(),
 		err)
 
 	o.bazilReq.RespondError(err)
@@ -215,7 +213,7 @@ func (o *commonOp) respond(resp interface{}) {
 
 	// Special case: handle successful ops with no response struct.
 	if resp == nil {
-		o.Logf("-> (%s) OK", o.opDesc)
+		o.Logf("-> (%s) OK", o.ShortDesc())
 		respond.Call([]reflect.Value{})
 		return
 	}

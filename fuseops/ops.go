@@ -29,6 +29,9 @@ import (
 // to find particular concrete types, responding with fuse.ENOSYS if a type is
 // not supported.
 type Op interface {
+	// A short description of the op, to be used in logging.
+	ShortDesc() string
+
 	// Return the fields common to all operations.
 	Header() OpHeader
 
