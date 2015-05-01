@@ -15,6 +15,7 @@
 package fuseops
 
 import (
+	"reflect"
 	"sync"
 
 	"github.com/jacobsa/bazilfuse"
@@ -70,4 +71,25 @@ func (o *commonOp) respondErr(err error) {
 		err)
 
 	o.r.RespondError(err)
+}
+
+// Respond with the supplied response struct, which must be accepted by a
+// method called Respond on o.r.
+//
+// Special case: nil means o.r.Respond accepts no parameters.
+func (o *commonOp) respond(resp interface{}) {
+	// Find the Respond method.
+	v := reflect.ValueOf(o.r)
+	respond := v.MethodByName("Respond")
+
+	// Special case: handle successful ops with no response struct.
+	if resp == nil {
+		o.Logf("-> (%s) OK", o.opType)
+		respond.Call([]reflect.Value{})
+		return
+	}
+
+	// Otherwise, pass along the response struct.
+	o.Logf("-> %v", resp)
+	respond.Call([]reflect.Value{reflect.ValueOf(resp)})
 }

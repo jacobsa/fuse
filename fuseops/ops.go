@@ -107,8 +107,7 @@ func (o *InitOp) Respond(err error) {
 	resp.MaxReadahead = o.maxReadahead
 
 	// Respond.
-	o.Logf("-> %v", &resp)
-	o.r.(*bazilfuse.InitRequest).Respond(&resp)
+	o.commonOp.respond(&resp)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -152,8 +151,7 @@ func (o *LookUpInodeOp) Respond(err error) {
 	resp := bazilfuse.LookupResponse{}
 	convertChildInodeEntry(&o.Entry, &resp)
 
-	o.Logf("-> %v", &resp)
-	o.r.(*bazilfuse.LookupRequest).Respond(&resp)
+	o.commonOp.respond(&resp)
 }
 
 // Refresh the attributes for an inode whose ID was previously returned in a
@@ -186,8 +184,7 @@ func (o *GetInodeAttributesOp) Respond(err error) {
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
 	}
 
-	o.Logf("-> %v", &resp)
-	o.r.(*bazilfuse.GetattrRequest).Respond(&resp)
+	o.commonOp.respond(&resp)
 }
 
 // Change attributes for an inode.
@@ -226,8 +223,7 @@ func (o *SetInodeAttributesOp) Respond(err error) {
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
 	}
 
-	o.Logf("-> %v", &resp)
-	o.r.(*bazilfuse.SetattrRequest).Respond(&resp)
+	o.commonOp.respond(&resp)
 }
 
 // Decrement the reference count for an inode ID previously issued by the file
@@ -287,8 +283,7 @@ func (o *ForgetInodeOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("-> (ForgetInodeOp) OK")
-	o.r.(*bazilfuse.ForgetRequest).Respond()
+	o.commonOp.respond(nil)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -330,8 +325,7 @@ func (o *MkDirOp) Respond(err error) {
 	resp := bazilfuse.MkdirResponse{}
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
-	o.Logf("-> %v", &resp)
-	o.r.(*bazilfuse.MkdirRequest).Respond(&resp)
+	o.commonOp.respond(&resp)
 }
 
 // Create a file inode and open it.
@@ -392,8 +386,7 @@ func (o *CreateFileOp) Respond(err error) {
 	}
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
-	o.Logf("-> %v", &resp)
-	o.r.(*bazilfuse.CreateRequest).Respond(&resp)
+	o.commonOp.respond(&resp)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -424,8 +417,7 @@ func (o *RmDirOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("-> (RmDirOp) OK")
-	o.r.(*bazilfuse.RemoveRequest).Respond()
+	o.commonOp.respond(nil)
 }
 
 // Unlink a file from its parent. If this brings the inode's link count to
@@ -450,8 +442,7 @@ func (o *UnlinkOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("-> (UnlinkOp) OK")
-	o.r.(*bazilfuse.RemoveRequest).Respond()
+	o.commonOp.respond(nil)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -496,8 +487,7 @@ func (o *OpenDirOp) Respond(err error) {
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
 
-	o.Logf("-> %v", &resp)
-	o.r.(*bazilfuse.OpenRequest).Respond(&resp)
+	o.commonOp.respond(&resp)
 }
 
 // Read entries from a directory previously opened with OpenDir.
@@ -602,8 +592,7 @@ func (o *ReadDirOp) Respond(err error) {
 		Data: o.Data,
 	}
 
-	o.Logf("-> %v", &resp)
-	o.r.(*bazilfuse.ReadRequest).Respond(&resp)
+	o.commonOp.respond(&resp)
 }
 
 // Release a previously-minted directory handle. The kernel sends this when
@@ -631,8 +620,7 @@ func (o *ReleaseDirHandleOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("-> (ReleaseDirHandleOp) OK")
-	o.r.(*bazilfuse.ReleaseRequest).Respond()
+	o.commonOp.respond(nil)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -676,8 +664,7 @@ func (o *OpenFileOp) Respond(err error) {
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
 
-	o.Logf("-> %v", &resp)
-	o.r.(*bazilfuse.OpenRequest).Respond(&resp)
+	o.commonOp.respond(&resp)
 }
 
 // Read data from a file previously opened with CreateFile or OpenFile.
@@ -721,8 +708,7 @@ func (o *ReadFileOp) Respond(err error) {
 		Data: o.Data,
 	}
 
-	o.Logf("-> %v", &resp)
-	o.r.(*bazilfuse.ReadRequest).Respond(&resp)
+	o.commonOp.respond(&resp)
 }
 
 // Write data to a file previously opened with CreateFile or OpenFile.
@@ -807,8 +793,7 @@ func (o *WriteFileOp) Respond(err error) {
 		Size: len(o.Data),
 	}
 
-	o.Logf("-> %v", &resp)
-	o.r.(*bazilfuse.WriteRequest).Respond(&resp)
+	o.commonOp.respond(&resp)
 }
 
 // Synchronize the current contents of an open file to storage.
@@ -843,8 +828,7 @@ func (o *SyncFileOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("-> (SyncFileOp) OK")
-	o.r.(*bazilfuse.FsyncRequest).Respond()
+	o.commonOp.respond(nil)
 }
 
 // Flush the current state of an open file to storage upon closing a file
@@ -910,8 +894,7 @@ func (o *FlushFileOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("-> (FlushFileOp) OK")
-	o.r.(*bazilfuse.FlushRequest).Respond()
+	o.commonOp.respond(nil)
 }
 
 // Release a previously-minted file handle. The kernel calls this when there
@@ -939,6 +922,5 @@ func (o *ReleaseFileHandleOp) Respond(err error) {
 		return
 	}
 
-	o.Logf("-> (ReleaseFileHandleOp) OK")
-	o.r.(*bazilfuse.ReleaseRequest).Respond()
+	o.commonOp.respond(nil)
 }
