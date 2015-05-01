@@ -17,6 +17,7 @@ package fuseops
 import (
 	"flag"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 	"sync"
@@ -76,14 +77,27 @@ func reportWhenPIDGone(
 	pid int,
 	ctx context.Context,
 	report reqtrace.ReportFunc) {
-	// HACK(jacobsa): Poll for completion.
+	// HACK(jacobsa): Poll until the process no longer exists.
 	const pollPeriod = 50 * time.Millisecond
 	for {
+		// The man page for kill(2) says that if the signal is zero, then "no
+		// signal is sent, but error checking is still performed; this can be used
+		// to check for the existence of a process ID".
 		err := unix.Kill(pid, 0)
+
+		// ESRCH means the process is gone.
 		if err == unix.ESRCH {
 			break
 		}
 
+		// If we receive EPERM, we're not going to be able to do what we want. We
+		// don't really have any choice but to print info and leak.
+		if err == unix.EPERM {
+			log.Printf("Failed to kill(2) PID %v; no permissions. Leaking trace.", pid)
+			return
+		}
+
+		// Otherwise, panic.
 		if err != nil {
 			panic(fmt.Errorf("Kill(%v): %v", pid, err))
 		}
