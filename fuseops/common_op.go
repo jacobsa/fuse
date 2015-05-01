@@ -140,7 +140,7 @@ func (o *commonOp) maybeTraceByPID(
 
 	// Set up a new one and stick it in the map.
 	var report reqtrace.ReportFunc
-	out, report = reqtrace.Trace(in, fmt.Sprintf("PID %v", pid))
+	out, report = reqtrace.Trace(in, fmt.Sprintf("Requests from PID %v", pid))
 	gPIDMap[pid] = out
 
 	// Ensure we close the trace and remove it from the map eventually.
