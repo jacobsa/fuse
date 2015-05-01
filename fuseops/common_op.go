@@ -25,12 +25,13 @@ import (
 
 // A helper for embedding common behavior.
 type commonOp struct {
-	ctx         context.Context
 	opType      string
 	r           bazilfuse.Request
 	log         func(int, string, ...interface{})
 	opsInFlight *sync.WaitGroup
-	report      reqtrace.ReportFunc
+
+	ctx    context.Context
+	report reqtrace.ReportFunc
 }
 
 func describeOpType(t reflect.Type) (desc string) {
@@ -40,13 +41,13 @@ func describeOpType(t reflect.Type) (desc string) {
 }
 
 func (o *commonOp) init(
+	ctx context.Context,
 	opType reflect.Type,
 	r bazilfuse.Request,
 	log func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) {
 	// Initialize basic fields.
 	o.opType = describeOpType(opType)
-	o.ctx = context.Background()
 	o.r = r
 	o.log = log
 	o.opsInFlight = opsInFlight

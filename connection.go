@@ -21,6 +21,8 @@ import (
 	"runtime"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse/fuseops"
 )
@@ -31,6 +33,9 @@ type Connection struct {
 	wrapped     *bazilfuse.Conn
 	opsInFlight sync.WaitGroup
 
+	// The context from which all op contexts inherit.
+	parentCtx context.Context
+
 	// For logging purposes only.
 	nextOpID uint32
 }
@@ -38,11 +43,13 @@ type Connection struct {
 // Responsibility for closing the wrapped connection is transferred to the
 // result. You must call c.close() eventually.
 func newConnection(
+	parentCtx context.Context,
 	logger *log.Logger,
 	wrapped *bazilfuse.Conn) (c *Connection, err error) {
 	c = &Connection{
-		logger:  logger,
-		wrapped: wrapped,
+		logger:    logger,
+		wrapped:   wrapped,
+		parentCtx: parentCtx,
 	}
 
 	return
@@ -115,7 +122,8 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			c.log(opID, calldepth+1, format, v...)
 		}
 
-		if op = fuseops.Convert(bfReq, logForOp, &c.opsInFlight); op == nil {
+		op = fuseops.Convert(c.parentCtx, bfReq, logForOp, &c.opsInFlight)
+		if op == nil {
 			c.log(opID, 1, "-> ENOSYS: %v", bfReq)
 			bfReq.RespondError(ENOSYS)
 			continue

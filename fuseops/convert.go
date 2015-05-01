@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/jacobsa/bazilfuse"
 )
 
@@ -28,6 +30,7 @@ import (
 // This function is an implementation detail of the fuse package, and must not
 // be called by anyone else.
 func Convert(
+	parentCtx context.Context,
 	r bazilfuse.Request,
 	logForOp func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) (o Op) {
@@ -213,7 +216,7 @@ func Convert(
 		return
 	}
 
-	co.init(reflect.TypeOf(o), r, logForOp, opsInFlight)
+	co.init(parentCtx, reflect.TypeOf(o), r, logForOp, opsInFlight)
 	return
 }
 
