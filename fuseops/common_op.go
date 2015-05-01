@@ -16,6 +16,7 @@ package fuseops
 
 import (
 	"flag"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -60,15 +61,44 @@ func describeOpType(t reflect.Type) (desc string) {
 	return
 }
 
-func (o *commonOp) maybeTraceByPID(in context.Context) (out context.Context) {
+var gPIDMapMu sync.Mutex
+
+// A map from PID to a traced context for that PID.
+//
+// GUARDED_BY(gPIDMapMu)
+var gPIDMap = make(map[int]context.Context)
+
+func reportWhenPIDGone(
+	pid int,
+	ctx context.Context,
+	report reqtrace.ReportFunc)
+
+func (o *commonOp) maybeTraceByPID(
+	in context.Context,
+	pid int) (out context.Context) {
 	// Is there anything to do?
-	if !*fTraceByPID {
+	if !reqtrace.Enabled() || !*fTraceByPID {
 		out = in
 		return
 	}
 
-	// TODO(jacobsa): Do something interesting.
-	out = in
+	gPIDMapMu.Lock()
+	defer gPIDMapMu.Unlock()
+
+	// Do we already have a traced context for this PID?
+	if existing, ok := gPIDMap[pid]; ok {
+		out = existing
+		return
+	}
+
+	// Set up a new one and stick it in the map.
+	var report reqtrace.ReportFunc
+	out, report = reqtrace.Trace(in, fmt.Sprintf("PID %v", pid))
+	gPIDMap[pid] = out
+
+	// Ensure we close the trace and remove it from the map eventually.
+	go reportWhenPIDGone(pid, out, report)
+
 	return
 }
 
@@ -79,7 +109,7 @@ func (o *commonOp) init(
 	log func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) {
 	// Set up a context that reflects per-PID tracing if appropriate.
-	ctx = o.maybeTraceByPID(ctx)
+	ctx = o.maybeTraceByPID(ctx, int(r.Hdr().Pid))
 
 	// Initialize basic fields.
 	o.opType = describeOpType(opType)
