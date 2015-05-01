@@ -38,7 +38,11 @@ var fTraceByPID = flag.Bool(
 
 // A helper for embedding common behavior.
 type commonOp struct {
-	opType   string
+	// The op in which this struct is embedded, and a short description of it.
+	op     Op
+	opDesc string
+
+	// The underlying bazilfuse request for this op.
 	bazilReq bazilfuse.Request
 
 	// Dependencies.
@@ -50,8 +54,8 @@ type commonOp struct {
 	report reqtrace.ReportFunc
 }
 
-func describeOpType(t reflect.Type) (desc string) {
-	name := t.String()
+func describeOp(op Op) (desc string) {
+	name := reflect.TypeOf(op).String()
 
 	// The usual case: a string that looks like "*fuseops.GetInodeAttributesOp".
 	const prefix = "*fuseops."
@@ -62,7 +66,7 @@ func describeOpType(t reflect.Type) (desc string) {
 	}
 
 	// Otherwise, it's not clear what to do.
-	desc = t.String()
+	desc = name
 
 	return
 }
@@ -147,7 +151,7 @@ func (o *commonOp) maybeTraceByPID(
 
 func (o *commonOp) init(
 	ctx context.Context,
-	opType reflect.Type,
+	op Op,
 	bazilReq bazilfuse.Request,
 	log func(int, string, ...interface{}),
 	opsInFlight *sync.WaitGroup) {
@@ -155,13 +159,14 @@ func (o *commonOp) init(
 	ctx = o.maybeTraceByPID(ctx, int(bazilReq.Hdr().Pid))
 
 	// Initialize basic fields.
-	o.opType = describeOpType(opType)
+	o.op = op
+	o.opDesc = describeOp(op)
 	o.bazilReq = bazilReq
 	o.log = log
 	o.opsInFlight = opsInFlight
 
 	// Set up a trace span for this op.
-	o.ctx, o.report = reqtrace.StartSpan(ctx, o.opType)
+	o.ctx, o.report = reqtrace.StartSpan(ctx, o.opDesc)
 }
 
 func (o *commonOp) Header() OpHeader {
@@ -190,7 +195,7 @@ func (o *commonOp) respondErr(err error) {
 
 	o.Logf(
 		"-> (%s) error: %v",
-		o.opType,
+		o.opDesc,
 		err)
 
 	o.bazilReq.RespondError(err)
@@ -210,7 +215,7 @@ func (o *commonOp) respond(resp interface{}) {
 
 	// Special case: handle successful ops with no response struct.
 	if resp == nil {
-		o.Logf("-> (%s) OK", o.opType)
+		o.Logf("-> (%s) OK", o.opDesc)
 		respond.Call([]reflect.Value{})
 		return
 	}
