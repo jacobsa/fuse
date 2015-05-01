@@ -132,18 +132,18 @@ func (o *commonOp) maybeTraceByPID(
 }
 
 func (o *commonOp) ShortDesc() (desc string) {
-	name := reflect.TypeOf(o.op).String()
+	opName := reflect.TypeOf(o.op).String()
 
-	// The usual case: a string that looks like "*fuseops.GetInodeAttributesOp".
+	// Attempt to better handle the usual case: a string that looks like
+	// "*fuseops.GetInodeAttributesOp".
 	const prefix = "*fuseops."
 	const suffix = "Op"
-	if strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix) {
-		desc = name[len(prefix) : len(name)-len(suffix)]
-		return
+	if strings.HasPrefix(opName, prefix) && strings.HasSuffix(opName, suffix) {
+		opName = opName[len(prefix) : len(opName)-len(suffix)]
 	}
 
-	// Otherwise, it's not clear what to do.
-	desc = name
+	// Include the inode number to which the op applies.
+	desc = fmt.Sprintf("%s(inode=%v)", opName, o.bazilReq.Hdr().Node)
 
 	return
 }
