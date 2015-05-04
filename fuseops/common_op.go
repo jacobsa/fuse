@@ -38,7 +38,7 @@ var fTraceByPID = flag.Bool(
 
 // A helper for embedding common behavior.
 type commonOp struct {
-	// The op in which this struct is embedded, and a short description of it.
+	// The op in which this struct is embedded.
 	op Op
 
 	// The underlying bazilfuse request for this op.
