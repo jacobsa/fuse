@@ -17,6 +17,7 @@ package interruptfs
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -42,10 +43,16 @@ var fooAttrs = fuseops.InodeAttributes{
 // Must be created with New.
 type InterruptFS struct {
 	fuseutil.NotImplementedFileSystem
+
+	mu                  sync.Mutex
+	readInFlight        bool
+	readInFlightChanged sync.Cond
 }
 
 func New() (fs *InterruptFS) {
 	fs = &InterruptFS{}
+	fs.readInFlightChanged.L = &fs.mu
+
 	return
 }
 
@@ -53,11 +60,16 @@ func New() (fs *InterruptFS) {
 // Public interface
 ////////////////////////////////////////////////////////////////////////
 
-// Block until there is a read in flight.
+// Block until the first read is received.
 //
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *InterruptFS) WaitForReadInFlight() {
-	panic("TODO")
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	for !fs.readInFlight {
+		fs.readInFlightChanged.Wait()
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
