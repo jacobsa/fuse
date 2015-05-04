@@ -45,7 +45,8 @@ type InterruptFS struct {
 }
 
 func New() (fs *InterruptFS) {
-	panic("TODO")
+	fs = &InterruptFS{}
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
