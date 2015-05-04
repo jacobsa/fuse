@@ -142,6 +142,12 @@ func (fs *InterruptFS) ReadFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
+	// Signal that a read has been received.
+	fs.mu.Lock()
+	fs.readInFlight = true
+	fs.readInFlightChanged.Broadcast()
+	fs.mu.Unlock()
+
 	// Wait for cancellation.
 	done := op.Context().Done()
 	if done == nil {
