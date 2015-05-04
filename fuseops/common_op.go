@@ -218,9 +218,6 @@ func (o *commonOp) respondErr(err error) {
 //
 // Special case: nil means o.bazilReq.Respond accepts no parameters.
 func (o *commonOp) respond(resp interface{}) {
-	// We were successful.
-	o.report(nil)
-
 	// Find the Respond method.
 	v := reflect.ValueOf(o.bazilReq)
 	respond := v.MethodByName("Respond")
@@ -232,7 +229,10 @@ func (o *commonOp) respond(resp interface{}) {
 		return
 	}
 
-	// Otherwise, pass along the response struct.
+	// Otherwise, send the response struct to the kernel.
 	o.Logf("-> %v", resp)
 	respond.Call([]reflect.Value{reflect.ValueOf(resp)})
+
+	// Report back to the connection that we are finished.
+	o.finish(nil)
 }
