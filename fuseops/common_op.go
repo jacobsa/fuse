@@ -38,6 +38,9 @@ var fTraceByPID = flag.Bool(
 
 // A helper for embedding common behavior.
 type commonOp struct {
+	// The context exposed to the user.
+	ctx context.Context
+
 	// The op in which this struct is embedded.
 	op Op
 
@@ -47,9 +50,6 @@ type commonOp struct {
 	// A function that can be used to log information about the op. The first
 	// argument is a call depth.
 	log func(int, string, ...interface{})
-
-	// The context exposed to the user.
-	ctx context.Context
 
 	// A function that is invoked with the error given to Respond, for use in
 	// closing off traces and reporting back to the connection.
@@ -156,18 +156,27 @@ func (o *commonOp) init(
 	op Op,
 	bazilReq bazilfuse.Request,
 	log func(int, string, ...interface{}),
-	opsInFlight *sync.WaitGroup) {
-	// Set up a context that reflects per-PID tracing if appropriate.
-	ctx = o.maybeTraceByPID(ctx, int(bazilReq.Hdr().Pid))
-
+	finish func(error)) {
 	// Initialize basic fields.
+	o.ctx = ctx
 	o.op = op
 	o.bazilReq = bazilReq
 	o.log = log
-	o.opsInFlight = opsInFlight
+	o.finish = finish
+
+	// Set up a context that reflects per-PID tracing if appropriate.
+	o.ctx = o.maybeTraceByPID(o.ctx, int(bazilReq.Hdr().Pid))
 
 	// Set up a trace span for this op.
-	o.ctx, o.report = reqtrace.StartSpan(ctx, o.op.ShortDesc())
+	var reportForTrace reqtrace.ReportFunc
+	o.ctx, reportForTrace = reqtrace.StartSpan(ctx, o.op.ShortDesc())
+
+	// When the op is finished, report to both reqtrace and the connection.
+	prevFinish := o.finish
+	o.finish = func(err error) {
+		reportForTrace(err)
+		prevFinish(err)
+	}
 }
 
 func (o *commonOp) Header() OpHeader {
