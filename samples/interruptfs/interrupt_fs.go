@@ -136,3 +136,22 @@ func (fs *InterruptFS) OpenFile(
 
 	return
 }
+
+func (fs *InterruptFS) ReadFile(
+	op *fuseops.ReadFileOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	// Wait for cancellation.
+	done := op.Context().Done()
+	if done == nil {
+		panic("Expected non-nil channel.")
+	}
+
+	<-done
+
+	// Return the context's error.
+	err = op.Context().Err()
+
+	return
+}
