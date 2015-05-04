@@ -34,6 +34,7 @@ const fooID = fuseops.RootInodeID + 1
 var fooAttrs = fuseops.InodeAttributes{
 	Nlink: 1,
 	Mode:  0777,
+	Size:  1234,
 }
 
 // A file system containing exactly one file, named "foo". Reads to the file
