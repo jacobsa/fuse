@@ -16,8 +16,11 @@ package interruptfs_test
 
 import (
 	"os"
+	"os/exec"
 	"path"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/fuse/samples"
@@ -68,5 +71,44 @@ func (t *InterruptFSTest) StatFoo() {
 }
 
 func (t *InterruptFSTest) InterruptedDuringRead() {
+	// Start a sub-process that attempts to read the file. Wait for it in the
+	// background.
+	cmd := exec.Command("cat", path.Join(t.Dir, "foo"))
+	var cmdOutput []byte
+	var cmdErr error
+
+	var mu sync.Mutex
+	cmdFinished := false
+	cmdFinishedChanged := sync.NewCond(&mu)
+
+	go func() {
+		cmdOutput, cmdErr = cmd.CombinedOutput()
+		mu.Lock()
+		cmdFinished = true
+		cmdFinishedChanged.Broadcast()
+		mu.Unlock()
+	}()
+
+	// Wait for the read to make it to the file system.
+	t.fs.WaitForReadInFlight()
+
+	// Wait another moment. The command should still be hanging.
+	time.Sleep(100 * time.Millisecond)
+	func() {
+		mu.Lock()
+		defer mu.Unlock()
+		AssertFalse(cmdFinished)
+	}()
+
+	// Send SIGINT.
+	cmd.Process.Signal(os.Interrupt)
+
+	// Now the command should return, with an appropriate error.
+	mu.Lock()
+	for !cmdFinished {
+		cmdFinishedChanged.Wait()
+	}
+	mu.Unlock()
+
 	AssertTrue(false, "TODO")
 }
