@@ -201,14 +201,16 @@ func (o *commonOp) respondErr(err error) {
 		panic("Expect non-nil here.")
 	}
 
-	o.report(err)
-
 	o.Logf(
 		"-> (%s) error: %v",
 		o.op.ShortDesc(),
 		err)
 
+	// Send a response to the kernel.
 	o.bazilReq.RespondError(err)
+
+	// Report back to the connection that we are finished.
+	o.finish(err)
 }
 
 // Respond with the supplied response struct, which must be accepted by a
