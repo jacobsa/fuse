@@ -44,13 +44,16 @@ type commonOp struct {
 	// The underlying bazilfuse request for this op.
 	bazilReq bazilfuse.Request
 
-	// Dependencies.
-	log         func(int, string, ...interface{})
-	opsInFlight *sync.WaitGroup
+	// A function that can be used to log information about the op. The first
+	// argument is a call depth.
+	log func(int, string, ...interface{})
 
-	// Context and tracing information.
-	ctx    context.Context
-	report reqtrace.ReportFunc
+	// The context exposed to the user.
+	ctx context.Context
+
+	// A function that is invoked with the error given to Respond, for use in
+	// closing off traces and reporting back to the connection.
+	finish func(error)
 }
 
 var gPIDMapMu sync.Mutex
