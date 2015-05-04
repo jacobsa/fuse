@@ -41,6 +41,9 @@ type Op interface {
 
 	// Repond to the operation with the supplied error. If there is no error, set
 	// any necessary output fields and then call Respond(nil).
+	//
+	// Once this is invoked, you must exclude any further calls to any method of
+	// this op.
 	Respond(error)
 
 	// Log information tied to this operation, with semantics equivalent to
