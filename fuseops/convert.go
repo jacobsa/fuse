@@ -197,15 +197,17 @@ func Convert(
 	case *bazilfuse.FsyncRequest:
 		// We don't currently support this for directories.
 		if typed.Dir {
-			return
+			to := &unknownOp{}
+			io = to
+			co = &to.commonOp
+		} else {
+			to := &SyncFileOp{
+				Inode:  InodeID(typed.Header.Node),
+				Handle: HandleID(typed.Handle),
+			}
+			io = to
+			co = &to.commonOp
 		}
-
-		to := &SyncFileOp{
-			Inode:  InodeID(typed.Header.Node),
-			Handle: HandleID(typed.Handle),
-		}
-		io = to
-		co = &to.commonOp
 
 	case *bazilfuse.FlushRequest:
 		to := &FlushFileOp{
