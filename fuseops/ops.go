@@ -66,6 +66,7 @@ type InitOp struct {
 
 func (o *InitOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.InitResponse{}
+	bfResp = &resp
 
 	// Ask the Linux kernel for larger write requests.
 	//
@@ -147,6 +148,8 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 
 func (o *LookUpInodeOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.LookupResponse{}
+	bfResp = &resp
+
 	convertChildInodeEntry(&o.Entry, &resp)
 
 	o.commonOp.respond(&resp)
@@ -174,6 +177,7 @@ func (o *GetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 		Attr:      convertAttributes(o.Inode, o.Attributes),
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
 	}
+	bfResp = &resp
 
 	o.commonOp.respond(&resp)
 }
@@ -206,6 +210,7 @@ func (o *SetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 		Attr:      convertAttributes(o.Inode, o.Attributes),
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
 	}
+	bfResp = &resp
 
 	o.commonOp.respond(&resp)
 }
@@ -298,6 +303,8 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 
 func (o *MkDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.MkdirResponse{}
+	bfResp = &resp
+
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
 	o.commonOp.respond(&resp)
@@ -357,6 +364,8 @@ func (o *CreateFileOp) toBazilfuseResponse() (bfResp interface{}) {
 			Handle: bazilfuse.HandleID(o.Handle),
 		},
 	}
+	bfResp = &resp
+
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
 	o.commonOp.respond(&resp)
@@ -438,6 +447,7 @@ func (o *OpenDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.OpenResponse{
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
+	bfResp = &resp
 
 	o.commonOp.respond(&resp)
 }
@@ -536,6 +546,7 @@ func (o *ReadDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.ReadResponse{
 		Data: o.Data,
 	}
+	bfResp = &resp
 
 	o.commonOp.respond(&resp)
 }
@@ -594,6 +605,7 @@ func (o *OpenFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.OpenResponse{
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
+	bfResp = &resp
 
 	o.commonOp.respond(&resp)
 }
@@ -631,6 +643,7 @@ func (o *ReadFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.ReadResponse{
 		Data: o.Data,
 	}
+	bfResp = &resp
 
 	o.commonOp.respond(&resp)
 }
@@ -709,6 +722,7 @@ func (o *WriteFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.WriteResponse{
 		Size: len(o.Data),
 	}
+	bfResp = &resp
 
 	o.commonOp.respond(&resp)
 }
