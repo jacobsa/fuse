@@ -36,13 +36,24 @@ var fTraceByPID = flag.Bool(
 		"individual PID. Not a good idea to use in production; races, bugs, and "+
 		"resource leaks likely lurk.")
 
+// An interface that all ops inside which commonOp is embedded must
+// implement.
+type internalOp interface {
+	Op
+
+	// Convert to a bazilfuse response compatible with the Respond method on the
+	// wrapped bazilfuse request. If that Respond method takes no arguments,
+	// return nil.
+	toBazilfuseResponse() interface{}
+}
+
 // A helper for embedding common behavior.
 type commonOp struct {
 	// The context exposed to the user.
 	ctx context.Context
 
 	// The op in which this struct is embedded.
-	op Op
+	op internalOp
 
 	// The underlying bazilfuse request for this op.
 	bazilReq bazilfuse.Request
@@ -153,7 +164,7 @@ func (o *commonOp) ShortDesc() (desc string) {
 
 func (o *commonOp) init(
 	ctx context.Context,
-	op Op,
+	op internalOp,
 	bazilReq bazilfuse.Request,
 	log func(int, string, ...interface{}),
 	finished func(error)) {
@@ -196,15 +207,17 @@ func (o *commonOp) Logf(format string, v ...interface{}) {
 	o.log(calldepth, format, v...)
 }
 
-func (o *commonOp) respondErr(err error) {
-	if err == nil {
-		panic("Expect non-nil here.")
-	}
-
+func (o *commonOp) Respond(err error) {
 	// Don't forget to report back to the connection that we are finished.
 	defer o.finished(err)
 
-	// Log that we are finished.
+	// If successful, we should respond to bazilfuse with the appropriate struct.
+	if err == nil {
+		o.sendBazilfuseResponse(o.op.toBazilfuseResponse())
+		return
+	}
+
+	// Log the error.
 	o.Logf(
 		"-> (%s) error: %v",
 		o.op.ShortDesc(),
@@ -218,10 +231,7 @@ func (o *commonOp) respondErr(err error) {
 // method called Respond on o.bazilReq.
 //
 // Special case: nil means o.bazilReq.Respond accepts no parameters.
-func (o *commonOp) respond(resp interface{}) {
-	// Don't forget to report back to the connection that we are finished.
-	defer o.finished(nil)
-
+func (o *commonOp) sendBazilfuseResponse(resp interface{}) {
 	// Find the Respond method.
 	v := reflect.ValueOf(o.bazilReq)
 	respond := v.MethodByName("Respond")

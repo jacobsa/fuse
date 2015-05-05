@@ -64,13 +64,9 @@ type InitOp struct {
 	maxReadahead uint32
 }
 
-func (o *InitOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
+func (o *InitOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.InitResponse{}
+	bfResp = &resp
 
 	// Ask the Linux kernel for larger write requests.
 	//
@@ -111,8 +107,7 @@ func (o *InitOp) Respond(err error) {
 	// willing to give us.
 	resp.MaxReadahead = o.maxReadahead
 
-	// Respond.
-	o.commonOp.respond(&resp)
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -150,16 +145,13 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *LookUpInodeOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
+func (o *LookUpInodeOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.LookupResponse{}
+	bfResp = &resp
+
 	convertChildInodeEntry(&o.Entry, &resp)
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Refresh the attributes for an inode whose ID was previously returned in a
@@ -179,18 +171,14 @@ type GetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *GetInodeAttributesOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
+func (o *GetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.GetattrResponse{
 		Attr:      convertAttributes(o.Inode, o.Attributes),
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
 	}
+	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Change attributes for an inode.
@@ -216,18 +204,14 @@ type SetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *SetInodeAttributesOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
+func (o *SetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.SetattrResponse{
 		Attr:      convertAttributes(o.Inode, o.Attributes),
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
 	}
+	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Decrement the reference count for an inode ID previously issued by the file
@@ -279,13 +263,8 @@ type ForgetInodeOp struct {
 	N uint64
 }
 
-func (o *ForgetInodeOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
-	o.commonOp.respond(nil)
+func (o *ForgetInodeOp) toBazilfuseResponse() (bfResp interface{}) {
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -321,16 +300,13 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *MkDirOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
+func (o *MkDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.MkdirResponse{}
+	bfResp = &resp
+
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Create a file inode and open it.
@@ -381,20 +357,17 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *CreateFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
+func (o *CreateFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.CreateResponse{
 		OpenResponse: bazilfuse.OpenResponse{
 			Handle: bazilfuse.HandleID(o.Handle),
 		},
 	}
+	bfResp = &resp
+
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -417,13 +390,8 @@ type RmDirOp struct {
 	Name   string
 }
 
-func (o *RmDirOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
-	o.commonOp.respond(nil)
+func (o *RmDirOp) toBazilfuseResponse() (bfResp interface{}) {
+	return
 }
 
 // Unlink a file from its parent. If this brings the inode's link count to
@@ -440,13 +408,8 @@ type UnlinkOp struct {
 	Name   string
 }
 
-func (o *UnlinkOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
-	o.commonOp.respond(nil)
+func (o *UnlinkOp) toBazilfuseResponse() (bfResp interface{}) {
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -479,17 +442,13 @@ type OpenDirOp struct {
 	Handle HandleID
 }
 
-func (o *OpenDirOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
+func (o *OpenDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.OpenResponse{
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
+	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Read entries from a directory previously opened with OpenDir.
@@ -582,17 +541,13 @@ type ReadDirOp struct {
 	Data []byte
 }
 
-func (o *ReadDirOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
+func (o *ReadDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.ReadResponse{
 		Data: o.Data,
 	}
+	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Release a previously-minted directory handle. The kernel sends this when
@@ -612,13 +567,8 @@ type ReleaseDirHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseDirHandleOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
-	o.commonOp.respond(nil)
+func (o *ReleaseDirHandleOp) toBazilfuseResponse() (bfResp interface{}) {
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -650,17 +600,13 @@ type OpenFileOp struct {
 	Handle HandleID
 }
 
-func (o *OpenFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
+func (o *OpenFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.OpenResponse{
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
+	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Read data from a file previously opened with CreateFile or OpenFile.
@@ -692,17 +638,13 @@ type ReadFileOp struct {
 	Data []byte
 }
 
-func (o *ReadFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
+func (o *ReadFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.ReadResponse{
 		Data: o.Data,
 	}
+	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Write data to a file previously opened with CreateFile or OpenFile.
@@ -775,17 +717,13 @@ type WriteFileOp struct {
 	Data []byte
 }
 
-func (o *WriteFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
+func (o *WriteFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.WriteResponse{
 		Size: len(o.Data),
 	}
+	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Synchronize the current contents of an open file to storage.
@@ -812,13 +750,8 @@ type SyncFileOp struct {
 	Handle HandleID
 }
 
-func (o *SyncFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
-	o.commonOp.respond(nil)
+func (o *SyncFileOp) toBazilfuseResponse() (bfResp interface{}) {
+	return
 }
 
 // Flush the current state of an open file to storage upon closing a file
@@ -876,13 +809,8 @@ type FlushFileOp struct {
 	Handle HandleID
 }
 
-func (o *FlushFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
-	o.commonOp.respond(nil)
+func (o *FlushFileOp) toBazilfuseResponse() (bfResp interface{}) {
+	return
 }
 
 // Release a previously-minted file handle. The kernel calls this when there
@@ -902,11 +830,6 @@ type ReleaseFileHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseFileHandleOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
-	o.commonOp.respond(nil)
+func (o *ReleaseFileHandleOp) toBazilfuseResponse() (bfResp interface{}) {
+	return
 }
