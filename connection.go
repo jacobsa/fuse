@@ -85,13 +85,21 @@ func (c *Connection) log(
 	c.logger.Println(msg)
 }
 
-// Set up state for an op that is about to be returned to the user.
-func (c *Connection) beginOp() {
+// Set up state for an op that is about to be returned to the user, given its
+// bazilfuse request ID.
+//
+// Return a context that should be used for the op.
+func (c *Connection) beginOp(reqID bazilfuse.RequestID) (ctx context.Context) {
 	c.opsInFlight.Add(1)
+
+	// TODO(jacobsa): Use WithCancel and stash a cancellation function.
+	ctx = c.parentCtx
+
+	return
 }
 
 // Clean up all state associated with an op to which the user has responded.
-func (c *Connection) finishOp() {
+func (c *Connection) finishOp(reqID bazilfuse.RequestID) {
 	c.opsInFlight.Done()
 }
 
