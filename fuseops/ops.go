@@ -65,11 +65,6 @@ type InitOp struct {
 }
 
 func (o *InitOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	resp := bazilfuse.InitResponse{}
 
 	// Ask the Linux kernel for larger write requests.
@@ -151,11 +146,6 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 }
 
 func (o *LookUpInodeOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	resp := bazilfuse.LookupResponse{}
 	convertChildInodeEntry(&o.Entry, &resp)
 
@@ -180,11 +170,6 @@ type GetInodeAttributesOp struct {
 }
 
 func (o *GetInodeAttributesOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	resp := bazilfuse.GetattrResponse{
 		Attr:      convertAttributes(o.Inode, o.Attributes),
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
@@ -217,11 +202,6 @@ type SetInodeAttributesOp struct {
 }
 
 func (o *SetInodeAttributesOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	resp := bazilfuse.SetattrResponse{
 		Attr:      convertAttributes(o.Inode, o.Attributes),
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
@@ -280,11 +260,6 @@ type ForgetInodeOp struct {
 }
 
 func (o *ForgetInodeOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	o.commonOp.respond(nil)
 }
 
@@ -322,11 +297,6 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 }
 
 func (o *MkDirOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	resp := bazilfuse.MkdirResponse{}
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
@@ -382,11 +352,6 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 }
 
 func (o *CreateFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	resp := bazilfuse.CreateResponse{
 		OpenResponse: bazilfuse.OpenResponse{
 			Handle: bazilfuse.HandleID(o.Handle),
@@ -418,11 +383,6 @@ type RmDirOp struct {
 }
 
 func (o *RmDirOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	o.commonOp.respond(nil)
 }
 
@@ -441,11 +401,6 @@ type UnlinkOp struct {
 }
 
 func (o *UnlinkOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	o.commonOp.respond(nil)
 }
 
@@ -480,11 +435,6 @@ type OpenDirOp struct {
 }
 
 func (o *OpenDirOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	resp := bazilfuse.OpenResponse{
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
@@ -583,11 +533,6 @@ type ReadDirOp struct {
 }
 
 func (o *ReadDirOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	resp := bazilfuse.ReadResponse{
 		Data: o.Data,
 	}
@@ -613,11 +558,6 @@ type ReleaseDirHandleOp struct {
 }
 
 func (o *ReleaseDirHandleOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	o.commonOp.respond(nil)
 }
 
@@ -651,11 +591,6 @@ type OpenFileOp struct {
 }
 
 func (o *OpenFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	resp := bazilfuse.OpenResponse{
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
@@ -693,11 +628,6 @@ type ReadFileOp struct {
 }
 
 func (o *ReadFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	resp := bazilfuse.ReadResponse{
 		Data: o.Data,
 	}
@@ -776,11 +706,6 @@ type WriteFileOp struct {
 }
 
 func (o *WriteFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	resp := bazilfuse.WriteResponse{
 		Size: len(o.Data),
 	}
@@ -813,11 +738,6 @@ type SyncFileOp struct {
 }
 
 func (o *SyncFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	o.commonOp.respond(nil)
 }
 
@@ -877,11 +797,6 @@ type FlushFileOp struct {
 }
 
 func (o *FlushFileOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	o.commonOp.respond(nil)
 }
 
@@ -903,10 +818,5 @@ type ReleaseFileHandleOp struct {
 }
 
 func (o *ReleaseFileHandleOp) Respond(err error) {
-	if err != nil {
-		o.commonOp.respondErr(err)
-		return
-	}
-
 	o.commonOp.respond(nil)
 }
