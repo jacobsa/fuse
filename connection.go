@@ -15,17 +15,28 @@
 package fuse
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"path"
 	"runtime"
 	"sync"
+	"time"
 
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 
 	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/reqtrace"
 )
+
+var fTraceByPID = flag.Bool(
+	"fuse.trace_by_pid",
+	false,
+	"Enable a hacky mode that uses reqtrace to group all ops from each "+
+		"individual PID. Not a good idea to use in production; races, bugs, and "+
+		"resource leaks likely lurk.")
 
 // A connection to the fuse kernel process.
 type Connection struct {
@@ -46,6 +57,11 @@ type Connection struct {
 	//
 	// GUARDED_BY(mu)
 	cancelFuncs map[bazilfuse.RequestID]func()
+
+	// A map from PID to a traced context for that PID.
+	//
+	// GUARDED_BY(mu)
+	pidMap map[int]context.Context
 }
 
 // Responsibility for closing the wrapped connection is transferred to the
@@ -59,6 +75,7 @@ func newConnection(
 		wrapped:     wrapped,
 		parentCtx:   parentCtx,
 		cancelFuncs: make(map[bazilfuse.RequestID]func()),
+		pidMap:      make(map[int]context.Context),
 	}
 
 	return
@@ -108,6 +125,85 @@ func (c *Connection) recordCancelFunc(
 	c.cancelFuncs[reqID] = f
 }
 
+// Wait until the process completes, then close off the trace and remove the
+// context from the map.
+//
+// LOCKS_EXCLUDED(c.mu)
+func (c *Connection) reportWhenPIDGone(
+	pid int,
+	ctx context.Context,
+	report reqtrace.ReportFunc) {
+	// HACK(jacobsa): Poll until the process no longer exists.
+	const pollPeriod = 50 * time.Millisecond
+	for {
+		// The man page for kill(2) says that if the signal is zero, then "no
+		// signal is sent, but error checking is still performed; this can be used
+		// to check for the existence of a process ID".
+		err := unix.Kill(pid, 0)
+
+		// ESRCH means the process is gone.
+		if err == unix.ESRCH {
+			break
+		}
+
+		// If we receive EPERM, we're not going to be able to do what we want. We
+		// don't really have any choice but to print info and leak.
+		if err == unix.EPERM {
+			log.Printf("Failed to kill(2) PID %v; no permissions. Leaking trace.", pid)
+			return
+		}
+
+		// Otherwise, panic.
+		if err != nil {
+			panic(fmt.Errorf("Kill(%v): %v", pid, err))
+		}
+
+		time.Sleep(pollPeriod)
+	}
+
+	// Finish up.
+	report(nil)
+
+	c.mu.Lock()
+	delete(c.pidMap, pid)
+	c.mu.Unlock()
+}
+
+// Set up a hacky per-PID trace context, if enabled. Either way, return a
+// context from which an operation should inherit.
+//
+// See notes on fTraceByPID.
+//
+// LOCKS_EXCLUDED(c.mu)
+func (c *Connection) maybeTraceByPID(
+	pid int) (ctx context.Context) {
+	ctx = c.parentCtx
+
+	// Is there anything to do?
+	if !reqtrace.Enabled() || !*fTraceByPID {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Do we already have a traced context for this PID?
+	if existing, ok := c.pidMap[pid]; ok {
+		ctx = existing
+		return
+	}
+
+	// Set up a new one and stick it in the map.
+	var report reqtrace.ReportFunc
+	ctx, report = reqtrace.Trace(ctx, fmt.Sprintf("Requests from PID %v", pid))
+	c.pidMap[pid] = ctx
+
+	// Ensure we close the trace and remove it from the map eventually.
+	go c.reportWhenPIDGone(pid, ctx, report)
+
+	return
+}
+
 // Set up state for an op that is about to be returned to the user, given its
 // underlying bazilfuse request.
 //
@@ -121,6 +217,9 @@ func (c *Connection) beginOp(
 	// Note that the op is in flight.
 	c.opsInFlight.Add(1)
 
+	// Choose a parent context.
+	ctx = c.maybeTraceByPID(int(bfReq.Hdr().Pid))
+
 	// Set up a cancellation function.
 	//
 	// Special case: On Darwin, osxfuse appears to aggressively reuse "unique"
@@ -129,7 +228,6 @@ func (c *Connection) beginOp(
 	// for reuse. For these, we should not record any state keyed on their ID.
 	//
 	// Cf. https://github.com/osxfuse/osxfuse/issues/208
-	ctx = c.parentCtx
 	if _, ok := bfReq.(*bazilfuse.ForgetRequest); !ok {
 		var cancel func()
 		ctx, cancel = context.WithCancel(ctx)

@@ -15,26 +15,14 @@
 package fuseops
 
 import (
-	"flag"
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
-	"golang.org/x/sys/unix"
 )
-
-var fTraceByPID = flag.Bool(
-	"fuse.trace_by_pid",
-	false,
-	"Enable a hacky mode that uses reqtrace to group all ops from each "+
-		"individual PID. Not a good idea to use in production; races, bugs, and "+
-		"resource leaks likely lurk.")
 
 // An interface that all ops inside which commonOp is embedded must
 // implement.
@@ -67,84 +55,6 @@ type commonOp struct {
 	finished func(error)
 }
 
-var gPIDMapMu sync.Mutex
-
-// A map from PID to a traced context for that PID.
-//
-// GUARDED_BY(gPIDMapMu)
-var gPIDMap = make(map[int]context.Context)
-
-// Wait until the process completes, then close off the trace and remove the
-// context from the map.
-func reportWhenPIDGone(
-	pid int,
-	ctx context.Context,
-	report reqtrace.ReportFunc) {
-	// HACK(jacobsa): Poll until the process no longer exists.
-	const pollPeriod = 50 * time.Millisecond
-	for {
-		// The man page for kill(2) says that if the signal is zero, then "no
-		// signal is sent, but error checking is still performed; this can be used
-		// to check for the existence of a process ID".
-		err := unix.Kill(pid, 0)
-
-		// ESRCH means the process is gone.
-		if err == unix.ESRCH {
-			break
-		}
-
-		// If we receive EPERM, we're not going to be able to do what we want. We
-		// don't really have any choice but to print info and leak.
-		if err == unix.EPERM {
-			log.Printf("Failed to kill(2) PID %v; no permissions. Leaking trace.", pid)
-			return
-		}
-
-		// Otherwise, panic.
-		if err != nil {
-			panic(fmt.Errorf("Kill(%v): %v", pid, err))
-		}
-
-		time.Sleep(pollPeriod)
-	}
-
-	// Finish up.
-	report(nil)
-
-	gPIDMapMu.Lock()
-	delete(gPIDMap, pid)
-	gPIDMapMu.Unlock()
-}
-
-func (o *commonOp) maybeTraceByPID(
-	in context.Context,
-	pid int) (out context.Context) {
-	// Is there anything to do?
-	if !reqtrace.Enabled() || !*fTraceByPID {
-		out = in
-		return
-	}
-
-	gPIDMapMu.Lock()
-	defer gPIDMapMu.Unlock()
-
-	// Do we already have a traced context for this PID?
-	if existing, ok := gPIDMap[pid]; ok {
-		out = existing
-		return
-	}
-
-	// Set up a new one and stick it in the map.
-	var report reqtrace.ReportFunc
-	out, report = reqtrace.Trace(in, fmt.Sprintf("Requests from PID %v", pid))
-	gPIDMap[pid] = out
-
-	// Ensure we close the trace and remove it from the map eventually.
-	go reportWhenPIDGone(pid, out, report)
-
-	return
-}
-
 func (o *commonOp) ShortDesc() (desc string) {
 	opName := reflect.TypeOf(o.op).String()
 
@@ -174,9 +84,6 @@ func (o *commonOp) init(
 	o.bazilReq = bazilReq
 	o.log = log
 	o.finished = finished
-
-	// Set up a context that reflects per-PID tracing if appropriate.
-	o.ctx = o.maybeTraceByPID(o.ctx, int(bazilReq.Hdr().Pid))
 
 	// Set up a trace span for this op.
 	var reportForTrace reqtrace.ReportFunc
