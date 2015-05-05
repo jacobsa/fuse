@@ -64,7 +64,7 @@ type InitOp struct {
 	maxReadahead uint32
 }
 
-func (o *InitOp) Respond(err error) {
+func (o *InitOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.InitResponse{}
 
 	// Ask the Linux kernel for larger write requests.
@@ -145,7 +145,7 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *LookUpInodeOp) Respond(err error) {
+func (o *LookUpInodeOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.LookupResponse{}
 	convertChildInodeEntry(&o.Entry, &resp)
 
@@ -169,7 +169,7 @@ type GetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *GetInodeAttributesOp) Respond(err error) {
+func (o *GetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.GetattrResponse{
 		Attr:      convertAttributes(o.Inode, o.Attributes),
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
@@ -201,7 +201,7 @@ type SetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *SetInodeAttributesOp) Respond(err error) {
+func (o *SetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.SetattrResponse{
 		Attr:      convertAttributes(o.Inode, o.Attributes),
 		AttrValid: convertExpirationTime(o.AttributesExpiration),
@@ -259,7 +259,7 @@ type ForgetInodeOp struct {
 	N uint64
 }
 
-func (o *ForgetInodeOp) Respond(err error) {
+func (o *ForgetInodeOp) toBazilfuseResponse() (bfResp interface{}) {
 	o.commonOp.respond(nil)
 }
 
@@ -296,7 +296,7 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *MkDirOp) Respond(err error) {
+func (o *MkDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.MkdirResponse{}
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
@@ -351,7 +351,7 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *CreateFileOp) Respond(err error) {
+func (o *CreateFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.CreateResponse{
 		OpenResponse: bazilfuse.OpenResponse{
 			Handle: bazilfuse.HandleID(o.Handle),
@@ -382,7 +382,7 @@ type RmDirOp struct {
 	Name   string
 }
 
-func (o *RmDirOp) Respond(err error) {
+func (o *RmDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	o.commonOp.respond(nil)
 }
 
@@ -400,7 +400,7 @@ type UnlinkOp struct {
 	Name   string
 }
 
-func (o *UnlinkOp) Respond(err error) {
+func (o *UnlinkOp) toBazilfuseResponse() (bfResp interface{}) {
 	o.commonOp.respond(nil)
 }
 
@@ -434,7 +434,7 @@ type OpenDirOp struct {
 	Handle HandleID
 }
 
-func (o *OpenDirOp) Respond(err error) {
+func (o *OpenDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.OpenResponse{
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
@@ -532,7 +532,7 @@ type ReadDirOp struct {
 	Data []byte
 }
 
-func (o *ReadDirOp) Respond(err error) {
+func (o *ReadDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.ReadResponse{
 		Data: o.Data,
 	}
@@ -557,7 +557,7 @@ type ReleaseDirHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseDirHandleOp) Respond(err error) {
+func (o *ReleaseDirHandleOp) toBazilfuseResponse() (bfResp interface{}) {
 	o.commonOp.respond(nil)
 }
 
@@ -590,7 +590,7 @@ type OpenFileOp struct {
 	Handle HandleID
 }
 
-func (o *OpenFileOp) Respond(err error) {
+func (o *OpenFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.OpenResponse{
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
@@ -627,7 +627,7 @@ type ReadFileOp struct {
 	Data []byte
 }
 
-func (o *ReadFileOp) Respond(err error) {
+func (o *ReadFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.ReadResponse{
 		Data: o.Data,
 	}
@@ -705,7 +705,7 @@ type WriteFileOp struct {
 	Data []byte
 }
 
-func (o *WriteFileOp) Respond(err error) {
+func (o *WriteFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.WriteResponse{
 		Size: len(o.Data),
 	}
@@ -737,7 +737,7 @@ type SyncFileOp struct {
 	Handle HandleID
 }
 
-func (o *SyncFileOp) Respond(err error) {
+func (o *SyncFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	o.commonOp.respond(nil)
 }
 
@@ -796,7 +796,7 @@ type FlushFileOp struct {
 	Handle HandleID
 }
 
-func (o *FlushFileOp) Respond(err error) {
+func (o *FlushFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	o.commonOp.respond(nil)
 }
 
@@ -817,6 +817,6 @@ type ReleaseFileHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseFileHandleOp) Respond(err error) {
+func (o *ReleaseFileHandleOp) toBazilfuseResponse() (bfResp interface{}) {
 	o.commonOp.respond(nil)
 }
