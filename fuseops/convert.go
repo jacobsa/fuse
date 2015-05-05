@@ -25,9 +25,12 @@ import (
 // This function is an implementation detail of the fuse package, and must not
 // be called by anyone else.
 //
-// Convert the supplied bazilfuse request struct to an Op, returning nil if it
-// is unknown. finished will be called with the error supplied to o.Respond
-// when the user invokes that method.
+// Convert the supplied bazilfuse request struct to an Op. finished will be
+// called with the error supplied to o.Respond when the user invokes that
+// method.
+//
+// It is guaranteed that o != nil. If the op is unknown, a special unexported
+// type will be used.
 func Convert(
 	opCtx context.Context,
 	r bazilfuse.Request,
