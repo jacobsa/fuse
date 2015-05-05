@@ -216,7 +216,9 @@ func Convert(
 		co = &to.commonOp
 
 	default:
-		return
+		to := &unknownOp{}
+		io = to
+		co = &to.commonOp
 	}
 
 	co.init(opCtx, io, r, logForOp, finished)
