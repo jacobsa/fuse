@@ -96,7 +96,16 @@ func (c *Connection) log(
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) recordCancelFunc(
 	reqID bazilfuse.RequestID,
-	f func())
+	f func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if _, ok := c.cancelFuncs[reqID]; ok {
+		panic(fmt.Sprintf("Already have cancel func for request %v", reqID))
+	}
+
+	c.cancelFuncs[reqID] = f
+}
 
 // Set up state for an op that is about to be returned to the user, given its
 // bazilfuse request ID.
