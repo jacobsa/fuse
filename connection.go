@@ -127,7 +127,7 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			continue
 		}
 
-		// Convert it, if possible.
+		// Convert it.
 		logForOp := func(calldepth int, format string, v ...interface{}) {
 			c.log(opID, calldepth+1, format, v...)
 		}
@@ -135,12 +135,6 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		finished := func(err error) { c.finishOp() }
 
 		op = fuseops.Convert(c.parentCtx, bfReq, logForOp, finished)
-		if op == nil {
-			c.log(opID, 1, "-> ENOSYS: %v", bfReq)
-			bfReq.RespondError(ENOSYS)
-			continue
-		}
-
 		c.beginOp()
 		return
 	}

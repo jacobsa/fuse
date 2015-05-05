@@ -40,10 +40,11 @@ type Op interface {
 	Context() context.Context
 
 	// Repond to the operation with the supplied error. If there is no error, set
-	// any necessary output fields and then call Respond(nil).
+	// any necessary output fields and then call Respond(nil). The user must not
+	// call with a nil error for unrecognized ops; instead, use ENOSYS.
 	//
-	// Once this is invoked, you must exclude any further calls to any method of
-	// this op.
+	// Once this is invoked, the user must exclude any further calls to any
+	// method of this op.
 	Respond(error)
 
 	// Log information tied to this operation, with semantics equivalent to
@@ -832,4 +833,14 @@ type ReleaseFileHandleOp struct {
 
 func (o *ReleaseFileHandleOp) toBazilfuseResponse() (bfResp interface{}) {
 	return
+}
+
+// A sentinel used for unknown ops. The user is expected to respond with a
+// non-nil error.
+type unknownOp struct {
+	commonOp
+}
+
+func (o *unknownOp) toBazilfuseResponse() (bfResp interface{}) {
+	panic(fmt.Sprintf("Should never get here for unknown op: %s", o.ShortDesc()))
 }
