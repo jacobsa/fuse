@@ -27,7 +27,7 @@ import (
 //
 // Convert the supplied bazilfuse request struct to an Op. finished will be
 // called with the error supplied to o.Respond when the user invokes that
-// method.
+// method, before a response is sent to the kernel.
 //
 // It is guaranteed that o != nil. If the op is unknown, a special unexported
 // type will be used.
@@ -197,15 +197,17 @@ func Convert(
 	case *bazilfuse.FsyncRequest:
 		// We don't currently support this for directories.
 		if typed.Dir {
-			return
+			to := &unknownOp{}
+			io = to
+			co = &to.commonOp
+		} else {
+			to := &SyncFileOp{
+				Inode:  InodeID(typed.Header.Node),
+				Handle: HandleID(typed.Handle),
+			}
+			io = to
+			co = &to.commonOp
 		}
-
-		to := &SyncFileOp{
-			Inode:  InodeID(typed.Header.Node),
-			Handle: HandleID(typed.Handle),
-		}
-		io = to
-		co = &to.commonOp
 
 	case *bazilfuse.FlushRequest:
 		to := &FlushFileOp{

@@ -208,8 +208,8 @@ func (o *commonOp) Logf(format string, v ...interface{}) {
 }
 
 func (o *commonOp) Respond(err error) {
-	// Don't forget to report back to the connection that we are finished.
-	defer o.finished(err)
+	// Report that the user is responding.
+	o.finished(err)
 
 	// If successful, we should respond to bazilfuse with the appropriate struct.
 	if err == nil {
