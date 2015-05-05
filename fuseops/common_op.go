@@ -201,6 +201,10 @@ func (o *commonOp) respondErr(err error) {
 		panic("Expect non-nil here.")
 	}
 
+	// Don't forget to report back to the connection that we are finished.
+	defer o.finished(err)
+
+	// Log that we are finished.
 	o.Logf(
 		"-> (%s) error: %v",
 		o.op.ShortDesc(),
@@ -208,9 +212,6 @@ func (o *commonOp) respondErr(err error) {
 
 	// Send a response to the kernel.
 	o.bazilReq.RespondError(err)
-
-	// Report back to the connection that we are finished.
-	o.finished(err)
 }
 
 // Respond with the supplied response struct, which must be accepted by a
@@ -218,6 +219,9 @@ func (o *commonOp) respondErr(err error) {
 //
 // Special case: nil means o.bazilReq.Respond accepts no parameters.
 func (o *commonOp) respond(resp interface{}) {
+	// Don't forget to report back to the connection that we are finished.
+	defer o.finished(nil)
+
 	// Find the Respond method.
 	v := reflect.ValueOf(o.bazilReq)
 	respond := v.MethodByName("Respond")
@@ -232,7 +236,4 @@ func (o *commonOp) respond(resp interface{}) {
 	// Otherwise, send the response struct to the kernel.
 	o.Logf("-> %v", resp)
 	respond.Call([]reflect.Value{reflect.ValueOf(resp)})
-
-	// Report back to the connection that we are finished.
-	o.finished(nil)
 }
