@@ -107,8 +107,7 @@ func (o *InitOp) toBazilfuseResponse() (bfResp interface{}) {
 	// willing to give us.
 	resp.MaxReadahead = o.maxReadahead
 
-	// Respond.
-	o.commonOp.respond(&resp)
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -152,7 +151,7 @@ func (o *LookUpInodeOp) toBazilfuseResponse() (bfResp interface{}) {
 
 	convertChildInodeEntry(&o.Entry, &resp)
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Refresh the attributes for an inode whose ID was previously returned in a
@@ -179,7 +178,7 @@ func (o *GetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 	}
 	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Change attributes for an inode.
@@ -212,7 +211,7 @@ func (o *SetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 	}
 	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Decrement the reference count for an inode ID previously issued by the file
@@ -265,7 +264,7 @@ type ForgetInodeOp struct {
 }
 
 func (o *ForgetInodeOp) toBazilfuseResponse() (bfResp interface{}) {
-	o.commonOp.respond(nil)
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -307,7 +306,7 @@ func (o *MkDirOp) toBazilfuseResponse() (bfResp interface{}) {
 
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Create a file inode and open it.
@@ -368,7 +367,7 @@ func (o *CreateFileOp) toBazilfuseResponse() (bfResp interface{}) {
 
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -392,7 +391,7 @@ type RmDirOp struct {
 }
 
 func (o *RmDirOp) toBazilfuseResponse() (bfResp interface{}) {
-	o.commonOp.respond(nil)
+	return
 }
 
 // Unlink a file from its parent. If this brings the inode's link count to
@@ -410,7 +409,7 @@ type UnlinkOp struct {
 }
 
 func (o *UnlinkOp) toBazilfuseResponse() (bfResp interface{}) {
-	o.commonOp.respond(nil)
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -449,7 +448,7 @@ func (o *OpenDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	}
 	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Read entries from a directory previously opened with OpenDir.
@@ -548,7 +547,7 @@ func (o *ReadDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	}
 	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Release a previously-minted directory handle. The kernel sends this when
@@ -569,7 +568,7 @@ type ReleaseDirHandleOp struct {
 }
 
 func (o *ReleaseDirHandleOp) toBazilfuseResponse() (bfResp interface{}) {
-	o.commonOp.respond(nil)
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -607,7 +606,7 @@ func (o *OpenFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	}
 	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Read data from a file previously opened with CreateFile or OpenFile.
@@ -645,7 +644,7 @@ func (o *ReadFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	}
 	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Write data to a file previously opened with CreateFile or OpenFile.
@@ -724,7 +723,7 @@ func (o *WriteFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	}
 	bfResp = &resp
 
-	o.commonOp.respond(&resp)
+	return
 }
 
 // Synchronize the current contents of an open file to storage.
@@ -752,7 +751,7 @@ type SyncFileOp struct {
 }
 
 func (o *SyncFileOp) toBazilfuseResponse() (bfResp interface{}) {
-	o.commonOp.respond(nil)
+	return
 }
 
 // Flush the current state of an open file to storage upon closing a file
@@ -811,7 +810,7 @@ type FlushFileOp struct {
 }
 
 func (o *FlushFileOp) toBazilfuseResponse() (bfResp interface{}) {
-	o.commonOp.respond(nil)
+	return
 }
 
 // Release a previously-minted file handle. The kernel calls this when there
@@ -832,5 +831,5 @@ type ReleaseFileHandleOp struct {
 }
 
 func (o *ReleaseFileHandleOp) toBazilfuseResponse() (bfResp interface{}) {
-	o.commonOp.respond(nil)
+	return
 }
