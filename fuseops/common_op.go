@@ -180,7 +180,7 @@ func (o *commonOp) init(
 
 	// Set up a trace span for this op.
 	var reportForTrace reqtrace.ReportFunc
-	o.ctx, reportForTrace = reqtrace.StartSpan(ctx, o.op.ShortDesc())
+	o.ctx, reportForTrace = reqtrace.StartSpan(o.ctx, o.op.ShortDesc())
 
 	// When the op is finished, report to both reqtrace and the connection.
 	prevFinish := o.finished
