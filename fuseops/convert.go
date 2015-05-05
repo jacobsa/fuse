@@ -27,7 +27,7 @@ import (
 //
 // Convert the supplied bazilfuse request struct to an Op. finished will be
 // called with the error supplied to o.Respond when the user invokes that
-// method.
+// method, before a response is sent to the kernel.
 //
 // It is guaranteed that o != nil. If the op is unknown, a special unexported
 // type will be used.

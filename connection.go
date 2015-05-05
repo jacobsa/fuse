@@ -140,7 +140,9 @@ func (c *Connection) beginOp(
 }
 
 // Clean up all state associated with an op to which the user has responded,
-// given its underlying bazilfuse request.
+// given its underlying bazilfuse request. This must be called before a
+// response is sent to the kernel, to avoid a race where the request's ID might
+// be reused by osxfuse.
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) finishOp(bfReq bazilfuse.Request) {
