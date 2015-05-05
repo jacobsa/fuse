@@ -207,15 +207,17 @@ func (o *commonOp) Logf(format string, v ...interface{}) {
 	o.log(calldepth, format, v...)
 }
 
-func (o *commonOp) respondErr(err error) {
-	if err == nil {
-		panic("Expect non-nil here.")
-	}
-
+func (o *commonOp) Respond(err error) {
 	// Don't forget to report back to the connection that we are finished.
 	defer o.finished(err)
 
-	// Log that we are finished.
+	// If successful, we should respond to bazilfuse with the appropriate struct.
+	if err == nil {
+		o.sendBazilfuseResponse(o.op.toBazilfuseResponse())
+		return
+	}
+
+	// Log the error.
 	o.Logf(
 		"-> (%s) error: %v",
 		o.op.ShortDesc(),
@@ -229,10 +231,7 @@ func (o *commonOp) respondErr(err error) {
 // method called Respond on o.bazilReq.
 //
 // Special case: nil means o.bazilReq.Respond accepts no parameters.
-func (o *commonOp) respond(resp interface{}) {
-	// Don't forget to report back to the connection that we are finished.
-	defer o.finished(nil)
-
+func (o *commonOp) sendBazilfuseResponse(resp interface{}) {
 	// Find the Respond method.
 	v := reflect.ValueOf(o.bazilReq)
 	respond := v.MethodByName("Respond")
