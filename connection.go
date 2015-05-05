@@ -86,10 +86,14 @@ func (c *Connection) log(
 }
 
 // Set up state for an op that is about to be returned to the user.
-func (c *Connection) beginOp()
+func (c *Connection) beginOp() {
+	c.opsInFlight.Add(1)
+}
 
 // Clean up all state associated with an op to which the user has responded.
-func (c *Connection) finishOp()
+func (c *Connection) finishOp() {
+	c.opsInFlight.Done()
+}
 
 // Read the next op from the kernel process. Return io.EOF if the kernel has
 // closed the connection.
