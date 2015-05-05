@@ -55,9 +55,10 @@ func newConnection(
 	logger *log.Logger,
 	wrapped *bazilfuse.Conn) (c *Connection, err error) {
 	c = &Connection{
-		logger:    logger,
-		wrapped:   wrapped,
-		parentCtx: parentCtx,
+		logger:      logger,
+		wrapped:     wrapped,
+		parentCtx:   parentCtx,
+		cancelFuncs: make(map[bazilfuse.RequestID]func()),
 	}
 
 	return
