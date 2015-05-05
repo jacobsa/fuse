@@ -109,12 +109,12 @@ func (c *Connection) finishOp(reqID bazilfuse.RequestID) {
 // This function delivers ops in exactly the order they are received from
 // /dev/fuse. It must not be called multiple times concurrently.
 func (c *Connection) ReadOp() (op fuseops.Op, err error) {
-	var bfReq bazilfuse.Request
-
 	// Keep going until we find a request we know how to convert.
 	for {
 		// Read a bazilfuse request.
+		var bfReq bazilfuse.Request
 		bfReq, err = c.wrapped.ReadRequest()
+
 		if err != nil {
 			return
 		}
@@ -135,15 +135,17 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			continue
 		}
 
-		// Convert it.
+		// Set up op dependencies.
+		var reqID bazilfuse.RequestID = bfReq.Hdr().ID
+		opCtx := c.beginOp(reqID)
+
 		logForOp := func(calldepth int, format string, v ...interface{}) {
 			c.log(opID, calldepth+1, format, v...)
 		}
 
-		finished := func(err error) { c.finishOp() }
+		finished := func(err error) { c.finishOp(reqID) }
 
-		op = fuseops.Convert(c.parentCtx, bfReq, logForOp, finished)
-		c.beginOp()
+		op = fuseops.Convert(opCtx, bfReq, logForOp, finished)
 		return
 	}
 }
