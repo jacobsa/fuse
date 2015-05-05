@@ -20,10 +20,12 @@ import (
 	"os/exec"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/interruptfs"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -82,15 +84,30 @@ func (t *InterruptFSTest) InterruptedDuringRead() {
 	err = cmd.Start()
 	AssertEq(nil, err)
 
+	// Wait for the command in the background, writing to a channel when it is
+	// finished.
+	cmdErr := make(chan error)
+	go func() {
+		cmdErr <- cmd.Wait()
+	}()
+
 	// Wait for the read to make it to the file system.
 	t.fs.WaitForReadInFlight()
+
+	// The command should be hanging on the read, and not yet have returned.
+	select {
+	case err = <-cmdErr:
+		AddFailure("Command returned early with error: %v", err)
+		AbortTest()
+
+	case <-time.After(150 * time.Millisecond):
+	}
 
 	// Send SIGINT.
 	cmd.Process.Signal(os.Interrupt)
 
-	// The command should return, with an appropriate error.
-	err = cmd.Wait()
-
-	AssertEq("TODO", err)
-	AssertEq("TODO", cmdOutput.String())
+	// Now the command should return, with an appropriate error.
+	err = <-cmdErr
+	ExpectThat(err, Error(HasSubstr("signal")))
+	ExpectThat(err, Error(HasSubstr("interrupt")))
 }
