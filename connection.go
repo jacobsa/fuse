@@ -171,6 +171,30 @@ func (c *Connection) finishOp(bfReq bazilfuse.Request) {
 	c.opsInFlight.Done()
 }
 
+// LOCKS_EXCLUDED(c.mu)
+func (c *Connection) handleInterrupt(req *bazilfuse.InterruptRequest) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// NOTE(jacobsa): fuse.txt in the Linux kernel documentation
+	// (https://goo.gl/H55Dnr) defines the kernel <-> userspace protocol for
+	// interrupts.
+	//
+	// In particular, my reading of it is that an interrupt request cannot be
+	// delivered to userspace before the original request. The part about the
+	// race and EAGAIN appears to be aimed at userspace programs that
+	// concurrently process requests.
+	//
+	// So in this method we assume that if we can't find the ID to be
+	// interrupted, it means that the request has already been replied to.
+	cancel, ok := c.cancelFuncs[req.IntrID]
+	if !ok {
+		return
+	}
+
+	cancel()
+}
+
 // Read the next op from the kernel process. Return io.EOF if the kernel has
 // closed the connection.
 //
@@ -196,12 +220,18 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		// Log the receipt of the operation.
 		c.log(opID, 1, "<- %v", bfReq)
 
-		// Special case: responding to this is required to make mounting work on OS
-		// X. We don't currently expose the capability for the file system to
+		// Special case: responding to statfs is required to make mounting work on
+		// OS X. We don't currently expose the capability for the file system to
 		// intercept this.
 		if statfsReq, ok := bfReq.(*bazilfuse.StatfsRequest); ok {
 			c.log(opID, 1, "-> (Statfs) OK")
 			statfsReq.Respond(&bazilfuse.StatfsResponse{})
+			continue
+		}
+
+		// Special case: handle interrupt requests.
+		if interruptReq, ok := bfReq.(*bazilfuse.InterruptRequest); ok {
+			c.handleInterrupt(interruptReq)
 			continue
 		}
 
