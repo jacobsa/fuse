@@ -109,39 +109,61 @@ func (c *Connection) recordCancelFunc(
 }
 
 // Set up state for an op that is about to be returned to the user, given its
-// bazilfuse request ID.
+// underlying bazilfuse request.
 //
 // Return a context that should be used for the op.
 //
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) beginOp(reqID bazilfuse.RequestID) (ctx context.Context) {
+func (c *Connection) beginOp(
+	bfReq bazilfuse.Request) (ctx context.Context) {
+	reqID := bfReq.Hdr().ID
+
 	// Note that the op is in flight.
 	c.opsInFlight.Add(1)
 
 	// Set up a cancellation function.
-	ctx, cancel := context.WithCancel(c.parentCtx)
-	c.recordCancelFunc(reqID, cancel)
+	//
+	// Special case: On Darwin, osxfuse appears to aggressively reuse "unique"
+	// request IDs. This matters for Forget requests, which have no reply
+	// associated and therefore appear to have IDs that are immediately eligible
+	// for reuse. For these, we should not record any state keyed on their ID.
+	//
+	// Cf. https://github.com/osxfuse/osxfuse/issues/208
+	ctx = c.parentCtx
+	if _, ok := bfReq.(*bazilfuse.ForgetRequest); !ok {
+		var cancel func()
+		ctx, cancel = context.WithCancel(ctx)
+		c.recordCancelFunc(reqID, cancel)
+	}
 
 	return
 }
 
-// Clean up all state associated with an op to which the user has responded.
+// Clean up all state associated with an op to which the user has responded,
+// given its underlying bazilfuse request.
 //
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) finishOp(reqID bazilfuse.RequestID) {
+func (c *Connection) finishOp(bfReq bazilfuse.Request) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	reqID := bfReq.Hdr().ID
 
 	// Even though the op is finished, context.WithCancel requires us to arrange
 	// for the cancellation function to be invoked. We also must remove it from
 	// our map.
-	cancel, ok := c.cancelFuncs[reqID]
-	if !ok {
-		panic(fmt.Sprintf("Unknown request ID in finishOp: %v", reqID))
-	}
+	//
+	// Special case: we don't do this for Forget requests. See the note in
+	// beginOp above.
+	if _, ok := bfReq.(*bazilfuse.ForgetRequest); !ok {
+		cancel, ok := c.cancelFuncs[reqID]
+		if !ok {
+			panic(fmt.Sprintf("Unknown request ID in finishOp: %v", reqID))
+		}
 
-	cancel()
-	delete(c.cancelFuncs, reqID)
+		cancel()
+		delete(c.cancelFuncs, reqID)
+	}
 
 	// Decrement the in-flight counter.
 	c.opsInFlight.Done()
@@ -182,14 +204,13 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		}
 
 		// Set up op dependencies.
-		var reqID bazilfuse.RequestID = bfReq.Hdr().ID
-		opCtx := c.beginOp(reqID)
+		opCtx := c.beginOp(bfReq)
 
 		logForOp := func(calldepth int, format string, v ...interface{}) {
 			c.log(opID, calldepth+1, format, v...)
 		}
 
-		finished := func(err error) { c.finishOp(reqID) }
+		finished := func(err error) { c.finishOp(bfReq) }
 
 		op = fuseops.Convert(opCtx, bfReq, logForOp, finished)
 		return
