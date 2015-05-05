@@ -100,7 +100,7 @@ func (t *InterruptFSTest) InterruptedDuringRead() {
 		AddFailure("Command returned early with error: %v", err)
 		AbortTest()
 
-	case <-time.After(150 * time.Millisecond):
+	case <-time.After(10 * time.Millisecond):
 	}
 
 	// Send SIGINT.
