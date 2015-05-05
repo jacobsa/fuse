@@ -36,6 +36,17 @@ var fTraceByPID = flag.Bool(
 		"individual PID. Not a good idea to use in production; races, bugs, and "+
 		"resource leaks likely lurk.")
 
+// An interface that all ops inside which commonOp is embedded must
+// implement.
+type internalOp interface {
+	Op
+
+	// Convert to a bazilfuse response compatible with the Respond method on the
+	// wrapped bazilfuse request. If that Respond method takes no arguments,
+	// return nil.
+	toBazilfuseResponse() interface{}
+}
+
 // A helper for embedding common behavior.
 type commonOp struct {
 	// The context exposed to the user.
