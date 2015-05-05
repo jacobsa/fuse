@@ -85,6 +85,16 @@ func (c *Connection) log(
 	c.logger.Println(msg)
 }
 
+// Set up state for an op that is about to be returned to the user.
+func (c *Connection) beginOp() {
+	c.opsInFlight.Add(1)
+}
+
+// Clean up all state associated with an op to which the user has responded.
+func (c *Connection) finishOp() {
+	c.opsInFlight.Done()
+}
+
 // Read the next op from the kernel process. Return io.EOF if the kernel has
 // closed the connection.
 //
@@ -122,14 +132,16 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			c.log(opID, calldepth+1, format, v...)
 		}
 
-		op = fuseops.Convert(c.parentCtx, bfReq, logForOp, &c.opsInFlight)
+		finished := func(err error) { c.finishOp() }
+
+		op = fuseops.Convert(c.parentCtx, bfReq, logForOp, finished)
 		if op == nil {
 			c.log(opID, 1, "-> ENOSYS: %v", bfReq)
 			bfReq.RespondError(ENOSYS)
 			continue
 		}
 
-		c.opsInFlight.Add(1)
+		c.beginOp()
 		return
 	}
 }

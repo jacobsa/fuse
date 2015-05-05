@@ -15,7 +15,6 @@
 package fuseops
 
 import (
-	"sync"
 	"time"
 
 	"golang.org/x/net/context"
@@ -23,16 +22,17 @@ import (
 	"github.com/jacobsa/bazilfuse"
 )
 
-// Convert the supplied bazilfuse request struct to an Op, returning nil if it
-// is unknown.
-//
 // This function is an implementation detail of the fuse package, and must not
 // be called by anyone else.
+//
+// Convert the supplied bazilfuse request struct to an Op, returning nil if it
+// is unknown. finished will be called with the error supplied to o.Respond
+// when the user invokes that method.
 func Convert(
-	parentCtx context.Context,
+	opCtx context.Context,
 	r bazilfuse.Request,
 	logForOp func(int, string, ...interface{}),
-	opsInFlight *sync.WaitGroup) (o Op) {
+	finished func(error)) (o Op) {
 	var co *commonOp
 
 	switch typed := r.(type) {
@@ -215,7 +215,7 @@ func Convert(
 		return
 	}
 
-	co.init(parentCtx, o, r, logForOp, opsInFlight)
+	co.init(opCtx, o, r, logForOp, finished)
 	return
 }
 

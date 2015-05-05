@@ -41,6 +41,9 @@ type Op interface {
 
 	// Repond to the operation with the supplied error. If there is no error, set
 	// any necessary output fields and then call Respond(nil).
+	//
+	// Once this is invoked, you must exclude any further calls to any method of
+	// this op.
 	Respond(error)
 
 	// Log information tied to this operation, with semantics equivalent to
@@ -62,8 +65,6 @@ type InitOp struct {
 }
 
 func (o *InitOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -150,8 +151,6 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 }
 
 func (o *LookUpInodeOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -181,8 +180,6 @@ type GetInodeAttributesOp struct {
 }
 
 func (o *GetInodeAttributesOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -220,8 +217,6 @@ type SetInodeAttributesOp struct {
 }
 
 func (o *SetInodeAttributesOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -285,8 +280,6 @@ type ForgetInodeOp struct {
 }
 
 func (o *ForgetInodeOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -329,8 +322,6 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 }
 
 func (o *MkDirOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -391,8 +382,6 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 }
 
 func (o *CreateFileOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -429,8 +418,6 @@ type RmDirOp struct {
 }
 
 func (o *RmDirOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -454,8 +441,6 @@ type UnlinkOp struct {
 }
 
 func (o *UnlinkOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -495,8 +480,6 @@ type OpenDirOp struct {
 }
 
 func (o *OpenDirOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -600,8 +583,6 @@ type ReadDirOp struct {
 }
 
 func (o *ReadDirOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -632,8 +613,6 @@ type ReleaseDirHandleOp struct {
 }
 
 func (o *ReleaseDirHandleOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -672,8 +651,6 @@ type OpenFileOp struct {
 }
 
 func (o *OpenFileOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -716,8 +693,6 @@ type ReadFileOp struct {
 }
 
 func (o *ReadFileOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -801,8 +776,6 @@ type WriteFileOp struct {
 }
 
 func (o *WriteFileOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -840,8 +813,6 @@ type SyncFileOp struct {
 }
 
 func (o *SyncFileOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -906,8 +877,6 @@ type FlushFileOp struct {
 }
 
 func (o *FlushFileOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return
@@ -934,8 +903,6 @@ type ReleaseFileHandleOp struct {
 }
 
 func (o *ReleaseFileHandleOp) Respond(err error) {
-	defer o.commonOp.opsInFlight.Done()
-
 	if err != nil {
 		o.commonOp.respondErr(err)
 		return

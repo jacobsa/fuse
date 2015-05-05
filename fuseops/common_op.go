@@ -38,19 +38,22 @@ var fTraceByPID = flag.Bool(
 
 // A helper for embedding common behavior.
 type commonOp struct {
-	// The op in which this struct is embedded, and a short description of it.
+	// The context exposed to the user.
+	ctx context.Context
+
+	// The op in which this struct is embedded.
 	op Op
 
 	// The underlying bazilfuse request for this op.
 	bazilReq bazilfuse.Request
 
-	// Dependencies.
-	log         func(int, string, ...interface{})
-	opsInFlight *sync.WaitGroup
+	// A function that can be used to log information about the op. The first
+	// argument is a call depth.
+	log func(int, string, ...interface{})
 
-	// Context and tracing information.
-	ctx    context.Context
-	report reqtrace.ReportFunc
+	// A function that is invoked with the error given to Respond, for use in
+	// closing off traces and reporting back to the connection.
+	finished func(error)
 }
 
 var gPIDMapMu sync.Mutex
@@ -153,18 +156,27 @@ func (o *commonOp) init(
 	op Op,
 	bazilReq bazilfuse.Request,
 	log func(int, string, ...interface{}),
-	opsInFlight *sync.WaitGroup) {
-	// Set up a context that reflects per-PID tracing if appropriate.
-	ctx = o.maybeTraceByPID(ctx, int(bazilReq.Hdr().Pid))
-
+	finished func(error)) {
 	// Initialize basic fields.
+	o.ctx = ctx
 	o.op = op
 	o.bazilReq = bazilReq
 	o.log = log
-	o.opsInFlight = opsInFlight
+	o.finished = finished
+
+	// Set up a context that reflects per-PID tracing if appropriate.
+	o.ctx = o.maybeTraceByPID(o.ctx, int(bazilReq.Hdr().Pid))
 
 	// Set up a trace span for this op.
-	o.ctx, o.report = reqtrace.StartSpan(ctx, o.op.ShortDesc())
+	var reportForTrace reqtrace.ReportFunc
+	o.ctx, reportForTrace = reqtrace.StartSpan(ctx, o.op.ShortDesc())
+
+	// When the op is finished, report to both reqtrace and the connection.
+	prevFinish := o.finished
+	o.finished = func(err error) {
+		reportForTrace(err)
+		prevFinish(err)
+	}
 }
 
 func (o *commonOp) Header() OpHeader {
@@ -189,13 +201,16 @@ func (o *commonOp) respondErr(err error) {
 		panic("Expect non-nil here.")
 	}
 
-	o.report(err)
+	// Don't forget to report back to the connection that we are finished.
+	defer o.finished(err)
 
+	// Log that we are finished.
 	o.Logf(
 		"-> (%s) error: %v",
 		o.op.ShortDesc(),
 		err)
 
+	// Send a response to the kernel.
 	o.bazilReq.RespondError(err)
 }
 
@@ -204,8 +219,8 @@ func (o *commonOp) respondErr(err error) {
 //
 // Special case: nil means o.bazilReq.Respond accepts no parameters.
 func (o *commonOp) respond(resp interface{}) {
-	// We were successful.
-	o.report(nil)
+	// Don't forget to report back to the connection that we are finished.
+	defer o.finished(nil)
 
 	// Find the Respond method.
 	v := reflect.ValueOf(o.bazilReq)
@@ -218,7 +233,7 @@ func (o *commonOp) respond(resp interface{}) {
 		return
 	}
 
-	// Otherwise, pass along the response struct.
+	// Otherwise, send the response struct to the kernel.
 	o.Logf("-> %v", resp)
 	respond.Call([]reflect.Value{reflect.ValueOf(resp)})
 }
