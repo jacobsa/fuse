@@ -35,13 +35,14 @@ func Convert(
 	finished func(error)) (o Op) {
 	var co *commonOp
 
+	var io internalOp
 	switch typed := r.(type) {
 	case *bazilfuse.InitRequest:
 		to := &InitOp{
 			maxReadahead: typed.MaxReadahead,
 		}
 
-		o = to
+		io = to
 		co = &to.commonOp
 
 	case *bazilfuse.LookupRequest:
@@ -49,14 +50,14 @@ func Convert(
 			Parent: InodeID(typed.Header.Node),
 			Name:   typed.Name,
 		}
-		o = to
+		io = to
 		co = &to.commonOp
 
 	case *bazilfuse.GetattrRequest:
 		to := &GetInodeAttributesOp{
 			Inode: InodeID(typed.Header.Node),
 		}
-		o = to
+		io = to
 		co = &to.commonOp
 
 	case *bazilfuse.SetattrRequest:
@@ -80,7 +81,7 @@ func Convert(
 			to.Mtime = &typed.Mtime
 		}
 
-		o = to
+		io = to
 		co = &to.commonOp
 
 	case *bazilfuse.ForgetRequest:
@@ -88,7 +89,7 @@ func Convert(
 			Inode: InodeID(typed.Header.Node),
 			N:     typed.N,
 		}
-		o = to
+		io = to
 		co = &to.commonOp
 
 	case *bazilfuse.MkdirRequest:
@@ -97,7 +98,7 @@ func Convert(
 			Name:   typed.Name,
 			Mode:   typed.Mode,
 		}
-		o = to
+		io = to
 		co = &to.commonOp
 
 	case *bazilfuse.CreateRequest:
@@ -107,7 +108,7 @@ func Convert(
 			Mode:   typed.Mode,
 			Flags:  typed.Flags,
 		}
-		o = to
+		io = to
 		co = &to.commonOp
 
 	case *bazilfuse.RemoveRequest:
@@ -116,14 +117,14 @@ func Convert(
 				Parent: InodeID(typed.Header.Node),
 				Name:   typed.Name,
 			}
-			o = to
+			io = to
 			co = &to.commonOp
 		} else {
 			to := &UnlinkOp{
 				Parent: InodeID(typed.Header.Node),
 				Name:   typed.Name,
 			}
-			o = to
+			io = to
 			co = &to.commonOp
 		}
 
@@ -133,14 +134,14 @@ func Convert(
 				Inode: InodeID(typed.Header.Node),
 				Flags: typed.Flags,
 			}
-			o = to
+			io = to
 			co = &to.commonOp
 		} else {
 			to := &OpenFileOp{
 				Inode: InodeID(typed.Header.Node),
 				Flags: typed.Flags,
 			}
-			o = to
+			io = to
 			co = &to.commonOp
 		}
 
@@ -152,7 +153,7 @@ func Convert(
 				Offset: DirOffset(typed.Offset),
 				Size:   typed.Size,
 			}
-			o = to
+			io = to
 			co = &to.commonOp
 		} else {
 			to := &ReadFileOp{
@@ -161,7 +162,7 @@ func Convert(
 				Offset: typed.Offset,
 				Size:   typed.Size,
 			}
-			o = to
+			io = to
 			co = &to.commonOp
 		}
 
@@ -170,13 +171,13 @@ func Convert(
 			to := &ReleaseDirHandleOp{
 				Handle: HandleID(typed.Handle),
 			}
-			o = to
+			io = to
 			co = &to.commonOp
 		} else {
 			to := &ReleaseFileHandleOp{
 				Handle: HandleID(typed.Handle),
 			}
-			o = to
+			io = to
 			co = &to.commonOp
 		}
 
@@ -187,7 +188,7 @@ func Convert(
 			Data:   typed.Data,
 			Offset: typed.Offset,
 		}
-		o = to
+		io = to
 		co = &to.commonOp
 
 	case *bazilfuse.FsyncRequest:
@@ -200,7 +201,7 @@ func Convert(
 			Inode:  InodeID(typed.Header.Node),
 			Handle: HandleID(typed.Handle),
 		}
-		o = to
+		io = to
 		co = &to.commonOp
 
 	case *bazilfuse.FlushRequest:
@@ -208,14 +209,16 @@ func Convert(
 			Inode:  InodeID(typed.Header.Node),
 			Handle: HandleID(typed.Handle),
 		}
-		o = to
+		io = to
 		co = &to.commonOp
 
 	default:
 		return
 	}
 
-	co.init(opCtx, o, r, logForOp, finished)
+	co.init(opCtx, io, r, logForOp, finished)
+
+	o = io
 	return
 }
 

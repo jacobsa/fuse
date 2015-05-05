@@ -53,7 +53,7 @@ type commonOp struct {
 	ctx context.Context
 
 	// The op in which this struct is embedded.
-	op Op
+	op internalOp
 
 	// The underlying bazilfuse request for this op.
 	bazilReq bazilfuse.Request
@@ -164,7 +164,7 @@ func (o *commonOp) ShortDesc() (desc string) {
 
 func (o *commonOp) init(
 	ctx context.Context,
-	op Op,
+	op internalOp,
 	bazilReq bazilfuse.Request,
 	log func(int, string, ...interface{}),
 	finished func(error)) {
