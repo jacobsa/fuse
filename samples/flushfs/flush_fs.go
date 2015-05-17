@@ -259,8 +259,12 @@ func (fs *flushFS) OpenDir(
 	defer fs.mu.Unlock()
 
 	// Sanity check.
-	if op.Inode != barID {
-		err = fuse.ENOSYS
+	switch op.Inode {
+	case fuseops.RootInodeID:
+	case barID:
+
+	default:
+		err = fuse.ENOENT
 		return
 	}
 
