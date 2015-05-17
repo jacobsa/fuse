@@ -65,6 +65,9 @@ type MountConfig struct {
 	// should inherit. If nil, context.Background() will be used.
 	OpContext context.Context
 
+	// TODO(jacobsa): Add comments.
+	ReadOnly bool
+
 	// OS X only.
 	//
 	// Normally on OS X we mount with the novncache option
