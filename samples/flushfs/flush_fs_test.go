@@ -30,6 +30,7 @@ import (
 
 	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse/fsutil"
+	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -965,10 +966,22 @@ func (t *ReadOnlyTest) SetUp(ti *TestInfo) {
 }
 
 func (t *ReadOnlyTest) ReadRoot() {
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
 	AssertTrue(false, "TODO")
 }
 
-func (t *ReadOnlyTest) StatContents() {
+func (t *ReadOnlyTest) StatFiles() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ReadOnlyTest) ReadFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ReadOnlyTest) ReadDir() {
 	AssertTrue(false, "TODO")
 }
 
