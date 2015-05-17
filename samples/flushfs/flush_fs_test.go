@@ -56,7 +56,8 @@ type flushFSTest struct {
 func (t *flushFSTest) setUp(
 	ti *TestInfo,
 	flushErr bazilfuse.Errno,
-	fsyncErr bazilfuse.Errno) {
+	fsyncErr bazilfuse.Errno,
+	readOnly bool) {
 	var err error
 
 	// Set up files to receive flush and fsync reports.
@@ -74,6 +75,10 @@ func (t *flushFSTest) setUp(
 
 		"--flushfs.fsync_error",
 		fmt.Sprintf("%d", int(fsyncErr)),
+	}
+
+	if readOnly {
+		t.MountFlags = append(t.MountFlags, "--read_only")
 	}
 
 	t.MountFiles = map[string]*os.File{
@@ -207,7 +212,7 @@ func init() { RegisterTestSuite(&NoErrorsTest{}) }
 
 func (t *NoErrorsTest) SetUp(ti *TestInfo) {
 	const noErr = 0
-	t.flushFSTest.setUp(ti, noErr, noErr)
+	t.flushFSTest.setUp(ti, noErr, noErr, false)
 }
 
 func (t *NoErrorsTest) Close_ReadWrite() {
@@ -802,7 +807,7 @@ func init() { RegisterTestSuite(&FlushErrorTest{}) }
 
 func (t *FlushErrorTest) SetUp(ti *TestInfo) {
 	const noErr = 0
-	t.flushFSTest.setUp(ti, bazilfuse.ENOENT, noErr)
+	t.flushFSTest.setUp(ti, bazilfuse.ENOENT, noErr, false)
 }
 
 func (t *FlushErrorTest) Close() {
@@ -882,7 +887,7 @@ func init() { RegisterTestSuite(&FsyncErrorTest{}) }
 
 func (t *FsyncErrorTest) SetUp(ti *TestInfo) {
 	const noErr = 0
-	t.flushFSTest.setUp(ti, noErr, bazilfuse.ENOENT)
+	t.flushFSTest.setUp(ti, noErr, bazilfuse.ENOENT, false)
 }
 
 func (t *FsyncErrorTest) Fsync() {
@@ -955,7 +960,8 @@ type ReadOnlyTest struct {
 func init() { RegisterTestSuite(&ReadOnlyTest{}) }
 
 func (t *ReadOnlyTest) SetUp(ti *TestInfo) {
-	panic("TODO")
+	const noErr = 0
+	t.flushFSTest.setUp(ti, noErr, noErr, true)
 }
 
 func (t *ReadOnlyTest) ReadRoot() {
