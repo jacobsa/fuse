@@ -871,7 +871,7 @@ func (t *FlushErrorTest) Dup2() {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Fsync  error
+// Fsync error
 ////////////////////////////////////////////////////////////////////////
 
 type FsyncErrorTest struct {
@@ -942,4 +942,46 @@ func (t *FsyncErrorTest) Msync() {
 	// Unmap.
 	err = syscall.Munmap(data)
 	AssertEq(nil, err)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Read-only mount
+////////////////////////////////////////////////////////////////////////
+
+type ReadOnlyTest struct {
+	flushFSTest
+}
+
+func init() { RegisterTestSuite(&ReadOnlyTest{}) }
+
+func (t *ReadOnlyTest) SetUp(ti *TestInfo) {
+	panic("TODO")
+}
+
+func (t *ReadOnlyTest) ReadRoot() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ReadOnlyTest) StatContents() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ReadOnlyTest) CreateFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ReadOnlyTest) Mkdir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ReadOnlyTest) OpenForWrite() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ReadOnlyTest) Chtimes() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ReadOnlyTest) Chmod() {
+	AssertTrue(false, "TODO")
 }
