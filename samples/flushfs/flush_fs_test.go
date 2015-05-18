@@ -25,6 +25,7 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -1021,7 +1022,8 @@ func (t *ReadOnlyTest) OpenForWrite() {
 }
 
 func (t *ReadOnlyTest) Chtimes() {
-	AssertTrue(false, "TODO")
+	err := os.Chtimes(path.Join(t.Dir, "foo"), time.Now(), time.Now())
+	ExpectThat(err, Error(HasSubstr("not permitted")))
 }
 
 func (t *ReadOnlyTest) Chmod() {
