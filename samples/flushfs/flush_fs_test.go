@@ -1006,11 +1006,13 @@ func (t *ReadOnlyTest) StatFiles() {
 }
 
 func (t *ReadOnlyTest) ReadFile() {
-	AssertTrue(false, "TODO")
+	_, err := ioutil.ReadFile(path.Join(t.Dir, "foo"))
+	ExpectEq(nil, err)
 }
 
 func (t *ReadOnlyTest) ReadDir() {
-	AssertTrue(false, "TODO")
+	_, err := fusetesting.ReadDirPicky(path.Join(t.Dir, "bar"))
+	ExpectEq(nil, err)
 }
 
 func (t *ReadOnlyTest) CreateFile() {
