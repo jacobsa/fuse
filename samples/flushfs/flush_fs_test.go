@@ -1008,7 +1008,16 @@ func (t *ReadOnlyTest) Mkdir() {
 }
 
 func (t *ReadOnlyTest) OpenForWrite() {
-	AssertTrue(false, "TODO")
+	modes := []int{
+		os.O_WRONLY,
+		os.O_RDWR,
+	}
+
+	for _, mode := range modes {
+		f, err := os.OpenFile(path.Join(t.Dir, "foo"), mode, 0700)
+		f.Close()
+		ExpectThat(err, Error(HasSubstr("read-only")), "mode: %v", mode)
+	}
 }
 
 func (t *ReadOnlyTest) Chtimes() {
