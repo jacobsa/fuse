@@ -39,6 +39,8 @@ var fFsyncsFile = flag.Uint64("flushfs.fsyncs_file", 0, "")
 var fFlushError = flag.Int("flushfs.flush_error", 0, "")
 var fFsyncError = flag.Int("flushfs.fsync_error", 0, "")
 
+var fReadOnly = flag.Bool("read_only", false, "Mount in read-only mode.")
+
 func makeFlushFS() (server fuse.Server, err error) {
 	// Check the flags.
 	if *fFlushesFile == 0 || *fFsyncsFile == 0 {
@@ -134,7 +136,11 @@ func main() {
 		log.Fatalf("You must set --mount_point.")
 	}
 
-	mfs, err := fuse.Mount(*fMountPoint, server, &fuse.MountConfig{})
+	cfg := &fuse.MountConfig{
+		ReadOnly: *fReadOnly,
+	}
+
+	mfs, err := fuse.Mount(*fMountPoint, server, cfg)
 	if err != nil {
 		log.Fatalf("Mount: %v", err)
 	}

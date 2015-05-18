@@ -19,17 +19,20 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
 
 	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse/fsutil"
+	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
@@ -56,7 +59,8 @@ type flushFSTest struct {
 func (t *flushFSTest) setUp(
 	ti *TestInfo,
 	flushErr bazilfuse.Errno,
-	fsyncErr bazilfuse.Errno) {
+	fsyncErr bazilfuse.Errno,
+	readOnly bool) {
 	var err error
 
 	// Set up files to receive flush and fsync reports.
@@ -74,6 +78,10 @@ func (t *flushFSTest) setUp(
 
 		"--flushfs.fsync_error",
 		fmt.Sprintf("%d", int(fsyncErr)),
+	}
+
+	if readOnly {
+		t.MountFlags = append(t.MountFlags, "--read_only")
 	}
 
 	t.MountFiles = map[string]*os.File{
@@ -207,7 +215,7 @@ func init() { RegisterTestSuite(&NoErrorsTest{}) }
 
 func (t *NoErrorsTest) SetUp(ti *TestInfo) {
 	const noErr = 0
-	t.flushFSTest.setUp(ti, noErr, noErr)
+	t.flushFSTest.setUp(ti, noErr, noErr, false)
 }
 
 func (t *NoErrorsTest) Close_ReadWrite() {
@@ -802,7 +810,7 @@ func init() { RegisterTestSuite(&FlushErrorTest{}) }
 
 func (t *FlushErrorTest) SetUp(ti *TestInfo) {
 	const noErr = 0
-	t.flushFSTest.setUp(ti, bazilfuse.ENOENT, noErr)
+	t.flushFSTest.setUp(ti, bazilfuse.ENOENT, noErr, false)
 }
 
 func (t *FlushErrorTest) Close() {
@@ -871,7 +879,7 @@ func (t *FlushErrorTest) Dup2() {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Fsync  error
+// Fsync error
 ////////////////////////////////////////////////////////////////////////
 
 type FsyncErrorTest struct {
@@ -882,7 +890,7 @@ func init() { RegisterTestSuite(&FsyncErrorTest{}) }
 
 func (t *FsyncErrorTest) SetUp(ti *TestInfo) {
 	const noErr = 0
-	t.flushFSTest.setUp(ti, noErr, bazilfuse.ENOENT)
+	t.flushFSTest.setUp(ti, noErr, bazilfuse.ENOENT, false)
 }
 
 func (t *FsyncErrorTest) Fsync() {
@@ -942,4 +950,100 @@ func (t *FsyncErrorTest) Msync() {
 	// Unmap.
 	err = syscall.Munmap(data)
 	AssertEq(nil, err)
+}
+
+////////////////////////////////////////////////////////////////////////
+// Read-only mount
+////////////////////////////////////////////////////////////////////////
+
+type ReadOnlyTest struct {
+	flushFSTest
+}
+
+func init() { RegisterTestSuite(&ReadOnlyTest{}) }
+
+func (t *ReadOnlyTest) SetUp(ti *TestInfo) {
+	const noErr = 0
+	t.flushFSTest.setUp(ti, noErr, noErr, true)
+}
+
+func (t *ReadOnlyTest) ReadRoot() {
+	var fi os.FileInfo
+
+	// Read.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	// bar
+	fi = entries[0]
+	ExpectEq("bar", fi.Name())
+	ExpectEq(os.FileMode(0777)|os.ModeDir, fi.Mode())
+
+	// foo
+	fi = entries[1]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(os.FileMode(0777), fi.Mode())
+}
+
+func (t *ReadOnlyTest) StatFiles() {
+	var fi os.FileInfo
+	var err error
+
+	// bar
+	fi, err = os.Stat(path.Join(t.Dir, "bar"))
+	AssertEq(nil, err)
+
+	ExpectEq("bar", fi.Name())
+	ExpectEq(os.FileMode(0777)|os.ModeDir, fi.Mode())
+
+	// foo
+	fi, err = os.Stat(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(os.FileMode(0777), fi.Mode())
+}
+
+func (t *ReadOnlyTest) ReadFile() {
+	_, err := ioutil.ReadFile(path.Join(t.Dir, "foo"))
+	ExpectEq(nil, err)
+}
+
+func (t *ReadOnlyTest) ReadDir() {
+	_, err := fusetesting.ReadDirPicky(path.Join(t.Dir, "bar"))
+	ExpectEq(nil, err)
+}
+
+func (t *ReadOnlyTest) CreateFile() {
+	err := ioutil.WriteFile(path.Join(t.Dir, "blah"), []byte{}, 0400)
+	ExpectThat(err, Error(HasSubstr("read-only")))
+}
+
+func (t *ReadOnlyTest) Mkdir() {
+	err := os.Mkdir(path.Join(t.Dir, "blah"), 0700)
+	ExpectThat(err, Error(HasSubstr("read-only")))
+}
+
+func (t *ReadOnlyTest) OpenForWrite() {
+	modes := []int{
+		os.O_WRONLY,
+		os.O_RDWR,
+	}
+
+	for _, mode := range modes {
+		f, err := os.OpenFile(path.Join(t.Dir, "foo"), mode, 0700)
+		f.Close()
+		ExpectThat(err, Error(HasSubstr("read-only")), "mode: %v", mode)
+	}
+}
+
+func (t *ReadOnlyTest) Chtimes() {
+	err := os.Chtimes(path.Join(t.Dir, "foo"), time.Now(), time.Now())
+	ExpectThat(err, Error(MatchesRegexp("read-only|not permitted")))
+}
+
+func (t *ReadOnlyTest) Chmod() {
+	err := os.Chmod(path.Join(t.Dir, "foo"), 0700)
+	ExpectThat(err, Error(HasSubstr("read-only")))
 }

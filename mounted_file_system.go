@@ -65,6 +65,11 @@ type MountConfig struct {
 	// should inherit. If nil, context.Background() will be used.
 	OpContext context.Context
 
+	// Mount the file system in read-only mode. File modes will appear as normal,
+	// but opening a file for writing and metadata operations like chmod,
+	// chtimes, etc. will fail.
+	ReadOnly bool
+
 	// OS X only.
 	//
 	// Normally on OS X we mount with the novncache option
@@ -88,6 +93,11 @@ func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
 	// Enable permissions checking in the kernel. See the comments on
 	// InodeAttributes.Mode.
 	opts = append(opts, bazilfuse.SetOption("default_permissions", ""))
+
+	// Read only?
+	if c.ReadOnly {
+		opts = append(opts, bazilfuse.ReadOnly())
+	}
 
 	// OS X: set novncache when appropriate.
 	if isDarwin && !c.EnableVnodeCaching {
