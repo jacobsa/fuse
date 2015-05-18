@@ -65,6 +65,11 @@ type MountConfig struct {
 	// should inherit. If nil, context.Background() will be used.
 	OpContext context.Context
 
+	// If non-empty, the name of the file system as displayed by e.g. `mount`.
+	// This is important because the `umount` command requires root privileges if
+	// it doesn't agree with /etc/fstab.
+	FSName string
+
 	// Mount the file system in read-only mode. File modes will appear as normal,
 	// but opening a file for writing and metadata operations like chmod,
 	// chtimes, etc. will fail.
@@ -93,6 +98,11 @@ func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
 	// Enable permissions checking in the kernel. See the comments on
 	// InodeAttributes.Mode.
 	opts = append(opts, bazilfuse.SetOption("default_permissions", ""))
+
+	// Special file system name?
+	if c.FSName != "" {
+		opts = append(opts, bazilfuse.FSName(c.FSName))
+	}
 
 	// Read only?
 	if c.ReadOnly {
