@@ -966,11 +966,22 @@ func (t *ReadOnlyTest) SetUp(ti *TestInfo) {
 }
 
 func (t *ReadOnlyTest) ReadRoot() {
+	var fi os.FileInfo
+
+	// Read.
 	entries, err := fusetesting.ReadDirPicky(t.Dir)
 	AssertEq(nil, err)
 	AssertEq(2, len(entries))
 
-	AssertTrue(false, "TODO")
+	// bar
+	fi = entries[0]
+	ExpectEq("bar", fi.Name())
+	ExpectEq(os.FileMode(0555)|os.ModeDir, fi.Mode())
+
+	// foo
+	fi = entries[1]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(os.FileMode(0555), fi.Mode())
 }
 
 func (t *ReadOnlyTest) StatFiles() {
