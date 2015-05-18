@@ -1003,7 +1003,8 @@ func (t *ReadOnlyTest) CreateFile() {
 }
 
 func (t *ReadOnlyTest) Mkdir() {
-	AssertTrue(false, "TODO")
+	err := os.Mkdir(path.Join(t.Dir, "blah"), 0700)
+	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
 func (t *ReadOnlyTest) OpenForWrite() {
