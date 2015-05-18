@@ -1027,5 +1027,6 @@ func (t *ReadOnlyTest) Chtimes() {
 }
 
 func (t *ReadOnlyTest) Chmod() {
-	AssertTrue(false, "TODO")
+	err := os.Chmod(path.Join(t.Dir, "foo"), 0700)
+	ExpectThat(err, Error(HasSubstr("read-only")))
 }
