@@ -92,6 +92,11 @@ func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
 	// InodeAttributes.Mode.
 	opts = append(opts, bazilfuse.SetOption("default_permissions", ""))
 
+	// Read only?
+	if c.ReadOnly {
+		opts = append(opts, bazilfuse.ReadOnly())
+	}
+
 	// OS X: set novncache when appropriate.
 	if isDarwin && !c.EnableVnodeCaching {
 		opts = append(opts, bazilfuse.SetOption("novncache", ""))
