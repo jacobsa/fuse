@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -997,7 +998,8 @@ func (t *ReadOnlyTest) ReadDir() {
 }
 
 func (t *ReadOnlyTest) CreateFile() {
-	AssertTrue(false, "TODO")
+	err := ioutil.WriteFile(path.Join(t.Dir, "blah"), []byte{}, 0400)
+	ExpectThat(err, Error(HasSubstr("read-only")))
 }
 
 func (t *ReadOnlyTest) Mkdir() {
