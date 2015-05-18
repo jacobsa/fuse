@@ -978,12 +978,12 @@ func (t *ReadOnlyTest) ReadRoot() {
 	// bar
 	fi = entries[0]
 	ExpectEq("bar", fi.Name())
-	ExpectEq(os.FileMode(0555)|os.ModeDir, fi.Mode())
+	ExpectEq(os.FileMode(0777)|os.ModeDir, fi.Mode())
 
 	// foo
 	fi = entries[1]
 	ExpectEq("foo", fi.Name())
-	ExpectEq(os.FileMode(0555), fi.Mode())
+	ExpectEq(os.FileMode(0777), fi.Mode())
 }
 
 func (t *ReadOnlyTest) StatFiles() {
