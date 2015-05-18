@@ -270,3 +270,66 @@ func (fs *flushFS) OpenDir(
 
 	return
 }
+
+func (fs *flushFS) ReadDir(
+	op *fuseops.ReadDirOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Create the appropriate listing.
+	var dirents []fuseutil.Dirent
+
+	switch op.Inode {
+	case fuseops.RootInodeID:
+		dirents = []fuseutil.Dirent{
+			fuseutil.Dirent{
+				Offset: 1,
+				Inode:  fooID,
+				Name:   "foo",
+				Type:   fuseutil.DT_File,
+			},
+
+			fuseutil.Dirent{
+				Offset: 2,
+				Inode:  barID,
+				Name:   "bar",
+				Type:   fuseutil.DT_Directory,
+			},
+		}
+
+	case barID:
+
+	default:
+		err = fmt.Errorf("Unexpected inode: %v", op.Inode)
+		return
+	}
+
+	// If the offset is for the end of the listing, we're done. Otherwise we
+	// expect it to be for the start.
+	switch op.Offset {
+	case fuseops.DirOffset(len(dirents)):
+		return
+
+	case 0:
+
+	default:
+		err = fmt.Errorf("Unexpected offset: %v", op.Offset)
+		return
+	}
+
+	// Fill in the listing.
+	for _, de := range dirents {
+		op.Data = fuseutil.AppendDirent(op.Data, de)
+	}
+
+	// We don't support doing this in anything more than one shot.
+	if len(op.Data) > op.Size {
+		err = fmt.Errorf("Couldn't fit listing in %v bytes", op.Size)
+		return
+	}
+
+	return
+}
