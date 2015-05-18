@@ -987,7 +987,22 @@ func (t *ReadOnlyTest) ReadRoot() {
 }
 
 func (t *ReadOnlyTest) StatFiles() {
-	AssertTrue(false, "TODO")
+	var fi os.FileInfo
+	var err error
+
+	// bar
+	fi, err = os.Stat(path.Join(t.Dir, "bar"))
+	AssertEq(nil, err)
+
+	ExpectEq("bar", fi.Name())
+	ExpectEq(os.FileMode(0777)|os.ModeDir, fi.Mode())
+
+	// foo
+	fi, err = os.Stat(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(os.FileMode(0777), fi.Mode())
 }
 
 func (t *ReadOnlyTest) ReadFile() {
