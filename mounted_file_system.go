@@ -65,7 +65,9 @@ type MountConfig struct {
 	// should inherit. If nil, context.Background() will be used.
 	OpContext context.Context
 
-	// TODO(jacobsa): Add comments.
+	// Mount the file system in read-only mode. File modes will appear as normal,
+	// but opening a file for writing and metadata operations like chmod,
+	// chtimes, etc. will fail.
 	ReadOnly bool
 
 	// OS X only.
