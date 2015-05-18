@@ -1040,7 +1040,7 @@ func (t *ReadOnlyTest) OpenForWrite() {
 
 func (t *ReadOnlyTest) Chtimes() {
 	err := os.Chtimes(path.Join(t.Dir, "foo"), time.Now(), time.Now())
-	ExpectThat(err, Error(HasSubstr("not permitted")))
+	ExpectThat(err, Error(MatchesRegexp("read-only|not permitted")))
 }
 
 func (t *ReadOnlyTest) Chmod() {
