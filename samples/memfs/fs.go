@@ -376,6 +376,51 @@ func (fs *memFS) CreateFile(
 	return
 }
 
+func (fs *memFS) CreateSymlink(
+	op *fuseops.CreateSymlinkOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Grab the parent, which we will update shortly.
+	parent := fs.getInodeForModifyingOrDie(op.Parent)
+	defer parent.mu.Unlock()
+
+	// Set up attributes from the child, using the credentials of the calling
+	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
+	now := fs.clock.Now()
+	childAttrs := fuseops.InodeAttributes{
+		Nlink:  1,
+		Mode:   0444 | os.ModeSymlink,
+		Atime:  now,
+		Mtime:  now,
+		Ctime:  now,
+		Crtime: now,
+		Uid:    op.Header().Uid,
+		Gid:    op.Header().Gid,
+	}
+
+	// Allocate a child.
+	childID, child := fs.allocateInode(childAttrs)
+	defer child.mu.Unlock()
+
+	// Add an entry in the parent.
+	parent.AddChild(childID, op.Name, fuseutil.DT_Link)
+
+	// Fill in the response entry.
+	op.Entry.Child = childID
+	op.Entry.Attributes = child.attrs
+
+	// We don't spontaneously mutate, so the kernel can cache as long as it wants
+	// (since it also handles invalidation).
+	op.Entry.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+	op.Entry.EntryExpiration = op.Entry.EntryExpiration
+
+	return
+}
+
 func (fs *memFS) RmDir(
 	op *fuseops.RmDirOp) {
 	var err error

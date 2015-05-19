@@ -1177,7 +1177,7 @@ func (t *MemFSTest) CreateSymlink_AlreadyExists() {
 
 	for _, n := range names {
 		err = os.Symlink("blah", n)
-		ExpectThat(err, Error(HasSubstr("TODO")))
+		ExpectThat(err, Error(HasSubstr("exists")))
 	}
 }
 
