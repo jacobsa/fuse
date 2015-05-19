@@ -1116,7 +1116,23 @@ func (t *MemFSTest) ReadDirWhileModifying() {
 }
 
 func (t *MemFSTest) HardLinks() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a file and a directory.
+	fileName := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	dirName := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Attempt to link each. Neither should work, but for different reasons.
+	err = os.Link(fileName, path.Join(t.Dir, "baz"))
+	ExpectThat(err, Error(HasSubstr("not implemented")))
+
+	err = os.Link(dirName, path.Join(t.Dir, "baz"))
+	ExpectThat(err, Error(HasSubstr("not permitted")))
 }
 
 func (t *MemFSTest) CreateSymlink() {
