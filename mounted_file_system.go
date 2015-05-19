@@ -89,6 +89,14 @@ type MountConfig struct {
 	// the value of ChildInodeEntry.EntryExpiration is ignored by the kernel, and
 	// entries will be cached for an arbitrarily long time.
 	EnableVnodeCaching bool
+
+	// Additional key=value options to pass unadulterated to the underlying mount
+	// command. See `man 8 mount`, the fuse documentation, etc. for
+	// system-specific information.
+	//
+	// For expert use only! May invalidate other guarantees made in the
+	// documentation for this package.
+	Options map[string]string
 }
 
 // Convert to mount options to be passed to package bazilfuse.
@@ -121,6 +129,11 @@ func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
 	// Cf. https://github.com/osxfuse/osxfuse/wiki/Mount-options
 	if isDarwin {
 		opts = append(opts, bazilfuse.SetOption("noappledouble", ""))
+	}
+
+	// Last but not least: other user-supplied options.
+	for k, v := range c.Options {
+		opts = append(opts, bazilfuse.SetOption(k, v))
 	}
 
 	return
