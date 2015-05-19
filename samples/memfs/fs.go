@@ -50,7 +50,7 @@ type memFS struct {
 	// INVARIANT: len(inodes) > fuseops.RootInodeID
 	// INVARIANT: For all i < fuseops.RootInodeID, inodes[i] == nil
 	// INVARIANT: inodes[fuseops.RootInodeID] != nil
-	// INVARIANT: inodes[fuseops.RootInodeID].dir is true
+	// INVARIANT: inodes[fuseops.RootInodeID].isDir()
 	inodes []*inode // GUARDED_BY(mu)
 
 	// A list of inode IDs within inodes available for reuse, not including the
@@ -104,7 +104,7 @@ func (fs *memFS) checkInvariants() {
 	}
 
 	// Check the root inode.
-	if !fs.inodes[fuseops.RootInodeID].dir {
+	if !fs.inodes[fuseops.RootInodeID].isDir() {
 		panic("Expected root to be a directory.")
 	}
 
@@ -460,7 +460,7 @@ func (fs *memFS) OpenDir(
 	inode := fs.getInodeForReadingOrDie(op.Inode)
 	defer inode.mu.Unlock()
 
-	if !inode.dir {
+	if !inode.isDir() {
 		panic("Found non-dir.")
 	}
 
@@ -503,8 +503,8 @@ func (fs *memFS) OpenFile(
 	inode := fs.getInodeForReadingOrDie(op.Inode)
 	defer inode.mu.Unlock()
 
-	if inode.dir {
-		panic("Found directory.")
+	if !inode.isFile() {
+		panic("Found non-file.")
 	}
 
 	return
