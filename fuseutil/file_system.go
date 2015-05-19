@@ -57,6 +57,7 @@ type FileSystem interface {
 	SyncFile(*fuseops.SyncFileOp)
 	FlushFile(*fuseops.FlushFileOp)
 	ReleaseFileHandle(*fuseops.ReleaseFileHandleOp)
+	ReadSymlink(*fuseops.ReadSymlinkOp)
 }
 
 // Create a fuse.Server that handles ops by calling the associated FileSystem
@@ -185,5 +186,8 @@ func (s fileSystemServer) handleOp(op fuseops.Op) {
 
 	case *fuseops.ReleaseFileHandleOp:
 		s.fs.ReleaseFileHandle(typed)
+
+	case *fuseops.ReadSymlinkOp:
+		s.fs.ReadSymlink(typed)
 	}
 }

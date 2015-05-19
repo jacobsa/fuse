@@ -406,6 +406,9 @@ func (fs *memFS) CreateSymlink(
 	childID, child := fs.allocateInode(childAttrs)
 	defer child.mu.Unlock()
 
+	// Set up its target.
+	child.target = op.Target
+
 	// Add an entry in the parent.
 	parent.AddChild(childID, op.Name, fuseutil.DT_Link)
 
@@ -594,6 +597,24 @@ func (fs *memFS) WriteFile(
 
 	// Serve the request.
 	_, err = inode.WriteAt(op.Data, op.Offset)
+
+	return
+}
+
+func (fs *memFS) ReadSymlink(
+	op *fuseops.ReadSymlinkOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the inode in question.
+	inode := fs.getInodeForReadingOrDie(op.Inode)
+	defer inode.mu.Unlock()
+
+	// Serve the request.
+	op.Target = inode.target
 
 	return
 }

@@ -226,6 +226,13 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
+	case *bazilfuse.ReadlinkRequest:
+		to := &ReadSymlinkOp{
+			Inode: InodeID(typed.Header.Node),
+		}
+		io = to
+		co = &to.commonOp
+
 	default:
 		to := &unknownOp{}
 		io = to

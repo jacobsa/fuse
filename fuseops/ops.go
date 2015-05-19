@@ -886,3 +886,23 @@ type unknownOp struct {
 func (o *unknownOp) toBazilfuseResponse() (bfResp interface{}) {
 	panic(fmt.Sprintf("Should never get here for unknown op: %s", o.ShortDesc()))
 }
+
+////////////////////////////////////////////////////////////////////////
+// Reading symlinks
+////////////////////////////////////////////////////////////////////////
+
+// Read the target of a symlink inode.
+type ReadSymlinkOp struct {
+	commonOp
+
+	// The symlink inode that we are reading.
+	Inode InodeID
+
+	// Set by the file system: the target of the symlink.
+	Target string
+}
+
+func (o *ReadSymlinkOp) toBazilfuseResponse() (bfResp interface{}) {
+	bfResp = o.Target
+	return
+}

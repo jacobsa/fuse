@@ -122,3 +122,8 @@ func (fs *NotImplementedFileSystem) ReleaseFileHandle(
 	op *fuseops.ReleaseFileHandleOp) {
 	op.Respond(fuse.ENOSYS)
 }
+
+func (fs *NotImplementedFileSystem) ReadSymlink(
+	op *fuseops.ReadSymlinkOp) {
+	op.Respond(fuse.ENOSYS)
+}
