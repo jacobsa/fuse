@@ -1114,3 +1114,98 @@ func (t *MemFSTest) ReadDirWhileModifying() {
 	ExpectTrue(namesSeen["bar"])
 	ExpectTrue(namesSeen["qux"])
 }
+
+func (t *MemFSTest) HardLinks() {
+	var err error
+
+	// Create a file and a directory.
+	fileName := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	dirName := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Attempt to link each. Neither should work, but for different reasons.
+	err = os.Link(fileName, path.Join(t.Dir, "baz"))
+	ExpectThat(err, Error(HasSubstr("not implemented")))
+
+	err = os.Link(dirName, path.Join(t.Dir, "baz"))
+	ExpectThat(err, Error(HasSubstr("not permitted")))
+}
+
+func (t *MemFSTest) CreateSymlink() {
+	var err error
+
+	symlinkName := path.Join(t.Dir, "foo")
+	target := "taco/burrito"
+
+	// Create.
+	err = os.Symlink(target, symlinkName)
+	AssertEq(nil, err)
+
+	// Read
+	actual, err := os.Readlink(symlinkName)
+	AssertEq(nil, err)
+	ExpectEq(target, actual)
+}
+
+func (t *MemFSTest) CreateSymlink_AlreadyExists() {
+	var err error
+
+	// Create a file and a directory.
+	fileName := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	dirName := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Create an existing symlink.
+	symlinkName := path.Join(t.Dir, "baz")
+	err = os.Symlink("blah", symlinkName)
+	AssertEq(nil, err)
+
+	// Symlinking on top of any of them should fail.
+	names := []string{
+		fileName,
+		dirName,
+		symlinkName,
+	}
+
+	for _, n := range names {
+		err = os.Symlink("blah", n)
+		ExpectThat(err, Error(HasSubstr("TODO")))
+	}
+}
+
+func (t *MemFSTest) ReadLink_NonExistent() {
+	_, err := os.Readlink(path.Join(t.Dir, "foo"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+}
+
+func (t *MemFSTest) ReadLink_NotASymlink() {
+	var err error
+
+	// Create a file and a directory.
+	fileName := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	dirName := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Reading either of them as a symlink should fail.
+	names := []string{
+		fileName,
+		dirName,
+	}
+
+	for _, n := range names {
+		_, err = os.Readlink(n)
+		ExpectThat(err, Error(HasSubstr("invalid argument")))
+	}
+}
