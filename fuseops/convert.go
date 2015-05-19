@@ -114,6 +114,15 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
+	case *bazilfuse.SymlinkRequest:
+		to := &CreateSymlinkOp{
+			Parent: InodeID(typed.Header.Node),
+			Name:   typed.NewName,
+			Target: typed.Target,
+		}
+		io = to
+		co = &to.commonOp
+
 	case *bazilfuse.RemoveRequest:
 		if typed.Dir {
 			to := &RmDirOp{
