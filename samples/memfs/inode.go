@@ -89,9 +89,8 @@ func newInode(
 
 	// Create the object.
 	in = &inode{
-		clock:      clock,
-		dir:        (attrs.Mode&os.ModeDir != 0),
-		attributes: attrs,
+		clock: clock,
+		attrs: attrs,
 	}
 
 	in.mu = syncutil.NewInvariantMutex(in.checkInvariants)
@@ -110,7 +109,7 @@ func (in *inode) checkInvariants() {
 	}
 
 	// INVARIANT: attrs.Size == len(contents)
-	if in.attrs.Size != len(in.contents) {
+	if in.attrs.Size != uint64(len(in.contents)) {
 		panic(fmt.Sprintf(
 			"Size mismatch: %d vs. %d",
 			in.attrs.Size,
@@ -118,13 +117,13 @@ func (in *inode) checkInvariants() {
 	}
 
 	// INVARIANT: If !isDir(), len(entries) == 0
-	if !in.isDir() && len(entries) != 0 {
-		panic(fmt.Sprintf("Unexpected entries length: %d", len(entries)))
+	if !in.isDir() && len(in.entries) != 0 {
+		panic(fmt.Sprintf("Unexpected entries length: %d", len(in.entries)))
 	}
 
 	// INVARIANT: For each i, entries[i].Offset == i+1
 	for i, e := range in.entries {
-		if !(e.Offset == i+1) {
+		if !(e.Offset == fuseops.DirOffset(i+1)) {
 			panic(fmt.Sprintf("Unexpected offset for index %d: %d", i, e.Offset))
 		}
 	}
@@ -212,7 +211,7 @@ func (in *inode) AddChild(
 	var index int
 
 	// Update the modification time.
-	in.attributes.Mtime = in.clock.Now()
+	in.attrs.Mtime = in.clock.Now()
 
 	// No matter where we place the entry, make sure it has the correct Offset
 	// field.
@@ -247,7 +246,7 @@ func (in *inode) AddChild(
 // LOCKS_REQUIRED(in.mu)
 func (in *inode) RemoveChild(name string) {
 	// Update the modification time.
-	in.attributes.Mtime = in.clock.Now()
+	in.attrs.Mtime = in.clock.Now()
 
 	// Find the entry.
 	i, ok := in.findChild(name)
@@ -325,14 +324,14 @@ func (in *inode) WriteAt(p []byte, off int64) (n int, err error) {
 	}
 
 	// Update the modification time.
-	in.attributes.Mtime = in.clock.Now()
+	in.attrs.Mtime = in.clock.Now()
 
 	// Ensure that the contents slice is long enough.
 	newLen := int(off) + len(p)
 	if len(in.contents) < newLen {
 		padding := make([]byte, newLen-len(in.contents))
 		in.contents = append(in.contents, padding...)
-		in.attributes.Size = uint64(newLen)
+		in.attrs.Size = uint64(newLen)
 	}
 
 	// Copy in the data.
@@ -354,7 +353,7 @@ func (in *inode) SetAttributes(
 	mode *os.FileMode,
 	mtime *time.Time) {
 	// Update the modification time.
-	in.attributes.Mtime = in.clock.Now()
+	in.attrs.Mtime = in.clock.Now()
 
 	// Truncate?
 	if size != nil {
@@ -369,16 +368,16 @@ func (in *inode) SetAttributes(
 		}
 
 		// Update attributes.
-		in.attributes.Size = *size
+		in.attrs.Size = *size
 	}
 
 	// Change mode?
 	if mode != nil {
-		in.attributes.Mode = *mode
+		in.attrs.Mode = *mode
 	}
 
 	// Change mtime?
 	if mtime != nil {
-		in.attributes.Mtime = *mtime
+		in.attrs.Mtime = *mtime
 	}
 }
