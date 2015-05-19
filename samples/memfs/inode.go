@@ -130,7 +130,7 @@ func (in *inode) checkInvariants() {
 
 	// INVARIANT: Contains no duplicate names in used entries.
 	childNames := make(map[string]struct{})
-	for i, e := range in.entries {
+	for _, e := range in.entries {
 		if e.Type != fuseutil.DT_Unknown {
 			if _, ok := childNames[e.Name]; ok {
 				panic(fmt.Sprintf("Duplicate name: %s", e.Name))
@@ -286,7 +286,7 @@ func (in *inode) RemoveChild(name string) {
 // REQUIRES: in.isDir()
 // LOCKS_REQUIRED(in.mu)
 func (in *inode) ReadDir(offset int, size int) (data []byte, err error) {
-	if !in.dir {
+	if !in.isDir() {
 		panic("ReadDir called on non-directory.")
 	}
 
@@ -315,8 +315,8 @@ func (in *inode) ReadDir(offset int, size int) (data []byte, err error) {
 // REQUIRES: in.isFile()
 // LOCKS_REQUIRED(in.mu)
 func (in *inode) ReadAt(p []byte, off int64) (n int, err error) {
-	if in.dir {
-		panic("ReadAt called on directory.")
+	if !in.isFile() {
+		panic("ReadAt called on non-file.")
 	}
 
 	// Ensure the offset is in range.
@@ -339,8 +339,8 @@ func (in *inode) ReadAt(p []byte, off int64) (n int, err error) {
 // REQUIRES: in.isFile()
 // LOCKS_REQUIRED(in.mu)
 func (in *inode) WriteAt(p []byte, off int64) (n int, err error) {
-	if in.dir {
-		panic("WriteAt called on directory.")
+	if !in.isFile() {
+		panic("WriteAt called on non-file.")
 	}
 
 	// Update the modification time.
