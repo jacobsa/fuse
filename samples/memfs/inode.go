@@ -35,13 +35,6 @@ type inode struct {
 	clock timeutil.Clock
 
 	/////////////////////////
-	// Constant data
-	/////////////////////////
-
-	// Is this a directory? If not, it is a file.
-	dir bool
-
-	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
@@ -49,11 +42,10 @@ type inode struct {
 
 	// The current attributes of this inode.
 	//
-	// INVARIANT: No non-permission mode bits are set besides os.ModeDir
-	// INVARIANT: If dir, then os.ModeDir is set
-	// INVARIANT: If !dir, then os.ModeDir is not set
-	// INVARIANT: attributes.Size == len(contents)
-	attributes fuseops.InodeAttributes // GUARDED_BY(mu)
+	// INVARIANT: attrs.Mode &^ (os.ModePerm|os.ModeDir|os.ModeSymlink) == 0
+	// INVARIANT: !(isDir() && isSymlink())
+	// INVARIANT: attrs.Size == len(contents)
+	attrs fuseops.InodeAttributes // GUARDED_BY(mu)
 
 	// For directories, entries describing the children of the directory. Unused
 	// entries are of type DT_Unknown.
@@ -63,15 +55,22 @@ type inode struct {
 	// might be calling readdir in a loop while concurrently modifying the
 	// directory. Unused entries can, however, be reused.
 	//
-	// INVARIANT: If dir is false, this is nil.
+	// INVARIANT: If !isDir(), len(entries) == 0
 	// INVARIANT: For each i, entries[i].Offset == i+1
 	// INVARIANT: Contains no duplicate names in used entries.
 	entries []fuseutil.Dirent // GUARDED_BY(mu)
 
 	// For files, the current contents of the file.
 	//
-	// INVARIANT: If dir is true, this is nil.
+	// INVARIANT: If !isFile(), len(contents) == 0
 	contents []byte // GUARDED_BY(mu)
+
+	// For symlinks, the target of the symlink.
+	//
+	// INVARIANT: If !isSymlink(), len(target) == 0
+	//
+	// GUARDED_BY(mu)
+	target string
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -99,78 +98,75 @@ func newInode(
 	return
 }
 
-func (inode *inode) checkInvariants() {
-	// No non-permission mode bits should be set besides os.ModeDir.
-	if inode.attributes.Mode & ^(os.ModePerm|os.ModeDir) != 0 {
-		panic(fmt.Sprintf("Unexpected mode: %v", inode.attributes.Mode))
+func (in *inode) checkInvariants() {
+	// INVARIANT: attrs.Mode &^ (os.ModePerm|os.ModeDir|os.ModeSymlink) == 0
+	if !(in.attrs.Mode&^(os.ModePerm|os.ModeDir|os.ModeSymlink) == 0) {
+		panic(fmt.Sprintf("Unexpected mode: %v", in.attrs.Mode))
 	}
 
-	// Check os.ModeDir.
-	if inode.dir != (inode.attributes.Mode&os.ModeDir == os.ModeDir) {
-		panic(
-			fmt.Sprintf(
-				"Unexpected mode: %v, dir: %v",
-				inode.attributes.Mode,
-				inode.dir))
+	// INVARIANT: !(isDir() && isSymlink())
+	if in.isDir() && in.isSymlink() {
+		panic(fmt.Sprintf("Unexpected mode: %v", in.attrs.Mode))
 	}
 
-	// Check directory-specific stuff.
-	if inode.dir {
-		if inode.contents != nil {
-			panic("Non-nil contents in a directory.")
+	// INVARIANT: attrs.Size == len(contents)
+	if in.attrs.Size != len(in.contents) {
+		panic(fmt.Sprintf(
+			"Size mismatch: %d vs. %d",
+			in.attrs.Size,
+			len(in.contents)))
+	}
+
+	// INVARIANT: If !isDir(), len(entries) == 0
+	if !in.isDir() && len(entries) != 0 {
+		panic(fmt.Sprintf("Unexpected entries length: %d", len(entries)))
+	}
+
+	// INVARIANT: For each i, entries[i].Offset == i+1
+	for i, e := range in.entries {
+		if !(e.Offset == i+1) {
+			panic(fmt.Sprintf("Unexpected offset for index %d: %d", i, e.Offset))
 		}
+	}
 
-		childNames := make(map[string]struct{})
-		for i, e := range inode.entries {
-			if e.Offset != fuseops.DirOffset(i+1) {
-				panic(fmt.Sprintf("Unexpected offset: %v", e.Offset))
+	// INVARIANT: Contains no duplicate names in used entries.
+	childNames := make(map[string]struct{})
+	for i, e := range inode.entries {
+		if e.Type != fuseutil.DT_Unknown {
+			if _, ok := childNames[e.Name]; ok {
+				panic(fmt.Sprintf("Duplicate name: %s", e.Name))
 			}
 
-			if e.Type != fuseutil.DT_Unknown {
-				if _, ok := childNames[e.Name]; ok {
-					panic(fmt.Sprintf("Duplicate name: %s", e.Name))
-				}
-
-				childNames[e.Name] = struct{}{}
-			}
+			childNames[e.Name] = struct{}{}
 		}
 	}
 
-	// Check file-specific stuff.
-	if !inode.dir {
-		if inode.entries != nil {
-			panic("Non-nil entries in a file.")
-		}
+	// INVARIANT: If !isFile(), len(contents) == 0
+	if !in.isFile() && len(in.contents) != 0 {
+		panic(fmt.Sprintf("Unexpected length: %d", len(in.contents)))
 	}
 
-	// Check the size.
-	if inode.attributes.Size != uint64(len(inode.contents)) {
-		panic(
-			fmt.Sprintf(
-				"Unexpected size: %v vs. %v",
-				inode.attributes.Size,
-				len(inode.contents)))
-	}
-}
-
-// Return the index of the child within inode.entries, if it exists.
-//
-// REQUIRES: inode.dir
-// SHARED_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) findChild(name string) (i int, ok bool) {
-	if !inode.dir {
-		panic("findChild called on non-directory.")
-	}
-
-	var e fuseutil.Dirent
-	for i, e = range inode.entries {
-		if e.Name == name {
-			ok = true
-			return
-		}
+	// INVARIANT: If !isSymlink(), len(target) == 0
+	if !in.isSymlink() && len(in.target) != 0 {
+		panic(fmt.Sprintf("Unexpected target length: %d", len(in.target)))
 	}
 
 	return
+}
+
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) isDir() bool {
+	return in.attrs.Mode&os.ModeDir != 0
+}
+
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) isSymlink() bool {
+	return in.attrs.Mode&os.ModeSymlink != 0
+}
+
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) isFile() bool {
+	return !(in.isDir() || in.isSymlink())
 }
 
 ////////////////////////////////////////////////////////////////////////
