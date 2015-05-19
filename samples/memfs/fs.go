@@ -232,7 +232,7 @@ func (fs *memFS) LookUpInode(
 
 	// Fill in the response.
 	op.Entry.Child = childID
-	op.Entry.Attributes = child.attributes
+	op.Entry.Attributes = child.attrs
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -255,7 +255,7 @@ func (fs *memFS) GetInodeAttributes(
 	defer inode.mu.Unlock()
 
 	// Fill in the response.
-	op.Attributes = inode.attributes
+	op.Attributes = inode.attrs
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -280,7 +280,7 @@ func (fs *memFS) SetInodeAttributes(
 	inode.SetAttributes(op.Size, op.Mode, op.Mtime)
 
 	// Fill in the response.
-	op.Attributes = inode.attributes
+	op.Attributes = inode.attrs
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -319,7 +319,7 @@ func (fs *memFS) MkDir(
 
 	// Fill in the response.
 	op.Entry.Child = childID
-	op.Entry.Attributes = child.attributes
+	op.Entry.Attributes = child.attrs
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -364,7 +364,7 @@ func (fs *memFS) CreateFile(
 
 	// Fill in the response entry.
 	op.Entry.Child = childID
-	op.Entry.Attributes = child.attributes
+	op.Entry.Attributes = child.attrs
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -409,7 +409,7 @@ func (fs *memFS) RmDir(
 	parent.RemoveChild(op.Name)
 
 	// Mark the child as unlinked.
-	child.attributes.Nlink--
+	child.attrs.Nlink--
 
 	return
 }
@@ -441,7 +441,7 @@ func (fs *memFS) Unlink(
 	parent.RemoveChild(op.Name)
 
 	// Mark the child as unlinked.
-	child.attributes.Nlink--
+	child.attrs.Nlink--
 
 	return
 }
