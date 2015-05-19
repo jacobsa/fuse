@@ -45,6 +45,7 @@ type FileSystem interface {
 	ForgetInode(*fuseops.ForgetInodeOp)
 	MkDir(*fuseops.MkDirOp)
 	CreateFile(*fuseops.CreateFileOp)
+	CreateSymlink(*fuseops.CreateSymlinkOp)
 	RmDir(*fuseops.RmDirOp)
 	Unlink(*fuseops.UnlinkOp)
 	OpenDir(*fuseops.OpenDirOp)
@@ -148,6 +149,9 @@ func (s fileSystemServer) handleOp(op fuseops.Op) {
 
 	case *fuseops.CreateFileOp:
 		s.fs.CreateFile(typed)
+
+	case *fuseops.CreateSymlinkOp:
+		s.fs.CreateSymlink(typed)
 
 	case *fuseops.RmDirOp:
 		s.fs.RmDir(typed)

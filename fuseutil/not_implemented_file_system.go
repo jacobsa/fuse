@@ -63,6 +63,11 @@ func (fs *NotImplementedFileSystem) CreateFile(
 	op.Respond(fuse.ENOSYS)
 }
 
+func (fs *NotImplementedFileSystem) CreateSymlink(
+	op *fuseops.CreateSymlinkOp) {
+	op.Respond(fuse.ENOSYS)
+}
+
 func (fs *NotImplementedFileSystem) RmDir(
 	op *fuseops.RmDirOp) {
 	op.Respond(fuse.ENOSYS)
