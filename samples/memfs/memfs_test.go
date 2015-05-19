@@ -1136,19 +1136,36 @@ func (t *MemFSTest) HardLinks() {
 }
 
 func (t *MemFSTest) CreateSymlink() {
+	var fi os.FileInfo
 	var err error
 
 	symlinkName := path.Join(t.Dir, "foo")
 	target := "taco/burrito"
 
-	// Create.
+	// Create the link.
 	err = os.Symlink(target, symlinkName)
 	AssertEq(nil, err)
 
-	// Read
+	// Stat the link.
+	fi, err = os.Lstat(symlinkName)
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0444|os.ModeSymlink, fi.Mode())
+
+	// Read the link.
 	actual, err := os.Readlink(symlinkName)
 	AssertEq(nil, err)
 	ExpectEq(target, actual)
+
+	// Read the parent directory.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0444|os.ModeSymlink, fi.Mode())
 }
 
 func (t *MemFSTest) CreateSymlink_AlreadyExists() {
