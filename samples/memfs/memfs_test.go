@@ -1182,7 +1182,8 @@ func (t *MemFSTest) CreateSymlink_AlreadyExists() {
 }
 
 func (t *MemFSTest) ReadLink_NonExistent() {
-	AssertTrue(false, "TODO")
+	_, err := os.Readlink(path.Join(t.Dir, "foo"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
 }
 
 func (t *MemFSTest) ReadLink_NotASymlink() {
