@@ -63,6 +63,11 @@ func (fs *NotImplementedFileSystem) CreateFile(
 	op.Respond(fuse.ENOSYS)
 }
 
+func (fs *NotImplementedFileSystem) CreateSymlink(
+	op *fuseops.CreateSymlinkOp) {
+	op.Respond(fuse.ENOSYS)
+}
+
 func (fs *NotImplementedFileSystem) RmDir(
 	op *fuseops.RmDirOp) {
 	op.Respond(fuse.ENOSYS)
@@ -115,5 +120,10 @@ func (fs *NotImplementedFileSystem) FlushFile(
 
 func (fs *NotImplementedFileSystem) ReleaseFileHandle(
 	op *fuseops.ReleaseFileHandleOp) {
+	op.Respond(fuse.ENOSYS)
+}
+
+func (fs *NotImplementedFileSystem) ReadSymlink(
+	op *fuseops.ReadSymlinkOp) {
 	op.Respond(fuse.ENOSYS)
 }

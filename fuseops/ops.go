@@ -371,6 +371,47 @@ func (o *CreateFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	return
 }
 
+// Create a symlink inode.
+type CreateSymlinkOp struct {
+	commonOp
+
+	// The ID of parent directory inode within which to create the child symlink.
+	Parent InodeID
+
+	// The name of the symlink to create.
+	Name string
+
+	// The target of the symlink.
+	Target string
+
+	// Set by the file system: information about the symlink inode that was
+	// created.
+	//
+	// The lookup count for the inode is implicitly incremented. See notes on
+	// ForgetInodeOp for more information.
+	Entry ChildInodeEntry
+}
+
+func (o *CreateSymlinkOp) ShortDesc() (desc string) {
+	desc = fmt.Sprintf(
+		"CreateSymlink(parent=%v, name=%q, target=%q)",
+		o.Parent,
+		o.Name,
+		o.Target)
+
+	return
+}
+
+func (o *CreateSymlinkOp) toBazilfuseResponse() (bfResp interface{}) {
+	resp := bazilfuse.SymlinkResponse{}
+	bfResp = &resp
+
+	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
+
+	return
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Unlinking
 ////////////////////////////////////////////////////////////////////////
@@ -395,15 +436,16 @@ func (o *RmDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	return
 }
 
-// Unlink a file from its parent. If this brings the inode's link count to
-// zero, the inode should be deleted once the kernel sends ForgetInodeOp. It
-// may still be referenced before then if a user still has the file open.
+// Unlink a file or symlink from its parent. If this brings the inode's link
+// count to zero, the inode should be deleted once the kernel sends
+// ForgetInodeOp. It may still be referenced before then if a user still has
+// the file open.
 //
 // Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
 type UnlinkOp struct {
 	commonOp
 
-	// The ID of parent directory inode, and the name of the file being removed
+	// The ID of parent directory inode, and the name of the entry being removed
 	// within it.
 	Parent InodeID
 	Name   string
@@ -843,4 +885,24 @@ type unknownOp struct {
 
 func (o *unknownOp) toBazilfuseResponse() (bfResp interface{}) {
 	panic(fmt.Sprintf("Should never get here for unknown op: %s", o.ShortDesc()))
+}
+
+////////////////////////////////////////////////////////////////////////
+// Reading symlinks
+////////////////////////////////////////////////////////////////////////
+
+// Read the target of a symlink inode.
+type ReadSymlinkOp struct {
+	commonOp
+
+	// The symlink inode that we are reading.
+	Inode InodeID
+
+	// Set by the file system: the target of the symlink.
+	Target string
+}
+
+func (o *ReadSymlinkOp) toBazilfuseResponse() (bfResp interface{}) {
+	bfResp = o.Target
+	return
 }

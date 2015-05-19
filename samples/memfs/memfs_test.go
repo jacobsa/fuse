@@ -1114,3 +1114,140 @@ func (t *MemFSTest) ReadDirWhileModifying() {
 	ExpectTrue(namesSeen["bar"])
 	ExpectTrue(namesSeen["qux"])
 }
+
+func (t *MemFSTest) HardLinks() {
+	var err error
+
+	// Create a file and a directory.
+	fileName := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	dirName := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Attempt to link each. Neither should work, but for different reasons.
+	err = os.Link(fileName, path.Join(t.Dir, "baz"))
+	ExpectThat(err, Error(HasSubstr("not implemented")))
+
+	err = os.Link(dirName, path.Join(t.Dir, "baz"))
+	ExpectThat(err, Error(HasSubstr("not permitted")))
+}
+
+func (t *MemFSTest) CreateSymlink() {
+	var fi os.FileInfo
+	var err error
+
+	symlinkName := path.Join(t.Dir, "foo")
+	target := "taco/burrito"
+
+	// Create the link.
+	err = os.Symlink(target, symlinkName)
+	AssertEq(nil, err)
+
+	// Stat the link.
+	fi, err = os.Lstat(symlinkName)
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0444|os.ModeSymlink, fi.Mode())
+
+	// Read the link.
+	actual, err := os.Readlink(symlinkName)
+	AssertEq(nil, err)
+	ExpectEq(target, actual)
+
+	// Read the parent directory.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0444|os.ModeSymlink, fi.Mode())
+}
+
+func (t *MemFSTest) CreateSymlink_AlreadyExists() {
+	var err error
+
+	// Create a file and a directory.
+	fileName := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	dirName := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Create an existing symlink.
+	symlinkName := path.Join(t.Dir, "baz")
+	err = os.Symlink("blah", symlinkName)
+	AssertEq(nil, err)
+
+	// Symlinking on top of any of them should fail.
+	names := []string{
+		fileName,
+		dirName,
+		symlinkName,
+	}
+
+	for _, n := range names {
+		err = os.Symlink("blah", n)
+		ExpectThat(err, Error(HasSubstr("exists")))
+	}
+}
+
+func (t *MemFSTest) ReadLink_NonExistent() {
+	_, err := os.Readlink(path.Join(t.Dir, "foo"))
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+}
+
+func (t *MemFSTest) ReadLink_NotASymlink() {
+	var err error
+
+	// Create a file and a directory.
+	fileName := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	dirName := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Reading either of them as a symlink should fail.
+	names := []string{
+		fileName,
+		dirName,
+	}
+
+	for _, n := range names {
+		_, err = os.Readlink(n)
+		ExpectThat(err, Error(HasSubstr("invalid argument")))
+	}
+}
+
+func (t *MemFSTest) DeleteSymlink() {
+	var err error
+
+	symlinkName := path.Join(t.Dir, "foo")
+	target := "taco/burrito"
+
+	// Create the link.
+	err = os.Symlink(target, symlinkName)
+	AssertEq(nil, err)
+
+	// Remove it.
+	err = os.Remove(symlinkName)
+	AssertEq(nil, err)
+
+	// Statting should now fail.
+	_, err = os.Lstat(symlinkName)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// Read the parent directory.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+}

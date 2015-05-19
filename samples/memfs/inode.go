@@ -35,13 +35,6 @@ type inode struct {
 	clock timeutil.Clock
 
 	/////////////////////////
-	// Constant data
-	/////////////////////////
-
-	// Is this a directory? If not, it is a file.
-	dir bool
-
-	/////////////////////////
 	// Mutable state
 	/////////////////////////
 
@@ -49,11 +42,10 @@ type inode struct {
 
 	// The current attributes of this inode.
 	//
-	// INVARIANT: No non-permission mode bits are set besides os.ModeDir
-	// INVARIANT: If dir, then os.ModeDir is set
-	// INVARIANT: If !dir, then os.ModeDir is not set
-	// INVARIANT: attributes.Size == len(contents)
-	attributes fuseops.InodeAttributes // GUARDED_BY(mu)
+	// INVARIANT: attrs.Mode &^ (os.ModePerm|os.ModeDir|os.ModeSymlink) == 0
+	// INVARIANT: !(isDir() && isSymlink())
+	// INVARIANT: attrs.Size == len(contents)
+	attrs fuseops.InodeAttributes // GUARDED_BY(mu)
 
 	// For directories, entries describing the children of the directory. Unused
 	// entries are of type DT_Unknown.
@@ -63,15 +55,22 @@ type inode struct {
 	// might be calling readdir in a loop while concurrently modifying the
 	// directory. Unused entries can, however, be reused.
 	//
-	// INVARIANT: If dir is false, this is nil.
+	// INVARIANT: If !isDir(), len(entries) == 0
 	// INVARIANT: For each i, entries[i].Offset == i+1
 	// INVARIANT: Contains no duplicate names in used entries.
 	entries []fuseutil.Dirent // GUARDED_BY(mu)
 
 	// For files, the current contents of the file.
 	//
-	// INVARIANT: If dir is true, this is nil.
+	// INVARIANT: If !isFile(), len(contents) == 0
 	contents []byte // GUARDED_BY(mu)
+
+	// For symlinks, the target of the symlink.
+	//
+	// INVARIANT: If !isSymlink(), len(target) == 0
+	//
+	// GUARDED_BY(mu)
+	target string
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -90,80 +89,96 @@ func newInode(
 
 	// Create the object.
 	in = &inode{
-		clock:      clock,
-		dir:        (attrs.Mode&os.ModeDir != 0),
-		attributes: attrs,
+		clock: clock,
+		attrs: attrs,
 	}
 
 	in.mu = syncutil.NewInvariantMutex(in.checkInvariants)
 	return
 }
 
-func (inode *inode) checkInvariants() {
-	// No non-permission mode bits should be set besides os.ModeDir.
-	if inode.attributes.Mode & ^(os.ModePerm|os.ModeDir) != 0 {
-		panic(fmt.Sprintf("Unexpected mode: %v", inode.attributes.Mode))
+func (in *inode) checkInvariants() {
+	// INVARIANT: attrs.Mode &^ (os.ModePerm|os.ModeDir|os.ModeSymlink) == 0
+	if !(in.attrs.Mode&^(os.ModePerm|os.ModeDir|os.ModeSymlink) == 0) {
+		panic(fmt.Sprintf("Unexpected mode: %v", in.attrs.Mode))
 	}
 
-	// Check os.ModeDir.
-	if inode.dir != (inode.attributes.Mode&os.ModeDir == os.ModeDir) {
-		panic(
-			fmt.Sprintf(
-				"Unexpected mode: %v, dir: %v",
-				inode.attributes.Mode,
-				inode.dir))
+	// INVARIANT: !(isDir() && isSymlink())
+	if in.isDir() && in.isSymlink() {
+		panic(fmt.Sprintf("Unexpected mode: %v", in.attrs.Mode))
 	}
 
-	// Check directory-specific stuff.
-	if inode.dir {
-		if inode.contents != nil {
-			panic("Non-nil contents in a directory.")
+	// INVARIANT: attrs.Size == len(contents)
+	if in.attrs.Size != uint64(len(in.contents)) {
+		panic(fmt.Sprintf(
+			"Size mismatch: %d vs. %d",
+			in.attrs.Size,
+			len(in.contents)))
+	}
+
+	// INVARIANT: If !isDir(), len(entries) == 0
+	if !in.isDir() && len(in.entries) != 0 {
+		panic(fmt.Sprintf("Unexpected entries length: %d", len(in.entries)))
+	}
+
+	// INVARIANT: For each i, entries[i].Offset == i+1
+	for i, e := range in.entries {
+		if !(e.Offset == fuseops.DirOffset(i+1)) {
+			panic(fmt.Sprintf("Unexpected offset for index %d: %d", i, e.Offset))
 		}
+	}
 
-		childNames := make(map[string]struct{})
-		for i, e := range inode.entries {
-			if e.Offset != fuseops.DirOffset(i+1) {
-				panic(fmt.Sprintf("Unexpected offset: %v", e.Offset))
+	// INVARIANT: Contains no duplicate names in used entries.
+	childNames := make(map[string]struct{})
+	for _, e := range in.entries {
+		if e.Type != fuseutil.DT_Unknown {
+			if _, ok := childNames[e.Name]; ok {
+				panic(fmt.Sprintf("Duplicate name: %s", e.Name))
 			}
 
-			if e.Type != fuseutil.DT_Unknown {
-				if _, ok := childNames[e.Name]; ok {
-					panic(fmt.Sprintf("Duplicate name: %s", e.Name))
-				}
-
-				childNames[e.Name] = struct{}{}
-			}
+			childNames[e.Name] = struct{}{}
 		}
 	}
 
-	// Check file-specific stuff.
-	if !inode.dir {
-		if inode.entries != nil {
-			panic("Non-nil entries in a file.")
-		}
+	// INVARIANT: If !isFile(), len(contents) == 0
+	if !in.isFile() && len(in.contents) != 0 {
+		panic(fmt.Sprintf("Unexpected length: %d", len(in.contents)))
 	}
 
-	// Check the size.
-	if inode.attributes.Size != uint64(len(inode.contents)) {
-		panic(
-			fmt.Sprintf(
-				"Unexpected size: %v vs. %v",
-				inode.attributes.Size,
-				len(inode.contents)))
+	// INVARIANT: If !isSymlink(), len(target) == 0
+	if !in.isSymlink() && len(in.target) != 0 {
+		panic(fmt.Sprintf("Unexpected target length: %d", len(in.target)))
 	}
+
+	return
 }
 
-// Return the index of the child within inode.entries, if it exists.
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) isDir() bool {
+	return in.attrs.Mode&os.ModeDir != 0
+}
+
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) isSymlink() bool {
+	return in.attrs.Mode&os.ModeSymlink != 0
+}
+
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) isFile() bool {
+	return !(in.isDir() || in.isSymlink())
+}
+
+// Return the index of the child within in.entries, if it exists.
 //
-// REQUIRES: inode.dir
-// SHARED_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) findChild(name string) (i int, ok bool) {
-	if !inode.dir {
+// REQUIRES: in.dir
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) findChild(name string) (i int, ok bool) {
+	if !in.isDir() {
 		panic("findChild called on non-directory.")
 	}
 
 	var e fuseutil.Dirent
-	for i, e = range inode.entries {
+	for i, e = range in.entries {
 		if e.Name == name {
 			ok = true
 			return
@@ -179,10 +194,10 @@ func (inode *inode) findChild(name string) (i int, ok bool) {
 
 // Return the number of children of the directory.
 //
-// REQUIRES: inode.dir
-// SHARED_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) Len() (n int) {
-	for _, e := range inode.entries {
+// REQUIRES: in.isDir()
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) Len() (n int) {
+	for _, e := range in.entries {
 		if e.Type != fuseutil.DT_Unknown {
 			n++
 		}
@@ -193,12 +208,12 @@ func (inode *inode) Len() (n int) {
 
 // Find an entry for the given child name and return its inode ID.
 //
-// REQUIRES: inode.dir
-// SHARED_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) LookUpChild(name string) (id fuseops.InodeID, ok bool) {
-	index, ok := inode.findChild(name)
+// REQUIRES: in.isDir()
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) LookUpChild(name string) (id fuseops.InodeID, ok bool) {
+	index, ok := in.findChild(name)
 	if ok {
-		id = inode.entries[index].Inode
+		id = in.entries[index].Inode
 	}
 
 	return
@@ -206,22 +221,22 @@ func (inode *inode) LookUpChild(name string) (id fuseops.InodeID, ok bool) {
 
 // Add an entry for a child.
 //
-// REQUIRES: inode.dir
+// REQUIRES: in.isDir()
 // REQUIRES: dt != fuseutil.DT_Unknown
-// EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) AddChild(
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) AddChild(
 	id fuseops.InodeID,
 	name string,
 	dt fuseutil.DirentType) {
 	var index int
 
 	// Update the modification time.
-	inode.attributes.Mtime = inode.clock.Now()
+	in.attrs.Mtime = in.clock.Now()
 
 	// No matter where we place the entry, make sure it has the correct Offset
 	// field.
 	defer func() {
-		inode.entries[index].Offset = fuseops.DirOffset(index + 1)
+		in.entries[index].Offset = fuseops.DirOffset(index + 1)
 	}()
 
 	// Set up the entry.
@@ -232,35 +247,35 @@ func (inode *inode) AddChild(
 	}
 
 	// Look for a gap in which we can insert it.
-	for index = range inode.entries {
-		if inode.entries[index].Type == fuseutil.DT_Unknown {
-			inode.entries[index] = e
+	for index = range in.entries {
+		if in.entries[index].Type == fuseutil.DT_Unknown {
+			in.entries[index] = e
 			return
 		}
 	}
 
 	// Append it to the end.
-	index = len(inode.entries)
-	inode.entries = append(inode.entries, e)
+	index = len(in.entries)
+	in.entries = append(in.entries, e)
 }
 
 // Remove an entry for a child.
 //
-// REQUIRES: inode.dir
+// REQUIRES: in.isDir()
 // REQUIRES: An entry for the given name exists.
-// EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) RemoveChild(name string) {
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) RemoveChild(name string) {
 	// Update the modification time.
-	inode.attributes.Mtime = inode.clock.Now()
+	in.attrs.Mtime = in.clock.Now()
 
 	// Find the entry.
-	i, ok := inode.findChild(name)
+	i, ok := in.findChild(name)
 	if !ok {
 		panic(fmt.Sprintf("Unknown child: %s", name))
 	}
 
 	// Mark it as unused.
-	inode.entries[i] = fuseutil.Dirent{
+	in.entries[i] = fuseutil.Dirent{
 		Type:   fuseutil.DT_Unknown,
 		Offset: fuseops.DirOffset(i + 1),
 	}
@@ -268,22 +283,22 @@ func (inode *inode) RemoveChild(name string) {
 
 // Serve a ReadDir request.
 //
-// REQUIRES: inode.dir
-// SHARED_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) ReadDir(offset int, size int) (data []byte, err error) {
-	if !inode.dir {
+// REQUIRES: in.isDir()
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) ReadDir(offset int, size int) (data []byte, err error) {
+	if !in.isDir() {
 		panic("ReadDir called on non-directory.")
 	}
 
-	for i := offset; i < len(inode.entries); i++ {
-		e := inode.entries[i]
+	for i := offset; i < len(in.entries); i++ {
+		e := in.entries[i]
 
 		// Skip unused entries.
 		if e.Type == fuseutil.DT_Unknown {
 			continue
 		}
 
-		data = fuseutil.AppendDirent(data, inode.entries[i])
+		data = fuseutil.AppendDirent(data, in.entries[i])
 
 		// Trim and stop early if we've exceeded the requested size.
 		if len(data) > size {
@@ -297,21 +312,21 @@ func (inode *inode) ReadDir(offset int, size int) (data []byte, err error) {
 
 // Read from the file's contents. See documentation for ioutil.ReaderAt.
 //
-// REQUIRES: !inode.dir
-// SHARED_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) ReadAt(p []byte, off int64) (n int, err error) {
-	if inode.dir {
-		panic("ReadAt called on directory.")
+// REQUIRES: in.isFile()
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) ReadAt(p []byte, off int64) (n int, err error) {
+	if !in.isFile() {
+		panic("ReadAt called on non-file.")
 	}
 
 	// Ensure the offset is in range.
-	if off > int64(len(inode.contents)) {
+	if off > int64(len(in.contents)) {
 		err = io.EOF
 		return
 	}
 
 	// Read what we can.
-	n = copy(p, inode.contents[off:])
+	n = copy(p, in.contents[off:])
 	if n < len(p) {
 		err = io.EOF
 	}
@@ -321,26 +336,26 @@ func (inode *inode) ReadAt(p []byte, off int64) (n int, err error) {
 
 // Write to the file's contents. See documentation for ioutil.WriterAt.
 //
-// REQUIRES: !inode.dir
-// EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) WriteAt(p []byte, off int64) (n int, err error) {
-	if inode.dir {
-		panic("WriteAt called on directory.")
+// REQUIRES: in.isFile()
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) WriteAt(p []byte, off int64) (n int, err error) {
+	if !in.isFile() {
+		panic("WriteAt called on non-file.")
 	}
 
 	// Update the modification time.
-	inode.attributes.Mtime = inode.clock.Now()
+	in.attrs.Mtime = in.clock.Now()
 
 	// Ensure that the contents slice is long enough.
 	newLen := int(off) + len(p)
-	if len(inode.contents) < newLen {
-		padding := make([]byte, newLen-len(inode.contents))
-		inode.contents = append(inode.contents, padding...)
-		inode.attributes.Size = uint64(newLen)
+	if len(in.contents) < newLen {
+		padding := make([]byte, newLen-len(in.contents))
+		in.contents = append(in.contents, padding...)
+		in.attrs.Size = uint64(newLen)
 	}
 
 	// Copy in the data.
-	n = copy(inode.contents[off:], p)
+	n = copy(in.contents[off:], p)
 
 	// Sanity check.
 	if n != len(p) {
@@ -352,37 +367,37 @@ func (inode *inode) WriteAt(p []byte, off int64) (n int, err error) {
 
 // Update attributes from non-nil parameters.
 //
-// EXCLUSIVE_LOCKS_REQUIRED(inode.mu)
-func (inode *inode) SetAttributes(
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) SetAttributes(
 	size *uint64,
 	mode *os.FileMode,
 	mtime *time.Time) {
 	// Update the modification time.
-	inode.attributes.Mtime = inode.clock.Now()
+	in.attrs.Mtime = in.clock.Now()
 
 	// Truncate?
 	if size != nil {
 		intSize := int(*size)
 
 		// Update contents.
-		if intSize <= len(inode.contents) {
-			inode.contents = inode.contents[:intSize]
+		if intSize <= len(in.contents) {
+			in.contents = in.contents[:intSize]
 		} else {
-			padding := make([]byte, intSize-len(inode.contents))
-			inode.contents = append(inode.contents, padding...)
+			padding := make([]byte, intSize-len(in.contents))
+			in.contents = append(in.contents, padding...)
 		}
 
 		// Update attributes.
-		inode.attributes.Size = *size
+		in.attrs.Size = *size
 	}
 
 	// Change mode?
 	if mode != nil {
-		inode.attributes.Mode = *mode
+		in.attrs.Mode = *mode
 	}
 
 	// Change mtime?
 	if mtime != nil {
-		inode.attributes.Mtime = *mtime
+		in.attrs.Mtime = *mtime
 	}
 }

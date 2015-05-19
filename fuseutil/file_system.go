@@ -45,6 +45,7 @@ type FileSystem interface {
 	ForgetInode(*fuseops.ForgetInodeOp)
 	MkDir(*fuseops.MkDirOp)
 	CreateFile(*fuseops.CreateFileOp)
+	CreateSymlink(*fuseops.CreateSymlinkOp)
 	RmDir(*fuseops.RmDirOp)
 	Unlink(*fuseops.UnlinkOp)
 	OpenDir(*fuseops.OpenDirOp)
@@ -56,6 +57,7 @@ type FileSystem interface {
 	SyncFile(*fuseops.SyncFileOp)
 	FlushFile(*fuseops.FlushFileOp)
 	ReleaseFileHandle(*fuseops.ReleaseFileHandleOp)
+	ReadSymlink(*fuseops.ReadSymlinkOp)
 }
 
 // Create a fuse.Server that handles ops by calling the associated FileSystem
@@ -149,6 +151,9 @@ func (s fileSystemServer) handleOp(op fuseops.Op) {
 	case *fuseops.CreateFileOp:
 		s.fs.CreateFile(typed)
 
+	case *fuseops.CreateSymlinkOp:
+		s.fs.CreateSymlink(typed)
+
 	case *fuseops.RmDirOp:
 		s.fs.RmDir(typed)
 
@@ -181,5 +186,8 @@ func (s fileSystemServer) handleOp(op fuseops.Op) {
 
 	case *fuseops.ReleaseFileHandleOp:
 		s.fs.ReleaseFileHandle(typed)
+
+	case *fuseops.ReadSymlinkOp:
+		s.fs.ReadSymlink(typed)
 	}
 }
