@@ -160,7 +160,7 @@ func (fs *memFS) getInodeForReadingOrDie(id fuseops.InodeID) (inode *inode) {
 		panic(fmt.Sprintf("Unknown inode: %v", id))
 	}
 
-	inode.mu.RLock()
+	inode.mu.Lock()
 	return
 }
 
@@ -212,12 +212,12 @@ func (fs *memFS) LookUpInode(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Grab the parent directory.
 	inode := fs.getInodeForReadingOrDie(op.Parent)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
 	// Does the directory have an entry with the given name?
 	childID, ok := inode.LookUpChild(op.Name)
@@ -228,7 +228,7 @@ func (fs *memFS) LookUpInode(
 
 	// Grab the child.
 	child := fs.getInodeForReadingOrDie(childID)
-	defer child.mu.RUnlock()
+	defer child.mu.Unlock()
 
 	// Fill in the response.
 	op.Entry.Child = childID
@@ -247,12 +247,12 @@ func (fs *memFS) GetInodeAttributes(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Grab the inode.
 	inode := fs.getInodeForReadingOrDie(op.Inode)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
 	// Fill in the response.
 	op.Attributes = inode.attributes
@@ -269,8 +269,8 @@ func (fs *memFS) SetInodeAttributes(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Grab the inode.
 	inode := fs.getInodeForModifyingOrDie(op.Inode)
@@ -451,14 +451,14 @@ func (fs *memFS) OpenDir(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// We don't mutate spontaneosuly, so if the VFS layer has asked for an
 	// inode that doesn't exist, something screwed up earlier (a lookup, a
 	// cache invalidation, etc.).
 	inode := fs.getInodeForReadingOrDie(op.Inode)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
 	if !inode.dir {
 		panic("Found non-dir.")
@@ -472,12 +472,12 @@ func (fs *memFS) ReadDir(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Grab the directory.
 	inode := fs.getInodeForReadingOrDie(op.Inode)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
 	// Serve the request.
 	op.Data, err = inode.ReadDir(int(op.Offset), op.Size)
@@ -494,14 +494,14 @@ func (fs *memFS) OpenFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// We don't mutate spontaneosuly, so if the VFS layer has asked for an
 	// inode that doesn't exist, something screwed up earlier (a lookup, a
 	// cache invalidation, etc.).
 	inode := fs.getInodeForReadingOrDie(op.Inode)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
 	if inode.dir {
 		panic("Found directory.")
@@ -515,12 +515,12 @@ func (fs *memFS) ReadFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Find the inode in question.
 	inode := fs.getInodeForReadingOrDie(op.Inode)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
 	// Serve the request.
 	op.Data = make([]byte, op.Size)
@@ -540,8 +540,8 @@ func (fs *memFS) WriteFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Find the inode in question.
 	inode := fs.getInodeForModifyingOrDie(op.Inode)
