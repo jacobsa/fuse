@@ -1187,5 +1187,25 @@ func (t *MemFSTest) ReadLink_NonExistent() {
 }
 
 func (t *MemFSTest) ReadLink_NotASymlink() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a file and a directory.
+	fileName := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	dirName := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Reading either of them as a symlink should fail.
+	names := []string{
+		fileName,
+		dirName,
+	}
+
+	for _, n := range names {
+		_, err = os.Readlink(n)
+		ExpectThat(err, Error(HasSubstr("invalid argument")))
+	}
 }
