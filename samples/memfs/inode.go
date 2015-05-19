@@ -168,6 +168,26 @@ func (in *inode) isFile() bool {
 	return !(in.isDir() || in.isSymlink())
 }
 
+// Return the index of the child within in.entries, if it exists.
+//
+// REQUIRES: in.dir
+// LOCKS_REQUIRED(in.mu)
+func (in *inode) findChild(name string) (i int, ok bool) {
+	if !in.isDir() {
+		panic("findChild called on non-directory.")
+	}
+
+	var e fuseutil.Dirent
+	for i, e = range in.entries {
+		if e.Name == name {
+			ok = true
+			return
+		}
+	}
+
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public methods
 ////////////////////////////////////////////////////////////////////////
