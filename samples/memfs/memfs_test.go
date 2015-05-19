@@ -1154,3 +1154,11 @@ func (t *MemFSTest) CreateSymlink() {
 func (t *MemFSTest) CreateSymlink_AlreadyExists() {
 	AssertTrue(false, "TODO")
 }
+
+func (t *MemFSTest) ReadLink_NonExistent() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) ReadLink_NotASymlink() {
+	AssertTrue(false, "TODO")
+}
