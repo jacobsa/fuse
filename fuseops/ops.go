@@ -371,6 +371,47 @@ func (o *CreateFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	return
 }
 
+// Create a symlink inode.
+type CreateSymlinkOp struct {
+	commonOp
+
+	// The ID of parent directory inode within which to create the child symlink.
+	Parent InodeID
+
+	// The name of the symlink to create.
+	Name string
+
+	// The target of the symlink.
+	Target string
+
+	// Set by the file system: information about the symlink inode that was
+	// created.
+	//
+	// The lookup count for the inode is implicitly incremented. See notes on
+	// ForgetInodeOp for more information.
+	Entry ChildInodeEntry
+}
+
+func (o *CreateSymlinkOp) ShortDesc() (desc string) {
+	desc = fmt.Sprintf(
+		"CreateSymlink(parent=%v, name=%q, target=%q)",
+		o.Parent,
+		o.Name,
+		o.Target)
+
+	return
+}
+
+func (o *CreateSymlinkOp) toBazilfuseResponse() (bfResp interface{}) {
+	resp := bazilfuse.SymlinkResponse{}
+	bfResp = &resp
+
+	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
+
+	return
+	return
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Unlinking
 ////////////////////////////////////////////////////////////////////////
