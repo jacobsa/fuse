@@ -1136,19 +1136,36 @@ func (t *MemFSTest) HardLinks() {
 }
 
 func (t *MemFSTest) CreateSymlink() {
+	var fi os.FileInfo
 	var err error
 
 	symlinkName := path.Join(t.Dir, "foo")
 	target := "taco/burrito"
 
-	// Create.
+	// Create the link.
 	err = os.Symlink(target, symlinkName)
 	AssertEq(nil, err)
 
-	// Read
+	// Stat the link.
+	fi, err = os.Lstat(symlinkName)
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0444|os.ModeSymlink, fi.Mode())
+
+	// Read the link.
 	actual, err := os.Readlink(symlinkName)
 	AssertEq(nil, err)
 	ExpectEq(target, actual)
+
+	// Read the parent directory.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0444|os.ModeSymlink, fi.Mode())
 }
 
 func (t *MemFSTest) CreateSymlink_AlreadyExists() {
@@ -1208,4 +1225,29 @@ func (t *MemFSTest) ReadLink_NotASymlink() {
 		_, err = os.Readlink(n)
 		ExpectThat(err, Error(HasSubstr("invalid argument")))
 	}
+}
+
+func (t *MemFSTest) DeleteSymlink() {
+	var err error
+
+	symlinkName := path.Join(t.Dir, "foo")
+	target := "taco/burrito"
+
+	// Create the link.
+	err = os.Symlink(target, symlinkName)
+	AssertEq(nil, err)
+
+	// Remove it.
+	err = os.Remove(symlinkName)
+	AssertEq(nil, err)
+
+	// Statting should now fail.
+	_, err = os.Lstat(symlinkName)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// Read the parent directory.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
 }

@@ -436,15 +436,16 @@ func (o *RmDirOp) toBazilfuseResponse() (bfResp interface{}) {
 	return
 }
 
-// Unlink a file from its parent. If this brings the inode's link count to
-// zero, the inode should be deleted once the kernel sends ForgetInodeOp. It
-// may still be referenced before then if a user still has the file open.
+// Unlink a file or symlink from its parent. If this brings the inode's link
+// count to zero, the inode should be deleted once the kernel sends
+// ForgetInodeOp. It may still be referenced before then if a user still has
+// the file open.
 //
 // Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
 type UnlinkOp struct {
 	commonOp
 
-	// The ID of parent directory inode, and the name of the file being removed
+	// The ID of parent directory inode, and the name of the entry being removed
 	// within it.
 	Parent InodeID
 	Name   string
