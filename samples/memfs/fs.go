@@ -597,3 +597,21 @@ func (fs *memFS) WriteFile(
 
 	return
 }
+
+func (fs *memFS) ReadSymlink(
+	op *fuseops.ReadSymlinkOp) {
+	var err error
+	defer fuseutil.RespondToOp(op, &err)
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Find the inode in question.
+	inode := fs.getInodeForReadingOrDie(op.Inode)
+	defer inode.mu.Unlock()
+
+	// Serve the request.
+	op.Target = inode.target
+
+	return
+}
