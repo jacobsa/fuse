@@ -1226,3 +1226,28 @@ func (t *MemFSTest) ReadLink_NotASymlink() {
 		ExpectThat(err, Error(HasSubstr("invalid argument")))
 	}
 }
+
+func (t *MemFSTest) DeleteSymlink() {
+	var err error
+
+	symlinkName := path.Join(t.Dir, "foo")
+	target := "taco/burrito"
+
+	// Create the link.
+	err = os.Symlink(target, symlinkName)
+	AssertEq(nil, err)
+
+	// Remove it.
+	err = os.Remove(symlinkName)
+	AssertEq(nil, err)
+
+	// Statting should now fail.
+	_, err = os.Lstat(symlinkName)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// Read the parent directory.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+
+	AssertEq(nil, err)
+	ExpectThat(entries, ElementsAre())
+}
