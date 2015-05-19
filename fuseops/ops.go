@@ -903,8 +903,6 @@ type ReadSymlinkOp struct {
 }
 
 func (o *ReadSymlinkOp) toBazilfuseResponse() (bfResp interface{}) {
-	resp := o.Target
-	bfResp = &resp
-
+	bfResp = o.Target
 	return
 }
