@@ -50,7 +50,7 @@ type memFS struct {
 	// INVARIANT: len(inodes) > fuseops.RootInodeID
 	// INVARIANT: For all i < fuseops.RootInodeID, inodes[i] == nil
 	// INVARIANT: inodes[fuseops.RootInodeID] != nil
-	// INVARIANT: inodes[fuseops.RootInodeID].dir is true
+	// INVARIANT: inodes[fuseops.RootInodeID].isDir()
 	inodes []*inode // GUARDED_BY(mu)
 
 	// A list of inode IDs within inodes available for reuse, not including the
@@ -104,7 +104,7 @@ func (fs *memFS) checkInvariants() {
 	}
 
 	// Check the root inode.
-	if !fs.inodes[fuseops.RootInodeID].dir {
+	if !fs.inodes[fuseops.RootInodeID].isDir() {
 		panic("Expected root to be a directory.")
 	}
 
@@ -160,7 +160,7 @@ func (fs *memFS) getInodeForReadingOrDie(id fuseops.InodeID) (inode *inode) {
 		panic(fmt.Sprintf("Unknown inode: %v", id))
 	}
 
-	inode.mu.RLock()
+	inode.mu.Lock()
 	return
 }
 
@@ -212,12 +212,12 @@ func (fs *memFS) LookUpInode(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Grab the parent directory.
 	inode := fs.getInodeForReadingOrDie(op.Parent)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
 	// Does the directory have an entry with the given name?
 	childID, ok := inode.LookUpChild(op.Name)
@@ -228,11 +228,11 @@ func (fs *memFS) LookUpInode(
 
 	// Grab the child.
 	child := fs.getInodeForReadingOrDie(childID)
-	defer child.mu.RUnlock()
+	defer child.mu.Unlock()
 
 	// Fill in the response.
 	op.Entry.Child = childID
-	op.Entry.Attributes = child.attributes
+	op.Entry.Attributes = child.attrs
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -247,15 +247,15 @@ func (fs *memFS) GetInodeAttributes(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Grab the inode.
 	inode := fs.getInodeForReadingOrDie(op.Inode)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
 	// Fill in the response.
-	op.Attributes = inode.attributes
+	op.Attributes = inode.attrs
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -269,8 +269,8 @@ func (fs *memFS) SetInodeAttributes(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Grab the inode.
 	inode := fs.getInodeForModifyingOrDie(op.Inode)
@@ -280,7 +280,7 @@ func (fs *memFS) SetInodeAttributes(
 	inode.SetAttributes(op.Size, op.Mode, op.Mtime)
 
 	// Fill in the response.
-	op.Attributes = inode.attributes
+	op.Attributes = inode.attrs
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -319,7 +319,7 @@ func (fs *memFS) MkDir(
 
 	// Fill in the response.
 	op.Entry.Child = childID
-	op.Entry.Attributes = child.attributes
+	op.Entry.Attributes = child.attrs
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -364,7 +364,7 @@ func (fs *memFS) CreateFile(
 
 	// Fill in the response entry.
 	op.Entry.Child = childID
-	op.Entry.Attributes = child.attributes
+	op.Entry.Attributes = child.attrs
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
@@ -409,7 +409,7 @@ func (fs *memFS) RmDir(
 	parent.RemoveChild(op.Name)
 
 	// Mark the child as unlinked.
-	child.attributes.Nlink--
+	child.attrs.Nlink--
 
 	return
 }
@@ -441,7 +441,7 @@ func (fs *memFS) Unlink(
 	parent.RemoveChild(op.Name)
 
 	// Mark the child as unlinked.
-	child.attributes.Nlink--
+	child.attrs.Nlink--
 
 	return
 }
@@ -451,16 +451,16 @@ func (fs *memFS) OpenDir(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// We don't mutate spontaneosuly, so if the VFS layer has asked for an
 	// inode that doesn't exist, something screwed up earlier (a lookup, a
 	// cache invalidation, etc.).
 	inode := fs.getInodeForReadingOrDie(op.Inode)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
-	if !inode.dir {
+	if !inode.isDir() {
 		panic("Found non-dir.")
 	}
 
@@ -472,12 +472,12 @@ func (fs *memFS) ReadDir(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Grab the directory.
 	inode := fs.getInodeForReadingOrDie(op.Inode)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
 	// Serve the request.
 	op.Data, err = inode.ReadDir(int(op.Offset), op.Size)
@@ -494,17 +494,17 @@ func (fs *memFS) OpenFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// We don't mutate spontaneosuly, so if the VFS layer has asked for an
 	// inode that doesn't exist, something screwed up earlier (a lookup, a
 	// cache invalidation, etc.).
 	inode := fs.getInodeForReadingOrDie(op.Inode)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
-	if inode.dir {
-		panic("Found directory.")
+	if !inode.isFile() {
+		panic("Found non-file.")
 	}
 
 	return
@@ -515,12 +515,12 @@ func (fs *memFS) ReadFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Find the inode in question.
 	inode := fs.getInodeForReadingOrDie(op.Inode)
-	defer inode.mu.RUnlock()
+	defer inode.mu.Unlock()
 
 	// Serve the request.
 	op.Data = make([]byte, op.Size)
@@ -540,8 +540,8 @@ func (fs *memFS) WriteFile(
 	var err error
 	defer fuseutil.RespondToOp(op, &err)
 
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
 	// Find the inode in question.
 	inode := fs.getInodeForModifyingOrDie(op.Inode)
