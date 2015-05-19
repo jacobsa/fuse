@@ -406,6 +406,9 @@ func (fs *memFS) CreateSymlink(
 	childID, child := fs.allocateInode(childAttrs)
 	defer child.mu.Unlock()
 
+	// Set up its target.
+	child.target = op.Target
+
 	// Add an entry in the parent.
 	parent.AddChild(childID, op.Name, fuseutil.DT_Link)
 
