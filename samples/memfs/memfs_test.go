@@ -1114,3 +1114,15 @@ func (t *MemFSTest) ReadDirWhileModifying() {
 	ExpectTrue(namesSeen["bar"])
 	ExpectTrue(namesSeen["qux"])
 }
+
+func (t *MemFSTest) HardLinks() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) CreateSymlink() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) CreateSymlink_AlreadyExists() {
+	AssertTrue(false, "TODO")
+}
