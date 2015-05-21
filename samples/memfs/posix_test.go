@@ -323,6 +323,60 @@ func runMkdirInParallelTest(
 	}
 }
 
+func runSymlinkInParallelTest(
+	ctx context.Context,
+	dir string) {
+	// Ensure that we get parallelism for this test.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Try for awhile to see if anything breaks.
+	const duration = 500 * time.Millisecond
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		filename := path.Join(dir, "foo")
+
+		// Set up a function that creates the symlink, ignoring EEXIST errors.
+		worker := func(id byte) (err error) {
+			err = os.Symlink("blah", filename)
+
+			if os.IsExist(err) {
+				err = nil
+			}
+
+			if err != nil {
+				err = fmt.Errorf("Worker %d: Symlink: %v", id, err)
+				return
+			}
+
+			return
+		}
+
+		// Run several workers in parallel.
+		const numWorkers = 16
+		b := syncutil.NewBundle(ctx)
+		for i := 0; i < numWorkers; i++ {
+			id := byte(i)
+			b.Add(func(ctx context.Context) (err error) {
+				err = worker(id)
+				return
+			})
+		}
+
+		err := b.Join()
+		AssertEq(nil, err)
+
+		// The symlink should have been created, once.
+		entries, err := fusetesting.ReadDirPicky(dir)
+		AssertEq(nil, err)
+		AssertEq(1, len(entries))
+		AssertEq("foo", entries[0].Name())
+
+		// Delete the directory.
+		err = os.Remove(filename)
+		AssertEq(nil, err)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
@@ -719,4 +773,8 @@ func (t *PosixTest) CreateInParallel_Exclusive() {
 
 func (t *PosixTest) MkdirInParallel() {
 	runMkdirInParallelTest(t.ctx, t.dir)
+}
+
+func (t *PosixTest) SymlinkInParallel() {
+	runSymlinkInParallelTest(t.ctx, t.dir)
 }
