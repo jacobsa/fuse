@@ -418,3 +418,15 @@ func (t *PosixTest) RmdirWhileOpenedForReading() {
 		ExpectThat(names, ElementsAre())
 	}
 }
+
+func (t *PosixTest) CreateInParallel_NoTruncate() {
+	AssertFalse(true, "TODO")
+}
+
+func (t *PosixTest) CreateInParallel_Truncate() {
+	AssertFalse(true, "TODO")
+}
+
+func (t *PosixTest) CreateInParallel_Exclusive() {
+	AssertFalse(true, "TODO")
+}
