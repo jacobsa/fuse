@@ -437,7 +437,7 @@ func (t *PosixTest) CreateInParallel_NoTruncate() {
 		// Set up a function that opens the file with O_CREATE and then appends a
 		// byte to it.
 		worker := func(id byte) (err error) {
-			f, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND, 0600)
+			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 			if err != nil {
 				err = fmt.Errorf("Worker %d: Open: %v", id, err)
 				return
@@ -485,6 +485,10 @@ func (t *PosixTest) CreateInParallel_NoTruncate() {
 		}
 
 		AssertEq(numWorkers, len(idsSeen))
+
+		// Delete the file.
+		err = os.Remove(filename)
+		AssertEq(nil, err)
 	}
 }
 
