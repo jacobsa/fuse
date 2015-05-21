@@ -23,6 +23,7 @@ import (
 const (
 	// Errors corresponding to kernel error numbers. These may be treated
 	// specially by fuseops.Op.Respond methods.
+	EEXIST    = bazilfuse.EEXIST
 	EINVAL    = bazilfuse.Errno(syscall.EINVAL)
 	EIO       = bazilfuse.EIO
 	ENOENT    = bazilfuse.ENOENT
