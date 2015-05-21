@@ -1253,21 +1253,21 @@ func (t *MemFSTest) DeleteSymlink() {
 }
 
 func (t *MemFSTest) CreateInParallel_NoTruncate() {
-	runCreateInParallelTest_NoTruncate(t.Ctx, t.Dir)
+	fusetesting.RunCreateInParallelTest_NoTruncate(t.Ctx, t.Dir)
 }
 
 func (t *MemFSTest) CreateInParallel_Truncate() {
-	runCreateInParallelTest_Truncate(t.Ctx, t.Dir)
+	fusetesting.RunCreateInParallelTest_Truncate(t.Ctx, t.Dir)
 }
 
 func (t *MemFSTest) CreateInParallel_Exclusive() {
-	runCreateInParallelTest_Exclusive(t.Ctx, t.Dir)
+	fusetesting.RunCreateInParallelTest_Exclusive(t.Ctx, t.Dir)
 }
 
 func (t *MemFSTest) MkdirInParallel() {
-	runMkdirInParallelTest(t.Ctx, t.Dir)
+	fusetesting.RunMkdirInParallelTest(t.Ctx, t.Dir)
 }
 
 func (t *MemFSTest) SymlinkInParallel() {
-	runSymlinkInParallelTest(t.Ctx, t.Dir)
+	fusetesting.RunSymlinkInParallelTest(t.Ctx, t.Dir)
 }
