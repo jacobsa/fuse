@@ -301,6 +301,14 @@ func (fs *memFS) MkDir(
 	parent := fs.getInodeForModifyingOrDie(op.Parent)
 	defer parent.mu.Unlock()
 
+	// Ensure that the name doesn't already exist, so we don't wind up with a
+	// duplicate.
+	_, exists := parent.LookUpChild(op.Name)
+	if exists {
+		err = fuse.EEXIST
+		return
+	}
+
 	// Set up attributes from the child, using the credentials of the calling
 	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
 	childAttrs := fuseops.InodeAttributes{
@@ -341,7 +349,7 @@ func (fs *memFS) CreateFile(
 	parent := fs.getInodeForModifyingOrDie(op.Parent)
 	defer parent.mu.Unlock()
 
-	// Ensure that the name doesn't alread exist, so we don't wind up with a
+	// Ensure that the name doesn't already exist, so we don't wind up with a
 	// duplicate.
 	_, exists := parent.LookUpChild(op.Name)
 	if exists {
@@ -395,6 +403,14 @@ func (fs *memFS) CreateSymlink(
 	// Grab the parent, which we will update shortly.
 	parent := fs.getInodeForModifyingOrDie(op.Parent)
 	defer parent.mu.Unlock()
+
+	// Ensure that the name doesn't already exist, so we don't wind up with a
+	// duplicate.
+	_, exists := parent.LookUpChild(op.Name)
+	if exists {
+		err = fuse.EEXIST
+		return
+	}
 
 	// Set up attributes from the child, using the credentials of the calling
 	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
