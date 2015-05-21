@@ -341,6 +341,14 @@ func (fs *memFS) CreateFile(
 	parent := fs.getInodeForModifyingOrDie(op.Parent)
 	defer parent.mu.Unlock()
 
+	// Ensure that the name doesn't alread exist, so we don't wind up with a
+	// duplicate.
+	_, exists := parent.LookUpChild(op.Name)
+	if exists {
+		err = fmt.Errorf("Name %q already exists in parent", op.Name)
+		return
+	}
+
 	// Set up attributes from the child, using the credentials of the calling
 	// process as owner (matching inode_init_owner, cf. http://goo.gl/5qavg8).
 	now := fs.clock.Now()
