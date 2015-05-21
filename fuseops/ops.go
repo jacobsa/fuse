@@ -275,10 +275,14 @@ func (o *ForgetInodeOp) toBazilfuseResponse() (bfResp interface{}) {
 // Create a directory inode as a child of an existing directory inode. The
 // kernel sends this in response to a mkdir(2) call.
 //
-// The kernel appears to verify the name doesn't already exist (mkdir calls
-// mkdirat calls user_path_create calls filename_create, which verifies:
-// http://goo.gl/FZpLu5). But volatile file systems and paranoid non-volatile
-// file systems should check for the reasons described below on CreateFile.
+// The Linux kernel appears to verify the name doesn't already exist (mkdir
+// calls mkdirat calls user_path_create calls filename_create, which verifies:
+// http://goo.gl/FZpLu5). Indeed, the tests in samples/memfs that call in
+// parallel appear to bear this out. But osxfuse does not appear to guarantee
+// this (cf. https://goo.gl/PqzZDv). And if names may be created outside of the
+// kernel's control, it doesn't matter what the kernel does anyway.
+//
+// Therefore the file system should return EEXIST if the name already exists.
 type MkDirOp struct {
 	commonOp
 
@@ -314,15 +318,12 @@ func (o *MkDirOp) toBazilfuseResponse() (bfResp interface{}) {
 //
 // The kernel sends this when the user asks to open a file with the O_CREAT
 // flag and the kernel has observed that the file doesn't exist. (See for
-// example lookup_open, http://goo.gl/PlqE9d).
+// example lookup_open, http://goo.gl/PlqE9d). However, osxfuse doesn't appear
+// to make this check atomically (cf. https://goo.gl/PqzZDv). And if names may
+// be created outside of the kernel's control, it doesn't matter what the
+// kernel does anyway.
 //
-// However it's impossible to tell for sure that all kernels make this check
-// in all cases and the official fuse documentation is less than encouraging
-// (" the file does not exist, first create it with the specified mode, and
-// then open it"). Therefore file systems would be smart to be paranoid and
-// check themselves, returning EEXIST when the file already exists. This of
-// course particularly applies to file systems that are volatile from the
-// kernel's point of view.
+// Therefore the file system should return EEXIST if the name already exists.
 type CreateFileOp struct {
 	commonOp
 
@@ -371,7 +372,8 @@ func (o *CreateFileOp) toBazilfuseResponse() (bfResp interface{}) {
 	return
 }
 
-// Create a symlink inode.
+// Create a symlink inode. If the name already exists, the file system should
+// return EEXIST (cf. the notes on CreateFileOp and MkDirOp).
 type CreateSymlinkOp struct {
 	commonOp
 
