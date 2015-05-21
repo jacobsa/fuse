@@ -46,7 +46,7 @@ func getFileOffset(f *os.File) (offset int64, err error) {
 	return
 }
 
-func runCreateInParallelTest(
+func runCreateInParallelTest_NoTruncate(
 	ctx context.Context,
 	dir string) {
 	// Ensure that we get parallelism for this test.
@@ -109,6 +109,82 @@ func runCreateInParallelTest(
 		}
 
 		AssertEq(numWorkers, len(idsSeen))
+
+		// Delete the file.
+		err = os.Remove(filename)
+		AssertEq(nil, err)
+	}
+}
+
+func runCreateInParallelTest_Truncate(
+	ctx context.Context,
+	dir string) {
+	// Ensure that we get parallelism for this test.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Try for awhile to see if anything breaks.
+	const duration = 500 * time.Millisecond
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		filename := path.Join(dir, "foo")
+
+		// Set up a function that opens the file with O_CREATE and O_TRUNC and then
+		// appends a byte to it.
+		worker := func(id byte) (err error) {
+			f, err := os.OpenFile(
+				filename,
+				os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_TRUNC,
+				0600)
+
+			if err != nil {
+				err = fmt.Errorf("Worker %d: Open: %v", id, err)
+				return
+			}
+
+			defer f.Close()
+
+			_, err = f.Write([]byte{id})
+			if err != nil {
+				err = fmt.Errorf("Worker %d: Write: %v", id, err)
+				return
+			}
+
+			return
+		}
+
+		// Run several workers in parallel.
+		const numWorkers = 16
+		b := syncutil.NewBundle(ctx)
+		for i := 0; i < numWorkers; i++ {
+			id := byte(i)
+			b.Add(func(ctx context.Context) (err error) {
+				err = worker(id)
+				return
+			})
+		}
+
+		err := b.Join()
+		AssertEq(nil, err)
+
+		// Read the contents of the file. We should see at least one ID (the last
+		// one that truncated), and at most all of them.
+		contents, err := ioutil.ReadFile(filename)
+		AssertEq(nil, err)
+
+		idsSeen := make(map[byte]struct{})
+		for i, _ := range contents {
+			id := contents[i]
+			AssertLt(id, numWorkers)
+
+			if _, ok := idsSeen[id]; ok {
+				AddFailure("Duplicate ID: %d", id)
+			}
+
+			idsSeen[id] = struct{}{}
+		}
+
+		AssertGe(len(idsSeen), 1)
+		AssertLe(len(idsSeen), numWorkers)
 
 		// Delete the file.
 		err = os.Remove(filename)
@@ -499,11 +575,11 @@ func (t *PosixTest) RmdirWhileOpenedForReading() {
 }
 
 func (t *PosixTest) CreateInParallel_NoTruncate() {
-	runCreateInParallelTest(t.ctx, t.dir)
+	runCreateInParallelTest_NoTruncate(t.ctx, t.dir)
 }
 
 func (t *PosixTest) CreateInParallel_Truncate() {
-	AssertFalse(true, "TODO")
+	runCreateInParallelTest_Truncate(t.ctx, t.dir)
 }
 
 func (t *PosixTest) CreateInParallel_Exclusive() {
