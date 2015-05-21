@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -185,6 +186,81 @@ func runCreateInParallelTest_Truncate(
 
 		AssertGe(len(idsSeen), 1)
 		AssertLe(len(idsSeen), numWorkers)
+
+		// Delete the file.
+		err = os.Remove(filename)
+		AssertEq(nil, err)
+	}
+}
+
+func runCreateInParallelTest_Exclusive(
+	ctx context.Context,
+	dir string) {
+	// Ensure that we get parallelism for this test.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Try for awhile to see if anything breaks.
+	const duration = 500 * time.Millisecond
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		filename := path.Join(dir, "foo")
+
+		// Set up a function that opens the file with O_CREATE and O_EXCL, and then
+		// appends a byte to it if it was successfully opened.
+		var openCount uint64
+		worker := func(id byte) (err error) {
+			f, err := os.OpenFile(
+				filename,
+				os.O_CREATE|os.O_EXCL|os.O_WRONLY|os.O_APPEND,
+				0600)
+
+			// If we failed to open due to the file already existing, just leave.
+			if os.IsExist(err) {
+				err = nil
+				return
+			}
+
+			// Propgate other errors.
+			if err != nil {
+				err = fmt.Errorf("Worker %d: Open: %v", id, err)
+				return
+			}
+
+			atomic.AddUint64(&openCount, 1)
+			defer f.Close()
+
+			_, err = f.Write([]byte{id})
+			if err != nil {
+				err = fmt.Errorf("Worker %d: Write: %v", id, err)
+				return
+			}
+
+			return
+		}
+
+		// Run several workers in parallel.
+		const numWorkers = 16
+		b := syncutil.NewBundle(ctx)
+		for i := 0; i < numWorkers; i++ {
+			id := byte(i)
+			b.Add(func(ctx context.Context) (err error) {
+				err = worker(id)
+				return
+			})
+		}
+
+		err := b.Join()
+		AssertEq(nil, err)
+
+		// Exactly one worker should have opened successfully.
+		AssertEq(1, openCount)
+
+		// Read the contents of the file. It should contain that one worker's ID.
+		contents, err := ioutil.ReadFile(filename)
+		AssertEq(nil, err)
+
+		AssertEq(1, len(contents))
+		AssertLt(contents[0], numWorkers)
 
 		// Delete the file.
 		err = os.Remove(filename)
@@ -583,5 +659,5 @@ func (t *PosixTest) CreateInParallel_Truncate() {
 }
 
 func (t *PosixTest) CreateInParallel_Exclusive() {
-	AssertFalse(true, "TODO")
+	runCreateInParallelTest_Exclusive(t.ctx, t.dir)
 }
