@@ -18,13 +18,18 @@
 package memfs_test
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
 	"testing"
+	"time"
 
+	"golang.org/x/net/context"
+
+	"github.com/jacobsa/gcloud/syncutil"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
@@ -420,7 +425,65 @@ func (t *PosixTest) RmdirWhileOpenedForReading() {
 }
 
 func (t *PosixTest) CreateInParallel_NoTruncate() {
-	AssertFalse(true, "TODO")
+	// Ensure that we get parallelism for this test.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Try for awhile to see if anything breaks.
+	const duration = 500 * time.Millisecond
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		filename := path.Join(t.dir, "foo")
+
+		// Set up a function that opens the file with O_CREATE and then appends a
+		// byte to it.
+		worker := func(id byte) (err error) {
+			f, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND, 0600)
+			if err != nil {
+				err = fmt.Errorf("Worker %d: Open: %v", id, err)
+				return
+			}
+
+			_, err = f.Write([]byte{id})
+			if err != nil {
+				err = fmt.Errorf("Worker %d: Write: %v", id, err)
+				return
+			}
+
+			return
+		}
+
+		// Run several workers in parallel.
+		const numWorkers = 16
+		b := syncutil.NewBundle(context.Background())
+		for i := 0; i < numWorkers; i++ {
+			id := byte(i)
+			b.Add(func(ctx context.Context) (err error) {
+				err = worker(id)
+				return
+			})
+		}
+
+		err := b.Join()
+		AssertEq(nil, err)
+
+		// Read the contents of the file. We should see each worker's ID once.
+		contents, err := ioutil.ReadFile(filename)
+		AssertEq(nil, err)
+
+		idsSeen := make(map[byte]struct{})
+		for i, _ := range contents {
+			id := contents[i]
+			AssertLt(id, numWorkers)
+
+			if _, ok := idsSeen[id]; ok {
+				AddFailure("Duplicate ID: %d", id)
+			}
+
+			idsSeen[id] = struct{}{}
+		}
+
+		AssertEq(numWorkers, len(idsSeen))
+	}
 }
 
 func (t *PosixTest) CreateInParallel_Truncate() {
