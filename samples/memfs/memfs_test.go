@@ -1263,3 +1263,11 @@ func (t *MemFSTest) CreateInParallel_Truncate() {
 func (t *MemFSTest) CreateInParallel_Exclusive() {
 	runCreateInParallelTest_Exclusive(t.Ctx, t.Dir)
 }
+
+func (t *MemFSTest) MkdirInParallel() {
+	runMkdirInParallelTest(t.Ctx, t.Dir)
+}
+
+func (t *MemFSTest) SymlinkInParallel() {
+	runSymlinkInParallelTest(t.Ctx, t.Dir)
+}
