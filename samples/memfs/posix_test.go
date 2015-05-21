@@ -443,6 +443,8 @@ func (t *PosixTest) CreateInParallel_NoTruncate() {
 				return
 			}
 
+			defer f.Close()
+
 			_, err = f.Write([]byte{id})
 			if err != nil {
 				err = fmt.Errorf("Worker %d: Write: %v", id, err)
