@@ -46,11 +46,83 @@ func getFileOffset(f *os.File) (offset int64, err error) {
 	return
 }
 
+func runCreateInParallelTest(
+	ctx context.Context,
+	dir string) {
+	// Ensure that we get parallelism for this test.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
+
+	// Try for awhile to see if anything breaks.
+	const duration = 500 * time.Millisecond
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		filename := path.Join(dir, "foo")
+
+		// Set up a function that opens the file with O_CREATE and then appends a
+		// byte to it.
+		worker := func(id byte) (err error) {
+			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+			if err != nil {
+				err = fmt.Errorf("Worker %d: Open: %v", id, err)
+				return
+			}
+
+			defer f.Close()
+
+			_, err = f.Write([]byte{id})
+			if err != nil {
+				err = fmt.Errorf("Worker %d: Write: %v", id, err)
+				return
+			}
+
+			return
+		}
+
+		// Run several workers in parallel.
+		const numWorkers = 16
+		b := syncutil.NewBundle(ctx)
+		for i := 0; i < numWorkers; i++ {
+			id := byte(i)
+			b.Add(func(ctx context.Context) (err error) {
+				err = worker(id)
+				return
+			})
+		}
+
+		err := b.Join()
+		AssertEq(nil, err)
+
+		// Read the contents of the file. We should see each worker's ID once.
+		contents, err := ioutil.ReadFile(filename)
+		AssertEq(nil, err)
+
+		idsSeen := make(map[byte]struct{})
+		for i, _ := range contents {
+			id := contents[i]
+			AssertLt(id, numWorkers)
+
+			if _, ok := idsSeen[id]; ok {
+				AddFailure("Duplicate ID: %d", id)
+			}
+
+			idsSeen[id] = struct{}{}
+		}
+
+		AssertEq(numWorkers, len(idsSeen))
+
+		// Delete the file.
+		err = os.Remove(filename)
+		AssertEq(nil, err)
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
 ////////////////////////////////////////////////////////////////////////
 
 type PosixTest struct {
+	ctx context.Context
+
 	// A temporary directory.
 	dir string
 
@@ -65,6 +137,8 @@ func init() { RegisterTestSuite(&PosixTest{}) }
 
 func (t *PosixTest) SetUp(ti *TestInfo) {
 	var err error
+
+	t.ctx = ti.Ctx
 
 	// Create a temporary directory.
 	t.dir, err = ioutil.TempDir("", "posix_test")
@@ -425,71 +499,7 @@ func (t *PosixTest) RmdirWhileOpenedForReading() {
 }
 
 func (t *PosixTest) CreateInParallel_NoTruncate() {
-	// Ensure that we get parallelism for this test.
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
-
-	// Try for awhile to see if anything breaks.
-	const duration = 500 * time.Millisecond
-	startTime := time.Now()
-	for time.Since(startTime) < duration {
-		filename := path.Join(t.dir, "foo")
-
-		// Set up a function that opens the file with O_CREATE and then appends a
-		// byte to it.
-		worker := func(id byte) (err error) {
-			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
-			if err != nil {
-				err = fmt.Errorf("Worker %d: Open: %v", id, err)
-				return
-			}
-
-			defer f.Close()
-
-			_, err = f.Write([]byte{id})
-			if err != nil {
-				err = fmt.Errorf("Worker %d: Write: %v", id, err)
-				return
-			}
-
-			return
-		}
-
-		// Run several workers in parallel.
-		const numWorkers = 16
-		b := syncutil.NewBundle(context.Background())
-		for i := 0; i < numWorkers; i++ {
-			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
-			})
-		}
-
-		err := b.Join()
-		AssertEq(nil, err)
-
-		// Read the contents of the file. We should see each worker's ID once.
-		contents, err := ioutil.ReadFile(filename)
-		AssertEq(nil, err)
-
-		idsSeen := make(map[byte]struct{})
-		for i, _ := range contents {
-			id := contents[i]
-			AssertLt(id, numWorkers)
-
-			if _, ok := idsSeen[id]; ok {
-				AddFailure("Duplicate ID: %d", id)
-			}
-
-			idsSeen[id] = struct{}{}
-		}
-
-		AssertEq(numWorkers, len(idsSeen))
-
-		// Delete the file.
-		err = os.Remove(filename)
-		AssertEq(nil, err)
-	}
+	runCreateInParallelTest(t.ctx, t.dir)
 }
 
 func (t *PosixTest) CreateInParallel_Truncate() {
