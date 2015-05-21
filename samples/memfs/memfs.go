@@ -345,7 +345,7 @@ func (fs *memFS) CreateFile(
 	// duplicate.
 	_, exists := parent.LookUpChild(op.Name)
 	if exists {
-		err = fmt.Errorf("Name %q already exists in parent", op.Name)
+		err = fuse.EEXIST
 		return
 	}
 
