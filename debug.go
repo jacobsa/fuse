@@ -28,12 +28,12 @@ var fEnableDebug = flag.Bool(
 	false,
 	"Write FUSE debugging messages to stderr.")
 
-var gLogger *log.Logger
-var gLoggerOnce sync.Once
+var gDebugLogger *log.Logger
+var gDebugLoggerOnce sync.Once
 
-func initLogger() {
+func initDebugDebugLogger() {
 	if !flag.Parsed() {
-		panic("initLogger called before flags available.")
+		panic("initDebugDebugLogger called before flags available.")
 	}
 
 	var writer io.Writer = ioutil.Discard
@@ -42,10 +42,10 @@ func initLogger() {
 	}
 
 	const flags = log.Ldate | log.Ltime | log.Lmicroseconds
-	gLogger = log.New(writer, "", flags)
+	gDebugLogger = log.New(writer, "", flags)
 }
 
-func getLogger() *log.Logger {
-	gLoggerOnce.Do(initLogger)
-	return gLogger
+func getDebugLogger() *log.Logger {
+	gDebugLoggerOnce.Do(initDebugDebugLogger)
+	return gDebugLogger
 }
