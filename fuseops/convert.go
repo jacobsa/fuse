@@ -15,6 +15,7 @@
 package fuseops
 
 import (
+	"log"
 	"time"
 
 	"golang.org/x/net/context"
@@ -35,6 +36,7 @@ func Convert(
 	opCtx context.Context,
 	r bazilfuse.Request,
 	debugLogForOp func(int, string, ...interface{}),
+	errorLogger *log.Logger,
 	finished func(error)) (o Op) {
 	var co *commonOp
 
@@ -239,7 +241,13 @@ func Convert(
 		co = &to.commonOp
 	}
 
-	co.init(opCtx, io, r, debugLogForOp, finished)
+	co.init(
+		opCtx,
+		io,
+		r,
+		debugLogForOp,
+		errorLogger,
+		finished)
 
 	o = io
 	return
