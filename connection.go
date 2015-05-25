@@ -41,6 +41,7 @@ var fTraceByPID = flag.Bool(
 // A connection to the fuse kernel process.
 type Connection struct {
 	debugLogger *log.Logger
+	errorLogger *log.Logger
 	wrapped     *bazilfuse.Conn
 	opsInFlight sync.WaitGroup
 
@@ -69,9 +70,11 @@ type Connection struct {
 func newConnection(
 	parentCtx context.Context,
 	debugLogger *log.Logger,
+	errorLogger *log.Logger,
 	wrapped *bazilfuse.Conn) (c *Connection, err error) {
 	c = &Connection{
 		debugLogger: debugLogger,
+		errorLogger: errorLogger,
 		wrapped:     wrapped,
 		parentCtx:   parentCtx,
 		cancelFuncs: make(map[bazilfuse.RequestID]func()),
@@ -342,7 +345,13 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 
 		finished := func(err error) { c.finishOp(bfReq) }
 
-		op = fuseops.Convert(opCtx, bfReq, debugLogForOp, finished)
+		op = fuseops.Convert(
+			opCtx,
+			bfReq,
+			debugLogForOp,
+			c.errorLogger,
+			finished)
+
 		return
 	}
 }
