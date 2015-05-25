@@ -40,7 +40,7 @@ var fTraceByPID = flag.Bool(
 
 // A connection to the fuse kernel process.
 type Connection struct {
-	logger      *log.Logger
+	debugLogger *log.Logger
 	wrapped     *bazilfuse.Conn
 	opsInFlight sync.WaitGroup
 
@@ -68,10 +68,10 @@ type Connection struct {
 // result. You must call c.close() eventually.
 func newConnection(
 	parentCtx context.Context,
-	logger *log.Logger,
+	debugLogger *log.Logger,
 	wrapped *bazilfuse.Conn) (c *Connection, err error) {
 	c = &Connection{
-		logger:      logger,
+		debugLogger: debugLogger,
 		wrapped:     wrapped,
 		parentCtx:   parentCtx,
 		cancelFuncs: make(map[bazilfuse.RequestID]func()),
@@ -83,7 +83,7 @@ func newConnection(
 
 // Log information for an operation with the given ID. calldepth is the depth
 // to use when recovering file:line information with runtime.Caller.
-func (c *Connection) log(
+func (c *Connection) debugLog(
 	opID uint32,
 	calldepth int,
 	format string,
@@ -108,7 +108,7 @@ func (c *Connection) log(
 		fmt.Sprintf(format, v...))
 
 	// Print it.
-	c.logger.Println(msg)
+	c.debugLogger.Println(msg)
 }
 
 // LOCKS_EXCLUDED(c.mu)
@@ -316,13 +316,13 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		c.nextOpID++
 
 		// Log the receipt of the operation.
-		c.log(opID, 1, "<- %v", bfReq)
+		c.debugLog(opID, 1, "<- %v", bfReq)
 
 		// Special case: responding to statfs is required to make mounting work on
 		// OS X. We don't currently expose the capability for the file system to
 		// intercept this.
 		if statfsReq, ok := bfReq.(*bazilfuse.StatfsRequest); ok {
-			c.log(opID, 1, "-> (Statfs) OK")
+			c.debugLog(opID, 1, "-> (Statfs) OK")
 			statfsReq.Respond(&bazilfuse.StatfsResponse{})
 			continue
 		}
@@ -336,13 +336,13 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		// Set up op dependencies.
 		opCtx := c.beginOp(bfReq)
 
-		logForOp := func(calldepth int, format string, v ...interface{}) {
-			c.log(opID, calldepth+1, format, v...)
+		debugLogForOp := func(calldepth int, format string, v ...interface{}) {
+			c.debugLog(opID, calldepth+1, format, v...)
 		}
 
 		finished := func(err error) { c.finishOp(bfReq) }
 
-		op = fuseops.Convert(opCtx, bfReq, logForOp, finished)
+		op = fuseops.Convert(opCtx, bfReq, debugLogForOp, finished)
 		return
 	}
 }

@@ -46,9 +46,9 @@ type commonOp struct {
 	// The underlying bazilfuse request for this op.
 	bazilReq bazilfuse.Request
 
-	// A function that can be used to log information about the op. The first
-	// argument is a call depth.
-	log func(int, string, ...interface{})
+	// A function that can be used to log debug information about the op. The
+	// first argument is a call depth.
+	debugLog func(int, string, ...interface{})
 
 	// A function that is invoked with the error given to Respond, for use in
 	// closing off traces and reporting back to the connection.
@@ -76,13 +76,13 @@ func (o *commonOp) init(
 	ctx context.Context,
 	op internalOp,
 	bazilReq bazilfuse.Request,
-	log func(int, string, ...interface{}),
+	debugLog func(int, string, ...interface{}),
 	finished func(error)) {
 	// Initialize basic fields.
 	o.ctx = ctx
 	o.op = op
 	o.bazilReq = bazilReq
-	o.log = log
+	o.debugLog = debugLog
 	o.finished = finished
 
 	// Set up a trace span for this op.
@@ -111,7 +111,7 @@ func (o *commonOp) Context() context.Context {
 
 func (o *commonOp) Logf(format string, v ...interface{}) {
 	const calldepth = 2
-	o.log(calldepth, format, v...)
+	o.debugLog(calldepth, format, v...)
 }
 
 func (o *commonOp) Respond(err error) {

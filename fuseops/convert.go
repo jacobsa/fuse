@@ -34,7 +34,7 @@ import (
 func Convert(
 	opCtx context.Context,
 	r bazilfuse.Request,
-	logForOp func(int, string, ...interface{}),
+	debugLogForOp func(int, string, ...interface{}),
 	finished func(error)) (o Op) {
 	var co *commonOp
 
@@ -239,7 +239,7 @@ func Convert(
 		co = &to.commonOp
 	}
 
-	co.init(opCtx, io, r, logForOp, finished)
+	co.init(opCtx, io, r, debugLogForOp, finished)
 
 	o = io
 	return
