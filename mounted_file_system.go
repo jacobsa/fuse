@@ -16,6 +16,7 @@ package fuse
 
 import (
 	"fmt"
+	"log"
 	"runtime"
 
 	"github.com/jacobsa/bazilfuse"
@@ -74,6 +75,10 @@ type MountConfig struct {
 	// but opening a file for writing and metadata operations like chmod,
 	// chtimes, etc. will fail.
 	ReadOnly bool
+
+	// A logger to use for logging errors. All errors are logged, with the
+	// exception of a few blacklisted errors that are expected.
+	ErrorLogger *log.Logger
 
 	// OS X only.
 	//
