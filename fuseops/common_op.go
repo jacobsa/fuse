@@ -16,6 +16,7 @@ package fuseops
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 
@@ -50,6 +51,9 @@ type commonOp struct {
 	// first argument is a call depth.
 	debugLog func(int, string, ...interface{})
 
+	// A logger to be used for logging exceptional errors.
+	errorLogger *log.Logger
+
 	// A function that is invoked with the error given to Respond, for use in
 	// closing off traces and reporting back to the connection.
 	finished func(error)
@@ -77,12 +81,14 @@ func (o *commonOp) init(
 	op internalOp,
 	bazilReq bazilfuse.Request,
 	debugLog func(int, string, ...interface{}),
+	errorLogger *log.Logger,
 	finished func(error)) {
 	// Initialize basic fields.
 	o.ctx = ctx
 	o.op = op
 	o.bazilReq = bazilReq
 	o.debugLog = debugLog
+	o.errorLogger = errorLogger
 	o.finished = finished
 
 	// Set up a trace span for this op.
@@ -127,6 +133,11 @@ func (o *commonOp) Respond(err error) {
 	// Log the error.
 	o.Logf(
 		"-> (%s) error: %v",
+		o.op.ShortDesc(),
+		err)
+
+	o.errorLogger.Printf(
+		"(%s) error: %v",
 		o.op.ShortDesc(),
 		err)
 

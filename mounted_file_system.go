@@ -77,7 +77,8 @@ type MountConfig struct {
 	ReadOnly bool
 
 	// A logger to use for logging errors. All errors are logged, with the
-	// exception of a few blacklisted errors that are expected.
+	// exception of a few blacklisted errors that are expected. If nil, no error
+	// logging is performed.
 	ErrorLogger *log.Logger
 
 	// OS X only.
