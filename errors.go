@@ -28,5 +28,6 @@ const (
 	EIO       = bazilfuse.EIO
 	ENOENT    = bazilfuse.ENOENT
 	ENOSYS    = bazilfuse.ENOSYS
+	ENOTDIR   = bazilfuse.Errno(syscall.ENOTDIR)
 	ENOTEMPTY = bazilfuse.Errno(syscall.ENOTEMPTY)
 )
