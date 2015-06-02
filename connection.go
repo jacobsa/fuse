@@ -225,10 +225,10 @@ func (c *Connection) beginOp(
 
 	// Set up a cancellation function.
 	//
-	// Special case: On Darwin, osxfuse appears to aggressively reuse "unique"
-	// request IDs. This matters for Forget requests, which have no reply
-	// associated and therefore appear to have IDs that are immediately eligible
-	// for reuse. For these, we should not record any state keyed on their ID.
+	// Special case: On Darwin, osxfuse aggressively reuses "unique" request IDs.
+	// This matters for Forget requests, which have no reply associated and
+	// therefore have IDs that are immediately eligible for reuse. For these, we
+	// should not record any state keyed on their ID.
 	//
 	// Cf. https://github.com/osxfuse/osxfuse/issues/208
 	if _, ok := bfReq.(*bazilfuse.ForgetRequest); !ok {
@@ -284,10 +284,13 @@ func (c *Connection) handleInterrupt(req *bazilfuse.InterruptRequest) {
 	// In particular, my reading of it is that an interrupt request cannot be
 	// delivered to userspace before the original request. The part about the
 	// race and EAGAIN appears to be aimed at userspace programs that
-	// concurrently process requests.
+	// concurrently process requests (cf. http://goo.gl/BES2rs).
 	//
-	// So in this method we assume that if we can't find the ID to be
-	// interrupted, it means that the request has already been replied to.
+	// So in this method if we can't find the ID to be interrupted, it means that
+	// the request has already been replied to.
+	//
+	// Cf. https://github.com/osxfuse/osxfuse/issues/208
+	// Cf. http://comments.gmane.org/gmane.comp.file-systems.fuse.devel/14675
 	cancel, ok := c.cancelFuncs[req.IntrID]
 	if !ok {
 		return
