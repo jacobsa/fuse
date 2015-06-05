@@ -174,8 +174,7 @@ type GetInodeAttributesOp struct {
 
 func (o *GetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.GetattrResponse{
-		Attr:      convertAttributes(o.Inode, o.Attributes),
-		AttrValid: convertExpirationTime(o.AttributesExpiration),
+		Attr: convertAttributes(o.Inode, o.Attributes, o.AttributesExpiration),
 	}
 	bfResp = &resp
 
@@ -207,8 +206,7 @@ type SetInodeAttributesOp struct {
 
 func (o *SetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 	resp := bazilfuse.SetattrResponse{
-		Attr:      convertAttributes(o.Inode, o.Attributes),
-		AttrValid: convertExpirationTime(o.AttributesExpiration),
+		Attr: convertAttributes(o.Inode, o.Attributes, o.AttributesExpiration),
 	}
 	bfResp = &resp
 

@@ -253,7 +253,10 @@ func Convert(
 	return
 }
 
-func convertAttributes(inode InodeID, attr InodeAttributes) bazilfuse.Attr {
+func convertAttributes(
+	inode InodeID,
+	attr InodeAttributes,
+	expiration time.Time) bazilfuse.Attr {
 	return bazilfuse.Attr{
 		Inode:  uint64(inode),
 		Size:   attr.Size,
@@ -265,6 +268,7 @@ func convertAttributes(inode InodeID, attr InodeAttributes) bazilfuse.Attr {
 		Crtime: attr.Crtime,
 		Uid:    attr.Uid,
 		Gid:    attr.Gid,
+		Valid:  convertExpirationTime(expiration),
 	}
 }
 
@@ -292,7 +296,6 @@ func convertChildInodeEntry(
 	out *bazilfuse.LookupResponse) {
 	out.Node = bazilfuse.NodeID(in.Child)
 	out.Generation = uint64(in.Generation)
-	out.Attr = convertAttributes(in.Child, in.Attributes)
-	out.AttrValid = convertExpirationTime(in.AttributesExpiration)
+	out.Attr = convertAttributes(in.Child, in.Attributes, in.AttributesExpiration)
 	out.EntryValid = convertExpirationTime(in.EntryExpiration)
 }
