@@ -237,7 +237,7 @@ func (o *SetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 //     revalidating.
 //
 // In contrast to all other inodes, RootInodeID begins with an implicit
-// reference count of one, without a corresponding op to increase it. (There
+// lookup count of one, without a corresponding op to increase it. (There
 // could be no such op, because the root cannot be referred to by name.) Code
 // walk:
 //
@@ -248,10 +248,10 @@ func (o *SetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
 //
 //  *  (http://goo.gl/vPD9Oh) fuse_iget increments nlookup.
 //
-// File systems should not make assumptions about whether they will or will not
-// receive a ForgetInodeOp for the root inode. Experimentally, OS X seems to
-// never send one, while Linux appears to send one only sometimes. (Cf.
-// http://goo.gl/EUbxEg, fuse-devel thread "Root inode lookup count").
+// File systems should tolerate but not rely on receiving forget ops for
+// remaining inodes when the file system unmounts, including the root inode.
+// Rather they should take fuse.Connection.ReadOp returning io.EOF as
+// implicitly decrementing all lookup counts to zero.
 type ForgetInodeOp struct {
 	commonOp
 
