@@ -78,18 +78,12 @@ func (fs *InterruptFS) WaitForReadInFlight() {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *InterruptFS) Init(
-	op *fuseops.InitOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.InitOp) (err error) {
 	return
 }
 
 func (fs *InterruptFS) LookUpInode(
-	op *fuseops.LookUpInodeOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.LookUpInodeOp) (err error) {
 	// We support only one parent.
 	if op.Parent != fuseops.RootInodeID {
 		err = fmt.Errorf("Unexpected parent: %v", op.Parent)
@@ -110,10 +104,7 @@ func (fs *InterruptFS) LookUpInode(
 }
 
 func (fs *InterruptFS) GetInodeAttributes(
-	op *fuseops.GetInodeAttributesOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.GetInodeAttributesOp) (err error) {
 	switch op.Inode {
 	case fuseops.RootInodeID:
 		op.Attributes = rootAttrs
@@ -130,18 +121,12 @@ func (fs *InterruptFS) GetInodeAttributes(
 }
 
 func (fs *InterruptFS) OpenFile(
-	op *fuseops.OpenFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.OpenFileOp) (err error) {
 	return
 }
 
 func (fs *InterruptFS) ReadFile(
-	op *fuseops.ReadFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.ReadFileOp) (err error) {
 	// Signal that a read has been received.
 	fs.mu.Lock()
 	fs.readInFlight = true

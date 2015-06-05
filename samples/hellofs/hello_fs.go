@@ -147,17 +147,11 @@ func (fs *helloFS) patchAttributes(
 	attr.Crtime = now
 }
 
-func (fs *helloFS) Init(op *fuseops.InitOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+func (fs *helloFS) Init(op *fuseops.InitOp) (err error) {
 	return
 }
 
-func (fs *helloFS) LookUpInode(op *fuseops.LookUpInodeOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+func (fs *helloFS) LookUpInode(op *fuseops.LookUpInodeOp) (err error) {
 	// Find the info for the parent.
 	parentInfo, ok := gInodeInfo[op.Parent]
 	if !ok {
@@ -182,10 +176,7 @@ func (fs *helloFS) LookUpInode(op *fuseops.LookUpInodeOp) {
 }
 
 func (fs *helloFS) GetInodeAttributes(
-	op *fuseops.GetInodeAttributesOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.GetInodeAttributesOp) (err error) {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
 	if !ok {
@@ -203,19 +194,13 @@ func (fs *helloFS) GetInodeAttributes(
 }
 
 func (fs *helloFS) OpenDir(
-	op *fuseops.OpenDirOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.OpenDirOp) (err error) {
 	// Allow opening any directory.
 	return
 }
 
 func (fs *helloFS) ReadDir(
-	op *fuseops.ReadDirOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.ReadDirOp) (err error) {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
 	if !ok {
@@ -251,19 +236,13 @@ func (fs *helloFS) ReadDir(
 }
 
 func (fs *helloFS) OpenFile(
-	op *fuseops.OpenFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.OpenFileOp) (err error) {
 	// Allow opening any file.
 	return
 }
 
 func (fs *helloFS) ReadFile(
-	op *fuseops.ReadFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.ReadFileOp) (err error) {
 	// Let io.ReaderAt deal with the semantics.
 	reader := strings.NewReader("Hello, world!")
 
