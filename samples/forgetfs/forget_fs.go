@@ -235,18 +235,12 @@ func (fs *fsImpl) findInodeByID(id fuseops.InodeID) (in *inode) {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *fsImpl) Init(
-	op *fuseops.InitOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.InitOp) (err error) {
 	return
 }
 
 func (fs *fsImpl) LookUpInode(
-	op *fuseops.LookUpInodeOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.LookUpInodeOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -281,10 +275,7 @@ func (fs *fsImpl) LookUpInode(
 }
 
 func (fs *fsImpl) GetInodeAttributes(
-	op *fuseops.GetInodeAttributesOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.GetInodeAttributesOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -298,10 +289,7 @@ func (fs *fsImpl) GetInodeAttributes(
 }
 
 func (fs *fsImpl) ForgetInode(
-	op *fuseops.ForgetInodeOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.ForgetInodeOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -313,10 +301,7 @@ func (fs *fsImpl) ForgetInode(
 }
 
 func (fs *fsImpl) MkDir(
-	op *fuseops.MkDirOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.MkDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -347,10 +332,7 @@ func (fs *fsImpl) MkDir(
 }
 
 func (fs *fsImpl) CreateFile(
-	op *fuseops.CreateFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.CreateFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -381,10 +363,7 @@ func (fs *fsImpl) CreateFile(
 }
 
 func (fs *fsImpl) OpenFile(
-	op *fuseops.OpenFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -395,10 +374,7 @@ func (fs *fsImpl) OpenFile(
 }
 
 func (fs *fsImpl) OpenDir(
-	op *fuseops.OpenDirOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.OpenDirOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
