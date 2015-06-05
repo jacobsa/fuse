@@ -104,68 +104,71 @@ func (s fileSystemServer) handleOp(op fuseops.Op) {
 	}
 
 	// Dispatch to the appropriate method.
+	var err error
 	switch typed := op.(type) {
 	default:
-		op.Respond(fuse.ENOSYS)
+		err = fuse.ENOSYS
 
 	case *fuseops.InitOp:
-		s.fs.Init(typed)
+		err = s.fs.Init(typed)
 
 	case *fuseops.LookUpInodeOp:
-		s.fs.LookUpInode(typed)
+		err = s.fs.LookUpInode(typed)
 
 	case *fuseops.GetInodeAttributesOp:
-		s.fs.GetInodeAttributes(typed)
+		err = s.fs.GetInodeAttributes(typed)
 
 	case *fuseops.SetInodeAttributesOp:
-		s.fs.SetInodeAttributes(typed)
+		err = s.fs.SetInodeAttributes(typed)
 
 	case *fuseops.ForgetInodeOp:
-		s.fs.ForgetInode(typed)
+		err = s.fs.ForgetInode(typed)
 
 	case *fuseops.MkDirOp:
-		s.fs.MkDir(typed)
+		err = s.fs.MkDir(typed)
 
 	case *fuseops.CreateFileOp:
-		s.fs.CreateFile(typed)
+		err = s.fs.CreateFile(typed)
 
 	case *fuseops.CreateSymlinkOp:
-		s.fs.CreateSymlink(typed)
+		err = s.fs.CreateSymlink(typed)
 
 	case *fuseops.RmDirOp:
-		s.fs.RmDir(typed)
+		err = s.fs.RmDir(typed)
 
 	case *fuseops.UnlinkOp:
-		s.fs.Unlink(typed)
+		err = s.fs.Unlink(typed)
 
 	case *fuseops.OpenDirOp:
-		s.fs.OpenDir(typed)
+		err = s.fs.OpenDir(typed)
 
 	case *fuseops.ReadDirOp:
-		s.fs.ReadDir(typed)
+		err = s.fs.ReadDir(typed)
 
 	case *fuseops.ReleaseDirHandleOp:
-		s.fs.ReleaseDirHandle(typed)
+		err = s.fs.ReleaseDirHandle(typed)
 
 	case *fuseops.OpenFileOp:
-		s.fs.OpenFile(typed)
+		err = s.fs.OpenFile(typed)
 
 	case *fuseops.ReadFileOp:
-		s.fs.ReadFile(typed)
+		err = s.fs.ReadFile(typed)
 
 	case *fuseops.WriteFileOp:
-		s.fs.WriteFile(typed)
+		err = s.fs.WriteFile(typed)
 
 	case *fuseops.SyncFileOp:
-		s.fs.SyncFile(typed)
+		err = s.fs.SyncFile(typed)
 
 	case *fuseops.FlushFileOp:
-		s.fs.FlushFile(typed)
+		err = s.fs.FlushFile(typed)
 
 	case *fuseops.ReleaseFileHandleOp:
-		s.fs.ReleaseFileHandle(typed)
+		err = s.fs.ReleaseFileHandle(typed)
 
 	case *fuseops.ReadSymlinkOp:
-		s.fs.ReadSymlink(typed)
+		err = s.fs.ReadSymlink(typed)
 	}
+
+	op.Respond(err)
 }
