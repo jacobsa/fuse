@@ -33,31 +33,32 @@ var fRandomDelays = flag.Bool(
 // loop" that switches on op types, instead receiving typed method calls
 // directly.
 //
-// Each method is responsible for calling Respond on the supplied op.
+// The FileSystem implementation should not call Op.Respond, instead returning
+// the error with which the caller should respond.
 //
 // See NotImplementedFileSystem for a convenient way to embed default
 // implementations for methods you don't care about.
 type FileSystem interface {
-	Init(*fuseops.InitOp)
-	LookUpInode(*fuseops.LookUpInodeOp)
-	GetInodeAttributes(*fuseops.GetInodeAttributesOp)
-	SetInodeAttributes(*fuseops.SetInodeAttributesOp)
-	ForgetInode(*fuseops.ForgetInodeOp)
-	MkDir(*fuseops.MkDirOp)
-	CreateFile(*fuseops.CreateFileOp)
-	CreateSymlink(*fuseops.CreateSymlinkOp)
-	RmDir(*fuseops.RmDirOp)
-	Unlink(*fuseops.UnlinkOp)
-	OpenDir(*fuseops.OpenDirOp)
-	ReadDir(*fuseops.ReadDirOp)
-	ReleaseDirHandle(*fuseops.ReleaseDirHandleOp)
-	OpenFile(*fuseops.OpenFileOp)
-	ReadFile(*fuseops.ReadFileOp)
-	WriteFile(*fuseops.WriteFileOp)
-	SyncFile(*fuseops.SyncFileOp)
-	FlushFile(*fuseops.FlushFileOp)
-	ReleaseFileHandle(*fuseops.ReleaseFileHandleOp)
-	ReadSymlink(*fuseops.ReadSymlinkOp)
+	Init(*fuseops.InitOp) error
+	LookUpInode(*fuseops.LookUpInodeOp) error
+	GetInodeAttributes(*fuseops.GetInodeAttributesOp) error
+	SetInodeAttributes(*fuseops.SetInodeAttributesOp) error
+	ForgetInode(*fuseops.ForgetInodeOp) error
+	MkDir(*fuseops.MkDirOp) error
+	CreateFile(*fuseops.CreateFileOp) error
+	CreateSymlink(*fuseops.CreateSymlinkOp) error
+	RmDir(*fuseops.RmDirOp) error
+	Unlink(*fuseops.UnlinkOp) error
+	OpenDir(*fuseops.OpenDirOp) error
+	ReadDir(*fuseops.ReadDirOp) error
+	ReleaseDirHandle(*fuseops.ReleaseDirHandleOp) error
+	OpenFile(*fuseops.OpenFileOp) error
+	ReadFile(*fuseops.ReadFileOp) error
+	WriteFile(*fuseops.WriteFileOp) error
+	SyncFile(*fuseops.SyncFileOp) error
+	FlushFile(*fuseops.FlushFileOp) error
+	ReleaseFileHandle(*fuseops.ReleaseFileHandleOp) error
+	ReadSymlink(*fuseops.ReadSymlinkOp) error
 }
 
 // Create a fuse.Server that handles ops by calling the associated FileSystem
