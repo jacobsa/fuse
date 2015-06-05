@@ -239,19 +239,13 @@ func (fs *cachingFS) SetMtime(mtime time.Time) {
 ////////////////////////////////////////////////////////////////////////
 
 func (fs *cachingFS) Init(
-	op *fuseops.InitOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.InitOp) (err error) {
 	return
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) LookUpInode(
-	op *fuseops.LookUpInodeOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.LookUpInodeOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -305,10 +299,7 @@ func (fs *cachingFS) LookUpInode(
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) GetInodeAttributes(
-	op *fuseops.GetInodeAttributesOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.GetInodeAttributesOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -337,17 +328,11 @@ func (fs *cachingFS) GetInodeAttributes(
 }
 
 func (fs *cachingFS) OpenDir(
-	op *fuseops.OpenDirOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.OpenDirOp) (err error) {
 	return
 }
 
 func (fs *cachingFS) OpenFile(
-	op *fuseops.OpenFileOp) {
-	var err error
-	defer fuseutil.RespondToOp(op, &err)
-
+	op *fuseops.OpenFileOp) (err error) {
 	return
 }
