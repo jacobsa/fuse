@@ -60,6 +60,11 @@ type FileSystem interface {
 	FlushFile(*fuseops.FlushFileOp) error
 	ReleaseFileHandle(*fuseops.ReleaseFileHandleOp) error
 	ReadSymlink(*fuseops.ReadSymlinkOp) error
+
+	// Regard all inodes (including the root inode) as having their lookup counts
+	// decremented to zero, and clean up any resources associated with the file
+	// system. No further calls to the file system will be made.
+	Destroy()
 }
 
 // Create a fuse.Server that handles ops by calling the associated FileSystem
