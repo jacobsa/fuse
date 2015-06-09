@@ -196,19 +196,6 @@ func (fs *fsImpl) Check() {
 	defer fs.mu.Unlock()
 
 	for k, v := range fs.inodes {
-		// Special case: we don't require the root inode to have reached zero.
-		// OS X doesn't seem to send forgets for the root, and Linux only does
-		// sometimes. But we want to make sure it's not greater than one, which
-		// would be weird.
-		if k == fuseops.RootInodeID {
-			if v.lookupCount > 1 {
-				panic(fmt.Sprintf("Root has lookup count %v", v.lookupCount))
-			}
-
-			continue
-		}
-
-		// Check other inodes.
 		if v.lookupCount != 0 {
 			panic(fmt.Sprintf("Inode %v has lookup count %v", k, v.lookupCount))
 		}
