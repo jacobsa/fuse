@@ -66,6 +66,13 @@ func NewFileSystem() (fs *ForgetFS) {
 	// The root inode starts with a lookup count of one.
 	impl.inodes[cannedID_Root].IncrementLookupCount()
 
+	// The canned inodes are supposed to be stable from the user's point of view,
+	// so we should allow them to be looked up at any point even if the kernel
+	// has balanced its lookups with its forgets. Ensure that they never go to
+	// zero until the file system is destroyed.
+	impl.inodes[cannedID_Foo].IncrementLookupCount()
+	impl.inodes[cannedID_Bar].IncrementLookupCount()
+
 	// Set up the mutex.
 	impl.mu = syncutil.NewInvariantMutex(impl.checkInvariants)
 
