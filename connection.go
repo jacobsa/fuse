@@ -43,7 +43,6 @@ type Connection struct {
 	debugLogger *log.Logger
 	errorLogger *log.Logger
 	wrapped     *bazilfuse.Conn
-	opsInFlight sync.WaitGroup
 
 	// The context from which all op contexts inherit.
 	parentCtx context.Context
@@ -217,9 +216,6 @@ func (c *Connection) beginOp(
 	bfReq bazilfuse.Request) (ctx context.Context) {
 	reqID := bfReq.Hdr().ID
 
-	// Note that the op is in flight.
-	c.opsInFlight.Add(1)
-
 	// Choose a parent context.
 	ctx = c.maybeTraceByPID(int(bfReq.Hdr().Pid))
 
@@ -267,9 +263,6 @@ func (c *Connection) finishOp(bfReq bazilfuse.Request) {
 		cancel()
 		delete(c.cancelFuncs, reqID)
 	}
-
-	// Decrement the in-flight counter.
-	c.opsInFlight.Done()
 }
 
 // LOCKS_EXCLUDED(c.mu)
@@ -365,9 +358,9 @@ func (c *Connection) waitForReady() (err error) {
 	return
 }
 
-// Close the connection and wait for in-flight ops.
+// Close the connection. Must not be called until operations that were read
+// from the connection have been responded to.
 func (c *Connection) close() (err error) {
 	err = c.wrapped.Close()
-	c.opsInFlight.Wait()
 	return
 }
