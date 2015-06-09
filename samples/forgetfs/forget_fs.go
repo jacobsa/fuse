@@ -17,7 +17,6 @@ package forgetfs
 import (
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -66,6 +65,13 @@ func NewFileSystem() (fs *ForgetFS) {
 
 	// The root inode starts with a lookup count of one.
 	impl.inodes[cannedID_Root].IncrementLookupCount()
+
+	// The canned inodes are supposed to be stable from the user's point of view,
+	// so we should allow them to be looked up at any point even if the kernel
+	// has balanced its lookups with its forgets. Ensure that they never go to
+	// zero until the file system is destroyed.
+	impl.inodes[cannedID_Foo].IncrementLookupCount()
+	impl.inodes[cannedID_Bar].IncrementLookupCount()
 
 	// Set up the mutex.
 	impl.mu = syncutil.NewInvariantMutex(impl.checkInvariants)
@@ -165,6 +171,11 @@ func (in *inode) DecrementLookupCount(n uint64) {
 	in.lookupCount -= n
 }
 
+// Decrement the lookup count to zero.
+func (in *inode) Destroy() {
+	in.DecrementLookupCount(in.lookupCount)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -184,30 +195,7 @@ func (fs *fsImpl) Check() {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	// On Linux we often don't receive forget ops, and never receive destroy ops
-	// (cf. http://goo.gl/EUbxEg, fuse-devel thread "Root inode lookup count").
-	// So there's not really much we can check here.
-	//
-	// TODO(jacobsa): Figure out why we don't receive destroy. If we can reliably
-	// receive it, we can treat it as "forget all".
-	if runtime.GOOS == "linux" {
-		return
-	}
-
 	for k, v := range fs.inodes {
-		// Special case: we don't require the root inode to have reached zero.
-		// OS X doesn't seem to send forgets for the root, and Linux only does
-		// sometimes. But we want to make sure it's not greater than one, which
-		// would be weird.
-		if k == fuseops.RootInodeID {
-			if v.lookupCount > 1 {
-				panic(fmt.Sprintf("Root has lookup count %v", v.lookupCount))
-			}
-
-			continue
-		}
-
-		// Check other inodes.
 		if v.lookupCount != 0 {
 			panic(fmt.Sprintf("Inode %v has lookup count %v", k, v.lookupCount))
 		}
@@ -382,4 +370,10 @@ func (fs *fsImpl) OpenDir(
 	_ = fs.findInodeByID(op.Inode)
 
 	return
+}
+
+func (fs *fsImpl) Destroy() {
+	for _, in := range fs.inodes {
+		in.Destroy()
+	}
 }

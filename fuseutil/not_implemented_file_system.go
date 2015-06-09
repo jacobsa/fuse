@@ -147,3 +147,6 @@ func (fs *NotImplementedFileSystem) ReadSymlink(
 	err = fuse.ENOSYS
 	return
 }
+
+func (fs *NotImplementedFileSystem) Destroy() {
+}
