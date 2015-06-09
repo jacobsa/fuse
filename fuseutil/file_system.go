@@ -18,6 +18,7 @@ import (
 	"flag"
 	"io"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/jacobsa/fuse"
@@ -73,11 +74,14 @@ type FileSystem interface {
 // cf. http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
 // requests").
 func NewFileSystemServer(fs FileSystem) fuse.Server {
-	return fileSystemServer{fs}
+	return fileSystemServer{
+		fs: fs,
+	}
 }
 
 type fileSystemServer struct {
-	fs FileSystem
+	fs          FileSystem
+	opsInFlight sync.WaitGroup
 }
 
 func (s fileSystemServer) ServeOps(c *fuse.Connection) {
@@ -91,6 +95,7 @@ func (s fileSystemServer) ServeOps(c *fuse.Connection) {
 			panic(err)
 		}
 
+		s.opsInFlight.Add(1)
 		go s.handleOp(op)
 	}
 }
@@ -171,4 +176,5 @@ func (s fileSystemServer) handleOp(op fuseops.Op) {
 	}
 
 	op.Respond(err)
+	s.opsInFlight.Done()
 }
