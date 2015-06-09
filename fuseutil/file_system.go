@@ -18,6 +18,7 @@ import (
 	"flag"
 	"io"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/jacobsa/fuse"
@@ -73,14 +74,19 @@ type FileSystem interface {
 // cf. http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
 // requests").
 func NewFileSystemServer(fs FileSystem) fuse.Server {
-	return fileSystemServer{fs}
+	return &fileSystemServer{
+		fs: fs,
+	}
 }
 
 type fileSystemServer struct {
-	fs FileSystem
+	fs          FileSystem
+	opsInFlight sync.WaitGroup
 }
 
-func (s fileSystemServer) ServeOps(c *fuse.Connection) {
+func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
+	defer s.opsInFlight.Wait()
+
 	for {
 		op, err := c.ReadOp()
 		if err == io.EOF {
@@ -91,11 +97,14 @@ func (s fileSystemServer) ServeOps(c *fuse.Connection) {
 			panic(err)
 		}
 
+		s.opsInFlight.Add(1)
 		go s.handleOp(op)
 	}
 }
 
-func (s fileSystemServer) handleOp(op fuseops.Op) {
+func (s *fileSystemServer) handleOp(op fuseops.Op) {
+	defer s.opsInFlight.Done()
+
 	// Delay if requested.
 	if *fRandomDelays {
 		const delayLimit = 100 * time.Microsecond

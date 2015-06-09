@@ -26,7 +26,8 @@ import (
 
 // A type that knows how to serve ops read from a connection.
 type Server interface {
-	// Read and serve ops from the supplied connection until EOF.
+	// Read and serve ops from the supplied connection until EOF. Do not return
+	// until all operations have been responded to.
 	ServeOps(*Connection)
 }
 
