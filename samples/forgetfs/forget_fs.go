@@ -164,6 +164,11 @@ func (in *inode) DecrementLookupCount(n uint64) {
 	in.lookupCount -= n
 }
 
+// Decrement the lookup count to zero.
+func (in *inode) Destroy() {
+	in.DecrementLookupCount(in.lookupCount)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -371,4 +376,10 @@ func (fs *fsImpl) OpenDir(
 	_ = fs.findInodeByID(op.Inode)
 
 	return
+}
+
+func (fs *fsImpl) Destroy() {
+	for _, in := range fs.inodes {
+		in.Destroy()
+	}
 }
