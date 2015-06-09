@@ -90,7 +90,12 @@ type fileSystemServer struct {
 }
 
 func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
-	defer s.opsInFlight.Wait()
+	// When we are done, we clean up by waiting for all in-flight ops then
+	// destroying the file system.
+	defer func() {
+		s.opsInFlight.Wait()
+		s.fs.Destroy()
+	}()
 
 	for {
 		op, err := c.ReadOp()
