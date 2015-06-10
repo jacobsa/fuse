@@ -23,7 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
@@ -31,7 +31,7 @@ import (
 // Run an ogletest test that checks expectations for parallel calls to open(2)
 // with O_CREAT.
 func RunCreateInParallelTest_NoTruncate(
-	ctx context.Context,
+	t *ogletest.T,
 	dir string) {
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
@@ -64,7 +64,7 @@ func RunCreateInParallelTest_NoTruncate(
 
 		// Run several workers in parallel.
 		const numWorkers = 16
-		b := syncutil.NewBundle(ctx)
+		b := syncutil.NewBundle(t.Ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
 			b.Add(func(ctx context.Context) (err error) {
@@ -74,36 +74,36 @@ func RunCreateInParallelTest_NoTruncate(
 		}
 
 		err := b.Join()
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 
 		// Read the contents of the file. We should see each worker's ID once.
 		contents, err := ioutil.ReadFile(filename)
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 
 		idsSeen := make(map[byte]struct{})
 		for i, _ := range contents {
 			id := contents[i]
-			AssertLt(id, numWorkers)
+			t.AssertLt(id, numWorkers)
 
 			if _, ok := idsSeen[id]; ok {
-				AddFailure("Duplicate ID: %d", id)
+				t.AddFailure("Duplicate ID: %d", id)
 			}
 
 			idsSeen[id] = struct{}{}
 		}
 
-		AssertEq(numWorkers, len(idsSeen))
+		t.AssertEq(numWorkers, len(idsSeen))
 
 		// Delete the file.
 		err = os.Remove(filename)
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 	}
 }
 
 // Run an ogletest test that checks expectations for parallel calls to open(2)
 // with O_CREAT|O_TRUNC.
 func RunCreateInParallelTest_Truncate(
-	ctx context.Context,
+	t *ogletest.T,
 	dir string) {
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
@@ -140,7 +140,7 @@ func RunCreateInParallelTest_Truncate(
 
 		// Run several workers in parallel.
 		const numWorkers = 16
-		b := syncutil.NewBundle(ctx)
+		b := syncutil.NewBundle(t.Ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
 			b.Add(func(ctx context.Context) (err error) {
@@ -150,38 +150,38 @@ func RunCreateInParallelTest_Truncate(
 		}
 
 		err := b.Join()
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 
 		// Read the contents of the file. We should see at least one ID (the last
 		// one that truncated), and at most all of them.
 		contents, err := ioutil.ReadFile(filename)
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 
 		idsSeen := make(map[byte]struct{})
 		for i, _ := range contents {
 			id := contents[i]
-			AssertLt(id, numWorkers)
+			t.AssertLt(id, numWorkers)
 
 			if _, ok := idsSeen[id]; ok {
-				AddFailure("Duplicate ID: %d", id)
+				t.AddFailure("Duplicate ID: %d", id)
 			}
 
 			idsSeen[id] = struct{}{}
 		}
 
-		AssertGe(len(idsSeen), 1)
-		AssertLe(len(idsSeen), numWorkers)
+		t.AssertGe(len(idsSeen), 1)
+		t.AssertLe(len(idsSeen), numWorkers)
 
 		// Delete the file.
 		err = os.Remove(filename)
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 	}
 }
 
 // Run an ogletest test that checks expectations for parallel calls to open(2)
 // with O_CREAT|O_EXCL.
 func RunCreateInParallelTest_Exclusive(
-	ctx context.Context,
+	t *ogletest.T,
 	dir string) {
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
@@ -227,7 +227,7 @@ func RunCreateInParallelTest_Exclusive(
 
 		// Run several workers in parallel.
 		const numWorkers = 16
-		b := syncutil.NewBundle(ctx)
+		b := syncutil.NewBundle(t.Ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
 			b.Add(func(ctx context.Context) (err error) {
@@ -237,27 +237,27 @@ func RunCreateInParallelTest_Exclusive(
 		}
 
 		err := b.Join()
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 
 		// Exactly one worker should have opened successfully.
-		AssertEq(1, openCount)
+		t.AssertEq(1, openCount)
 
 		// Read the contents of the file. It should contain that one worker's ID.
 		contents, err := ioutil.ReadFile(filename)
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 
-		AssertEq(1, len(contents))
-		AssertLt(contents[0], numWorkers)
+		t.AssertEq(1, len(contents))
+		t.AssertLt(contents[0], numWorkers)
 
 		// Delete the file.
 		err = os.Remove(filename)
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 	}
 }
 
 // Run an ogletest test that checks expectations for parallel calls to mkdir(2).
 func RunMkdirInParallelTest(
-	ctx context.Context,
+	t *ogletest.T,
 	dir string) {
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
@@ -286,7 +286,7 @@ func RunMkdirInParallelTest(
 
 		// Run several workers in parallel.
 		const numWorkers = 16
-		b := syncutil.NewBundle(ctx)
+		b := syncutil.NewBundle(t.Ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
 			b.Add(func(ctx context.Context) (err error) {
@@ -296,24 +296,24 @@ func RunMkdirInParallelTest(
 		}
 
 		err := b.Join()
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 
 		// The directory should have been created, once.
 		entries, err := ReadDirPicky(dir)
-		AssertEq(nil, err)
-		AssertEq(1, len(entries))
-		AssertEq("foo", entries[0].Name())
+		t.AssertEq(nil, err)
+		t.AssertEq(1, len(entries))
+		t.AssertEq("foo", entries[0].Name())
 
 		// Delete the directory.
 		err = os.Remove(filename)
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 	}
 }
 
 // Run an ogletest test that checks expectations for parallel calls to
 // symlink(2).
 func RunSymlinkInParallelTest(
-	ctx context.Context,
+	t *ogletest.T,
 	dir string) {
 	// Ensure that we get parallelism for this test.
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(runtime.NumCPU()))
@@ -342,7 +342,7 @@ func RunSymlinkInParallelTest(
 
 		// Run several workers in parallel.
 		const numWorkers = 16
-		b := syncutil.NewBundle(ctx)
+		b := syncutil.NewBundle(t.Ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
 			b.Add(func(ctx context.Context) (err error) {
@@ -352,16 +352,16 @@ func RunSymlinkInParallelTest(
 		}
 
 		err := b.Join()
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 
 		// The symlink should have been created, once.
 		entries, err := ReadDirPicky(dir)
-		AssertEq(nil, err)
-		AssertEq(1, len(entries))
-		AssertEq("foo", entries[0].Name())
+		t.AssertEq(nil, err)
+		t.AssertEq(1, len(entries))
+		t.AssertEq("foo", entries[0].Name())
 
 		// Delete the directory.
 		err = os.Remove(filename)
-		AssertEq(nil, err)
+		t.AssertEq(nil, err)
 	}
 }
