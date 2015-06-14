@@ -21,9 +21,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/ogletest"
+	"github.com/jacobsa/timeutil"
 	"golang.org/x/net/context"
 )
 

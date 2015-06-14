@@ -19,10 +19,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/googlecloudplatform/gcsfuse/timeutil"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
+	"github.com/jacobsa/timeutil"
 )
 
 // Create a file system with a fixed structure that looks like this:
