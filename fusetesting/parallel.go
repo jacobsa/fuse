@@ -23,8 +23,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jacobsa/gcloud/syncutil"
 	. "github.com/jacobsa/ogletest"
+	"github.com/jacobsa/syncutil"
 	"golang.org/x/net/context"
 )
 
