@@ -825,6 +825,11 @@ type unknownOp struct {
 	commonOp
 }
 
+func (o *unknownOp) ShortDesc() (desc string) {
+	desc = fmt.Sprintf("%T(inode=%v)", o.bazilReq, o.bazilReq.Hdr().Node)
+	return
+}
+
 func (o *unknownOp) toBazilfuseResponse() (bfResp interface{}) {
 	panic(fmt.Sprintf("Should never get here for unknown op: %s", o.ShortDesc()))
 }
