@@ -28,12 +28,6 @@ type NotImplementedFileSystem struct {
 
 var _ FileSystem = &NotImplementedFileSystem{}
 
-func (fs *NotImplementedFileSystem) Init(
-	op *fuseops.InitOp) (err error) {
-	err = fuse.ENOSYS
-	return
-}
-
 func (fs *NotImplementedFileSystem) LookUpInode(
 	op *fuseops.LookUpInodeOp) (err error) {
 	err = fuse.ENOSYS

@@ -40,7 +40,6 @@ var fRandomDelays = flag.Bool(
 // See NotImplementedFileSystem for a convenient way to embed default
 // implementations for methods you don't care about.
 type FileSystem interface {
-	Init(*fuseops.InitOp) error
 	LookUpInode(*fuseops.LookUpInodeOp) error
 	GetInodeAttributes(*fuseops.GetInodeAttributesOp) error
 	SetInodeAttributes(*fuseops.SetInodeAttributesOp) error
@@ -127,9 +126,6 @@ func (s *fileSystemServer) handleOp(op fuseops.Op) {
 	switch typed := op.(type) {
 	default:
 		err = fuse.ENOSYS
-
-	case *fuseops.InitOp:
-		err = s.fs.Init(typed)
 
 	case *fuseops.LookUpInodeOp:
 		err = s.fs.LookUpInode(typed)
