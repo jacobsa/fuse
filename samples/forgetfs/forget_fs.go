@@ -222,11 +222,6 @@ func (fs *fsImpl) findInodeByID(id fuseops.InodeID) (in *inode) {
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *fsImpl) Init(
-	op *fuseops.InitOp) (err error) {
-	return
-}
-
 func (fs *fsImpl) LookUpInode(
 	op *fuseops.LookUpInodeOp) (err error) {
 	fs.mu.Lock()

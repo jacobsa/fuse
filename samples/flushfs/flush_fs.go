@@ -92,11 +92,6 @@ func (fs *flushFS) barAttributes() fuseops.InodeAttributes {
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *flushFS) Init(
-	op *fuseops.InitOp) (err error) {
-	return
-}
-
 func (fs *flushFS) LookUpInode(
 	op *fuseops.LookUpInodeOp) (err error) {
 	fs.mu.Lock()

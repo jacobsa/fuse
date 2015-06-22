@@ -238,11 +238,6 @@ func (fs *cachingFS) SetMtime(mtime time.Time) {
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *cachingFS) Init(
-	op *fuseops.InitOp) (err error) {
-	return
-}
-
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) LookUpInode(
 	op *fuseops.LookUpInodeOp) (err error) {
