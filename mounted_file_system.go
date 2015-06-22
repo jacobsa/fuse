@@ -184,9 +184,7 @@ func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
 
 // Attempt to mount a file system on the given directory, using the supplied
 // Server to serve connection requests. This function blocks until the file
-// system is successfully mounted. On some systems, this requires the supplied
-// Server to make forward progress (in particular, to respond to
-// fuseops.InitOp).
+// system is successfully mounted.
 func Mount(
 	dir string,
 	server Server,
