@@ -147,10 +147,6 @@ func (fs *helloFS) patchAttributes(
 	attr.Crtime = now
 }
 
-func (fs *helloFS) Init(op *fuseops.InitOp) (err error) {
-	return
-}
-
 func (fs *helloFS) LookUpInode(op *fuseops.LookUpInodeOp) (err error) {
 	// Find the info for the parent.
 	parentInfo, ok := gInodeInfo[op.Parent]

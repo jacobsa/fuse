@@ -54,64 +54,6 @@ type Op interface {
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Setup
-////////////////////////////////////////////////////////////////////////
-
-// Sent once when mounting the file system. It must succeed in order for the
-// mount to succeed.
-type InitOp struct {
-	commonOp
-
-	maxReadahead uint32
-}
-
-func (o *InitOp) toBazilfuseResponse() (bfResp interface{}) {
-	resp := bazilfuse.InitResponse{}
-	bfResp = &resp
-
-	// Ask the Linux kernel for larger write requests.
-	//
-	// As of 2015-03-26, the behavior in the kernel is:
-	//
-	//  *  (http://goo.gl/jMKHMZ, http://goo.gl/XTF4ZH) Cap the max write size at
-	//     the maximum of 4096 and init_response->max_write.
-	//
-	//  *  (http://goo.gl/gEIvHZ) If FUSE_BIG_WRITES isn't set, don't return more
-	//     than one page.
-	//
-	//  *  (http://goo.gl/4RLhxZ, http://goo.gl/hi0Cm2) Never write more than
-	//     FUSE_MAX_PAGES_PER_REQ pages (128 KiB on x86).
-	//
-	// 4 KiB is crazy small. Ask for significantly more, and take what the kernel
-	// will give us.
-	const maxWrite = 1 << 21
-	resp.Flags |= bazilfuse.InitBigWrites
-	resp.MaxWrite = maxWrite
-
-	// Ask the Linux kernel for larger read requests.
-	//
-	// As of 2015-03-26, the behavior in the kernel is:
-	//
-	//  *  (http://goo.gl/bQ1f1i, http://goo.gl/HwBrR6) Set the local variable
-	//     ra_pages to be init_response->max_readahead divided by the page size.
-	//
-	//  *  (http://goo.gl/gcIsSh, http://goo.gl/LKV2vA) Set
-	//     backing_dev_info::ra_pages to the min of that value and what was sent
-	//     in the request's max_readahead field.
-	//
-	//  *  (http://goo.gl/u2SqzH) Use backing_dev_info::ra_pages when deciding
-	//     how much to read ahead.
-	//
-	//  *  (http://goo.gl/JnhbdL) Don't read ahead at all if that field is zero.
-	//
-	// Reading a page at a time is a drag. Ask for as much as the kernel is
-	// willing to give us.
-	resp.MaxReadahead = o.maxReadahead
-
-	return
-}
-
-////////////////////////////////////////////////////////////////////////
 // Inodes
 ////////////////////////////////////////////////////////////////////////
 

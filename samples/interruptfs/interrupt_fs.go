@@ -77,11 +77,6 @@ func (fs *InterruptFS) WaitForReadInFlight() {
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *InterruptFS) Init(
-	op *fuseops.InitOp) (err error) {
-	return
-}
-
 func (fs *InterruptFS) LookUpInode(
 	op *fuseops.LookUpInodeOp) (err error) {
 	// We support only one parent.

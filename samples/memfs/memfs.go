@@ -199,11 +199,6 @@ func (fs *memFS) deallocateInode(id fuseops.InodeID) {
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *memFS) Init(
-	op *fuseops.InitOp) (err error) {
-	return
-}
-
 func (fs *memFS) LookUpInode(
 	op *fuseops.LookUpInodeOp) (err error) {
 	fs.mu.Lock()

@@ -42,14 +42,6 @@ func Convert(
 
 	var io internalOp
 	switch typed := r.(type) {
-	case *bazilfuse.InitRequest:
-		to := &InitOp{
-			maxReadahead: typed.MaxReadahead,
-		}
-
-		io = to
-		co = &to.commonOp
-
 	case *bazilfuse.LookupRequest:
 		to := &LookUpInodeOp{
 			Parent: InodeID(typed.Header.Node),
