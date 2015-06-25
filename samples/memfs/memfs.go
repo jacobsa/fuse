@@ -401,13 +401,9 @@ func (fs *memFS) Rename(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	// Ask the old parent for the child's inode ID. Unlock because we need to
-	// lock the new parent. This should be safe without risk of the referrent of
-	// the name changing, because the kernel needs to hold a lock on each of the
-	// parents.
+	// Ask the old parent for the child's inode ID and type.
 	oldParent := fs.getInodeOrDie(op.OldParent)
 	childID, childType, ok := oldParent.LookUpChild(op.OldName)
-	oldParent.mu.Unlock()
 
 	if !ok {
 		err = fuse.ENOENT
@@ -427,12 +423,8 @@ func (fs *memFS) Rename(
 		op.NewName,
 		childType)
 
-	newParent.mu.Unlock()
-
 	// Finally, remove the old name from the old parent.
-	oldParent.mu.Lock()
 	oldParent.RemoveChild(op.OldName)
-	oldParent.mu.Unlock()
 
 	return
 }
