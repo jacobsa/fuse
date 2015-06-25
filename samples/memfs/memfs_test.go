@@ -1643,5 +1643,8 @@ func (t *MemFSTest) RenameOverExisting_WrongType() {
 }
 
 func (t *MemFSTest) RenameNonExistentFile() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	err = os.Rename(path.Join(t.Dir, "foo"), path.Join(t.Dir, "bar"))
+	ExpectThat(err, Error(HasSubstr("no such file")))
 }
