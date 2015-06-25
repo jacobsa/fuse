@@ -1348,7 +1348,6 @@ func (t *MemFSTest) RenameWithinDir_Directory() {
 	// The new name should.
 	fi, err := os.Stat(newPath)
 	AssertEq(nil, err)
-	ExpectEq(len("taco"), fi.Size())
 	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
 
 	// There should only be the new entry in the parent.
