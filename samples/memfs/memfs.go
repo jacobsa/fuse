@@ -40,7 +40,6 @@ type memFS struct {
 	// Mutable state
 	/////////////////////////
 
-	// When acquiring this lock, the caller must hold no inode locks.
 	mu syncutil.InvariantMutex
 
 	// The collection of live inodes, indexed by ID. IDs of free inodes that may
@@ -140,31 +139,25 @@ func (fs *memFS) checkInvariants() {
 	}
 }
 
-// Find the given inode and return it with its lock held. Panic if it doesn't
-// exist.
+// Find the given inode. Panic if it doesn't exist.
 //
 // LOCKS_REQUIRED(fs.mu)
-// LOCK_FUNCTION(inode.mu)
 func (fs *memFS) getInodeOrDie(id fuseops.InodeID) (inode *inode) {
 	inode = fs.inodes[id]
 	if inode == nil {
 		panic(fmt.Sprintf("Unknown inode: %v", id))
 	}
 
-	inode.mu.Lock()
 	return
 }
 
-// Allocate a new inode, assigning it an ID that is not in use. Return it with
-// its lock held.
+// Allocate a new inode, assigning it an ID that is not in use.
 //
-// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
-// EXCLUSIVE_LOCK_FUNCTION(inode.mu)
+// LOCKS_REQUIRED(fs.mu)
 func (fs *memFS) allocateInode(
 	attrs fuseops.InodeAttributes) (id fuseops.InodeID, inode *inode) {
-	// Create and lock the inode.
+	// Create the inode.
 	inode = newInode(fs.clock, attrs)
-	inode.mu.Lock()
 
 	// Re-use a free ID if possible. Otherwise mint a new one.
 	numFree := len(fs.freeInodes)
@@ -180,7 +173,7 @@ func (fs *memFS) allocateInode(
 	return
 }
 
-// EXCLUSIVE_LOCKS_REQUIRED(fs.mu)
+// LOCKS_REQUIRED(fs.mu)
 func (fs *memFS) deallocateInode(id fuseops.InodeID) {
 	fs.freeInodes = append(fs.freeInodes, id)
 	fs.inodes[id] = nil
@@ -197,7 +190,6 @@ func (fs *memFS) LookUpInode(
 
 	// Grab the parent directory.
 	inode := fs.getInodeOrDie(op.Parent)
-	defer inode.mu.Unlock()
 
 	// Does the directory have an entry with the given name?
 	childID, ok := inode.LookUpChild(op.Name)
@@ -208,7 +200,6 @@ func (fs *memFS) LookUpInode(
 
 	// Grab the child.
 	child := fs.getInodeOrDie(childID)
-	defer child.mu.Unlock()
 
 	// Fill in the response.
 	op.Entry.Child = childID
@@ -229,7 +220,6 @@ func (fs *memFS) GetInodeAttributes(
 
 	// Grab the inode.
 	inode := fs.getInodeOrDie(op.Inode)
-	defer inode.mu.Unlock()
 
 	// Fill in the response.
 	op.Attributes = inode.attrs
@@ -248,7 +238,6 @@ func (fs *memFS) SetInodeAttributes(
 
 	// Grab the inode.
 	inode := fs.getInodeOrDie(op.Inode)
-	defer inode.mu.Unlock()
 
 	// Handle the request.
 	inode.SetAttributes(op.Size, op.Mode, op.Mtime)
@@ -270,7 +259,6 @@ func (fs *memFS) MkDir(
 
 	// Grab the parent, which we will update shortly.
 	parent := fs.getInodeOrDie(op.Parent)
-	defer parent.mu.Unlock()
 
 	// Ensure that the name doesn't already exist, so we don't wind up with a
 	// duplicate.
@@ -291,7 +279,6 @@ func (fs *memFS) MkDir(
 
 	// Allocate a child.
 	childID, child := fs.allocateInode(childAttrs)
-	defer child.mu.Unlock()
 
 	// Add an entry in the parent.
 	parent.AddChild(childID, op.Name, fuseutil.DT_Directory)
@@ -315,7 +302,6 @@ func (fs *memFS) CreateFile(
 
 	// Grab the parent, which we will update shortly.
 	parent := fs.getInodeOrDie(op.Parent)
-	defer parent.mu.Unlock()
 
 	// Ensure that the name doesn't already exist, so we don't wind up with a
 	// duplicate.
@@ -341,7 +327,6 @@ func (fs *memFS) CreateFile(
 
 	// Allocate a child.
 	childID, child := fs.allocateInode(childAttrs)
-	defer child.mu.Unlock()
 
 	// Add an entry in the parent.
 	parent.AddChild(childID, op.Name, fuseutil.DT_File)
@@ -367,7 +352,6 @@ func (fs *memFS) CreateSymlink(
 
 	// Grab the parent, which we will update shortly.
 	parent := fs.getInodeOrDie(op.Parent)
-	defer parent.mu.Unlock()
 
 	// Ensure that the name doesn't already exist, so we don't wind up with a
 	// duplicate.
@@ -393,7 +377,6 @@ func (fs *memFS) CreateSymlink(
 
 	// Allocate a child.
 	childID, child := fs.allocateInode(childAttrs)
-	defer child.mu.Unlock()
 
 	// Set up its target.
 	child.target = op.Target
@@ -420,7 +403,6 @@ func (fs *memFS) RmDir(
 
 	// Grab the parent, which we will update shortly.
 	parent := fs.getInodeOrDie(op.Parent)
-	defer parent.mu.Unlock()
 
 	// Find the child within the parent.
 	childID, ok := parent.LookUpChild(op.Name)
@@ -431,7 +413,6 @@ func (fs *memFS) RmDir(
 
 	// Grab the child.
 	child := fs.getInodeOrDie(childID)
-	defer child.mu.Unlock()
 
 	// Make sure the child is empty.
 	if child.Len() != 0 {
@@ -455,7 +436,6 @@ func (fs *memFS) Unlink(
 
 	// Grab the parent, which we will update shortly.
 	parent := fs.getInodeOrDie(op.Parent)
-	defer parent.mu.Unlock()
 
 	// Find the child within the parent.
 	childID, ok := parent.LookUpChild(op.Name)
@@ -466,7 +446,6 @@ func (fs *memFS) Unlink(
 
 	// Grab the child.
 	child := fs.getInodeOrDie(childID)
-	defer child.mu.Unlock()
 
 	// Remove the entry within the parent.
 	parent.RemoveChild(op.Name)
@@ -486,7 +465,6 @@ func (fs *memFS) OpenDir(
 	// inode that doesn't exist, something screwed up earlier (a lookup, a
 	// cache invalidation, etc.).
 	inode := fs.getInodeOrDie(op.Inode)
-	defer inode.mu.Unlock()
 
 	if !inode.isDir() {
 		panic("Found non-dir.")
@@ -502,7 +480,6 @@ func (fs *memFS) ReadDir(
 
 	// Grab the directory.
 	inode := fs.getInodeOrDie(op.Inode)
-	defer inode.mu.Unlock()
 
 	// Serve the request.
 	op.Data, err = inode.ReadDir(int(op.Offset), op.Size)
@@ -523,7 +500,6 @@ func (fs *memFS) OpenFile(
 	// inode that doesn't exist, something screwed up earlier (a lookup, a
 	// cache invalidation, etc.).
 	inode := fs.getInodeOrDie(op.Inode)
-	defer inode.mu.Unlock()
 
 	if !inode.isFile() {
 		panic("Found non-file.")
@@ -539,7 +515,6 @@ func (fs *memFS) ReadFile(
 
 	// Find the inode in question.
 	inode := fs.getInodeOrDie(op.Inode)
-	defer inode.mu.Unlock()
 
 	// Serve the request.
 	op.Data = make([]byte, op.Size)
@@ -561,7 +536,6 @@ func (fs *memFS) WriteFile(
 
 	// Find the inode in question.
 	inode := fs.getInodeOrDie(op.Inode)
-	defer inode.mu.Unlock()
 
 	// Serve the request.
 	_, err = inode.WriteAt(op.Data, op.Offset)
@@ -576,7 +550,6 @@ func (fs *memFS) ReadSymlink(
 
 	// Find the inode in question.
 	inode := fs.getInodeOrDie(op.Inode)
-	defer inode.mu.Unlock()
 
 	// Serve the request.
 	op.Target = inode.target
