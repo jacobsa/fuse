@@ -1518,12 +1518,22 @@ func (t *MemFSTest) RenameAcrossDirs_Directory() {
 	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
 }
 
-func (t *MemFSTest) RenameOutOfFileSystem_File() {
-	AssertTrue(false, "TODO")
-}
+func (t *MemFSTest) RenameOutOfFileSystem() {
+	var err error
 
-func (t *MemFSTest) RenameOutOfFileSystem_Directory() {
-	AssertTrue(false, "TODO")
+	// Create a file.
+	oldPath := path.Join(t.Dir, "foo")
+
+	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// Attempt to move it out of the file system.
+	tempDir, err := ioutil.TempDir("", "memfs_test")
+	AssertEq(nil, err)
+	defer os.RemoveAll(tempDir)
+
+	err = os.Rename(oldPath, path.Join(tempDir, "bar"))
+	ExpectThat(err, Error(HasSubstr("cross-device")))
 }
 
 func (t *MemFSTest) RenameIntoFileSystem_File() {
