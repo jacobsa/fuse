@@ -15,8 +15,10 @@
 package memfs
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"time"
 
@@ -393,6 +395,19 @@ func (fs *memFS) CreateSymlink(
 	op.Entry.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
 	op.Entry.EntryExpiration = op.Entry.EntryExpiration
 
+	return
+}
+
+func (fs *memFS) Rename(
+	op *fuseops.RenameOp) (err error) {
+	log.Printf(
+		"Received: %d %d %s %s",
+		op.OldParent,
+		op.NewParent,
+		op.OldName,
+		op.NewName)
+
+	err = errors.New("foobar")
 	return
 }
 
