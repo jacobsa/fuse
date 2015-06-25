@@ -15,10 +15,8 @@
 package memfs
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"time"
 
@@ -400,14 +398,42 @@ func (fs *memFS) CreateSymlink(
 
 func (fs *memFS) Rename(
 	op *fuseops.RenameOp) (err error) {
-	log.Printf(
-		"Received: %d %d %s %s",
-		op.OldParent,
-		op.NewParent,
-		op.OldName,
-		op.NewName)
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
-	err = errors.New("foobar")
+	// Ask the old parent for the child's inode ID. Unlock because we need to
+	// lock the new parent. This should be safe without risk of the referrent of
+	// the name changing, because the kernel needs to hold a lock on each of the
+	// parents.
+	oldParent := fs.getInodeOrDie(op.OldParent)
+	childID, ok := oldParent.LookUpChild(op.OldName)
+	oldParent.mu.Unlock()
+
+	if !ok {
+		err = fuse.ENOENT
+		return
+	}
+
+	// If the new name exists in the new parent, delete it first. Then link in
+	// the child.
+	newParent := fs.getInodeOrDie(op.NewParent)
+	_, ok = newParent.LookUpChild(op.NewName)
+	if ok {
+		newParent.RemoveChild(op.NewName)
+	}
+
+	newParent.AddChild(
+		childID,
+		op.NewName,
+		TODO_Type)
+
+	newParent.Unlock()
+
+	// Finally, remove the old name from the old parent.
+	oldParent.Lock()
+	oldParent.RemoveChild(op.OldName)
+	oldParent.Unlock()
+
 	return
 }
 
