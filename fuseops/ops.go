@@ -359,7 +359,8 @@ func (o *CreateSymlinkOp) toBazilfuseResponse() (bfResp interface{}) {
 ////////////////////////////////////////////////////////////////////////
 
 // TODO(jacobsa): Comments for struct and fields, in particular covering
-// renames across mount points.
+// renames across mount points. Mention that you'll still get a forget, like
+// RmDirOp.
 type RenameOp struct {
 	commonOp
 

@@ -1391,3 +1391,11 @@ func (t *MemFSTest) RenameIntoFileSystem_File() {
 func (t *MemFSTest) RenameIntoFileSystem_Directory() {
 	AssertTrue(false, "TODO")
 }
+
+func (t *MemFSTest) RenameOverExistingFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) RenameOverExistingDirectory() {
+	AssertTrue(false, "TODO")
+}
