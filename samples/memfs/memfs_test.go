@@ -1370,8 +1370,37 @@ func (t *MemFSTest) RenameWithinDir_Directory() {
 }
 
 func (t *MemFSTest) RenameWithinDir_SameName() {
-	// TODO(jacobsa): Make sure to check what a real file system does here.
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a parent directory.
+	parentPath := path.Join(t.Dir, "parent")
+
+	err = os.Mkdir(parentPath, 0700)
+	AssertEq(nil, err)
+
+	// And a file within it.
+	filePath := path.Join(parentPath, "foo")
+
+	err = ioutil.WriteFile(filePath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// Attempt to rename it.
+	err = os.Rename(filePath, filePath)
+	AssertEq(nil, err)
+
+	// The file should still exist.
+	contents, err := ioutil.ReadFile(filePath)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+
+	// There should only be the one entry in the directory.
+	entries, err := fusetesting.ReadDirPicky(parentPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi := entries[0]
+
+	ExpectEq(path.Base(filePath), fi.Name())
+	ExpectEq(os.FileMode(0400), fi.Mode())
 }
 
 func (t *MemFSTest) RenameAcrossDirs_File() {
