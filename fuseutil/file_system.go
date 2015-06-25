@@ -149,6 +149,9 @@ func (s *fileSystemServer) handleOp(op fuseops.Op) {
 	case *fuseops.CreateSymlinkOp:
 		err = s.fs.CreateSymlink(typed)
 
+	case *fuseops.RenameOp:
+		err = s.fs.Rename(typed)
+
 	case *fuseops.RmDirOp:
 		err = s.fs.RmDir(typed)
 
