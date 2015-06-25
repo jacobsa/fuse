@@ -1623,7 +1623,23 @@ func (t *MemFSTest) RenameOverExistingDirectory() {
 }
 
 func (t *MemFSTest) RenameOverExisting_WrongType() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create a file and a directory.
+	filePath := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(filePath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	dirPath := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirPath, 0700)
+	AssertEq(nil, err)
+
+	// Renaming one over the other shouldn't work.
+	err = os.Rename(filePath, dirPath)
+	ExpectThat(err, Error(HasSubstr("is a directory")))
+
+	err = os.Rename(dirPath, filePath)
+	ExpectThat(err, Error(HasSubstr("not a directory")))
 }
 
 func (t *MemFSTest) RenameNonExistentFile() {
