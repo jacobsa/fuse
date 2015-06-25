@@ -358,18 +358,50 @@ func (o *CreateSymlinkOp) toBazilfuseResponse() (bfResp interface{}) {
 // Unlinking
 ////////////////////////////////////////////////////////////////////////
 
-// TODO(jacobsa): Comments for struct and fields, in particular covering
-// renames across mount points. Mention that you'll still get a forget, like
-// RmDirOp. Also that an existing destination name should be atomically
-// replaced. Also that the new directory must be empty if it exists.
+// Rename a file or directory, given the IDs of the original parent directory
+// and the new one (which may be the same).
+//
+// In Linux, this is called by vfs_rename (https://goo.gl/eERItT), which is
+// called by sys_renameat2 (https://goo.gl/fCC9qC).
+//
+// The kernel takes care of ensuring that the source and destination are not
+// identical (in which case it does nothing), that the rename is not across
+// file system boundaries, and that the destination doesn't already exist with
+// the wrong type. Some subtleties that the file system must care about:
+//
+//  *  If the new name is an existing directory, the file system must ensure it
+//     is empty before replacing it, returning ENOTEMPTY otherwise. (This is
+//     per the posix spec: http://goo.gl/4XtT79)
+//
+//  *  The rename must be atomic from the point of view of an observer of the
+//     new name. That is, if the new name already exists, there must be no
+//     point at which it doesn't exist.
+//
+//  *  It is okay for the new name to be modified before the old name is
+//     removed; these need not be atomic. In fact, the Linux man page
+//     explicitly says this is likely (cf. https://goo.gl/Y1wVZc).
+//
+//  *  Linux bends over backwards (https://goo.gl/pLDn3r) to ensure that
+//     neither the old nor the new parent can be concurrently modified. But
+//     it's not clear whether OS X does this, and in any case it doesn't matter
+//     for file systems that may be modified remotely. Therefore a careful file
+//     system implementor should probably ensure if possible that the unlink
+//     step in the "link new name, unlink old name" process doesn't unlink a
+//     different inode than the one that was linked to the new name. Still,
+//     posix and the man pages are imprecise about the actual semantics of a
+//     rename if it's not atomic, so it is probably not disastrous to be loose
+//     about this.
+//
 type RenameOp struct {
 	commonOp
 
-	// TODO(jacobsa): Comments.
+	// The old parent directory, and the name of the entry within it to be
+	// relocated.
 	OldParent InodeID
 	OldName   string
 
-	// TODO(jacobsa): Comments.
+	// The new parent directory, and the name of the entry to be created or
+	// overwritten within it.
 	NewParent InodeID
 	NewName   string
 }
