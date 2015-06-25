@@ -1369,6 +1369,11 @@ func (t *MemFSTest) RenameWithinDir_Directory() {
 	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
 }
 
+func (t *MemFSTest) RenameWithinDir_SameName() {
+	// TODO(jacobsa): Make sure to check what a real file system does here.
+	AssertTrue(false, "TODO")
+}
+
 func (t *MemFSTest) RenameAcrossDirs_File() {
 	AssertTrue(false, "TODO")
 }
