@@ -1553,10 +1553,42 @@ func (t *MemFSTest) RenameIntoFileSystem() {
 }
 
 func (t *MemFSTest) RenameOverExistingFile() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create two files.
+	oldPath := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(oldPath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	newPath := path.Join(t.Dir, "bar")
+	err = ioutil.WriteFile(newPath, []byte("burrito"), 0600)
+	AssertEq(nil, err)
+
+	// Rename one over the other.
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	// Check the file contents.
+	contents, err := ioutil.ReadFile(newPath)
+	AssertEq(nil, err)
+	ExpectEq("taco", string(contents))
+
+	// And the parent listing.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi := entries[0]
+
+	ExpectEq(path.Base(newPath), fi.Name())
+	ExpectEq(os.FileMode(0400), fi.Mode())
+	ExpectEq(len("taco"), fi.Size())
 }
 
 func (t *MemFSTest) RenameOverExistingDirectory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) RenameOverExisting_WrongType() {
 	AssertTrue(false, "TODO")
 }
 
