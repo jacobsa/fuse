@@ -1405,3 +1405,7 @@ func (t *MemFSTest) RenameOverExistingFile() {
 func (t *MemFSTest) RenameOverExistingDirectory() {
 	AssertTrue(false, "TODO")
 }
+
+func (t *MemFSTest) RenameNonExistentFile() {
+	AssertTrue(false, "TODO")
+}
