@@ -1585,7 +1585,41 @@ func (t *MemFSTest) RenameOverExistingFile() {
 }
 
 func (t *MemFSTest) RenameOverExistingDirectory() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create two directories, the first non-empty.
+	oldPath := path.Join(t.Dir, "foo")
+	err = os.MkdirAll(path.Join(oldPath, "child"), 0700)
+	AssertEq(nil, err)
+
+	newPath := path.Join(t.Dir, "bar")
+	err = os.Mkdir(newPath, 0600)
+	AssertEq(nil, err)
+
+	// Renaming over the non-empty one shouldn't work.
+	err = os.Rename(newPath, oldPath)
+	ExpectThat(err, Error(HasSubstr("TODO")))
+
+	// But the other way around should.
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	// Check the parent listing.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi := entries[0]
+
+	ExpectEq(path.Base(newPath), fi.Name())
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
+
+	// And the directory itself.
+	entries, err = fusetesting.ReadDirPicky(newPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi = entries[0]
+
+	ExpectEq("child", fi.Name())
 }
 
 func (t *MemFSTest) RenameOverExisting_WrongType() {
