@@ -1271,3 +1271,19 @@ func (t *MemFSTest) MkdirInParallel() {
 func (t *MemFSTest) SymlinkInParallel() {
 	fusetesting.RunSymlinkInParallelTest(t.Ctx, t.Dir)
 }
+
+func (t *MemFSTest) RenameWithinDir_File() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) RenameWithinDir_Directory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) RenameAcrossDirs_File() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) RenameAcrossDirs_Directory() {
+	AssertTrue(false, "TODO")
+}
