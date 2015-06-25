@@ -192,7 +192,7 @@ func (fs *memFS) LookUpInode(
 	inode := fs.getInodeOrDie(op.Parent)
 
 	// Does the directory have an entry with the given name?
-	childID, ok := inode.LookUpChild(op.Name)
+	childID, _, ok := inode.LookUpChild(op.Name)
 	if !ok {
 		err = fuse.ENOENT
 		return
@@ -262,7 +262,7 @@ func (fs *memFS) MkDir(
 
 	// Ensure that the name doesn't already exist, so we don't wind up with a
 	// duplicate.
-	_, exists := parent.LookUpChild(op.Name)
+	_, _, exists := parent.LookUpChild(op.Name)
 	if exists {
 		err = fuse.EEXIST
 		return
@@ -305,7 +305,7 @@ func (fs *memFS) CreateFile(
 
 	// Ensure that the name doesn't already exist, so we don't wind up with a
 	// duplicate.
-	_, exists := parent.LookUpChild(op.Name)
+	_, _, exists := parent.LookUpChild(op.Name)
 	if exists {
 		err = fuse.EEXIST
 		return
@@ -355,7 +355,7 @@ func (fs *memFS) CreateSymlink(
 
 	// Ensure that the name doesn't already exist, so we don't wind up with a
 	// duplicate.
-	_, exists := parent.LookUpChild(op.Name)
+	_, _, exists := parent.LookUpChild(op.Name)
 	if exists {
 		err = fuse.EEXIST
 		return
@@ -396,6 +396,46 @@ func (fs *memFS) CreateSymlink(
 	return
 }
 
+func (fs *memFS) Rename(
+	op *fuseops.RenameOp) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Ask the old parent for the child's inode ID and type.
+	oldParent := fs.getInodeOrDie(op.OldParent)
+	childID, childType, ok := oldParent.LookUpChild(op.OldName)
+
+	if !ok {
+		err = fuse.ENOENT
+		return
+	}
+
+	// If the new name exists already in the new parent, make sure it's not a
+	// non-empty directory, then delete it.
+	newParent := fs.getInodeOrDie(op.NewParent)
+	existingID, _, ok := newParent.LookUpChild(op.NewName)
+	if ok {
+		existing := fs.getInodeOrDie(existingID)
+		if existing.isDir() && len(existing.ReadDir(0, 1024)) > 0 {
+			err = fuse.ENOTEMPTY
+			return
+		}
+
+		newParent.RemoveChild(op.NewName)
+	}
+
+	// Link the new name.
+	newParent.AddChild(
+		childID,
+		op.NewName,
+		childType)
+
+	// Finally, remove the old name from the old parent.
+	oldParent.RemoveChild(op.OldName)
+
+	return
+}
+
 func (fs *memFS) RmDir(
 	op *fuseops.RmDirOp) (err error) {
 	fs.mu.Lock()
@@ -405,7 +445,7 @@ func (fs *memFS) RmDir(
 	parent := fs.getInodeOrDie(op.Parent)
 
 	// Find the child within the parent.
-	childID, ok := parent.LookUpChild(op.Name)
+	childID, _, ok := parent.LookUpChild(op.Name)
 	if !ok {
 		err = fuse.ENOENT
 		return
@@ -438,7 +478,7 @@ func (fs *memFS) Unlink(
 	parent := fs.getInodeOrDie(op.Parent)
 
 	// Find the child within the parent.
-	childID, ok := parent.LookUpChild(op.Name)
+	childID, _, ok := parent.LookUpChild(op.Name)
 	if !ok {
 		err = fuse.ENOENT
 		return
@@ -482,11 +522,7 @@ func (fs *memFS) ReadDir(
 	inode := fs.getInodeOrDie(op.Inode)
 
 	// Serve the request.
-	op.Data, err = inode.ReadDir(int(op.Offset), op.Size)
-	if err != nil {
-		err = fmt.Errorf("inode.ReadDir: %v", err)
-		return
-	}
+	op.Data = inode.ReadDir(int(op.Offset), op.Size)
 
 	return
 }
