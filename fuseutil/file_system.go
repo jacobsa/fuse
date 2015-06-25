@@ -47,6 +47,7 @@ type FileSystem interface {
 	MkDir(*fuseops.MkDirOp) error
 	CreateFile(*fuseops.CreateFileOp) error
 	CreateSymlink(*fuseops.CreateSymlinkOp) error
+	Rename(*fuseops.RenameOp) error
 	RmDir(*fuseops.RmDirOp) error
 	Unlink(*fuseops.UnlinkOp) error
 	OpenDir(*fuseops.OpenDirOp) error

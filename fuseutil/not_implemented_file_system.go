@@ -70,6 +70,12 @@ func (fs *NotImplementedFileSystem) CreateSymlink(
 	return
 }
 
+func (fs *NotImplementedFileSystem) Rename(
+	op *fuseops.RenameOp) (err error) {
+	err = fuse.ENOSYS
+	return
+}
+
 func (fs *NotImplementedFileSystem) RmDir(
 	op *fuseops.RmDirOp) (err error) {
 	err = fuse.ENOSYS
