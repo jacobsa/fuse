@@ -1327,10 +1327,10 @@ func (t *MemFSTest) RenameWithinDir_Directory() {
 	err = os.Mkdir(parentPath, 0700)
 	AssertEq(nil, err)
 
-	// And a directory within it.
+	// And a non-empty directory within it.
 	oldPath := path.Join(parentPath, "foo")
 
-	err = os.Mkdir(oldPath, 0700)
+	err = os.MkdirAll(path.Join(oldPath, "child"), 0700)
 	AssertEq(nil, err)
 
 	// Rename it.
@@ -1349,13 +1349,22 @@ func (t *MemFSTest) RenameWithinDir_Directory() {
 	ExpectEq(len("taco"), fi.Size())
 	ExpectTrue(fi.IsDir())
 
-	// There should only be the new entry in the directory.
+	// There should only be the new entry in the parent.
 	entries, err := fusetesting.ReadDirPicky(parentPath)
 	AssertEq(nil, err)
 	AssertEq(1, len(entries))
 	fi = entries[0]
 
 	ExpectEq(path.Base(newPath), fi.Name())
+	ExpectTrue(fi.IsDir())
+
+	// And the child should still be present.
+	entries, err = fusetesting.ReadDirPicky(newPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi = entries[0]
+
+	ExpectEq("child", fi.Name())
 	ExpectTrue(fi.IsDir())
 }
 
@@ -1364,5 +1373,21 @@ func (t *MemFSTest) RenameAcrossDirs_File() {
 }
 
 func (t *MemFSTest) RenameAcrossDirs_Directory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) RenameOutOfFileSystem_File() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) RenameOutOfFileSystem_Directory() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) RenameIntoFileSystem_File() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *MemFSTest) RenameIntoFileSystem_Directory() {
 	AssertTrue(false, "TODO")
 }
