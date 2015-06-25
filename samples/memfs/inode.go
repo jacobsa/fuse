@@ -202,10 +202,14 @@ func (in *inode) Len() (n int) {
 // Find an entry for the given child name and return its inode ID.
 //
 // REQUIRES: in.isDir()
-func (in *inode) LookUpChild(name string) (id fuseops.InodeID, ok bool) {
+func (in *inode) LookUpChild(name string) (
+	id fuseops.InodeID,
+	typ fuseutil.DirentType,
+	ok bool) {
 	index, ok := in.findChild(name)
 	if ok {
 		id = in.entries[index].Inode
+		typ = in.entries[index].Type
 	}
 
 	return
