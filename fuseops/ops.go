@@ -358,6 +358,24 @@ func (o *CreateSymlinkOp) toBazilfuseResponse() (bfResp interface{}) {
 // Unlinking
 ////////////////////////////////////////////////////////////////////////
 
+// TODO(jacobsa): Comments for struct and fields, in particular covering
+// renames across mount points.
+type RenameOp struct {
+	commonOp
+
+	// TODO(jacobsa): Comments.
+	OldParent InodeID
+	OldName   string
+
+	// TODO(jacobsa): Comments.
+	NewParent InodeID
+	NewName   string
+}
+
+func (o *RenameOp) toBazilfuseResponse() (bfResp interface{}) {
+	return
+}
+
 // Unlink a directory from its parent. Because directories cannot have a link
 // count above one, this means the directory inode should be deleted as well
 // once the kernel sends ForgetInodeOp.
