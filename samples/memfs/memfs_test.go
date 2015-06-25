@@ -1536,12 +1536,20 @@ func (t *MemFSTest) RenameOutOfFileSystem() {
 	ExpectThat(err, Error(HasSubstr("cross-device")))
 }
 
-func (t *MemFSTest) RenameIntoFileSystem_File() {
-	AssertTrue(false, "TODO")
-}
+func (t *MemFSTest) RenameIntoFileSystem() {
+	var err error
 
-func (t *MemFSTest) RenameIntoFileSystem_Directory() {
-	AssertTrue(false, "TODO")
+	// Create a file outside of our file system.
+	f, err := ioutil.TempFile("", "memfs_test")
+	AssertEq(nil, err)
+	defer f.Close()
+
+	oldPath := f.Name()
+	defer os.Remove(oldPath)
+
+	// Attempt to move it into the file system.
+	err = os.Rename(oldPath, path.Join(t.Dir, "bar"))
+	ExpectThat(err, Error(HasSubstr("cross-device")))
 }
 
 func (t *MemFSTest) RenameOverExistingFile() {
