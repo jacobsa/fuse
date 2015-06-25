@@ -122,7 +122,7 @@ func Convert(
 			OldParent: InodeID(typed.Header.Node),
 			OldName:   typed.OldName,
 			NewParent: InodeID(typed.NewDir),
-			NewName:   typed.OldName,
+			NewName:   typed.NewName,
 		}
 		io = to
 		co = &to.commonOp
