@@ -137,24 +137,9 @@ func (fs *memFS) checkInvariants() {
 // Find the given inode and return it with its lock held. Panic if it doesn't
 // exist.
 //
-// SHARED_LOCKS_REQUIRED(fs.mu)
-// EXCLUSIVE_LOCK_FUNCTION(inode.mu)
-func (fs *memFS) getInodeForModifyingOrDie(id fuseops.InodeID) (inode *inode) {
-	inode = fs.inodes[id]
-	if inode == nil {
-		panic(fmt.Sprintf("Unknown inode: %v", id))
-	}
-
-	inode.mu.Lock()
-	return
-}
-
-// Find the given inode and return it with its lock held for reading. Panic if
-// it doesn't exist.
-//
-// SHARED_LOCKS_REQUIRED(fs.mu)
-// SHARED_LOCK_FUNCTION(inode.mu)
-func (fs *memFS) getInodeForReadingOrDie(id fuseops.InodeID) (inode *inode) {
+// LOCKS_REQUIRED(fs.mu)
+// LOCK_FUNCTION(inode.mu)
+func (fs *memFS) getInodeOrDie(id fuseops.InodeID) (inode *inode) {
 	inode = fs.inodes[id]
 	if inode == nil {
 		panic(fmt.Sprintf("Unknown inode: %v", id))
@@ -205,7 +190,7 @@ func (fs *memFS) LookUpInode(
 	defer fs.mu.Unlock()
 
 	// Grab the parent directory.
-	inode := fs.getInodeForReadingOrDie(op.Parent)
+	inode := fs.getInodeOrDie(op.Parent)
 	defer inode.mu.Unlock()
 
 	// Does the directory have an entry with the given name?
@@ -216,7 +201,7 @@ func (fs *memFS) LookUpInode(
 	}
 
 	// Grab the child.
-	child := fs.getInodeForReadingOrDie(childID)
+	child := fs.getInodeOrDie(childID)
 	defer child.mu.Unlock()
 
 	// Fill in the response.
@@ -237,7 +222,7 @@ func (fs *memFS) GetInodeAttributes(
 	defer fs.mu.Unlock()
 
 	// Grab the inode.
-	inode := fs.getInodeForReadingOrDie(op.Inode)
+	inode := fs.getInodeOrDie(op.Inode)
 	defer inode.mu.Unlock()
 
 	// Fill in the response.
@@ -256,7 +241,7 @@ func (fs *memFS) SetInodeAttributes(
 	defer fs.mu.Unlock()
 
 	// Grab the inode.
-	inode := fs.getInodeForModifyingOrDie(op.Inode)
+	inode := fs.getInodeOrDie(op.Inode)
 	defer inode.mu.Unlock()
 
 	// Handle the request.
@@ -278,7 +263,7 @@ func (fs *memFS) MkDir(
 	defer fs.mu.Unlock()
 
 	// Grab the parent, which we will update shortly.
-	parent := fs.getInodeForModifyingOrDie(op.Parent)
+	parent := fs.getInodeOrDie(op.Parent)
 	defer parent.mu.Unlock()
 
 	// Ensure that the name doesn't already exist, so we don't wind up with a
@@ -323,7 +308,7 @@ func (fs *memFS) CreateFile(
 	defer fs.mu.Unlock()
 
 	// Grab the parent, which we will update shortly.
-	parent := fs.getInodeForModifyingOrDie(op.Parent)
+	parent := fs.getInodeOrDie(op.Parent)
 	defer parent.mu.Unlock()
 
 	// Ensure that the name doesn't already exist, so we don't wind up with a
@@ -375,7 +360,7 @@ func (fs *memFS) CreateSymlink(
 	defer fs.mu.Unlock()
 
 	// Grab the parent, which we will update shortly.
-	parent := fs.getInodeForModifyingOrDie(op.Parent)
+	parent := fs.getInodeOrDie(op.Parent)
 	defer parent.mu.Unlock()
 
 	// Ensure that the name doesn't already exist, so we don't wind up with a
@@ -428,7 +413,7 @@ func (fs *memFS) RmDir(
 	defer fs.mu.Unlock()
 
 	// Grab the parent, which we will update shortly.
-	parent := fs.getInodeForModifyingOrDie(op.Parent)
+	parent := fs.getInodeOrDie(op.Parent)
 	defer parent.mu.Unlock()
 
 	// Find the child within the parent.
@@ -439,7 +424,7 @@ func (fs *memFS) RmDir(
 	}
 
 	// Grab the child.
-	child := fs.getInodeForModifyingOrDie(childID)
+	child := fs.getInodeOrDie(childID)
 	defer child.mu.Unlock()
 
 	// Make sure the child is empty.
@@ -463,7 +448,7 @@ func (fs *memFS) Unlink(
 	defer fs.mu.Unlock()
 
 	// Grab the parent, which we will update shortly.
-	parent := fs.getInodeForModifyingOrDie(op.Parent)
+	parent := fs.getInodeOrDie(op.Parent)
 	defer parent.mu.Unlock()
 
 	// Find the child within the parent.
@@ -474,7 +459,7 @@ func (fs *memFS) Unlink(
 	}
 
 	// Grab the child.
-	child := fs.getInodeForModifyingOrDie(childID)
+	child := fs.getInodeOrDie(childID)
 	defer child.mu.Unlock()
 
 	// Remove the entry within the parent.
@@ -494,7 +479,7 @@ func (fs *memFS) OpenDir(
 	// We don't mutate spontaneosuly, so if the VFS layer has asked for an
 	// inode that doesn't exist, something screwed up earlier (a lookup, a
 	// cache invalidation, etc.).
-	inode := fs.getInodeForReadingOrDie(op.Inode)
+	inode := fs.getInodeOrDie(op.Inode)
 	defer inode.mu.Unlock()
 
 	if !inode.isDir() {
@@ -510,7 +495,7 @@ func (fs *memFS) ReadDir(
 	defer fs.mu.Unlock()
 
 	// Grab the directory.
-	inode := fs.getInodeForReadingOrDie(op.Inode)
+	inode := fs.getInodeOrDie(op.Inode)
 	defer inode.mu.Unlock()
 
 	// Serve the request.
@@ -531,7 +516,7 @@ func (fs *memFS) OpenFile(
 	// We don't mutate spontaneosuly, so if the VFS layer has asked for an
 	// inode that doesn't exist, something screwed up earlier (a lookup, a
 	// cache invalidation, etc.).
-	inode := fs.getInodeForReadingOrDie(op.Inode)
+	inode := fs.getInodeOrDie(op.Inode)
 	defer inode.mu.Unlock()
 
 	if !inode.isFile() {
@@ -547,7 +532,7 @@ func (fs *memFS) ReadFile(
 	defer fs.mu.Unlock()
 
 	// Find the inode in question.
-	inode := fs.getInodeForReadingOrDie(op.Inode)
+	inode := fs.getInodeOrDie(op.Inode)
 	defer inode.mu.Unlock()
 
 	// Serve the request.
@@ -569,7 +554,7 @@ func (fs *memFS) WriteFile(
 	defer fs.mu.Unlock()
 
 	// Find the inode in question.
-	inode := fs.getInodeForModifyingOrDie(op.Inode)
+	inode := fs.getInodeOrDie(op.Inode)
 	defer inode.mu.Unlock()
 
 	// Serve the request.
@@ -584,7 +569,7 @@ func (fs *memFS) ReadSymlink(
 	defer fs.mu.Unlock()
 
 	// Find the inode in question.
-	inode := fs.getInodeForReadingOrDie(op.Inode)
+	inode := fs.getInodeOrDie(op.Inode)
 	defer inode.mu.Unlock()
 
 	// Serve the request.
