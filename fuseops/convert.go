@@ -117,6 +117,16 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
+	case *bazilfuse.RenameRequest:
+		to := &RenameOp{
+			OldParent: InodeID(typed.Header.Node),
+			OldName:   typed.OldName,
+			NewParent: InodeID(typed.NewDir),
+			NewName:   typed.OldName,
+		}
+		io = to
+		co = &to.commonOp
+
 	case *bazilfuse.RemoveRequest:
 		if typed.Dir {
 			to := &RmDirOp{
