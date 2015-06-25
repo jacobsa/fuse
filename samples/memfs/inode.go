@@ -22,11 +22,12 @@ import (
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/syncutil"
 	"github.com/jacobsa/timeutil"
 )
 
 // Common attributes for files and directories.
+//
+// External synchronization is required.
 type inode struct {
 	/////////////////////////
 	// Dependencies
@@ -37,8 +38,6 @@ type inode struct {
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
-
-	mu syncutil.InvariantMutex
 
 	// The current attributes of this inode.
 	//
@@ -93,11 +92,10 @@ func newInode(
 		attrs: attrs,
 	}
 
-	in.mu = syncutil.NewInvariantMutex(in.checkInvariants)
 	return
 }
 
-func (in *inode) checkInvariants() {
+func (in *inode) CheckInvariants() {
 	// INVARIANT: attrs.Mode &^ (os.ModePerm|os.ModeDir|os.ModeSymlink) == 0
 	if !(in.attrs.Mode&^(os.ModePerm|os.ModeDir|os.ModeSymlink) == 0) {
 		panic(fmt.Sprintf("Unexpected mode: %v", in.attrs.Mode))
@@ -153,25 +151,21 @@ func (in *inode) checkInvariants() {
 	return
 }
 
-// LOCKS_REQUIRED(in.mu)
 func (in *inode) isDir() bool {
 	return in.attrs.Mode&os.ModeDir != 0
 }
 
-// LOCKS_REQUIRED(in.mu)
 func (in *inode) isSymlink() bool {
 	return in.attrs.Mode&os.ModeSymlink != 0
 }
 
-// LOCKS_REQUIRED(in.mu)
 func (in *inode) isFile() bool {
 	return !(in.isDir() || in.isSymlink())
 }
 
 // Return the index of the child within in.entries, if it exists.
 //
-// REQUIRES: in.dir
-// LOCKS_REQUIRED(in.mu)
+// REQUIRES: in.isDir()
 func (in *inode) findChild(name string) (i int, ok bool) {
 	if !in.isDir() {
 		panic("findChild called on non-directory.")
@@ -195,7 +189,6 @@ func (in *inode) findChild(name string) (i int, ok bool) {
 // Return the number of children of the directory.
 //
 // REQUIRES: in.isDir()
-// LOCKS_REQUIRED(in.mu)
 func (in *inode) Len() (n int) {
 	for _, e := range in.entries {
 		if e.Type != fuseutil.DT_Unknown {
@@ -209,7 +202,6 @@ func (in *inode) Len() (n int) {
 // Find an entry for the given child name and return its inode ID.
 //
 // REQUIRES: in.isDir()
-// LOCKS_REQUIRED(in.mu)
 func (in *inode) LookUpChild(name string) (id fuseops.InodeID, ok bool) {
 	index, ok := in.findChild(name)
 	if ok {
@@ -223,7 +215,6 @@ func (in *inode) LookUpChild(name string) (id fuseops.InodeID, ok bool) {
 //
 // REQUIRES: in.isDir()
 // REQUIRES: dt != fuseutil.DT_Unknown
-// LOCKS_REQUIRED(in.mu)
 func (in *inode) AddChild(
 	id fuseops.InodeID,
 	name string,
@@ -263,7 +254,6 @@ func (in *inode) AddChild(
 //
 // REQUIRES: in.isDir()
 // REQUIRES: An entry for the given name exists.
-// LOCKS_REQUIRED(in.mu)
 func (in *inode) RemoveChild(name string) {
 	// Update the modification time.
 	in.attrs.Mtime = in.clock.Now()
@@ -284,7 +274,6 @@ func (in *inode) RemoveChild(name string) {
 // Serve a ReadDir request.
 //
 // REQUIRES: in.isDir()
-// LOCKS_REQUIRED(in.mu)
 func (in *inode) ReadDir(offset int, size int) (data []byte, err error) {
 	if !in.isDir() {
 		panic("ReadDir called on non-directory.")
@@ -313,7 +302,6 @@ func (in *inode) ReadDir(offset int, size int) (data []byte, err error) {
 // Read from the file's contents. See documentation for ioutil.ReaderAt.
 //
 // REQUIRES: in.isFile()
-// LOCKS_REQUIRED(in.mu)
 func (in *inode) ReadAt(p []byte, off int64) (n int, err error) {
 	if !in.isFile() {
 		panic("ReadAt called on non-file.")
@@ -337,7 +325,6 @@ func (in *inode) ReadAt(p []byte, off int64) (n int, err error) {
 // Write to the file's contents. See documentation for ioutil.WriterAt.
 //
 // REQUIRES: in.isFile()
-// LOCKS_REQUIRED(in.mu)
 func (in *inode) WriteAt(p []byte, off int64) (n int, err error) {
 	if !in.isFile() {
 		panic("WriteAt called on non-file.")
@@ -366,8 +353,6 @@ func (in *inode) WriteAt(p []byte, off int64) (n int, err error) {
 }
 
 // Update attributes from non-nil parameters.
-//
-// LOCKS_REQUIRED(in.mu)
 func (in *inode) SetAttributes(
 	size *uint64,
 	mode *os.FileMode,
