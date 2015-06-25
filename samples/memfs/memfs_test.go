@@ -1461,7 +1461,61 @@ func (t *MemFSTest) RenameAcrossDirs_File() {
 }
 
 func (t *MemFSTest) RenameAcrossDirs_Directory() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Create two parent directories.
+	oldParentPath := path.Join(t.Dir, "old")
+	newParentPath := path.Join(t.Dir, "new")
+
+	err = os.Mkdir(oldParentPath, 0700)
+	AssertEq(nil, err)
+
+	err = os.Mkdir(newParentPath, 0700)
+	AssertEq(nil, err)
+
+	// And a non-empty directory within the first.
+	oldPath := path.Join(oldParentPath, "foo")
+
+	err = os.MkdirAll(path.Join(oldPath, "child"), 0700)
+	AssertEq(nil, err)
+
+	// Rename it.
+	newPath := path.Join(newParentPath, "bar")
+
+	err = os.Rename(oldPath, newPath)
+	AssertEq(nil, err)
+
+	// The old name shouldn't work.
+	_, err = os.Stat(oldPath)
+	ExpectTrue(os.IsNotExist(err), "err: %v", err)
+
+	// The new name should.
+	fi, err := os.Stat(newPath)
+	AssertEq(nil, err)
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
+
+	// And the child should still be present.
+	entries, err := fusetesting.ReadDirPicky(newPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi = entries[0]
+
+	ExpectEq("child", fi.Name())
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
+
+	// Check the old parent.
+	entries, err = fusetesting.ReadDirPicky(oldParentPath)
+	AssertEq(nil, err)
+	AssertEq(0, len(entries))
+
+	// And the new one.
+	entries, err = fusetesting.ReadDirPicky(newParentPath)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+	fi = entries[0]
+
+	ExpectEq(path.Base(newPath), fi.Name())
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
 }
 
 func (t *MemFSTest) RenameOutOfFileSystem_File() {
