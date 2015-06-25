@@ -278,7 +278,7 @@ func (in *inode) RemoveChild(name string) {
 // Serve a ReadDir request.
 //
 // REQUIRES: in.isDir()
-func (in *inode) ReadDir(offset int, size int) (data []byte, err error) {
+func (in *inode) ReadDir(offset int, size int) (data []byte) {
 	if !in.isDir() {
 		panic("ReadDir called on non-directory.")
 	}

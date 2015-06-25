@@ -1598,7 +1598,7 @@ func (t *MemFSTest) RenameOverExistingDirectory() {
 
 	// Renaming over the non-empty one shouldn't work.
 	err = os.Rename(newPath, oldPath)
-	ExpectThat(err, Error(HasSubstr("TODO")))
+	ExpectThat(err, Error(HasSubstr("not empty")))
 
 	// But the other way around should.
 	err = os.Rename(oldPath, newPath)

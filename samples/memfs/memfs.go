@@ -410,14 +410,21 @@ func (fs *memFS) Rename(
 		return
 	}
 
-	// If the new name exists in the new parent, delete it first. Then link in
-	// the child.
+	// If the new name exists already in the new parent, make sure it's not a
+	// non-empty directory, then delete it.
 	newParent := fs.getInodeOrDie(op.NewParent)
-	_, _, ok = newParent.LookUpChild(op.NewName)
+	existingID, _, ok := newParent.LookUpChild(op.NewName)
 	if ok {
+		existing := fs.getInodeOrDie(existingID)
+		if existing.isDir() && len(existing.ReadDir(0, 1024)) > 0 {
+			err = fuse.ENOTEMPTY
+			return
+		}
+
 		newParent.RemoveChild(op.NewName)
 	}
 
+	// Link the new name.
 	newParent.AddChild(
 		childID,
 		op.NewName,
@@ -515,11 +522,7 @@ func (fs *memFS) ReadDir(
 	inode := fs.getInodeOrDie(op.Inode)
 
 	// Serve the request.
-	op.Data, err = inode.ReadDir(int(op.Offset), op.Size)
-	if err != nil {
-		err = fmt.Errorf("inode.ReadDir: %v", err)
-		return
-	}
+	op.Data = inode.ReadDir(int(op.Offset), op.Size)
 
 	return
 }
