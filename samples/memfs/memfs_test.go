@@ -1304,6 +1304,7 @@ func (t *MemFSTest) RenameWithinDir_File() {
 	fi, err := os.Stat(newPath)
 	AssertEq(nil, err)
 	ExpectEq(len("taco"), fi.Size())
+	ExpectEq(os.FileMode(0400), fi.Mode())
 
 	contents, err := ioutil.ReadFile(newPath)
 	AssertEq(nil, err)
@@ -1316,6 +1317,7 @@ func (t *MemFSTest) RenameWithinDir_File() {
 	fi = entries[0]
 
 	ExpectEq(path.Base(newPath), fi.Name())
+	ExpectEq(os.FileMode(0400), fi.Mode())
 }
 
 func (t *MemFSTest) RenameWithinDir_Directory() {
@@ -1347,7 +1349,7 @@ func (t *MemFSTest) RenameWithinDir_Directory() {
 	fi, err := os.Stat(newPath)
 	AssertEq(nil, err)
 	ExpectEq(len("taco"), fi.Size())
-	ExpectTrue(fi.IsDir())
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
 
 	// There should only be the new entry in the parent.
 	entries, err := fusetesting.ReadDirPicky(parentPath)
@@ -1356,7 +1358,7 @@ func (t *MemFSTest) RenameWithinDir_Directory() {
 	fi = entries[0]
 
 	ExpectEq(path.Base(newPath), fi.Name())
-	ExpectTrue(fi.IsDir())
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
 
 	// And the child should still be present.
 	entries, err = fusetesting.ReadDirPicky(newPath)
@@ -1365,7 +1367,7 @@ func (t *MemFSTest) RenameWithinDir_Directory() {
 	fi = entries[0]
 
 	ExpectEq("child", fi.Name())
-	ExpectTrue(fi.IsDir())
+	ExpectEq(os.FileMode(0700)|os.ModeDir, fi.Mode())
 }
 
 func (t *MemFSTest) RenameAcrossDirs_File() {
