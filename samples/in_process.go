@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"time"
 
@@ -59,7 +60,12 @@ type SampleTest struct {
 //
 // REQUIRES: t.Server has been set.
 func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
-	err := t.initialize(ti.Ctx, t.Server, &t.MountConfig)
+	cfg := t.MountConfig
+	if *fDebug {
+		cfg.DebugLogger = log.New(os.Stderr, "fuse: ", 0)
+	}
+
+	err := t.initialize(ti.Ctx, t.Server, &cfg)
 	if err != nil {
 		panic(err)
 	}
