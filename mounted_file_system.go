@@ -84,6 +84,10 @@ type MountConfig struct {
 	// logging is performed.
 	ErrorLogger *log.Logger
 
+	// A logger to use for logging debug information. If nil, no debug logging is
+	// performed.
+	DebugLogger *log.Logger
+
 	// OS X only.
 	//
 	// Normally on OS X we mount with the novncache option
