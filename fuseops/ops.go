@@ -49,7 +49,7 @@ type Op interface {
 
 	// Log information tied to this operation, with semantics equivalent to
 	// log.Printf, except that the format is different and logging is suppressed
-	// if --fuse.debug is not set.
+	// if no debug logger was set when mounting.
 	Logf(format string, v ...interface{})
 }
 
