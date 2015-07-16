@@ -276,7 +276,7 @@ func (t *SubprocessTest) initialize(ctx context.Context) (err error) {
 	// Handle debug mode.
 	if *fDebug {
 		mountCmd.Stderr = os.Stderr
-		mountCmd.Args = append(mountCmd.Args, "--fuse.debug")
+		mountCmd.Args = append(mountCmd.Args, "--debug")
 	}
 
 	// Start the command.
