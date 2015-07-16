@@ -193,7 +193,11 @@ func Mount(
 	dir string,
 	server Server,
 	config *MountConfig) (mfs *MountedFileSystem, err error) {
-	debugLogger := getDebugLogger()
+	// Arrange for a non-nil debug logger.
+	debugLogger := config.DebugLogger
+	if debugLogger == nil {
+		debugLogger = log.New(ioutil.Discard, "", 0)
+	}
 
 	// Initialize the struct.
 	mfs = &MountedFileSystem{
