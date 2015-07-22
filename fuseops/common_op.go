@@ -49,9 +49,13 @@ type commonOp struct {
 
 	// A function that can be used to log debug information about the op. The
 	// first argument is a call depth.
+	//
+	// May be nil.
 	debugLog func(int, string, ...interface{})
 
 	// A logger to be used for logging exceptional errors.
+	//
+	// May be nil.
 	errorLogger *log.Logger
 
 	// A function that is invoked with the error given to Respond, for use in
@@ -116,6 +120,10 @@ func (o *commonOp) Context() context.Context {
 }
 
 func (o *commonOp) Logf(format string, v ...interface{}) {
+	if o.debugLog == nil {
+		return
+	}
+
 	const calldepth = 2
 	o.debugLog(calldepth, format, v...)
 }
@@ -131,15 +139,19 @@ func (o *commonOp) Respond(err error) {
 	}
 
 	// Log the error.
-	o.Logf(
-		"-> (%s) error: %v",
-		o.op.ShortDesc(),
-		err)
+	if o.debugLog != nil {
+		o.Logf(
+			"-> (%s) error: %v",
+			o.op.ShortDesc(),
+			err)
+	}
 
-	o.errorLogger.Printf(
-		"(%s) error: %v",
-		o.op.ShortDesc(),
-		err)
+	if o.errorLogger != nil {
+		o.errorLogger.Printf(
+			"(%s) error: %v",
+			o.op.ShortDesc(),
+			err)
+	}
 
 	// Send a response to the kernel.
 	o.bazilReq.RespondError(err)
@@ -157,11 +169,15 @@ func (o *commonOp) sendBazilfuseResponse(resp interface{}) {
 	// Special case: handle successful ops with no response struct.
 	if resp == nil {
 		o.Logf("-> (%s) OK", o.op.ShortDesc())
+
 		respond.Call([]reflect.Value{})
 		return
 	}
 
 	// Otherwise, send the response struct to the kernel.
-	o.Logf("-> %v", resp)
+	if o.debugLog != nil {
+		o.Logf("-> %v", resp)
+	}
+
 	respond.Call([]reflect.Value{reflect.ValueOf(resp)})
 }

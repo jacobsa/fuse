@@ -32,6 +32,8 @@ import (
 //
 // It is guaranteed that o != nil. If the op is unknown, a special unexported
 // type will be used.
+//
+// The debug logging function and error logger may be nil.
 func Convert(
 	opCtx context.Context,
 	r bazilfuse.Request,
