@@ -653,6 +653,7 @@ func (o *OpenFileOp) toBazilfuseResponse() (bfResp interface{}) {
 // more.
 type ReadFileOp struct {
 	commonOp
+	bfResp bazilfuse.ReadResponse
 
 	// The file inode that we are reading, and the handle previously returned by
 	// CreateFile or OpenFile when opening that inode.
@@ -676,11 +677,8 @@ type ReadFileOp struct {
 }
 
 func (o *ReadFileOp) toBazilfuseResponse() (bfResp interface{}) {
-	resp := bazilfuse.ReadResponse{
-		Data: o.Data,
-	}
-	bfResp = &resp
-
+	o.bfResp.Data = o.Data
+	bfResp = &o.bfResp
 	return
 }
 
