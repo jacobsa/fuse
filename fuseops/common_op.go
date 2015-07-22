@@ -30,10 +30,8 @@ import (
 type internalOp interface {
 	Op
 
-	// Convert to a bazilfuse response compatible with the Respond method on the
-	// wrapped bazilfuse request. If that Respond method takes no arguments,
-	// return nil.
-	toBazilfuseResponse() interface{}
+	// Respond to the underlying bazilfuse request, successfully.
+	respond()
 }
 
 // A helper for embedding common behavior.
@@ -134,7 +132,7 @@ func (o *commonOp) Respond(err error) {
 
 	// If successful, we should respond to bazilfuse with the appropriate struct.
 	if err == nil {
-		o.sendBazilfuseResponse(o.op.toBazilfuseResponse())
+		o.op.respond()
 		return
 	}
 
@@ -155,29 +153,4 @@ func (o *commonOp) Respond(err error) {
 
 	// Send a response to the kernel.
 	o.bazilReq.RespondError(err)
-}
-
-// Respond with the supplied response struct, which must be accepted by a
-// method called Respond on o.bazilReq.
-//
-// Special case: nil means o.bazilReq.Respond accepts no parameters.
-func (o *commonOp) sendBazilfuseResponse(resp interface{}) {
-	// Find the Respond method.
-	v := reflect.ValueOf(o.bazilReq)
-	respond := v.MethodByName("Respond")
-
-	// Special case: handle successful ops with no response struct.
-	if resp == nil {
-		o.Logf("-> (%s) OK", o.op.ShortDesc())
-
-		respond.Call([]reflect.Value{})
-		return
-	}
-
-	// Otherwise, send the response struct to the kernel.
-	if o.debugLog != nil {
-		o.Logf("-> %v", resp)
-	}
-
-	respond.Call([]reflect.Value{reflect.ValueOf(resp)})
 }
