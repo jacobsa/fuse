@@ -89,12 +89,11 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *LookUpInodeOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *LookUpInodeOp) respond() {
 	resp := bazilfuse.LookupResponse{}
-	bfResp = &resp
-
 	convertChildInodeEntry(&o.Entry, &resp)
 
+	o.bfReq.Respond(&resp)
 	return
 }
 
