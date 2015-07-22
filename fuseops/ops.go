@@ -115,12 +115,12 @@ type GetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *GetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *GetInodeAttributesOp) respond() {
 	resp := bazilfuse.GetattrResponse{
 		Attr: convertAttributes(o.Inode, o.Attributes, o.AttributesExpiration),
 	}
-	bfResp = &resp
 
+	o.bfReq.Respond(&resp)
 	return
 }
 
@@ -148,12 +148,12 @@ type SetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *SetInodeAttributesOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *SetInodeAttributesOp) respond() {
 	resp := bazilfuse.SetattrResponse{
 		Attr: convertAttributes(o.Inode, o.Attributes, o.AttributesExpiration),
 	}
-	bfResp = &resp
 
+	o.bfReq.Respond(&resp)
 	return
 }
 
@@ -207,7 +207,8 @@ type ForgetInodeOp struct {
 	N uint64
 }
 
-func (o *ForgetInodeOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *ForgetInodeOp) respond() {
+	o.bfReq.Respond()
 	return
 }
 
@@ -249,12 +250,11 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *MkDirOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *MkDirOp) respond() {
 	resp := bazilfuse.MkdirResponse{}
-	bfResp = &resp
-
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
+	o.bfReq.Respond(&resp)
 	return
 }
 
@@ -304,16 +304,16 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *CreateFileOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *CreateFileOp) respond() {
 	resp := bazilfuse.CreateResponse{
 		OpenResponse: bazilfuse.OpenResponse{
 			Handle: bazilfuse.HandleID(o.Handle),
 		},
 	}
-	bfResp = &resp
 
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
+	o.bfReq.Respond(&resp)
 	return
 }
 
@@ -350,13 +350,11 @@ func (o *CreateSymlinkOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *CreateSymlinkOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *CreateSymlinkOp) respond() {
 	resp := bazilfuse.SymlinkResponse{}
-	bfResp = &resp
-
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
-	return
+	o.bfReq.Respond(&resp)
 	return
 }
 
@@ -413,7 +411,8 @@ type RenameOp struct {
 	NewName   string
 }
 
-func (o *RenameOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *RenameOp) respond() {
+	o.bfReq.Respond()
 	return
 }
 
@@ -434,7 +433,8 @@ type RmDirOp struct {
 	Name   string
 }
 
-func (o *RmDirOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *RmDirOp) respond() {
+	o.bfReq.Respond()
 	return
 }
 
@@ -454,7 +454,8 @@ type UnlinkOp struct {
 	Name   string
 }
 
-func (o *UnlinkOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *UnlinkOp) respond() {
+	o.bfReq.Respond()
 	return
 }
 
@@ -489,12 +490,12 @@ type OpenDirOp struct {
 	Handle HandleID
 }
 
-func (o *OpenDirOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *OpenDirOp) respond() {
 	resp := bazilfuse.OpenResponse{
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
-	bfResp = &resp
 
+	o.bfReq.Respond(&resp)
 	return
 }
 
@@ -589,12 +590,12 @@ type ReadDirOp struct {
 	Data []byte
 }
 
-func (o *ReadDirOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *ReadDirOp) respond() {
 	resp := bazilfuse.ReadResponse{
 		Data: o.Data,
 	}
-	bfResp = &resp
 
+	o.bfReq.Respond(&resp)
 	return
 }
 
@@ -616,7 +617,8 @@ type ReleaseDirHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseDirHandleOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *ReleaseDirHandleOp) respond() {
+	o.bfReq.Respond()
 	return
 }
 
@@ -650,12 +652,12 @@ type OpenFileOp struct {
 	Handle HandleID
 }
 
-func (o *OpenFileOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *OpenFileOp) respond() {
 	resp := bazilfuse.OpenResponse{
 		Handle: bazilfuse.HandleID(o.Handle),
 	}
-	bfResp = &resp
 
+	o.bfReq.Respond(&resp)
 	return
 }
 
@@ -666,8 +668,7 @@ func (o *OpenFileOp) toBazilfuseResponse() (bfResp interface{}) {
 // more.
 type ReadFileOp struct {
 	commonOp
-	bfReq  *bazilfuse.ReadRequest
-	bfResp bazilfuse.ReadResponse
+	bfReq *bazilfuse.ReadRequest
 
 	// The file inode that we are reading, and the handle previously returned by
 	// CreateFile or OpenFile when opening that inode.
@@ -690,9 +691,12 @@ type ReadFileOp struct {
 	Data []byte
 }
 
-func (o *ReadFileOp) toBazilfuseResponse() (bfResp interface{}) {
-	o.bfResp.Data = o.Data
-	bfResp = &o.bfResp
+func (o *ReadFileOp) respond() {
+	resp := bazilfuse.ReadResponse{
+		Data: o.Data,
+	}
+
+	o.bfReq.Respond(&resp)
 	return
 }
 
@@ -767,12 +771,12 @@ type WriteFileOp struct {
 	Data []byte
 }
 
-func (o *WriteFileOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *WriteFileOp) respond() {
 	resp := bazilfuse.WriteResponse{
 		Size: len(o.Data),
 	}
-	bfResp = &resp
 
+	o.bfReq.Respond(&resp)
 	return
 }
 
@@ -801,7 +805,8 @@ type SyncFileOp struct {
 	Handle HandleID
 }
 
-func (o *SyncFileOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *SyncFileOp) respond() {
+	o.bfReq.Respond()
 	return
 }
 
@@ -861,7 +866,8 @@ type FlushFileOp struct {
 	Handle HandleID
 }
 
-func (o *FlushFileOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *FlushFileOp) respond() {
+	o.bfReq.Respond()
 	return
 }
 
@@ -883,7 +889,8 @@ type ReleaseFileHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseFileHandleOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *ReleaseFileHandleOp) respond() {
+	o.bfReq.Respond()
 	return
 }
 
@@ -898,7 +905,7 @@ func (o *unknownOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *unknownOp) toBazilfuseResponse() (bfResp interface{}) {
+func (o *unknownOp) respond() {
 	panic(fmt.Sprintf("Should never get here for unknown op: %s", o.ShortDesc()))
 }
 
@@ -918,7 +925,7 @@ type ReadSymlinkOp struct {
 	Target string
 }
 
-func (o *ReadSymlinkOp) toBazilfuseResponse() (bfResp interface{}) {
-	bfResp = o.Target
+func (o *ReadSymlinkOp) respond() {
+	o.bfReq.Respond(o.Target)
 	return
 }
