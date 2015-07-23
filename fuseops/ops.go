@@ -884,10 +884,12 @@ func (o *ReleaseFileHandleOp) kernelResponse() (msg []byte) {
 // non-nil error.
 type unknownOp struct {
 	commonOp
+	opCode uint32
+	inode  InodeID
 }
 
 func (o *unknownOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("%T(inode=%v)", o.bazilReq, o.bazilReq.Hdr().Node)
+	desc = fmt.Sprintf("<opcode %d>(inode=%v)", o.opCode, o.inode)
 	return
 }
 

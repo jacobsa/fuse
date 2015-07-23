@@ -355,7 +355,10 @@ func Convert(
 		co = &to.commonOp
 
 	default:
-		to := &unknownOp{}
+		to := &unknownOp{
+			opCode: m.Hdr.Opcode,
+			inode:  InodeID(m.Header().Node),
+		}
 		io = to
 		co = &to.commonOp
 	}
@@ -363,10 +366,10 @@ func Convert(
 	co.init(
 		opCtx,
 		io,
-		m,
+		m.Hdr.Unique,
+		sendReply,
 		debugLogForOp,
-		errorLogger,
-		finished)
+		errorLogger)
 
 	o = io
 	return
