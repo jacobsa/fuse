@@ -156,12 +156,22 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.SymlinkRequest:
+	case fusekernel.OpSymlink:
+		// m.Bytes() is "newName\0target\0"
+		names := m.Bytes()
+		if len(names) == 0 || names[len(names)-1] != 0 {
+			goto corrupt
+		}
+		i := bytes.IndexByte(names, '\x00')
+		if i < 0 {
+			goto corrupt
+		}
+		newName, target := names[0:i], names[i+1:len(names)-1]
+
 		to := &CreateSymlinkOp{
-			bfReq:  typed,
-			Parent: InodeID(typed.Header.Node),
-			Name:   typed.NewName,
-			Target: typed.Target,
+			Parent: InodeID(m.Header().Node),
+			Name:   string(newName),
+			Target: string(target),
 		}
 		io = to
 		co = &to.commonOp
