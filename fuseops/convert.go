@@ -270,8 +270,20 @@ func Convert(
 		to := &ReadDirOp{
 			Inode:  InodeID(m.Header().Node),
 			Handle: HandleID(in.Fh),
-			Offset: int64(in.Offset),
+			Offset: DirOffset(in.Offset),
 			Size:   int(in.Size),
+		}
+		io = to
+		co = &to.commonOp
+
+	case fusekernel.OpRelease:
+		in := (*fusekernel.ReleaseIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
+			goto corrupt
+		}
+
+		to := &ReleaseFileHandleOp{
+			Handle: HandleID(in.Fh),
 		}
 		io = to
 		co = &to.commonOp
