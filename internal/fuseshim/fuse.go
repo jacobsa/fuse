@@ -442,7 +442,7 @@ func (m *Message) data() unsafe.Pointer {
 	return p
 }
 
-func (m *Message) bytes() []byte {
+func (m *Message) Bytes() []byte {
 	return m.buf[m.off:]
 }
 
@@ -601,7 +601,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 		goto unrecognized
 
 	case fusekernel.OpLookup:
-		buf := m.bytes()
+		buf := m.Bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
 			goto corrupt
@@ -661,7 +661,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpReadlink:
-		if len(m.bytes()) > 0 {
+		if len(m.Bytes()) > 0 {
 			goto corrupt
 		}
 		req = &ReadlinkRequest{
@@ -669,8 +669,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpSymlink:
-		// m.bytes() is "newName\0target\0"
-		names := m.bytes()
+		// m.Bytes() is "newName\0target\0"
+		names := m.Bytes()
 		if len(names) == 0 || names[len(names)-1] != 0 {
 			goto corrupt
 		}
@@ -690,7 +690,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
-		newName := m.bytes()[unsafe.Sizeof(*in):]
+		newName := m.Bytes()[unsafe.Sizeof(*in):]
 		if len(newName) < 2 || newName[len(newName)-1] != 0 {
 			goto corrupt
 		}
@@ -707,7 +707,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 			goto corrupt
 		}
 		in := (*fusekernel.MknodIn)(m.data())
-		name := m.bytes()[size:]
+		name := m.Bytes()[size:]
 		if len(name) < 2 || name[len(name)-1] != '\x00' {
 			goto corrupt
 		}
@@ -729,7 +729,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 			goto corrupt
 		}
 		in := (*fusekernel.MkdirIn)(m.data())
-		name := m.bytes()[size:]
+		name := m.Bytes()[size:]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
 			goto corrupt
@@ -748,7 +748,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 		req = r
 
 	case fusekernel.OpUnlink, fusekernel.OpRmdir:
-		buf := m.bytes()
+		buf := m.Bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
 			goto corrupt
@@ -765,7 +765,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 			goto corrupt
 		}
 		newDirNodeID := NodeID(in.Newdir)
-		oldNew := m.bytes()[unsafe.Sizeof(*in):]
+		oldNew := m.Bytes()[unsafe.Sizeof(*in):]
 		// oldNew should be "old\x00new\x00"
 		if len(oldNew) < 4 {
 			goto corrupt
@@ -830,7 +830,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 			r.LockOwner = in.LockOwner
 			r.FileFlags = fusekernel.OpenFlags(in.Flags)
 		}
-		buf := m.bytes()[fusekernel.WriteInSize(c.proto):]
+		buf := m.Bytes()[fusekernel.WriteInSize(c.proto):]
 		if uint32(len(buf)) < in.Size {
 			goto corrupt
 		}
@@ -874,7 +874,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 			goto corrupt
 		}
 		m.off += int(unsafe.Sizeof(*in))
-		name := m.bytes()
+		name := m.Bytes()
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
 			goto corrupt
@@ -897,7 +897,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
-		name := m.bytes()[unsafe.Sizeof(*in):]
+		name := m.Bytes()[unsafe.Sizeof(*in):]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
 			goto corrupt
@@ -921,7 +921,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpRemovexattr:
-		buf := m.bytes()
+		buf := m.Bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
 			goto corrupt
@@ -978,7 +978,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 			goto corrupt
 		}
 		in := (*fusekernel.CreateIn)(m.data())
-		name := m.bytes()[size:]
+		name := m.Bytes()[size:]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
 			goto corrupt
