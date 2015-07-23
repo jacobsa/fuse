@@ -218,24 +218,19 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.RemoveRequest:
-		if typed.Dir {
-			to := &RmDirOp{
-				bfReq:  typed,
-				Parent: InodeID(typed.Header.Node),
-				Name:   typed.Name,
-			}
-			io = to
-			co = &to.commonOp
-		} else {
-			to := &UnlinkOp{
-				bfReq:  typed,
-				Parent: InodeID(typed.Header.Node),
-				Name:   typed.Name,
-			}
-			io = to
-			co = &to.commonOp
+	case fusekernel.OpRmdir:
+		buf := m.Bytes()
+		n := len(buf)
+		if n == 0 || buf[n-1] != '\x00' {
+			goto corrupt
 		}
+
+		to := &RmDirOp{
+			Parent: InodeID(m.Header().Node),
+			Name:   string(buf[:n-1]),
+		}
+		io = to
+		co = &to.commonOp
 
 	case *fuseshim.OpenRequest:
 		if typed.Dir {
