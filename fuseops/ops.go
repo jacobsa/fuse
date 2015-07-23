@@ -30,9 +30,6 @@ type Op interface {
 	// A short description of the op, to be used in logging.
 	ShortDesc() string
 
-	// Return the fields common to all operations.
-	Header() OpHeader
-
 	// A context that can be used for long-running operations.
 	Context() context.Context
 

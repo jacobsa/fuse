@@ -105,14 +105,6 @@ func (o *commonOp) init(
 	}
 }
 
-func (o *commonOp) Header() OpHeader {
-	bh := o.bazilReq.Hdr()
-	return OpHeader{
-		Uid: bh.Uid,
-		Gid: bh.Gid,
-	}
-}
-
 func (o *commonOp) Context() context.Context {
 	return o.ctx
 }
