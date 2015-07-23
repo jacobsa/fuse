@@ -28,9 +28,9 @@ import (
 // This function is an implementation detail of the fuse package, and must not
 // be called by anyone else.
 //
-// Convert the supplied fuse kernel message to an Op. finished will be called
-// with the error supplied to o.Respond when the user invokes that method,
-// before a response is sent to the kernel. o.Respond will destroy the message.
+// Convert the supplied fuse kernel message to an Op. sendReply will be used to
+// send the reply back to the kernel once the user calls o.Respond. That
+// function is responsible for destroying the message.
 //
 // It is guaranteed that o != nil. If the op is unknown, a special unexported
 // type will be used.
@@ -42,7 +42,7 @@ func Convert(
 	protocol fusekernel.Protocol,
 	debugLogForOp func(int, string, ...interface{}),
 	errorLogger *log.Logger,
-	finished func(error)) (o Op) {
+	sendReply replyFunc) (o Op) {
 	var co *commonOp
 
 	var io internalOp
