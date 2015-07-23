@@ -382,7 +382,7 @@ var bufSize = maxRequestSize + maxWrite
 // Conn.ReadRequest, Request.Respond, or Request.RespondError.
 //
 // Messages in the pool are guaranteed to have conn and off zeroed,
-// buf allocated and len==bufSize, and hdr set.
+// buf allocated and len==bufSize, and Hdr set.
 var reqPool struct {
 	Mu       sync.Mutex
 	Freelist []*Message
@@ -390,7 +390,7 @@ var reqPool struct {
 
 func allocMessage() *Message {
 	m := &Message{buf: make([]byte, bufSize)}
-	m.hdr = (*fusekernel.InHeader)(unsafe.Pointer(&m.buf[0]))
+	m.Hdr = (*fusekernel.InHeader)(unsafe.Pointer(&m.buf[0]))
 	return m
 }
 
@@ -426,7 +426,7 @@ func putMessage(m *Message) {
 type Message struct {
 	conn *Conn
 	buf  []byte               // all bytes
-	hdr  *fusekernel.InHeader // header
+	Hdr  *fusekernel.InHeader // header
 	off  int                  // offset for reading additional fields
 }
 
@@ -447,7 +447,7 @@ func (m *Message) bytes() []byte {
 }
 
 func (m *Message) Header() Header {
-	h := m.hdr
+	h := m.Hdr
 	return Header{
 		Conn: m.conn,
 		ID:   RequestID(h.Unique),
@@ -562,18 +562,18 @@ loop:
 
 	// FreeBSD FUSE sends a short length in the header
 	// for FUSE_INIT even though the actual read length is correct.
-	if n == fusekernel.InHeaderSize+fusekernel.InitInSize && m.hdr.Opcode == fusekernel.OpInit && m.hdr.Len < uint32(n) {
-		m.hdr.Len = uint32(n)
+	if n == fusekernel.InHeaderSize+fusekernel.InitInSize && m.Hdr.Opcode == fusekernel.OpInit && m.Hdr.Len < uint32(n) {
+		m.Hdr.Len = uint32(n)
 	}
 
-	// OSXFUSE sometimes sends the wrong m.hdr.Len in a FUSE_WRITE message.
-	if m.hdr.Len < uint32(n) && m.hdr.Len >= uint32(unsafe.Sizeof(fusekernel.WriteIn{})) && m.hdr.Opcode == fusekernel.OpWrite {
-		m.hdr.Len = uint32(n)
+	// OSXFUSE sometimes sends the wrong m.Hdr.Len in a FUSE_WRITE message.
+	if m.Hdr.Len < uint32(n) && m.Hdr.Len >= uint32(unsafe.Sizeof(fusekernel.WriteIn{})) && m.Hdr.Opcode == fusekernel.OpWrite {
+		m.Hdr.Len = uint32(n)
 	}
 
-	if m.hdr.Len != uint32(n) {
+	if m.Hdr.Len != uint32(n) {
 		// prepare error message before returning m to pool
-		err := fmt.Errorf("fuse: read %d opcode %d but expected %d", n, m.hdr.Opcode, m.hdr.Len)
+		err := fmt.Errorf("fuse: read %d opcode %d but expected %d", n, m.Hdr.Opcode, m.Hdr.Len)
 		m.Destroy()
 		return nil, err
 	}
@@ -596,7 +596,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 	// Convert to data structures.
 	// Do not trust kernel to hand us well-formed data.
 	var req Request
-	switch m.hdr.Opcode {
+	switch m.Hdr.Opcode {
 	default:
 		goto unrecognized
 
@@ -756,7 +756,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 		req = &RemoveRequest{
 			Header: m.Header(),
 			Name:   string(buf[:n-1]),
-			Dir:    m.hdr.Opcode == fusekernel.OpRmdir,
+			Dir:    m.Hdr.Opcode == fusekernel.OpRmdir,
 		}
 
 	case fusekernel.OpRename:
@@ -792,7 +792,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 		req = &OpenRequest{
 			Header: m.Header(),
-			Dir:    m.hdr.Opcode == fusekernel.OpOpendir,
+			Dir:    m.Hdr.Opcode == fusekernel.OpOpendir,
 			Flags:  fusekernel.OpenFlags(in.Flags),
 		}
 
@@ -803,7 +803,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 		r := &ReadRequest{
 			Header: m.Header(),
-			Dir:    m.hdr.Opcode == fusekernel.OpReaddir,
+			Dir:    m.Hdr.Opcode == fusekernel.OpReaddir,
 			Handle: HandleID(in.Fh),
 			Offset: int64(in.Offset),
 			Size:   int(in.Size),
@@ -849,7 +849,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 		req = &ReleaseRequest{
 			Header:       m.Header(),
-			Dir:          m.hdr.Opcode == fusekernel.OpReleasedir,
+			Dir:          m.Hdr.Opcode == fusekernel.OpReleasedir,
 			Handle:       HandleID(in.Fh),
 			Flags:        fusekernel.OpenFlags(in.Flags),
 			ReleaseFlags: fusekernel.ReleaseFlags(in.ReleaseFlags),
@@ -862,7 +862,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 			goto corrupt
 		}
 		req = &FsyncRequest{
-			Dir:    m.hdr.Opcode == fusekernel.OpFsyncdir,
+			Dir:    m.Hdr.Opcode == fusekernel.OpFsyncdir,
 			Header: m.Header(),
 			Handle: HandleID(in.Fh),
 			Flags:  in.FsyncFlags,

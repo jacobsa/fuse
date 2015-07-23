@@ -43,7 +43,7 @@ func Convert(
 	var co *commonOp
 
 	var io internalOp
-	switch typed := r.(type) {
+	switch m.Hdr.Opcode {
 	case *fuseshim.LookupRequest:
 		to := &LookUpInodeOp{
 			bfReq:  typed,
