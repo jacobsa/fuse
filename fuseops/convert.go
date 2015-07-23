@@ -347,10 +347,9 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.ReadlinkRequest:
+	case fusekernel.OpReadlink:
 		to := &ReadSymlinkOp{
-			bfReq: typed,
-			Inode: InodeID(typed.Header.Node),
+			Inode: InodeID(m.Header().Node),
 		}
 		io = to
 		co = &to.commonOp
