@@ -194,7 +194,7 @@ func initMount(c *Conn, conf *mountConfig) error {
 		return fmt.Errorf("missing init, got: %T", req)
 	}
 
-	min := fusekernel.Protocol{protoVersionMinMajor, protoVersionMinMinor}
+	min := fusekernel.Protocol{fusekernel.ProtoVersionMinMajor, fusekernel.ProtoVersionMinMinor}
 	if r.Kernel.LT(min) {
 		req.RespondError(Errno(syscall.EPROTO))
 		c.Close()
@@ -204,7 +204,7 @@ func initMount(c *Conn, conf *mountConfig) error {
 		}
 	}
 
-	proto := fusekernel.Protocol{protoVersionMaxMajor, protoVersionMaxMinor}
+	proto := fusekernel.Protocol{fusekernel.ProtoVersionMaxMajor, fusekernel.ProtoVersionMaxMinor}
 	if r.Kernel.LT(proto) {
 		// Kernel doesn't support the latest version we have.
 		proto = r.Kernel
@@ -215,7 +215,7 @@ func initMount(c *Conn, conf *mountConfig) error {
 		Library:      proto,
 		MaxReadahead: conf.maxReadahead,
 		MaxWrite:     maxWrite,
-		Flags:        InitBigWrites | conf.initFlags,
+		Flags:        fusekernel.InitBigWrites | conf.initFlags,
 	}
 	r.Respond(s)
 	return nil
@@ -275,7 +275,7 @@ func (h *Header) noResponse() {
 }
 
 func (h *Header) respond(msg []byte) {
-	out := (*outHeader)(unsafe.Pointer(&msg[0]))
+	out := (*fusekernel.OutHeader)(unsafe.Pointer(&msg[0]))
 	out.Unique = uint64(h.ID)
 	h.Conn.respond(msg)
 	putMessage(h.msg)
@@ -365,7 +365,7 @@ func (h *Header) RespondError(err error) {
 	// FUSE uses negative errors!
 	// TODO: File bug report against OSXFUSE: positive error causes kernel panic.
 	buf := newBuffer(0)
-	hOut := (*outHeader)(unsafe.Pointer(&buf[0]))
+	hOut := (*fusekernel.OutHeader)(unsafe.Pointer(&buf[0]))
 	hOut.Error = -int32(errno)
 	h.respond(buf)
 }
@@ -1046,7 +1046,7 @@ func errorString(err error) string {
 }
 
 func (c *Conn) writeToKernel(msg []byte) error {
-	out := (*outHeader)(unsafe.Pointer(&msg[0]))
+	out := (*fusekernel.OutHeader)(unsafe.Pointer(&msg[0]))
 	out.Len = uint32(len(msg))
 
 	c.wio.RLock()
@@ -1112,7 +1112,7 @@ func (c *Conn) sendInvalidate(msg []byte) error {
 // node.
 func (c *Conn) InvalidateNode(nodeID NodeID, off int64, size int64) error {
 	buf := newBuffer(unsafe.Sizeof(notifyInvalInodeOut{}))
-	h := (*outHeader)(unsafe.Pointer(&buf[0]))
+	h := (*fusekernel.OutHeader)(unsafe.Pointer(&buf[0]))
 	// h.Unique is 0
 	h.Error = notifyCodeInvalInode
 	out := (*notifyInvalInodeOut)(buf.alloc(unsafe.Sizeof(notifyInvalInodeOut{})))
@@ -1139,7 +1139,7 @@ func (c *Conn) InvalidateEntry(parent NodeID, name string) error {
 		return syscall.ENAMETOOLONG
 	}
 	buf := newBuffer(unsafe.Sizeof(notifyInvalEntryOut{}) + uintptr(len(name)) + 1)
-	h := (*outHeader)(unsafe.Pointer(&buf[0]))
+	h := (*fusekernel.OutHeader)(unsafe.Pointer(&buf[0]))
 	// h.Unique is 0
 	h.Error = notifyCodeInvalEntry
 	out := (*notifyInvalEntryOut)(buf.alloc(unsafe.Sizeof(notifyInvalEntryOut{})))

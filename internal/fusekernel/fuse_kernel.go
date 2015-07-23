@@ -43,10 +43,10 @@ import (
 
 // The FUSE version implemented by the package.
 const (
-	protoVersionMinMajor = 7
-	protoVersionMinMinor = 8
-	protoVersionMaxMajor = 7
-	protoVersionMaxMinor = 12
+	ProtoVersionMinMajor = 7
+	ProtoVersionMinMinor = 8
+	ProtoVersionMaxMajor = 7
+	ProtoVersionMaxMinor = 12
 )
 
 const (
@@ -731,7 +731,7 @@ type InHeader struct {
 
 const inHeaderSize = int(unsafe.Sizeof(InHeader{}))
 
-type outHeader struct {
+type OutHeader struct {
 	Len    uint32
 	Error  int32
 	Unique uint64
