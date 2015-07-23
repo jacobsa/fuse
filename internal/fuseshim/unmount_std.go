@@ -1,6 +1,6 @@
 // +build !linux
 
-package bazilfuse
+package fuseshim
 
 import (
 	"os"
