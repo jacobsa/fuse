@@ -259,7 +259,7 @@ type Header struct {
 	Pid  uint32    // process ID of process making request
 
 	// for returning to reqPool
-	msg *message
+	msg *Message
 }
 
 func (h *Header) String() string {
@@ -385,16 +385,16 @@ var bufSize = maxRequestSize + maxWrite
 // buf allocated and len==bufSize, and hdr set.
 var reqPool struct {
 	Mu       sync.Mutex
-	Freelist []*message
+	Freelist []*Message
 }
 
-func allocMessage() *message {
-	m := &message{buf: make([]byte, bufSize)}
+func allocMessage() *Message {
+	m := &Message{buf: make([]byte, bufSize)}
 	m.hdr = (*fusekernel.InHeader)(unsafe.Pointer(&m.buf[0]))
 	return m
 }
 
-func getMessage(c *Conn) (m *message) {
+func getMessage(c *Conn) (m *Message) {
 	reqPool.Mu.Lock()
 	l := len(reqPool.Freelist)
 	if l != 0 {
@@ -412,7 +412,7 @@ func getMessage(c *Conn) (m *message) {
 	return m
 }
 
-func putMessage(m *message) {
+func putMessage(m *Message) {
 	m.buf = m.buf[:bufSize]
 	m.conn = nil
 	m.off = 0
@@ -423,18 +423,18 @@ func putMessage(m *message) {
 }
 
 // a message represents the bytes of a single FUSE message
-type message struct {
+type Message struct {
 	conn *Conn
 	buf  []byte               // all bytes
 	hdr  *fusekernel.InHeader // header
 	off  int                  // offset for reading additional fields
 }
 
-func (m *message) len() uintptr {
+func (m *Message) len() uintptr {
 	return uintptr(len(m.buf) - m.off)
 }
 
-func (m *message) data() unsafe.Pointer {
+func (m *Message) data() unsafe.Pointer {
 	var p unsafe.Pointer
 	if m.off < len(m.buf) {
 		p = unsafe.Pointer(&m.buf[m.off])
@@ -442,11 +442,11 @@ func (m *message) data() unsafe.Pointer {
 	return p
 }
 
-func (m *message) bytes() []byte {
+func (m *Message) bytes() []byte {
 	return m.buf[m.off:]
 }
 
-func (m *message) Header() Header {
+func (m *Message) Header() Header {
 	h := m.hdr
 	return Header{
 		Conn: m.conn,
