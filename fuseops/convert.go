@@ -321,21 +321,18 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.FsyncRequest:
-		// We don't currently support this for directories.
-		if typed.Dir {
-			to := &unknownOp{}
-			io = to
-			co = &to.commonOp
-		} else {
-			to := &SyncFileOp{
-				bfReq:  typed,
-				Inode:  InodeID(typed.Header.Node),
-				Handle: HandleID(typed.Handle),
-			}
-			io = to
-			co = &to.commonOp
+	case fusekernel.OpFsync:
+		in := (*fusekernel.FsyncIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
+			goto corrupt
 		}
+
+		to := &SyncFileOp{
+			Inode:  InodeID(m.Header().Node),
+			Handle: HandleID(in.Fh),
+		}
+		io = to
+		co = &to.commonOp
 
 	case *fuseshim.FlushRequest:
 		to := &FlushFileOp{
