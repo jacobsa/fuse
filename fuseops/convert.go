@@ -99,11 +99,15 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.ForgetRequest:
+	case fusekernel.OpForget:
+		in := (*fusekernel.ForgetIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
+			goto corrupt
+		}
+
 		to := &ForgetInodeOp{
-			bfReq: typed,
-			Inode: InodeID(typed.Header.Node),
-			N:     typed.N,
+			Inode: InodeID(m.Header().Node),
+			N:     in.Nlookup,
 		}
 		io = to
 		co = &to.commonOp
