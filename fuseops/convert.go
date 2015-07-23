@@ -18,6 +18,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/jacobsa/fuse/internal/fusekernel"
+	"github.com/jacobsa/fuse/internal/fuseshim"
 	"golang.org/x/net/context"
 )
 
@@ -65,19 +67,19 @@ func Convert(
 			Inode: InodeID(typed.Header.Node),
 		}
 
-		if typed.Valid&fuseshim.SetattrSize != 0 {
+		if typed.Valid&fusekernel.SetattrSize != 0 {
 			to.Size = &typed.Size
 		}
 
-		if typed.Valid&fuseshim.SetattrMode != 0 {
+		if typed.Valid&fusekernel.SetattrMode != 0 {
 			to.Mode = &typed.Mode
 		}
 
-		if typed.Valid&fuseshim.SetattrAtime != 0 {
+		if typed.Valid&fusekernel.SetattrAtime != 0 {
 			to.Atime = &typed.Atime
 		}
 
-		if typed.Valid&fuseshim.SetattrMtime != 0 {
+		if typed.Valid&fusekernel.SetattrMtime != 0 {
 			to.Mtime = &typed.Mtime
 		}
 
