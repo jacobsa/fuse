@@ -300,13 +300,23 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.WriteRequest:
+	case fusekernel.OpWrite:
+		in := (*fusekernel.WriteIn)(m.Data())
+		size := fusekernel.WriteInSize(protocol)
+		if m.Len() < size {
+			goto corrupt
+		}
+
+		buf := m.Bytes()[size:]
+		if len(buf) < int(in.Size) {
+			goto corrupt
+		}
+
 		to := &WriteFileOp{
-			bfReq:  typed,
-			Inode:  InodeID(typed.Header.Node),
-			Handle: HandleID(typed.Handle),
-			Data:   typed.Data,
-			Offset: typed.Offset,
+			Inode:  InodeID(m.Header().Node),
+			Handle: HandleID(in.Fh),
+			Data:   buf,
+			Offset: int64(in.Offset),
 		}
 		io = to
 		co = &to.commonOp
