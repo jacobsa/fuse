@@ -17,17 +17,17 @@ package fuse
 import (
 	"syscall"
 
-	"github.com/jacobsa/bazilfuse"
+	"github.com/jacobsa/fuse/internal/fuseshim"
 )
 
 const (
 	// Errors corresponding to kernel error numbers. These may be treated
 	// specially by fuseops.Op.Respond methods.
-	EEXIST    = bazilfuse.EEXIST
-	EINVAL    = bazilfuse.Errno(syscall.EINVAL)
-	EIO       = bazilfuse.EIO
-	ENOENT    = bazilfuse.ENOENT
-	ENOSYS    = bazilfuse.ENOSYS
-	ENOTDIR   = bazilfuse.Errno(syscall.ENOTDIR)
-	ENOTEMPTY = bazilfuse.Errno(syscall.ENOTEMPTY)
+	EEXIST    = fuseshim.EEXIST
+	EINVAL    = fuseshim.Errno(syscall.EINVAL)
+	EIO       = fuseshim.EIO
+	ENOENT    = fuseshim.ENOENT
+	ENOSYS    = fuseshim.ENOSYS
+	ENOTDIR   = fuseshim.Errno(syscall.ENOTDIR)
+	ENOTEMPTY = fuseshim.Errno(syscall.ENOTEMPTY)
 )

@@ -19,7 +19,8 @@ import (
 	"log"
 	"runtime"
 
-	"github.com/jacobsa/bazilfuse"
+	"github.com/jacobsa/fuse/internal/fuseshim"
+
 	"golang.org/x/net/context"
 )
 
@@ -111,13 +112,13 @@ type MountConfig struct {
 	Options map[string]string
 }
 
-// Convert to mount options to be passed to package bazilfuse.
-func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
+// Convert to mount options to be passed to package fuseshim.
+func (c *MountConfig) bazilfuseOptions() (opts []fuseshim.MountOption) {
 	isDarwin := runtime.GOOS == "darwin"
 
 	// Enable permissions checking in the kernel. See the comments on
 	// InodeAttributes.Mode.
-	opts = append(opts, bazilfuse.SetOption("default_permissions", ""))
+	opts = append(opts, fuseshim.SetOption("default_permissions", ""))
 
 	// HACK(jacobsa): Work around what appears to be a bug in systemd v219, as
 	// shipped in Ubuntu 15.04, where it automatically unmounts any file system
@@ -135,17 +136,17 @@ func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
 
 	// Special file system name?
 	if fsname != "" {
-		opts = append(opts, bazilfuse.FSName(fsname))
+		opts = append(opts, fuseshim.FSName(fsname))
 	}
 
 	// Read only?
 	if c.ReadOnly {
-		opts = append(opts, bazilfuse.ReadOnly())
+		opts = append(opts, fuseshim.ReadOnly())
 	}
 
 	// OS X: set novncache when appropriate.
 	if isDarwin && !c.EnableVnodeCaching {
-		opts = append(opts, bazilfuse.SetOption("novncache", ""))
+		opts = append(opts, fuseshim.SetOption("novncache", ""))
 	}
 
 	// OS X: disable the use of "Apple Double" (._foo and .DS_Store) files, which
@@ -154,7 +155,7 @@ func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
 	//
 	// Cf. https://github.com/osxfuse/osxfuse/wiki/Mount-options
 	if isDarwin {
-		opts = append(opts, bazilfuse.SetOption("noappledouble", ""))
+		opts = append(opts, fuseshim.SetOption("noappledouble", ""))
 	}
 
 	// Ask the Linux kernel for larger read requests.
@@ -175,11 +176,11 @@ func (c *MountConfig) bazilfuseOptions() (opts []bazilfuse.MountOption) {
 	//
 	// Reading a page at a time is a drag. Ask for a larger size.
 	const maxReadahead = 1 << 20
-	opts = append(opts, bazilfuse.MaxReadahead(maxReadahead))
+	opts = append(opts, fuseshim.MaxReadahead(maxReadahead))
 
 	// Last but not least: other user-supplied options.
 	for k, v := range c.Options {
-		opts = append(opts, bazilfuse.SetOption(k, v))
+		opts = append(opts, fuseshim.SetOption(k, v))
 	}
 
 	return
@@ -198,10 +199,10 @@ func Mount(
 		joinStatusAvailable: make(chan struct{}),
 	}
 
-	// Open a bazilfuse connection.
-	bfConn, err := bazilfuse.Mount(mfs.dir, config.bazilfuseOptions()...)
+	// Open a fuseshim connection.
+	bfConn, err := fuseshim.Mount(mfs.dir, config.bazilfuseOptions()...)
 	if err != nil {
-		err = fmt.Errorf("bazilfuse.Mount: %v", err)
+		err = fmt.Errorf("fuseshim.Mount: %v", err)
 		return
 	}
 
