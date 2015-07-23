@@ -176,13 +176,30 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.RenameRequest:
+	case fusekernel.OpRename:
+		in := (*fusekernel.RenameIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
+			goto corrupt
+		}
+		names := m.Bytes()[unsafe.Sizeof(*in):]
+		// names should be "old\x00new\x00"
+		if len(names) < 4 {
+			goto corrupt
+		}
+		if names[len(names)-1] != '\x00' {
+			goto corrupt
+		}
+		i := bytes.IndexByte(names, '\x00')
+		if i < 0 {
+			goto corrupt
+		}
+		oldName, newName := names[:i], names[i+1:len(names)-1]
+
 		to := &RenameOp{
-			bfReq:     typed,
-			OldParent: InodeID(typed.Header.Node),
-			OldName:   typed.OldName,
-			NewParent: InodeID(typed.NewDir),
-			NewName:   typed.NewName,
+			OldParent: InodeID(m.Header().Node),
+			OldName:   string(oldName),
+			NewParent: InodeID(in.Newdir),
+			NewName:   string(newName),
 		}
 		io = to
 		co = &to.commonOp
