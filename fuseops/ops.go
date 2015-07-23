@@ -18,7 +18,9 @@ import (
 	"fmt"
 	"os"
 	"time"
+	"unsafe"
 
+	"github.com/jacobsa/fuse/internal/fusekernel"
 	"github.com/jacobsa/fuse/internal/fuseshim"
 	"golang.org/x/net/context"
 )
@@ -622,7 +624,6 @@ func (o *ReleaseDirHandleOp) respond() {
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
 type OpenFileOp struct {
 	commonOp
-	bfReq *fuseshim.OpenRequest
 
 	// The ID of the inode to be opened.
 	Inode InodeID
@@ -637,12 +638,12 @@ type OpenFileOp struct {
 	Handle HandleID
 }
 
-func (o *OpenFileOp) respond() {
-	resp := fuseshim.OpenResponse{
-		Handle: fuseshim.HandleID(o.Handle),
-	}
+func (o *OpenFileOp) kernelResponse() (msg []byte) {
+	buf := fuseshim.NewBuffer(unsafe.Sizeof(fusekernel.OpenOut{}))
+	out := (*fusekernel.OpenOut)(buf.Alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
+	out.Fh = uint64(o.Handle)
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
