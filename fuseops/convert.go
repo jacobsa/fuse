@@ -363,7 +363,7 @@ func Convert(
 	co.init(
 		opCtx,
 		io,
-		r,
+		m,
 		debugLogForOp,
 		errorLogger,
 		finished)
