@@ -50,7 +50,7 @@ const (
 )
 
 const (
-	rootID = 1
+	RootID = 1
 )
 
 type kstatfs struct {
@@ -394,7 +394,7 @@ type entryOut struct {
 	AttrValid      uint64 // Cache timeout for the attributes
 	EntryValidNsec uint32
 	AttrValidNsec  uint32
-	Attr           attr
+	Attr           Attr
 }
 
 func entryOutSize(p Protocol) uintptr {
@@ -420,7 +420,7 @@ type attrOut struct {
 	AttrValid     uint64 // Cache timeout for the attributes
 	AttrValidNsec uint32
 	Dummy         uint32
-	Attr          attr
+	Attr          Attr
 }
 
 func attrOutSize(p Protocol) uintptr {
@@ -718,7 +718,7 @@ type bmapOut struct {
 	Block uint64
 }
 
-type inHeader struct {
+type InHeader struct {
 	Len     uint32
 	Opcode  uint32
 	Unique  uint64
@@ -729,7 +729,7 @@ type inHeader struct {
 	Padding uint32
 }
 
-const inHeaderSize = int(unsafe.Sizeof(inHeader{}))
+const inHeaderSize = int(unsafe.Sizeof(InHeader{}))
 
 type outHeader struct {
 	Len    uint32

@@ -247,7 +247,7 @@ type NodeID uint64
 type HandleID uint64
 
 // The RootID identifies the root directory of a FUSE file system.
-const RootID NodeID = rootID
+const RootID NodeID = fusekernel.RootID
 
 // A Header describes the basic information sent in every request.
 type Header struct {
@@ -390,7 +390,7 @@ var reqPool struct {
 
 func allocMessage() *message {
 	m := &message{buf: make([]byte, bufSize)}
-	m.hdr = (*inHeader)(unsafe.Pointer(&m.buf[0]))
+	m.hdr = (*fusekernel.InHeader)(unsafe.Pointer(&m.buf[0]))
 	return m
 }
 
@@ -425,9 +425,9 @@ func putMessage(m *message) {
 // a message represents the bytes of a single FUSE message
 type message struct {
 	conn *Conn
-	buf  []byte    // all bytes
-	hdr  *inHeader // header
-	off  int       // offset for reading additional fields
+	buf  []byte               // all bytes
+	hdr  *fusekernel.InHeader // header
+	off  int                  // offset for reading additional fields
 }
 
 func (m *message) len() uintptr {
@@ -617,7 +617,7 @@ loop:
 			}
 			req = &GetattrRequest{
 				Header: m.Header(),
-				Flags:  GetattrFlags(in.GetattrFlags),
+				Flags:  fusekernel.GetattrFlags(in.GetattrFlags),
 				Handle: HandleID(in.Fh),
 			}
 		}
@@ -934,7 +934,7 @@ loop:
 			Header:       m.Header(),
 			Kernel:       fusekernel.Protocol{in.Major, in.Minor},
 			MaxReadahead: in.MaxReadahead,
-			Flags:        InitFlags(in.Flags),
+			Flags:        fusekernel.InitFlags(in.Flags),
 		}
 
 	case opGetlk:
@@ -1156,7 +1156,7 @@ type InitRequest struct {
 	Kernel fusekernel.Protocol
 	// Maximum readahead in bytes that the kernel plans to use.
 	MaxReadahead uint32
-	Flags        InitFlags
+	Flags        fusekernel.InitFlags
 }
 
 var _ = Request(&InitRequest{})
@@ -1171,7 +1171,7 @@ type InitResponse struct {
 	// Maximum readahead in bytes that the kernel can use. Ignored if
 	// greater than InitRequest.MaxReadahead.
 	MaxReadahead uint32
-	Flags        InitFlags
+	Flags        fusekernel.InitFlags
 	// Maximum size of a single write operation.
 	// Linux enforces a minimum of 4 KiB.
 	MaxWrite uint32
@@ -1289,7 +1289,7 @@ func unix(t time.Time) (sec uint64, nsec uint32) {
 	return
 }
 
-func (a *Attr) attr(out *attr, proto fusekernel.Protocol) {
+func (a *Attr) attr(out *fusekernel.Attr, proto fusekernel.Protocol) {
 	out.Ino = a.Inode
 	out.Size = a.Size
 	out.Blocks = a.Blocks
@@ -1337,7 +1337,7 @@ func (a *Attr) attr(out *attr, proto fusekernel.Protocol) {
 // A GetattrRequest asks for the metadata for the file denoted by r.Node.
 type GetattrRequest struct {
 	Header `json:"-"`
-	Flags  GetattrFlags
+	Flags  fusekernel.GetattrFlags
 	Handle HandleID
 }
 
@@ -1563,7 +1563,7 @@ func (r *LookupResponse) String() string {
 type OpenRequest struct {
 	Header `json:"-"`
 	Dir    bool // is this Opendir?
-	Flags  OpenFlags
+	Flags  fusekernel.OpenFlags
 }
 
 var _ = Request(&OpenRequest{})
@@ -1584,7 +1584,7 @@ func (r *OpenRequest) Respond(resp *OpenResponse) {
 // A OpenResponse is the response to a OpenRequest.
 type OpenResponse struct {
 	Handle HandleID
-	Flags  OpenResponseFlags
+	Flags  fusekernel.OpenResponseFlags
 }
 
 func (r *OpenResponse) String() string {
@@ -1595,7 +1595,7 @@ func (r *OpenResponse) String() string {
 type CreateRequest struct {
 	Header `json:"-"`
 	Name   string
-	Flags  OpenFlags
+	Flags  fusekernel.OpenFlags
 	Mode   os.FileMode
 	Umask  os.FileMode
 }
@@ -1683,9 +1683,9 @@ type ReadRequest struct {
 	Handle    HandleID
 	Offset    int64
 	Size      int
-	Flags     ReadFlags
+	Flags     fusekernel.ReadFlags
 	LockOwner uint64
-	FileFlags OpenFlags
+	FileFlags fusekernel.OpenFlags
 }
 
 var _ = Request(&ReadRequest{})
@@ -1726,8 +1726,8 @@ type ReleaseRequest struct {
 	Header       `json:"-"`
 	Dir          bool // is this Releasedir?
 	Handle       HandleID
-	Flags        OpenFlags // flags from OpenRequest
-	ReleaseFlags ReleaseFlags
+	Flags        fusekernel.OpenFlags // flags from OpenRequest
+	ReleaseFlags fusekernel.ReleaseFlags
 	LockOwner    uint32
 }
 
@@ -1868,9 +1868,9 @@ type WriteRequest struct {
 	Handle    HandleID
 	Offset    int64
 	Data      []byte
-	Flags     WriteFlags
+	Flags     fusekernel.WriteFlags
 	LockOwner uint64
-	FileFlags OpenFlags
+	FileFlags fusekernel.OpenFlags
 }
 
 var _ = Request(&WriteRequest{})
@@ -1883,7 +1883,7 @@ type jsonWriteRequest struct {
 	Handle HandleID
 	Offset int64
 	Len    uint64
-	Flags  WriteFlags
+	Flags  fusekernel.WriteFlags
 }
 
 func (r *WriteRequest) MarshalJSON() ([]byte, error) {
@@ -1917,7 +1917,7 @@ func (r *WriteResponse) String() string {
 // as indicated by Valid.
 type SetattrRequest struct {
 	Header `json:"-"`
-	Valid  SetattrValid
+	Valid  fusekernel.SetattrValid
 	Handle HandleID
 	Size   uint64
 	Atime  time.Time

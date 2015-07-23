@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type attr struct {
+type Attr struct {
 	Ino        uint64
 	Size       uint64
 	Blocks     uint64
@@ -26,11 +26,11 @@ type attr struct {
 	padding    uint32
 }
 
-func (a *attr) SetCrtime(s uint64, ns uint32) {
+func (a *Attr) SetCrtime(s uint64, ns uint32) {
 	a.Crtime_, a.CrtimeNsec = s, ns
 }
 
-func (a *attr) SetFlags(f uint32) {
+func (a *Attr) SetFlags(f uint32) {
 	a.Flags_ = f
 }
 
