@@ -19,7 +19,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/jacobsa/bazilfuse"
+	"github.com/jacobsa/fuse/internal/fuseshim"
 	"golang.org/x/net/context"
 )
 
@@ -55,7 +55,7 @@ type Op interface {
 // when resolving user paths to dentry structs, which are then cached.
 type LookUpInodeOp struct {
 	commonOp
-	bfReq *bazilfuse.LookupRequest
+	bfReq *fuseshim.LookupRequest
 
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
@@ -84,7 +84,7 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 }
 
 func (o *LookUpInodeOp) respond() {
-	resp := bazilfuse.LookupResponse{}
+	resp := fuseshim.LookupResponse{}
 	convertChildInodeEntry(&o.Entry, &resp)
 
 	o.bfReq.Respond(&resp)
@@ -97,7 +97,7 @@ func (o *LookUpInodeOp) respond() {
 // field of ChildInodeEntry, etc.
 type GetInodeAttributesOp struct {
 	commonOp
-	bfReq *bazilfuse.GetattrRequest
+	bfReq *fuseshim.GetattrRequest
 
 	// The inode of interest.
 	Inode InodeID
@@ -110,7 +110,7 @@ type GetInodeAttributesOp struct {
 }
 
 func (o *GetInodeAttributesOp) respond() {
-	resp := bazilfuse.GetattrResponse{
+	resp := fuseshim.GetattrResponse{
 		Attr: convertAttributes(o.Inode, o.Attributes, o.AttributesExpiration),
 	}
 
@@ -124,7 +124,7 @@ func (o *GetInodeAttributesOp) respond() {
 // cases like ftrunctate(2).
 type SetInodeAttributesOp struct {
 	commonOp
-	bfReq *bazilfuse.SetattrRequest
+	bfReq *fuseshim.SetattrRequest
 
 	// The inode of interest.
 	Inode InodeID
@@ -143,7 +143,7 @@ type SetInodeAttributesOp struct {
 }
 
 func (o *SetInodeAttributesOp) respond() {
-	resp := bazilfuse.SetattrResponse{
+	resp := fuseshim.SetattrResponse{
 		Attr: convertAttributes(o.Inode, o.Attributes, o.AttributesExpiration),
 	}
 
@@ -192,7 +192,7 @@ func (o *SetInodeAttributesOp) respond() {
 // implicitly decrementing all lookup counts to zero.
 type ForgetInodeOp struct {
 	commonOp
-	bfReq *bazilfuse.ForgetRequest
+	bfReq *fuseshim.ForgetRequest
 
 	// The inode whose reference count should be decremented.
 	Inode InodeID
@@ -223,7 +223,7 @@ func (o *ForgetInodeOp) respond() {
 // Therefore the file system should return EEXIST if the name already exists.
 type MkDirOp struct {
 	commonOp
-	bfReq *bazilfuse.MkdirRequest
+	bfReq *fuseshim.MkdirRequest
 
 	// The ID of parent directory inode within which to create the child.
 	Parent InodeID
@@ -245,7 +245,7 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 }
 
 func (o *MkDirOp) respond() {
-	resp := bazilfuse.MkdirResponse{}
+	resp := fuseshim.MkdirResponse{}
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
 	o.bfReq.Respond(&resp)
@@ -264,7 +264,7 @@ func (o *MkDirOp) respond() {
 // Therefore the file system should return EEXIST if the name already exists.
 type CreateFileOp struct {
 	commonOp
-	bfReq *bazilfuse.CreateRequest
+	bfReq *fuseshim.CreateRequest
 
 	// The ID of parent directory inode within which to create the child file.
 	Parent InodeID
@@ -272,9 +272,6 @@ type CreateFileOp struct {
 	// The name of the child to create, and the mode with which to create it.
 	Name string
 	Mode os.FileMode
-
-	// Flags for the open operation.
-	Flags bazilfuse.OpenFlags
 
 	// Set by the file system: information about the inode that was created.
 	//
@@ -299,9 +296,9 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 }
 
 func (o *CreateFileOp) respond() {
-	resp := bazilfuse.CreateResponse{
-		OpenResponse: bazilfuse.OpenResponse{
-			Handle: bazilfuse.HandleID(o.Handle),
+	resp := fuseshim.CreateResponse{
+		OpenResponse: fuseshim.OpenResponse{
+			Handle: fuseshim.HandleID(o.Handle),
 		},
 	}
 
@@ -315,7 +312,7 @@ func (o *CreateFileOp) respond() {
 // return EEXIST (cf. the notes on CreateFileOp and MkDirOp).
 type CreateSymlinkOp struct {
 	commonOp
-	bfReq *bazilfuse.SymlinkRequest
+	bfReq *fuseshim.SymlinkRequest
 
 	// The ID of parent directory inode within which to create the child symlink.
 	Parent InodeID
@@ -345,7 +342,7 @@ func (o *CreateSymlinkOp) ShortDesc() (desc string) {
 }
 
 func (o *CreateSymlinkOp) respond() {
-	resp := bazilfuse.SymlinkResponse{}
+	resp := fuseshim.SymlinkResponse{}
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
 	o.bfReq.Respond(&resp)
@@ -392,7 +389,7 @@ func (o *CreateSymlinkOp) respond() {
 //
 type RenameOp struct {
 	commonOp
-	bfReq *bazilfuse.RenameRequest
+	bfReq *fuseshim.RenameRequest
 
 	// The old parent directory, and the name of the entry within it to be
 	// relocated.
@@ -419,7 +416,7 @@ func (o *RenameOp) respond() {
 // Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
 type RmDirOp struct {
 	commonOp
-	bfReq *bazilfuse.RemoveRequest
+	bfReq *fuseshim.RemoveRequest
 
 	// The ID of parent directory inode, and the name of the directory being
 	// removed within it.
@@ -440,7 +437,7 @@ func (o *RmDirOp) respond() {
 // Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
 type UnlinkOp struct {
 	commonOp
-	bfReq *bazilfuse.RemoveRequest
+	bfReq *fuseshim.RemoveRequest
 
 	// The ID of parent directory inode, and the name of the entry being removed
 	// within it.
@@ -465,13 +462,10 @@ func (o *UnlinkOp) respond() {
 // https://github.com/osxfuse/osxfuse/issues/199).
 type OpenDirOp struct {
 	commonOp
-	bfReq *bazilfuse.OpenRequest
+	bfReq *fuseshim.OpenRequest
 
 	// The ID of the inode to be opened.
 	Inode InodeID
-
-	// Mode and options flags.
-	Flags bazilfuse.OpenFlags
 
 	// Set by the file system: an opaque ID that will be echoed in follow-up
 	// calls for this directory using the same struct file in the kernel. In
@@ -485,8 +479,8 @@ type OpenDirOp struct {
 }
 
 func (o *OpenDirOp) respond() {
-	resp := bazilfuse.OpenResponse{
-		Handle: bazilfuse.HandleID(o.Handle),
+	resp := fuseshim.OpenResponse{
+		Handle: fuseshim.HandleID(o.Handle),
 	}
 
 	o.bfReq.Respond(&resp)
@@ -496,7 +490,7 @@ func (o *OpenDirOp) respond() {
 // Read entries from a directory previously opened with OpenDir.
 type ReadDirOp struct {
 	commonOp
-	bfReq *bazilfuse.ReadRequest
+	bfReq *fuseshim.ReadRequest
 
 	// The directory inode that we are reading, and the handle previously
 	// returned by OpenDir when opening that inode.
@@ -585,7 +579,7 @@ type ReadDirOp struct {
 }
 
 func (o *ReadDirOp) respond() {
-	resp := bazilfuse.ReadResponse{
+	resp := fuseshim.ReadResponse{
 		Data: o.Data,
 	}
 
@@ -603,7 +597,7 @@ func (o *ReadDirOp) respond() {
 // Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
 type ReleaseDirHandleOp struct {
 	commonOp
-	bfReq *bazilfuse.ReleaseRequest
+	bfReq *fuseshim.ReleaseRequest
 
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
@@ -628,13 +622,10 @@ func (o *ReleaseDirHandleOp) respond() {
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
 type OpenFileOp struct {
 	commonOp
-	bfReq *bazilfuse.OpenRequest
+	bfReq *fuseshim.OpenRequest
 
 	// The ID of the inode to be opened.
 	Inode InodeID
-
-	// Mode and options flags.
-	Flags bazilfuse.OpenFlags
 
 	// An opaque ID that will be echoed in follow-up calls for this file using
 	// the same struct file in the kernel. In practice this usually means
@@ -647,8 +638,8 @@ type OpenFileOp struct {
 }
 
 func (o *OpenFileOp) respond() {
-	resp := bazilfuse.OpenResponse{
-		Handle: bazilfuse.HandleID(o.Handle),
+	resp := fuseshim.OpenResponse{
+		Handle: fuseshim.HandleID(o.Handle),
 	}
 
 	o.bfReq.Respond(&resp)
@@ -662,7 +653,7 @@ func (o *OpenFileOp) respond() {
 // more.
 type ReadFileOp struct {
 	commonOp
-	bfReq *bazilfuse.ReadRequest
+	bfReq *fuseshim.ReadRequest
 
 	// The file inode that we are reading, and the handle previously returned by
 	// CreateFile or OpenFile when opening that inode.
@@ -686,7 +677,7 @@ type ReadFileOp struct {
 }
 
 func (o *ReadFileOp) respond() {
-	resp := bazilfuse.ReadResponse{
+	resp := fuseshim.ReadResponse{
 		Data: o.Data,
 	}
 
@@ -727,7 +718,7 @@ func (o *ReadFileOp) respond() {
 // concurrent requests".)
 type WriteFileOp struct {
 	commonOp
-	bfReq *bazilfuse.WriteRequest
+	bfReq *fuseshim.WriteRequest
 
 	// The file inode that we are modifying, and the handle previously returned
 	// by CreateFile or OpenFile when opening that inode.
@@ -766,7 +757,7 @@ type WriteFileOp struct {
 }
 
 func (o *WriteFileOp) respond() {
-	resp := bazilfuse.WriteResponse{
+	resp := fuseshim.WriteResponse{
 		Size: len(o.Data),
 	}
 
@@ -792,7 +783,7 @@ func (o *WriteFileOp) respond() {
 // file (but which is not used in "real" file systems).
 type SyncFileOp struct {
 	commonOp
-	bfReq *bazilfuse.FsyncRequest
+	bfReq *fuseshim.FsyncRequest
 
 	// The file and handle being sync'd.
 	Inode  InodeID
@@ -853,7 +844,7 @@ func (o *SyncFileOp) respond() {
 // return any errors that occur.
 type FlushFileOp struct {
 	commonOp
-	bfReq *bazilfuse.FlushRequest
+	bfReq *fuseshim.FlushRequest
 
 	// The file and handle being flushed.
 	Inode  InodeID
@@ -875,7 +866,7 @@ func (o *FlushFileOp) respond() {
 // Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
 type ReleaseFileHandleOp struct {
 	commonOp
-	bfReq *bazilfuse.ReleaseRequest
+	bfReq *fuseshim.ReleaseRequest
 
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
@@ -910,7 +901,7 @@ func (o *unknownOp) respond() {
 // Read the target of a symlink inode.
 type ReadSymlinkOp struct {
 	commonOp
-	bfReq *bazilfuse.ReadlinkRequest
+	bfReq *fuseshim.ReadlinkRequest
 
 	// The symlink inode that we are reading.
 	Inode InodeID

@@ -19,7 +19,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/jacobsa/bazilfuse"
+	"github.com/jacobsa/fuse/internal/fuseshim"
 )
 
 // A 64-bit number used to uniquely identify a file or directory in the file
@@ -38,7 +38,7 @@ const RootInodeID = 1
 
 func init() {
 	// Make sure the constant above is correct. We do this at runtime rather than
-	// defining the constant in terms of bazilfuse.RootID for two reasons:
+	// defining the constant in terms of fuseshim.RootID for two reasons:
 	//
 	//  1. Users can more clearly see that the root ID is low and can therefore
 	//     be used as e.g. an array index, with space reserved up to the root.
@@ -46,12 +46,12 @@ func init() {
 	//  2. The constant can be untyped and can therefore more easily be used as
 	//     an array index.
 	//
-	if RootInodeID != bazilfuse.RootID {
+	if RootInodeID != fuseshim.RootID {
 		panic(
 			fmt.Sprintf(
 				"Oops, RootInodeID is wrong: %v vs. %v",
 				RootInodeID,
-				bazilfuse.RootID))
+				fuseshim.RootID))
 	}
 }
 

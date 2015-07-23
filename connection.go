@@ -23,15 +23,15 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/internal/fuseshim"
 )
 
 // A connection to the fuse kernel process.
 type Connection struct {
 	debugLogger *log.Logger
 	errorLogger *log.Logger
-	wrapped     *bazilfuse.Conn
+	wrapped     *fuseshim.Conn
 
 	// The context from which all op contexts inherit.
 	parentCtx context.Context
@@ -41,11 +41,11 @@ type Connection struct {
 
 	mu sync.Mutex
 
-	// A map from bazilfuse request ID (*not* the op ID for logging used above)
-	// to a function that cancel's its associated context.
+	// A map from fuseshim request ID (*not* the op ID for logging used above) to
+	// a function that cancel's its associated context.
 	//
 	// GUARDED_BY(mu)
-	cancelFuncs map[bazilfuse.RequestID]func()
+	cancelFuncs map[fuseshim.RequestID]func()
 }
 
 // Responsibility for closing the wrapped connection is transferred to the
@@ -56,13 +56,13 @@ func newConnection(
 	parentCtx context.Context,
 	debugLogger *log.Logger,
 	errorLogger *log.Logger,
-	wrapped *bazilfuse.Conn) (c *Connection, err error) {
+	wrapped *fuseshim.Conn) (c *Connection, err error) {
 	c = &Connection{
 		debugLogger: debugLogger,
 		errorLogger: errorLogger,
 		wrapped:     wrapped,
 		parentCtx:   parentCtx,
-		cancelFuncs: make(map[bazilfuse.RequestID]func()),
+		cancelFuncs: make(map[fuseshim.RequestID]func()),
 	}
 
 	return
@@ -104,7 +104,7 @@ func (c *Connection) debugLog(
 
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) recordCancelFunc(
-	reqID bazilfuse.RequestID,
+	reqID fuseshim.RequestID,
 	f func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -117,13 +117,13 @@ func (c *Connection) recordCancelFunc(
 }
 
 // Set up state for an op that is about to be returned to the user, given its
-// underlying bazilfuse request.
+// underlying fuseshim request.
 //
 // Return a context that should be used for the op.
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) beginOp(
-	bfReq bazilfuse.Request) (ctx context.Context) {
+	bfReq fuseshim.Request) (ctx context.Context) {
 	reqID := bfReq.Hdr().ID
 
 	// Start with the parent context.
@@ -137,7 +137,7 @@ func (c *Connection) beginOp(
 	// should not record any state keyed on their ID.
 	//
 	// Cf. https://github.com/osxfuse/osxfuse/issues/208
-	if _, ok := bfReq.(*bazilfuse.ForgetRequest); !ok {
+	if _, ok := bfReq.(*fuseshim.ForgetRequest); !ok {
 		var cancel func()
 		ctx, cancel = context.WithCancel(ctx)
 		c.recordCancelFunc(reqID, cancel)
@@ -147,12 +147,12 @@ func (c *Connection) beginOp(
 }
 
 // Clean up all state associated with an op to which the user has responded,
-// given its underlying bazilfuse request. This must be called before a
-// response is sent to the kernel, to avoid a race where the request's ID might
-// be reused by osxfuse.
+// given its underlying fuseshim request. This must be called before a response
+// is sent to the kernel, to avoid a race where the request's ID might be
+// reused by osxfuse.
 //
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) finishOp(bfReq bazilfuse.Request) {
+func (c *Connection) finishOp(bfReq fuseshim.Request) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -164,7 +164,7 @@ func (c *Connection) finishOp(bfReq bazilfuse.Request) {
 	//
 	// Special case: we don't do this for Forget requests. See the note in
 	// beginOp above.
-	if _, ok := bfReq.(*bazilfuse.ForgetRequest); !ok {
+	if _, ok := bfReq.(*fuseshim.ForgetRequest); !ok {
 		cancel, ok := c.cancelFuncs[reqID]
 		if !ok {
 			panic(fmt.Sprintf("Unknown request ID in finishOp: %v", reqID))
@@ -176,7 +176,7 @@ func (c *Connection) finishOp(bfReq bazilfuse.Request) {
 }
 
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) handleInterrupt(req *bazilfuse.InterruptRequest) {
+func (c *Connection) handleInterrupt(req *fuseshim.InterruptRequest) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -212,8 +212,8 @@ func (c *Connection) handleInterrupt(req *bazilfuse.InterruptRequest) {
 func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 	// Keep going until we find a request we know how to convert.
 	for {
-		// Read a bazilfuse request.
-		var bfReq bazilfuse.Request
+		// Read a fuseshim request.
+		var bfReq fuseshim.Request
 		bfReq, err = c.wrapped.ReadRequest()
 
 		if err != nil {
@@ -230,14 +230,14 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		// Special case: responding to statfs is required to make mounting work on
 		// OS X. We don't currently expose the capability for the file system to
 		// intercept this.
-		if statfsReq, ok := bfReq.(*bazilfuse.StatfsRequest); ok {
+		if statfsReq, ok := bfReq.(*fuseshim.StatfsRequest); ok {
 			c.debugLog(opID, 1, "-> (Statfs) OK")
-			statfsReq.Respond(&bazilfuse.StatfsResponse{})
+			statfsReq.Respond(&fuseshim.StatfsResponse{})
 			continue
 		}
 
 		// Special case: handle interrupt requests.
-		if interruptReq, ok := bfReq.(*bazilfuse.InterruptRequest); ok {
+		if interruptReq, ok := bfReq.(*fuseshim.InterruptRequest); ok {
 			c.handleInterrupt(interruptReq)
 			continue
 		}
