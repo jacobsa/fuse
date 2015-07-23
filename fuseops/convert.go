@@ -15,6 +15,7 @@
 package fuseops
 
 import (
+	"bytes"
 	"log"
 	"time"
 	"unsafe"
@@ -38,6 +39,7 @@ import (
 func Convert(
 	opCtx context.Context,
 	m *fuseshim.Message,
+	protocol fusekernel.Protocol,
 	debugLogForOp func(int, string, ...interface{}),
 	errorLogger *log.Logger,
 	finished func(error)) (o Op) {
@@ -112,12 +114,23 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.MkdirRequest:
+	case fusekernel.OpMkdir:
+		size := fusekernel.MkdirInSize(protocol)
+		if m.Len() < size {
+			goto corrupt
+		}
+		in := (*fusekernel.MkdirIn)(m.Data())
+		name := m.Bytes()[size:]
+		i := bytes.IndexByte(name, '\x00')
+		if i < 0 {
+			goto corrupt
+		}
+		name = name[:i]
+
 		to := &MkDirOp{
-			bfReq:  typed,
-			Parent: InodeID(typed.Header.Node),
-			Name:   typed.Name,
-			Mode:   typed.Mode,
+			Parent: InodeID(m.Header().Node),
+			Name:   string(name),
+			Mode:   fuseshim.FileMode(in.Mode),
 		}
 		io = to
 		co = &to.commonOp
