@@ -125,13 +125,6 @@ type HandleID uint64
 // ReadDirOp.Offset for details.
 type DirOffset uint64
 
-// A header that is included with every op.
-type OpHeader struct {
-	// Credentials information for the process making the request.
-	Uid uint32
-	Gid uint32
-}
-
 // Information about a child inode within its parent directory. Shared by
 // LookUpInodeOp, MkDirOp, CreateFileOp, etc. Consumed by the kernel in order
 // to set up a dcache entry.
