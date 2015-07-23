@@ -26,9 +26,9 @@ import (
 // This function is an implementation detail of the fuse package, and must not
 // be called by anyone else.
 //
-// Convert the supplied fuseshim request struct to an Op. finished will be
-// called with the error supplied to o.Respond when the user invokes that
-// method, before a response is sent to the kernel.
+// Convert the supplied fuse kernel message to an Op. finished will be called
+// with the error supplied to o.Respond when the user invokes that method,
+// before a response is sent to the kernel. o.Respond will destroy the message.
 //
 // It is guaranteed that o != nil. If the op is unknown, a special unexported
 // type will be used.
@@ -36,7 +36,7 @@ import (
 // The debug logging function and error logger may be nil.
 func Convert(
 	opCtx context.Context,
-	r fuseshim.Request,
+	m *fuseshim.Message,
 	debugLogForOp func(int, string, ...interface{}),
 	errorLogger *log.Logger,
 	finished func(error)) (o Op) {
