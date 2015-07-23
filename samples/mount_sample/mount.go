@@ -24,8 +24,8 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/internal/fuseshim"
 	"github.com/jacobsa/fuse/samples/flushfs"
 	"golang.org/x/net/context"
 )
@@ -58,11 +58,11 @@ func makeFlushFS() (server fuse.Server, err error) {
 	var fsyncErr error
 
 	if *fFlushError != 0 {
-		flushErr = bazilfuse.Errno(*fFlushError)
+		flushErr = fuseshim.Errno(*fFlushError)
 	}
 
 	if *fFsyncError != 0 {
-		fsyncErr = bazilfuse.Errno(*fFsyncError)
+		fsyncErr = fuseshim.Errno(*fFsyncError)
 	}
 
 	// Report flushes and fsyncs by writing the contents followed by a newline.
