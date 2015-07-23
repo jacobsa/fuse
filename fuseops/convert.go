@@ -58,10 +58,9 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.GetattrRequest:
+	case fusekernel.OpGetattr:
 		to := &GetInodeAttributesOp{
-			bfReq: typed,
-			Inode: InodeID(typed.Header.Node),
+			Inode: InodeID(m.Header().Node),
 		}
 		io = to
 		co = &to.commonOp
