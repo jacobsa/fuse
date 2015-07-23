@@ -288,22 +288,17 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.ReleaseRequest:
-		if typed.Dir {
-			to := &ReleaseDirHandleOp{
-				bfReq:  typed,
-				Handle: HandleID(typed.Handle),
-			}
-			io = to
-			co = &to.commonOp
-		} else {
-			to := &ReleaseFileHandleOp{
-				bfReq:  typed,
-				Handle: HandleID(typed.Handle),
-			}
-			io = to
-			co = &to.commonOp
+	case fusekernel.OpReleasedir:
+		in := (*fusekernel.ReleaseIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
+			goto corrupt
 		}
+
+		to := &ReleaseDirHandleOp{
+			Handle: HandleID(in.Fh),
+		}
+		io = to
+		co = &to.commonOp
 
 	case *fuseshim.WriteRequest:
 		to := &WriteFileOp{
