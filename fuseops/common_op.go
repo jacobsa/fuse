@@ -19,7 +19,10 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"unsafe"
 
+	"github.com/jacobsa/fuse/internal/fusekernel"
+	"github.com/jacobsa/fuse/internal/fuseshim"
 	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
 )
@@ -127,30 +130,49 @@ func (o *commonOp) Logf(format string, v ...interface{}) {
 }
 
 func (o *commonOp) Respond(err error) {
-	// Report that the user is responding.
-	o.finished(err)
-
-	// If successful, we should respond to fuseshim with the appropriate struct.
+	// If successful, we ask the op for an appopriate response to the kernel, and
+	// it is responsible for leaving room for the fusekernel.OutHeader struct.
+	// Otherwise, create our own.
+	var msg []byte
 	if err == nil {
-		o.op.respond()
-		return
+		msg = o.op.kernelResponse()
+	} else {
+		msg = fuseshim.NewBuffer(0)
 	}
 
-	// Log the error.
-	if o.debugLog != nil {
-		o.Logf(
-			"-> (%s) error: %v",
-			o.op.ShortDesc(),
-			err)
+	// Fill in the header.
+	h := (*fusekernel.OutHeader)(unsafe.Pointer(&msg[0]))
+	h.Unique = o.fuseID
+	h.Len = uint32(len(msg))
+	if err != nil {
+		errno := fuseshim.EIO
+		if ferr, ok := err.(fuseshim.ErrorNumber); ok {
+			errno = ferr.Errno()
+		}
+
+		h.Error = -int32(errno)
 	}
 
-	if o.errorLogger != nil {
-		o.errorLogger.Printf(
-			"(%s) error: %v",
-			o.op.ShortDesc(),
-			err)
+	// Log the error, if any.
+	if err != nil {
+		if o.debugLog != nil {
+			o.Logf(
+				"-> (%s) error: %v",
+				o.op.ShortDesc(),
+				err)
+		}
+
+		if o.errorLogger != nil {
+			o.errorLogger.Printf(
+				"(%s) error: %v",
+				o.op.ShortDesc(),
+				err)
+		}
 	}
 
-	// Send a response to the kernel.
-	o.bazilReq.RespondError(err)
+	// Reply.
+	replyErr := o.sendReply(o.fuseID, msg, err)
+	if replyErr != nil && o.errorLogger != nil {
+		o.errorLogger.Printf("Error from sendReply: %v", replyErr)
+	}
 }
