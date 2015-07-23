@@ -135,12 +135,23 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.CreateRequest:
+	case fusekernel.OpCreate:
+		size := fusekernel.CreateInSize(protocol)
+		if m.Len() < size {
+			goto corrupt
+		}
+		in := (*fusekernel.CreateIn)(m.Data())
+		name := m.Bytes()[size:]
+		i := bytes.IndexByte(name, '\x00')
+		if i < 0 {
+			goto corrupt
+		}
+		name = name[:i]
+
 		to := &CreateFileOp{
-			bfReq:  typed,
-			Parent: InodeID(typed.Header.Node),
-			Name:   typed.Name,
-			Mode:   typed.Mode,
+			Parent: InodeID(m.Header().Node),
+			Name:   string(name),
+			Mode:   fuseshim.FileMode(in.Mode),
 		}
 		io = to
 		co = &to.commonOp
