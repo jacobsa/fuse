@@ -20,7 +20,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/jacobsa/fuse/internal/fuseshim"
 	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
 )
@@ -36,8 +35,9 @@ type internalOp interface {
 }
 
 // A function that sends a reply message back to the kernel for the request
-// with the given fuse unique ID.
-type replyFunc func(uint64, []byte) error
+// with the given fuse unique ID. The error argument is for informational
+// purposes only; the error to hand to the kernel is encoded in the message.
+type replyFunc func(uint64, []byte, error) error
 
 // A helper for embedding common behavior.
 type commonOp struct {
@@ -88,27 +88,28 @@ func (o *commonOp) ShortDesc() (desc string) {
 func (o *commonOp) init(
 	ctx context.Context,
 	op internalOp,
-	bazilReq fuseshim.Request,
+	fuseID uint64,
+	sendReply replyFunc,
 	debugLog func(int, string, ...interface{}),
-	errorLogger *log.Logger,
-	finished func(error)) {
+	errorLogger *log.Logger) {
 	// Initialize basic fields.
 	o.ctx = ctx
 	o.op = op
-	o.bazilReq = bazilReq
+	o.fuseID = fuseID
+	o.sendReply = sendReply
 	o.debugLog = debugLog
 	o.errorLogger = errorLogger
-	o.finished = finished
 
 	// Set up a trace span for this op.
 	var reportForTrace reqtrace.ReportFunc
 	o.ctx, reportForTrace = reqtrace.StartSpan(o.ctx, o.op.ShortDesc())
 
 	// When the op is finished, report to both reqtrace and the connection.
-	prevFinish := o.finished
-	o.finished = func(err error) {
-		reportForTrace(err)
-		prevFinish(err)
+	prevSendReply := o.sendReply
+	o.sendReply = func(fuseID uint64, msg []byte, opErr error) (err error) {
+		reportForTrace(opErr)
+		err = prevSendReply(fuseID, msg, opErr)
+		return
 	}
 }
 
