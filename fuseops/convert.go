@@ -55,7 +55,7 @@ func Convert(
 		}
 
 		to := &LookUpInodeOp{
-			Parent: InodeID(m.Header().Node),
+			Parent: InodeID(m.Hdr.Nodeid),
 			Name:   string(buf[:n-1]),
 		}
 		io = to
@@ -63,7 +63,7 @@ func Convert(
 
 	case fusekernel.OpGetattr:
 		to := &GetInodeAttributesOp{
-			Inode: InodeID(m.Header().Node),
+			Inode: InodeID(m.Hdr.Nodeid),
 		}
 		io = to
 		co = &to.commonOp
@@ -75,7 +75,7 @@ func Convert(
 		}
 
 		to := &SetInodeAttributesOp{
-			Inode: InodeID(m.Header().Node),
+			Inode: InodeID(m.Hdr.Nodeid),
 		}
 
 		valid := fusekernel.SetattrValid(in.Valid)
@@ -108,7 +108,7 @@ func Convert(
 		}
 
 		to := &ForgetInodeOp{
-			Inode: InodeID(m.Header().Node),
+			Inode: InodeID(m.Hdr.Nodeid),
 			N:     in.Nlookup,
 		}
 		io = to
@@ -128,7 +128,7 @@ func Convert(
 		name = name[:i]
 
 		to := &MkDirOp{
-			Parent: InodeID(m.Header().Node),
+			Parent: InodeID(m.Hdr.Nodeid),
 			Name:   string(name),
 			Mode:   fuseshim.FileMode(in.Mode),
 		}
@@ -149,7 +149,7 @@ func Convert(
 		name = name[:i]
 
 		to := &CreateFileOp{
-			Parent: InodeID(m.Header().Node),
+			Parent: InodeID(m.Hdr.Nodeid),
 			Name:   string(name),
 			Mode:   fuseshim.FileMode(in.Mode),
 		}
@@ -169,7 +169,7 @@ func Convert(
 		newName, target := names[0:i], names[i+1:len(names)-1]
 
 		to := &CreateSymlinkOp{
-			Parent: InodeID(m.Header().Node),
+			Parent: InodeID(m.Hdr.Nodeid),
 			Name:   string(newName),
 			Target: string(target),
 		}
@@ -196,7 +196,7 @@ func Convert(
 		oldName, newName := names[:i], names[i+1:len(names)-1]
 
 		to := &RenameOp{
-			OldParent: InodeID(m.Header().Node),
+			OldParent: InodeID(m.Hdr.Nodeid),
 			OldName:   string(oldName),
 			NewParent: InodeID(in.Newdir),
 			NewName:   string(newName),
@@ -212,7 +212,7 @@ func Convert(
 		}
 
 		to := &UnlinkOp{
-			Parent: InodeID(m.Header().Node),
+			Parent: InodeID(m.Hdr.Nodeid),
 			Name:   string(buf[:n-1]),
 		}
 		io = to
@@ -226,7 +226,7 @@ func Convert(
 		}
 
 		to := &RmDirOp{
-			Parent: InodeID(m.Header().Node),
+			Parent: InodeID(m.Hdr.Nodeid),
 			Name:   string(buf[:n-1]),
 		}
 		io = to
@@ -234,14 +234,14 @@ func Convert(
 
 	case fusekernel.OpOpen:
 		to := &OpenFileOp{
-			Inode: InodeID(m.Header().Node),
+			Inode: InodeID(m.Hdr.Nodeid),
 		}
 		io = to
 		co = &to.commonOp
 
 	case fusekernel.OpOpendir:
 		to := &OpenDirOp{
-			Inode: InodeID(m.Header().Node),
+			Inode: InodeID(m.Hdr.Nodeid),
 		}
 		io = to
 		co = &to.commonOp
@@ -253,7 +253,7 @@ func Convert(
 		}
 
 		to := &ReadFileOp{
-			Inode:  InodeID(m.Header().Node),
+			Inode:  InodeID(m.Hdr.Nodeid),
 			Handle: HandleID(in.Fh),
 			Offset: int64(in.Offset),
 			Size:   int(in.Size),
@@ -268,7 +268,7 @@ func Convert(
 		}
 
 		to := &ReadDirOp{
-			Inode:  InodeID(m.Header().Node),
+			Inode:  InodeID(m.Hdr.Nodeid),
 			Handle: HandleID(in.Fh),
 			Offset: DirOffset(in.Offset),
 			Size:   int(in.Size),
@@ -313,7 +313,7 @@ func Convert(
 		}
 
 		to := &WriteFileOp{
-			Inode:  InodeID(m.Header().Node),
+			Inode:  InodeID(m.Hdr.Nodeid),
 			Handle: HandleID(in.Fh),
 			Data:   buf,
 			Offset: int64(in.Offset),
@@ -328,7 +328,7 @@ func Convert(
 		}
 
 		to := &SyncFileOp{
-			Inode:  InodeID(m.Header().Node),
+			Inode:  InodeID(m.Hdr.Nodeid),
 			Handle: HandleID(in.Fh),
 		}
 		io = to
@@ -341,7 +341,7 @@ func Convert(
 		}
 
 		to := &FlushFileOp{
-			Inode:  InodeID(m.Header().Node),
+			Inode:  InodeID(m.Hdr.Nodeid),
 			Handle: HandleID(in.Fh),
 		}
 		io = to
@@ -349,7 +349,7 @@ func Convert(
 
 	case fusekernel.OpReadlink:
 		to := &ReadSymlinkOp{
-			Inode: InodeID(m.Header().Node),
+			Inode: InodeID(m.Hdr.Nodeid),
 		}
 		io = to
 		co = &to.commonOp
@@ -357,7 +357,7 @@ func Convert(
 	default:
 		to := &unknownOp{
 			opCode: m.Hdr.Opcode,
-			inode:  InodeID(m.Header().Node),
+			inode:  InodeID(m.Hdr.Nodeid),
 		}
 		io = to
 		co = &to.commonOp
