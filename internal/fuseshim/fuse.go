@@ -524,12 +524,12 @@ func (c *Conn) Protocol() fusekernel.Protocol {
 	return c.proto
 }
 
-// ReadRequest returns the next FUSE request from the kernel.
+// Read and sanity check a message from the kernel. Return io.EOF when the
+// kernel has hung up. The offset will point to the limit of the header.
 //
-// Caller must call either Request.Respond or Request.RespondError in
-// a reasonable time. Caller must not retain Request after that call.
-func (c *Conn) ReadRequest() (Request, error) {
-	m := getMessage(c)
+// The message must later be returend with putMessage.
+func (c *Conn) ReadMessage() (m *Message, err error) {
+	m = getMessage(c)
 loop:
 	c.rio.RLock()
 	n, err := syscall.Read(c.fd(), m.buf)
@@ -573,6 +573,19 @@ loop:
 	}
 
 	m.off = fusekernel.InHeaderSize
+	return
+}
+
+// ReadRequest returns the next FUSE request from the kernel.
+//
+// Caller must call either Request.Respond or Request.RespondError in
+// a reasonable time. Caller must not retain Request after that call.
+func (c *Conn) ReadRequest() (Request, error) {
+	// Read a message.
+	m, err := c.ReadMessage()
+	if err != nil {
+		return nil, err
+	}
 
 	// Convert to data structures.
 	// Do not trust kernel to hand us well-formed data.
