@@ -85,7 +85,7 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *LookUpInodeOp) respond() {
+func (o *LookUpInodeOp) kernelResponse() (msg []byte) {
 	resp := fuseshim.LookupResponse{}
 	convertChildInodeEntry(&o.Entry, &resp)
 
@@ -111,7 +111,7 @@ type GetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *GetInodeAttributesOp) respond() {
+func (o *GetInodeAttributesOp) kernelResponse() (msg []byte) {
 	resp := fuseshim.GetattrResponse{
 		Attr: convertAttributes(o.Inode, o.Attributes, o.AttributesExpiration),
 	}
@@ -144,7 +144,7 @@ type SetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *SetInodeAttributesOp) respond() {
+func (o *SetInodeAttributesOp) kernelResponse() (msg []byte) {
 	resp := fuseshim.SetattrResponse{
 		Attr: convertAttributes(o.Inode, o.Attributes, o.AttributesExpiration),
 	}
@@ -203,7 +203,7 @@ type ForgetInodeOp struct {
 	N uint64
 }
 
-func (o *ForgetInodeOp) respond() {
+func (o *ForgetInodeOp) kernelResponse() (msg []byte) {
 	o.bfReq.Respond()
 	return
 }
@@ -246,7 +246,7 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *MkDirOp) respond() {
+func (o *MkDirOp) kernelResponse() (msg []byte) {
 	resp := fuseshim.MkdirResponse{}
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
@@ -297,7 +297,7 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *CreateFileOp) respond() {
+func (o *CreateFileOp) kernelResponse() (msg []byte) {
 	resp := fuseshim.CreateResponse{
 		OpenResponse: fuseshim.OpenResponse{
 			Handle: fuseshim.HandleID(o.Handle),
@@ -343,7 +343,7 @@ func (o *CreateSymlinkOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *CreateSymlinkOp) respond() {
+func (o *CreateSymlinkOp) kernelResponse() (msg []byte) {
 	resp := fuseshim.SymlinkResponse{}
 	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
 
@@ -404,7 +404,7 @@ type RenameOp struct {
 	NewName   string
 }
 
-func (o *RenameOp) respond() {
+func (o *RenameOp) kernelResponse() (msg []byte) {
 	o.bfReq.Respond()
 	return
 }
@@ -426,7 +426,7 @@ type RmDirOp struct {
 	Name   string
 }
 
-func (o *RmDirOp) respond() {
+func (o *RmDirOp) kernelResponse() (msg []byte) {
 	o.bfReq.Respond()
 	return
 }
@@ -447,7 +447,7 @@ type UnlinkOp struct {
 	Name   string
 }
 
-func (o *UnlinkOp) respond() {
+func (o *UnlinkOp) kernelResponse() (msg []byte) {
 	o.bfReq.Respond()
 	return
 }
@@ -480,7 +480,7 @@ type OpenDirOp struct {
 	Handle HandleID
 }
 
-func (o *OpenDirOp) respond() {
+func (o *OpenDirOp) kernelResponse() (msg []byte) {
 	resp := fuseshim.OpenResponse{
 		Handle: fuseshim.HandleID(o.Handle),
 	}
@@ -580,7 +580,7 @@ type ReadDirOp struct {
 	Data []byte
 }
 
-func (o *ReadDirOp) respond() {
+func (o *ReadDirOp) kernelResponse() (msg []byte) {
 	resp := fuseshim.ReadResponse{
 		Data: o.Data,
 	}
@@ -607,7 +607,7 @@ type ReleaseDirHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseDirHandleOp) respond() {
+func (o *ReleaseDirHandleOp) kernelResponse() (msg []byte) {
 	o.bfReq.Respond()
 	return
 }
@@ -677,7 +677,7 @@ type ReadFileOp struct {
 	Data []byte
 }
 
-func (o *ReadFileOp) respond() {
+func (o *ReadFileOp) kernelResponse() (msg []byte) {
 	resp := fuseshim.ReadResponse{
 		Data: o.Data,
 	}
@@ -757,7 +757,7 @@ type WriteFileOp struct {
 	Data []byte
 }
 
-func (o *WriteFileOp) respond() {
+func (o *WriteFileOp) kernelResponse() (msg []byte) {
 	resp := fuseshim.WriteResponse{
 		Size: len(o.Data),
 	}
@@ -791,7 +791,7 @@ type SyncFileOp struct {
 	Handle HandleID
 }
 
-func (o *SyncFileOp) respond() {
+func (o *SyncFileOp) kernelResponse() (msg []byte) {
 	o.bfReq.Respond()
 	return
 }
@@ -852,7 +852,7 @@ type FlushFileOp struct {
 	Handle HandleID
 }
 
-func (o *FlushFileOp) respond() {
+func (o *FlushFileOp) kernelResponse() (msg []byte) {
 	o.bfReq.Respond()
 	return
 }
@@ -875,7 +875,7 @@ type ReleaseFileHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseFileHandleOp) respond() {
+func (o *ReleaseFileHandleOp) kernelResponse() (msg []byte) {
 	o.bfReq.Respond()
 	return
 }
@@ -891,7 +891,7 @@ func (o *unknownOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *unknownOp) respond() {
+func (o *unknownOp) kernelResponse() (msg []byte) {
 	panic(fmt.Sprintf("Should never get here for unknown op: %s", o.ShortDesc()))
 }
 
@@ -911,7 +911,7 @@ type ReadSymlinkOp struct {
 	Target string
 }
 
-func (o *ReadSymlinkOp) respond() {
+func (o *ReadSymlinkOp) kernelResponse() (msg []byte) {
 	o.bfReq.Respond(o.Target)
 	return
 }
