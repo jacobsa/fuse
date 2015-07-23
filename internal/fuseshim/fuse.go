@@ -430,12 +430,11 @@ type Message struct {
 	off  int                  // offset for reading additional fields
 }
 
-func (m *Message) len() uintptr {
+func (m *Message) Len() uintptr {
 	return uintptr(len(m.buf) - m.off)
 }
 
-func (m *Message) data() unsafe.Pointer {
-	var p unsafe.Pointer
+func (m *Message) Data() (p unsafe.Pointer) {
 	if m.off < len(m.buf) {
 		p = unsafe.Pointer(&m.buf[m.off])
 	}
@@ -466,8 +465,8 @@ func (m *Message) Destroy() {
 	putMessage(m)
 }
 
-// fileMode returns a Go os.FileMode from a Unix mode.
-func fileMode(unixMode uint32) os.FileMode {
+// FileMode returns a Go os.FileMode from a Unix mode.
+func FileMode(unixMode uint32) os.FileMode {
 	mode := os.FileMode(unixMode & 0777)
 	switch unixMode & syscall.S_IFMT {
 	case syscall.S_IFREG:
@@ -612,8 +611,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpForget:
-		in := (*fusekernel.ForgetIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.ForgetIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &ForgetRequest{
@@ -629,8 +628,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 			}
 
 		default:
-			in := (*fusekernel.GetattrIn)(m.data())
-			if m.len() < unsafe.Sizeof(*in) {
+			in := (*fusekernel.GetattrIn)(m.Data())
+			if m.Len() < unsafe.Sizeof(*in) {
 				goto corrupt
 			}
 			req = &GetattrRequest{
@@ -641,8 +640,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpSetattr:
-		in := (*fusekernel.SetattrIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.SetattrIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &SetattrRequest{
@@ -652,7 +651,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 			Size:     in.Size,
 			Atime:    time.Unix(int64(in.Atime), int64(in.AtimeNsec)),
 			Mtime:    time.Unix(int64(in.Mtime), int64(in.MtimeNsec)),
-			Mode:     fileMode(in.Mode),
+			Mode:     FileMode(in.Mode),
 			Uid:      in.Uid,
 			Gid:      in.Gid,
 			Bkuptime: in.BkupTime(),
@@ -686,8 +685,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpLink:
-		in := (*fusekernel.LinkIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.LinkIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		newName := m.Bytes()[unsafe.Sizeof(*in):]
@@ -703,10 +702,10 @@ func (c *Conn) ReadRequest() (Request, error) {
 
 	case fusekernel.OpMknod:
 		size := fusekernel.MknodInSize(c.proto)
-		if m.len() < size {
+		if m.Len() < size {
 			goto corrupt
 		}
-		in := (*fusekernel.MknodIn)(m.data())
+		in := (*fusekernel.MknodIn)(m.Data())
 		name := m.Bytes()[size:]
 		if len(name) < 2 || name[len(name)-1] != '\x00' {
 			goto corrupt
@@ -714,21 +713,21 @@ func (c *Conn) ReadRequest() (Request, error) {
 		name = name[:len(name)-1]
 		r := &MknodRequest{
 			Header: m.Header(),
-			Mode:   fileMode(in.Mode),
+			Mode:   FileMode(in.Mode),
 			Rdev:   in.Rdev,
 			Name:   string(name),
 		}
 		if c.proto.GE(fusekernel.Protocol{7, 12}) {
-			r.Umask = fileMode(in.Umask) & os.ModePerm
+			r.Umask = FileMode(in.Umask) & os.ModePerm
 		}
 		req = r
 
 	case fusekernel.OpMkdir:
 		size := fusekernel.MkdirInSize(c.proto)
-		if m.len() < size {
+		if m.Len() < size {
 			goto corrupt
 		}
-		in := (*fusekernel.MkdirIn)(m.data())
+		in := (*fusekernel.MkdirIn)(m.Data())
 		name := m.Bytes()[size:]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
@@ -738,12 +737,12 @@ func (c *Conn) ReadRequest() (Request, error) {
 			Header: m.Header(),
 			Name:   string(name[:i]),
 			// observed on Linux: mkdirIn.Mode & syscall.S_IFMT == 0,
-			// and this causes fileMode to go into it's "no idea"
+			// and this causes FileMode to go into it's "no idea"
 			// code branch; enforce type to directory
-			Mode: fileMode((in.Mode &^ syscall.S_IFMT) | syscall.S_IFDIR),
+			Mode: FileMode((in.Mode &^ syscall.S_IFMT) | syscall.S_IFDIR),
 		}
 		if c.proto.GE(fusekernel.Protocol{7, 12}) {
-			r.Umask = fileMode(in.Umask) & os.ModePerm
+			r.Umask = FileMode(in.Umask) & os.ModePerm
 		}
 		req = r
 
@@ -760,8 +759,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpRename:
-		in := (*fusekernel.RenameIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.RenameIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		newDirNodeID := NodeID(in.Newdir)
@@ -786,8 +785,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpOpendir, fusekernel.OpOpen:
-		in := (*fusekernel.OpenIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.OpenIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &OpenRequest{
@@ -797,8 +796,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpRead, fusekernel.OpReaddir:
-		in := (*fusekernel.ReadIn)(m.data())
-		if m.len() < fusekernel.ReadInSize(c.proto) {
+		in := (*fusekernel.ReadIn)(m.Data())
+		if m.Len() < fusekernel.ReadInSize(c.proto) {
 			goto corrupt
 		}
 		r := &ReadRequest{
@@ -816,8 +815,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		req = r
 
 	case fusekernel.OpWrite:
-		in := (*fusekernel.WriteIn)(m.data())
-		if m.len() < fusekernel.WriteInSize(c.proto) {
+		in := (*fusekernel.WriteIn)(m.Data())
+		if m.Len() < fusekernel.WriteInSize(c.proto) {
 			goto corrupt
 		}
 		r := &WriteRequest{
@@ -843,8 +842,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpRelease, fusekernel.OpReleasedir:
-		in := (*fusekernel.ReleaseIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.ReleaseIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &ReleaseRequest{
@@ -857,8 +856,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpFsync, fusekernel.OpFsyncdir:
-		in := (*fusekernel.FsyncIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.FsyncIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &FsyncRequest{
@@ -869,8 +868,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpSetxattr:
-		in := (*fusekernel.SetxattrIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.SetxattrIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		m.off += int(unsafe.Sizeof(*in))
@@ -893,8 +892,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpGetxattr:
-		in := (*fusekernel.GetxattrIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.GetxattrIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		name := m.Bytes()[unsafe.Sizeof(*in):]
@@ -910,8 +909,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpListxattr:
-		in := (*fusekernel.GetxattrIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.GetxattrIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &ListxattrRequest{
@@ -932,8 +931,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpFlush:
-		in := (*fusekernel.FlushIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.FlushIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &FlushRequest{
@@ -944,8 +943,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		}
 
 	case fusekernel.OpInit:
-		in := (*fusekernel.InitIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.InitIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &InitRequest{
@@ -963,8 +962,8 @@ func (c *Conn) ReadRequest() (Request, error) {
 		panic("fusekernel.OpSetlkw")
 
 	case fusekernel.OpAccess:
-		in := (*fusekernel.AccessIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.AccessIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &AccessRequest{
@@ -974,10 +973,10 @@ func (c *Conn) ReadRequest() (Request, error) {
 
 	case fusekernel.OpCreate:
 		size := fusekernel.CreateInSize(c.proto)
-		if m.len() < size {
+		if m.Len() < size {
 			goto corrupt
 		}
-		in := (*fusekernel.CreateIn)(m.data())
+		in := (*fusekernel.CreateIn)(m.Data())
 		name := m.Bytes()[size:]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
@@ -986,17 +985,17 @@ func (c *Conn) ReadRequest() (Request, error) {
 		r := &CreateRequest{
 			Header: m.Header(),
 			Flags:  fusekernel.OpenFlags(in.Flags),
-			Mode:   fileMode(in.Mode),
+			Mode:   FileMode(in.Mode),
 			Name:   string(name[:i]),
 		}
 		if c.proto.GE(fusekernel.Protocol{7, 12}) {
-			r.Umask = fileMode(in.Umask) & os.ModePerm
+			r.Umask = FileMode(in.Umask) & os.ModePerm
 		}
 		req = r
 
 	case fusekernel.OpInterrupt:
-		in := (*fusekernel.InterruptIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.InterruptIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &InterruptRequest{

@@ -17,6 +17,7 @@ package fuseops
 import (
 	"log"
 	"time"
+	"unsafe"
 
 	"github.com/jacobsa/fuse/internal/fusekernel"
 	"github.com/jacobsa/fuse/internal/fuseshim"
@@ -65,26 +66,34 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.SetattrRequest:
+	case fusekernel.OpSetattr:
+		in := (*fusekernel.SetattrIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
+			goto corrupt
+		}
+
 		to := &SetInodeAttributesOp{
-			bfReq: typed,
-			Inode: InodeID(typed.Header.Node),
+			Inode: InodeID(m.Header().Node),
 		}
 
-		if typed.Valid&fusekernel.SetattrSize != 0 {
-			to.Size = &typed.Size
+		valid := fusekernel.SetattrValid(in.Valid)
+		if valid&fusekernel.SetattrSize != 0 {
+			to.Size = &in.Size
 		}
 
-		if typed.Valid&fusekernel.SetattrMode != 0 {
-			to.Mode = &typed.Mode
+		if valid&fusekernel.SetattrMode != 0 {
+			mode := fuseshim.FileMode(in.Mode)
+			to.Mode = &mode
 		}
 
-		if typed.Valid&fusekernel.SetattrAtime != 0 {
-			to.Atime = &typed.Atime
+		if valid&fusekernel.SetattrAtime != 0 {
+			t := time.Unix(int64(in.Atime), int64(in.AtimeNsec))
+			to.Atime = &t
 		}
 
-		if typed.Valid&fusekernel.SetattrMtime != 0 {
-			to.Mtime = &typed.Mtime
+		if valid&fusekernel.SetattrMtime != 0 {
+			t := time.Unix(int64(in.Mtime), int64(in.MtimeNsec))
+			to.Mtime = &t
 		}
 
 		io = to
