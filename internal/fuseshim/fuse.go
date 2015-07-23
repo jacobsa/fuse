@@ -111,6 +111,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
 // A Conn represents a connection to a mounted FUSE file system.
@@ -129,7 +131,7 @@ type Conn struct {
 	rio sync.RWMutex
 
 	// Protocol version negotiated with InitRequest/InitResponse.
-	proto Protocol
+	proto fusekernel.Protocol
 }
 
 // Mount mounts a new FUSE connection on the named directory
@@ -171,8 +173,8 @@ func Mount(dir string, options ...MountOption) (*Conn, error) {
 }
 
 type OldVersionError struct {
-	Kernel     Protocol
-	LibraryMin Protocol
+	Kernel     fusekernel.Protocol
+	LibraryMin fusekernel.Protocol
 }
 
 func (e *OldVersionError) Error() string {
@@ -192,7 +194,7 @@ func initMount(c *Conn, conf *mountConfig) error {
 		return fmt.Errorf("missing init, got: %T", req)
 	}
 
-	min := Protocol{protoVersionMinMajor, protoVersionMinMinor}
+	min := fusekernel.Protocol{protoVersionMinMajor, protoVersionMinMinor}
 	if r.Kernel.LT(min) {
 		req.RespondError(Errno(syscall.EPROTO))
 		c.Close()
@@ -202,7 +204,7 @@ func initMount(c *Conn, conf *mountConfig) error {
 		}
 	}
 
-	proto := Protocol{protoVersionMaxMajor, protoVersionMaxMinor}
+	proto := fusekernel.Protocol{protoVersionMaxMajor, protoVersionMaxMinor}
 	if r.Kernel.LT(proto) {
 		// Kernel doesn't support the latest version we have.
 		proto = r.Kernel
@@ -518,7 +520,7 @@ func (c *Conn) fd() int {
 	return int(c.dev.Fd())
 }
 
-func (c *Conn) Protocol() Protocol {
+func (c *Conn) Protocol() fusekernel.Protocol {
 	return c.proto
 }
 
@@ -603,7 +605,7 @@ loop:
 
 	case opGetattr:
 		switch {
-		case c.proto.LT(Protocol{7, 9}):
+		case c.proto.LT(fusekernel.Protocol{7, 9}):
 			req = &GetattrRequest{
 				Header: m.Header(),
 			}
@@ -698,7 +700,7 @@ loop:
 			Rdev:   in.Rdev,
 			Name:   string(name),
 		}
-		if c.proto.GE(Protocol{7, 12}) {
+		if c.proto.GE(fusekernel.Protocol{7, 12}) {
 			r.Umask = fileMode(in.Umask) & os.ModePerm
 		}
 		req = r
@@ -722,7 +724,7 @@ loop:
 			// code branch; enforce type to directory
 			Mode: fileMode((in.Mode &^ syscall.S_IFMT) | syscall.S_IFDIR),
 		}
-		if c.proto.GE(Protocol{7, 12}) {
+		if c.proto.GE(fusekernel.Protocol{7, 12}) {
 			r.Umask = fileMode(in.Umask) & os.ModePerm
 		}
 		req = r
@@ -788,7 +790,7 @@ loop:
 			Offset: int64(in.Offset),
 			Size:   int(in.Size),
 		}
-		if c.proto.GE(Protocol{7, 9}) {
+		if c.proto.GE(fusekernel.Protocol{7, 9}) {
 			r.Flags = ReadFlags(in.ReadFlags)
 			r.LockOwner = in.LockOwner
 			r.FileFlags = openFlags(in.Flags)
@@ -806,7 +808,7 @@ loop:
 			Offset: int64(in.Offset),
 			Flags:  WriteFlags(in.WriteFlags),
 		}
-		if c.proto.GE(Protocol{7, 9}) {
+		if c.proto.GE(fusekernel.Protocol{7, 9}) {
 			r.LockOwner = in.LockOwner
 			r.FileFlags = openFlags(in.Flags)
 		}
@@ -930,7 +932,7 @@ loop:
 		}
 		req = &InitRequest{
 			Header:       m.Header(),
-			Kernel:       Protocol{in.Major, in.Minor},
+			Kernel:       fusekernel.Protocol{in.Major, in.Minor},
 			MaxReadahead: in.MaxReadahead,
 			Flags:        InitFlags(in.Flags),
 		}
@@ -969,7 +971,7 @@ loop:
 			Mode:   fileMode(in.Mode),
 			Name:   string(name[:i]),
 		}
-		if c.proto.GE(Protocol{7, 12}) {
+		if c.proto.GE(fusekernel.Protocol{7, 12}) {
 			r.Umask = fileMode(in.Umask) & os.ModePerm
 		}
 		req = r
@@ -1151,7 +1153,7 @@ func (c *Conn) InvalidateEntry(parent NodeID, name string) error {
 // An InitRequest is the first request sent on a FUSE file system.
 type InitRequest struct {
 	Header `json:"-"`
-	Kernel Protocol
+	Kernel fusekernel.Protocol
 	// Maximum readahead in bytes that the kernel plans to use.
 	MaxReadahead uint32
 	Flags        InitFlags
@@ -1165,7 +1167,7 @@ func (r *InitRequest) String() string {
 
 // An InitResponse is the response to an InitRequest.
 type InitResponse struct {
-	Library Protocol
+	Library fusekernel.Protocol
 	// Maximum readahead in bytes that the kernel can use. Ignored if
 	// greater than InitRequest.MaxReadahead.
 	MaxReadahead uint32
@@ -1287,7 +1289,7 @@ func unix(t time.Time) (sec uint64, nsec uint32) {
 	return
 }
 
-func (a *Attr) attr(out *attr, proto Protocol) {
+func (a *Attr) attr(out *attr, proto fusekernel.Protocol) {
 	out.Ino = a.Inode
 	out.Size = a.Size
 	out.Blocks = a.Blocks
@@ -1325,7 +1327,7 @@ func (a *Attr) attr(out *attr, proto Protocol) {
 	out.Gid = a.Gid
 	out.Rdev = a.Rdev
 	out.SetFlags(a.Flags)
-	if proto.GE(Protocol{7, 9}) {
+	if proto.GE(fusekernel.Protocol{7, 9}) {
 		out.Blksize = a.BlockSize
 	}
 

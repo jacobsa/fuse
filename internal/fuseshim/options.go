@@ -3,6 +3,8 @@ package fuseshim
 import (
 	"errors"
 	"strings"
+
+	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
 func dummyOption(conf *mountConfig) error {
