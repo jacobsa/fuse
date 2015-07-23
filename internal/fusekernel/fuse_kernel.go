@@ -342,49 +342,49 @@ var releaseFlagNames = []flagName{
 
 // Opcodes
 const (
-	opLookup      = 1
-	opForget      = 2 // no reply
-	opGetattr     = 3
-	opSetattr     = 4
-	opReadlink    = 5
-	opSymlink     = 6
-	opMknod       = 8
-	opMkdir       = 9
-	opUnlink      = 10
-	opRmdir       = 11
-	opRename      = 12
-	opLink        = 13
-	opOpen        = 14
-	opRead        = 15
-	opWrite       = 16
-	opStatfs      = 17
-	opRelease     = 18
-	opFsync       = 20
-	opSetxattr    = 21
-	opGetxattr    = 22
-	opListxattr   = 23
-	opRemovexattr = 24
-	opFlush       = 25
-	opInit        = 26
-	opOpendir     = 27
-	opReaddir     = 28
-	opReleasedir  = 29
-	opFsyncdir    = 30
-	opGetlk       = 31
-	opSetlk       = 32
-	opSetlkw      = 33
-	opAccess      = 34
-	opCreate      = 35
-	opInterrupt   = 36
-	opBmap        = 37
-	opDestroy     = 38
-	opIoctl       = 39 // Linux?
-	opPoll        = 40 // Linux?
+	OpLookup      = 1
+	OpForget      = 2 // no reply
+	OpGetattr     = 3
+	OpSetattr     = 4
+	OpReadlink    = 5
+	OpSymlink     = 6
+	OpMknod       = 8
+	OpMkdir       = 9
+	OpUnlink      = 10
+	OpRmdir       = 11
+	OpRename      = 12
+	OpLink        = 13
+	OpOpen        = 14
+	OpRead        = 15
+	OpWrite       = 16
+	OpStatfs      = 17
+	OpRelease     = 18
+	OpFsync       = 20
+	OpSetxattr    = 21
+	OpGetxattr    = 22
+	OpListxattr   = 23
+	OpRemovexattr = 24
+	OpFlush       = 25
+	OpInit        = 26
+	OpOpendir     = 27
+	OpReaddir     = 28
+	OpReleasedir  = 29
+	OpFsyncdir    = 30
+	OpGetlk       = 31
+	OpSetlk       = 32
+	OpSetlkw      = 33
+	OpAccess      = 34
+	OpCreate      = 35
+	OpInterrupt   = 36
+	OpBmap        = 37
+	OpDestroy     = 38
+	OpIoctl       = 39 // Linux?
+	OpPoll        = 40 // Linux?
 
 	// OS X
-	opSetvolname = 61
-	opGetxtimes  = 62
-	opExchange   = 63
+	OpSetvolname = 61
+	OpGetxtimes  = 62
+	OpExchange   = 63
 )
 
 type entryOut struct {
@@ -693,7 +693,7 @@ type initIn struct {
 	Flags        uint32
 }
 
-const initInSize = int(unsafe.Sizeof(initIn{}))
+const InitInSize = int(unsafe.Sizeof(initIn{}))
 
 type initOut struct {
 	Major        uint32
@@ -729,7 +729,7 @@ type InHeader struct {
 	Padding uint32
 }
 
-const inHeaderSize = int(unsafe.Sizeof(InHeader{}))
+const InHeaderSize = int(unsafe.Sizeof(InHeader{}))
 
 type OutHeader struct {
 	Len    uint32

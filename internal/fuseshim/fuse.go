@@ -549,19 +549,19 @@ loop:
 	}
 	m.buf = m.buf[:n]
 
-	if n < inHeaderSize {
+	if n < fusekernel.InHeaderSize {
 		putMessage(m)
 		return nil, errors.New("fuse: message too short")
 	}
 
 	// FreeBSD FUSE sends a short length in the header
 	// for FUSE_INIT even though the actual read length is correct.
-	if n == inHeaderSize+initInSize && m.hdr.Opcode == opInit && m.hdr.Len < uint32(n) {
+	if n == fusekernel.InHeaderSize+fusekernel.InitInSize && m.hdr.Opcode == fusekernel.OpInit && m.hdr.Len < uint32(n) {
 		m.hdr.Len = uint32(n)
 	}
 
 	// OSXFUSE sometimes sends the wrong m.hdr.Len in a FUSE_WRITE message.
-	if m.hdr.Len < uint32(n) && m.hdr.Len >= uint32(unsafe.Sizeof(writeIn{})) && m.hdr.Opcode == opWrite {
+	if m.hdr.Len < uint32(n) && m.hdr.Len >= uint32(unsafe.Sizeof(writeIn{})) && m.hdr.Opcode == fusekernel.OpWrite {
 		m.hdr.Len = uint32(n)
 	}
 
@@ -572,7 +572,7 @@ loop:
 		return nil, err
 	}
 
-	m.off = inHeaderSize
+	m.off = fusekernel.InHeaderSize
 
 	// Convert to data structures.
 	// Do not trust kernel to hand us well-formed data.
@@ -582,7 +582,7 @@ loop:
 		Debug(noOpcode{Opcode: m.hdr.Opcode})
 		goto unrecognized
 
-	case opLookup:
+	case fusekernel.OpLookup:
 		buf := m.bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
@@ -593,7 +593,7 @@ loop:
 			Name:   string(buf[:n-1]),
 		}
 
-	case opForget:
+	case fusekernel.OpForget:
 		in := (*forgetIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
@@ -603,7 +603,7 @@ loop:
 			N:      in.Nlookup,
 		}
 
-	case opGetattr:
+	case fusekernel.OpGetattr:
 		switch {
 		case c.proto.LT(fusekernel.Protocol{7, 9}):
 			req = &GetattrRequest{
@@ -622,7 +622,7 @@ loop:
 			}
 		}
 
-	case opSetattr:
+	case fusekernel.OpSetattr:
 		in := (*setattrIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
@@ -642,7 +642,7 @@ loop:
 			Flags:    in.Flags(),
 		}
 
-	case opReadlink:
+	case fusekernel.OpReadlink:
 		if len(m.bytes()) > 0 {
 			goto corrupt
 		}
@@ -650,7 +650,7 @@ loop:
 			Header: m.Header(),
 		}
 
-	case opSymlink:
+	case fusekernel.OpSymlink:
 		// m.bytes() is "newName\0target\0"
 		names := m.bytes()
 		if len(names) == 0 || names[len(names)-1] != 0 {
@@ -667,7 +667,7 @@ loop:
 			Target:  string(target),
 		}
 
-	case opLink:
+	case fusekernel.OpLink:
 		in := (*linkIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
@@ -683,7 +683,7 @@ loop:
 			NewName: string(newName),
 		}
 
-	case opMknod:
+	case fusekernel.OpMknod:
 		size := mknodInSize(c.proto)
 		if m.len() < size {
 			goto corrupt
@@ -705,7 +705,7 @@ loop:
 		}
 		req = r
 
-	case opMkdir:
+	case fusekernel.OpMkdir:
 		size := mkdirInSize(c.proto)
 		if m.len() < size {
 			goto corrupt
@@ -729,7 +729,7 @@ loop:
 		}
 		req = r
 
-	case opUnlink, opRmdir:
+	case fusekernel.OpUnlink, fusekernel.OpRmdir:
 		buf := m.bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
@@ -738,10 +738,10 @@ loop:
 		req = &RemoveRequest{
 			Header: m.Header(),
 			Name:   string(buf[:n-1]),
-			Dir:    m.hdr.Opcode == opRmdir,
+			Dir:    m.hdr.Opcode == fusekernel.OpRmdir,
 		}
 
-	case opRename:
+	case fusekernel.OpRename:
 		in := (*renameIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
@@ -767,25 +767,25 @@ loop:
 			NewName: newName,
 		}
 
-	case opOpendir, opOpen:
+	case fusekernel.OpOpendir, fusekernel.OpOpen:
 		in := (*openIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &OpenRequest{
 			Header: m.Header(),
-			Dir:    m.hdr.Opcode == opOpendir,
+			Dir:    m.hdr.Opcode == fusekernel.OpOpendir,
 			Flags:  openFlags(in.Flags),
 		}
 
-	case opRead, opReaddir:
+	case fusekernel.OpRead, fusekernel.OpReaddir:
 		in := (*readIn)(m.data())
 		if m.len() < readInSize(c.proto) {
 			goto corrupt
 		}
 		r := &ReadRequest{
 			Header: m.Header(),
-			Dir:    m.hdr.Opcode == opReaddir,
+			Dir:    m.hdr.Opcode == fusekernel.OpReaddir,
 			Handle: HandleID(in.Fh),
 			Offset: int64(in.Offset),
 			Size:   int(in.Size),
@@ -797,7 +797,7 @@ loop:
 		}
 		req = r
 
-	case opWrite:
+	case fusekernel.OpWrite:
 		in := (*writeIn)(m.data())
 		if m.len() < writeInSize(c.proto) {
 			goto corrupt
@@ -819,38 +819,38 @@ loop:
 		r.Data = buf
 		req = r
 
-	case opStatfs:
+	case fusekernel.OpStatfs:
 		req = &StatfsRequest{
 			Header: m.Header(),
 		}
 
-	case opRelease, opReleasedir:
+	case fusekernel.OpRelease, fusekernel.OpReleasedir:
 		in := (*releaseIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &ReleaseRequest{
 			Header:       m.Header(),
-			Dir:          m.hdr.Opcode == opReleasedir,
+			Dir:          m.hdr.Opcode == fusekernel.OpReleasedir,
 			Handle:       HandleID(in.Fh),
 			Flags:        openFlags(in.Flags),
 			ReleaseFlags: ReleaseFlags(in.ReleaseFlags),
 			LockOwner:    in.LockOwner,
 		}
 
-	case opFsync, opFsyncdir:
+	case fusekernel.OpFsync, fusekernel.OpFsyncdir:
 		in := (*fsyncIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &FsyncRequest{
-			Dir:    m.hdr.Opcode == opFsyncdir,
+			Dir:    m.hdr.Opcode == fusekernel.OpFsyncdir,
 			Header: m.Header(),
 			Handle: HandleID(in.Fh),
 			Flags:  in.FsyncFlags,
 		}
 
-	case opSetxattr:
+	case fusekernel.OpSetxattr:
 		in := (*setxattrIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
@@ -874,7 +874,7 @@ loop:
 			Xattr:    xattr,
 		}
 
-	case opGetxattr:
+	case fusekernel.OpGetxattr:
 		in := (*getxattrIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
@@ -891,7 +891,7 @@ loop:
 			Position: in.position(),
 		}
 
-	case opListxattr:
+	case fusekernel.OpListxattr:
 		in := (*getxattrIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
@@ -902,7 +902,7 @@ loop:
 			Position: in.position(),
 		}
 
-	case opRemovexattr:
+	case fusekernel.OpRemovexattr:
 		buf := m.bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
@@ -913,7 +913,7 @@ loop:
 			Name:   string(buf[:n-1]),
 		}
 
-	case opFlush:
+	case fusekernel.OpFlush:
 		in := (*flushIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
@@ -925,7 +925,7 @@ loop:
 			LockOwner: in.LockOwner,
 		}
 
-	case opInit:
+	case fusekernel.OpInit:
 		in := (*initIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
@@ -937,14 +937,14 @@ loop:
 			Flags:        fusekernel.InitFlags(in.Flags),
 		}
 
-	case opGetlk:
-		panic("opGetlk")
-	case opSetlk:
-		panic("opSetlk")
-	case opSetlkw:
-		panic("opSetlkw")
+	case fusekernel.OpGetlk:
+		panic("fusekernel.OpGetlk")
+	case fusekernel.OpSetlk:
+		panic("fusekernel.OpSetlk")
+	case fusekernel.OpSetlkw:
+		panic("fusekernel.OpSetlkw")
 
-	case opAccess:
+	case fusekernel.OpAccess:
 		in := (*accessIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
@@ -954,7 +954,7 @@ loop:
 			Mask:   in.Mask,
 		}
 
-	case opCreate:
+	case fusekernel.OpCreate:
 		size := createInSize(c.proto)
 		if m.len() < size {
 			goto corrupt
@@ -976,7 +976,7 @@ loop:
 		}
 		req = r
 
-	case opInterrupt:
+	case fusekernel.OpInterrupt:
 		in := (*interruptIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
@@ -986,21 +986,21 @@ loop:
 			IntrID: RequestID(in.Unique),
 		}
 
-	case opBmap:
-		panic("opBmap")
+	case fusekernel.OpBmap:
+		panic("fusekernel.OpBmap")
 
-	case opDestroy:
+	case fusekernel.OpDestroy:
 		req = &DestroyRequest{
 			Header: m.Header(),
 		}
 
 	// OS X
-	case opSetvolname:
-		panic("opSetvolname")
-	case opGetxtimes:
-		panic("opGetxtimes")
-	case opExchange:
-		panic("opExchange")
+	case fusekernel.OpSetvolname:
+		panic("fusekernel.OpSetvolname")
+	case fusekernel.OpGetxtimes:
+		panic("fusekernel.OpGetxtimes")
+	case fusekernel.OpExchange:
+		panic("fusekernel.OpExchange")
 	}
 
 	return req, nil

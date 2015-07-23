@@ -1,6 +1,10 @@
-package bazilfuse
+package fuseshim
 
-import "unsafe"
+import (
+	"unsafe"
+
+	"github.com/jacobsa/fuse/internal/fusekernel"
+)
 
 // buffer provides a mechanism for constructing a message from
 // multiple segments.
@@ -29,7 +33,7 @@ func (w *buffer) reset() {
 }
 
 func newBuffer(extra uintptr) buffer {
-	const hdrSize = unsafe.Sizeof(outHeader{})
+	const hdrSize = unsafe.Sizeof(fusekernel.OutHeader{})
 	buf := make(buffer, hdrSize, hdrSize+extra)
 	return buf
 }
