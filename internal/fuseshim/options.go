@@ -166,7 +166,7 @@ func MaxReadahead(n uint32) MountOption {
 // time.
 func AsyncRead() MountOption {
 	return func(conf *mountConfig) error {
-		conf.initFlags |= InitAsyncRead
+		conf.initFlags |= fusekernel.InitAsyncRead
 		return nil
 	}
 }
@@ -176,7 +176,7 @@ func AsyncRead() MountOption {
 // used.
 func WritebackCache() MountOption {
 	return func(conf *mountConfig) error {
-		conf.initFlags |= InitWritebackCache
+		conf.initFlags |= fusekernel.InitWritebackCache
 		return nil
 	}
 }

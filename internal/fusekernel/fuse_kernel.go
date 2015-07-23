@@ -53,7 +53,7 @@ const (
 	RootID = 1
 )
 
-type kstatfs struct {
+type Kstatfs struct {
 	Blocks  uint64
 	Bfree   uint64
 	Bavail  uint64
@@ -387,7 +387,7 @@ const (
 	OpExchange   = 63
 )
 
-type entryOut struct {
+type EntryOut struct {
 	Nodeid         uint64 // Inode ID
 	Generation     uint64 // Inode generation
 	EntryValid     uint64 // Cache timeout for the name
@@ -400,9 +400,9 @@ type entryOut struct {
 func EntryOutSize(p Protocol) uintptr {
 	switch {
 	case p.LT(Protocol{7, 9}):
-		return unsafe.Offsetof(entryOut{}.Attr) + unsafe.Offsetof(entryOut{}.Attr.Blksize)
+		return unsafe.Offsetof(EntryOut{}.Attr) + unsafe.Offsetof(EntryOut{}.Attr.Blksize)
 	default:
-		return unsafe.Sizeof(entryOut{})
+		return unsafe.Sizeof(EntryOut{})
 	}
 }
 
@@ -416,7 +416,7 @@ type GetattrIn struct {
 	Fh           uint64
 }
 
-type attrOut struct {
+type AttrOut struct {
 	AttrValid     uint64 // Cache timeout for the attributes
 	AttrValidNsec uint32
 	Dummy         uint32
@@ -426,14 +426,14 @@ type attrOut struct {
 func AttrOutSize(p Protocol) uintptr {
 	switch {
 	case p.LT(Protocol{7, 9}):
-		return unsafe.Offsetof(attrOut{}.Attr) + unsafe.Offsetof(attrOut{}.Attr.Blksize)
+		return unsafe.Offsetof(AttrOut{}.Attr) + unsafe.Offsetof(AttrOut{}.Attr.Blksize)
 	default:
-		return unsafe.Sizeof(attrOut{})
+		return unsafe.Sizeof(AttrOut{})
 	}
 }
 
 // OS X
-type getxtimesOut struct {
+type GetxtimesOut struct {
 	Bkuptime     uint64
 	Crtime       uint64
 	BkuptimeNsec uint32
@@ -512,7 +512,7 @@ type OpenIn struct {
 	Unused uint32
 }
 
-type openOut struct {
+type OpenOut struct {
 	Fh        uint64
 	OpenFlags uint32
 	Padding   uint32
@@ -602,7 +602,7 @@ func WriteInSize(p Protocol) uintptr {
 	}
 }
 
-type writeOut struct {
+type WriteOut struct {
 	Size    uint32
 	Padding uint32
 }
@@ -627,8 +627,8 @@ func (fl WriteFlags) String() string {
 
 const compatStatfsSize = 48
 
-type statfsOut struct {
-	St kstatfs
+type StatfsOut struct {
+	St Kstatfs
 }
 
 type FsyncIn struct {
@@ -642,7 +642,7 @@ type setxattrInCommon struct {
 	Flags uint32
 }
 
-func (setxattrInCommon) position() uint32 {
+func (setxattrInCommon) GetPosition() uint32 {
 	return 0
 }
 
@@ -651,11 +651,11 @@ type getxattrInCommon struct {
 	Padding uint32
 }
 
-func (getxattrInCommon) position() uint32 {
+func (getxattrInCommon) GetPosition() uint32 {
 	return 0
 }
 
-type getxattrOut struct {
+type GetxattrOut struct {
 	Size    uint32
 	Padding uint32
 }
@@ -677,7 +677,7 @@ func LkInSize(p Protocol) uintptr {
 	}
 }
 
-type lkOut struct {
+type LkOut struct {
 	Lk fileLock
 }
 
@@ -695,7 +695,7 @@ type InitIn struct {
 
 const InitInSize = int(unsafe.Sizeof(InitIn{}))
 
-type initOut struct {
+type InitOut struct {
 	Major        uint32
 	Minor        uint32
 	MaxReadahead uint32
@@ -714,7 +714,7 @@ type BmapIn struct {
 	Padding   uint32
 }
 
-type bmapOut struct {
+type BmapOut struct {
 	Block uint64
 }
 
@@ -737,7 +737,7 @@ type OutHeader struct {
 	Unique uint64
 }
 
-type dirent struct {
+type Dirent struct {
 	Ino     uint64
 	Off     uint64
 	Namelen uint32
@@ -745,12 +745,12 @@ type dirent struct {
 	Name    [0]byte
 }
 
-const direntSize = 8 + 8 + 4 + 4
+const DirentSize = 8 + 8 + 4 + 4
 
 const (
-	notifyCodePoll       int32 = 1
-	notifyCodeInvalInode int32 = 2
-	notifyCodeInvalEntry int32 = 3
+	NotifyCodePoll       int32 = 1
+	NotifyCodeInvalInode int32 = 2
+	NotifyCodeInvalEntry int32 = 3
 )
 
 type NotifyInvalInodeOut struct {
