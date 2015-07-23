@@ -66,7 +66,8 @@ type commonOp struct {
 }
 
 func (o *commonOp) ShortDesc() (desc string) {
-	opName := reflect.TypeOf(o.op).String()
+	v := reflect.ValueOf(o.op)
+	opName := v.Type().String()
 
 	// Attempt to better handle the usual case: a string that looks like
 	// "*fuseops.GetInodeAttributesOp".
@@ -76,8 +77,10 @@ func (o *commonOp) ShortDesc() (desc string) {
 		opName = opName[len(prefix) : len(opName)-len(suffix)]
 	}
 
-	// Include the inode number to which the op applies.
-	desc = fmt.Sprintf("%s(inode=%v)", opName, o.bazilReq.Hdr().Node)
+	// Include the inode number to which the op applies, if possible.
+	if f := v.FieldByName("Inode"); f.IsValid() {
+		desc = fmt.Sprintf("%s(inode=%v)", opName, f.Interface())
+	}
 
 	return
 }
