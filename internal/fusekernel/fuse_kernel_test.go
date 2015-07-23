@@ -1,4 +1,4 @@
-package bazilfuse_test
+package fusekernel_test
 
 import (
 	"os"

@@ -33,7 +33,7 @@
    SUCH DAMAGE.
 */
 
-package bazilfuse
+package fusekernel
 
 import (
 	"fmt"

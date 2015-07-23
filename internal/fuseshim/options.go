@@ -14,7 +14,7 @@ func dummyOption(conf *mountConfig) error {
 type mountConfig struct {
 	options      map[string]string
 	maxReadahead uint32
-	initFlags    InitFlags
+	initFlags    fusekernel.InitFlags
 }
 
 func escapeComma(s string) string {
