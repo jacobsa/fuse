@@ -35,6 +35,10 @@ type internalOp interface {
 	kernelResponse() []byte
 }
 
+// A function that sends a reply message back to the kernel for the request
+// with the given fuse unique ID.
+type replyFunc func(uint64, []byte) error
+
 // A helper for embedding common behavior.
 type commonOp struct {
 	// The context exposed to the user.
@@ -47,7 +51,7 @@ type commonOp struct {
 	fuseID uint64
 
 	// A function that can be used to send a reply to the kernel.
-	sendReply func([]byte) error
+	sendReply replyFunc
 
 	// A function that can be used to log debug information about the op. The
 	// first argument is a call depth.
@@ -59,10 +63,6 @@ type commonOp struct {
 	//
 	// May be nil.
 	errorLogger *log.Logger
-
-	// A function that is invoked with the error given to Respond, for use in
-	// closing off traces and reporting back to the connection.
-	finished func(error)
 }
 
 func (o *commonOp) ShortDesc() (desc string) {
