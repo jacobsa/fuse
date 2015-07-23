@@ -1,4 +1,4 @@
-package bazilfuse
+package fuseshim
 
 func localVolume(conf *mountConfig) error {
 	conf.options["local"] = ""

@@ -1,4 +1,4 @@
-package bazilfuse
+package fuseshim
 
 // for TestMountOptionCommaError
 func ForTestSetMountOption(k, v string) MountOption {

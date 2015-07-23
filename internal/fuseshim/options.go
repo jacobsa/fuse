@@ -1,4 +1,4 @@
-package bazilfuse
+package fuseshim
 
 import (
 	"errors"

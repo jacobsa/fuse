@@ -1,4 +1,4 @@
-package bazilfuse_test
+package fuseshim_test
 
 import (
 	"os"
