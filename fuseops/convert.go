@@ -334,11 +334,15 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.FlushRequest:
+	case fusekernel.OpFlush:
+		in := (*fusekernel.FlushIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
+			goto corrupt
+		}
+
 		to := &FlushFileOp{
-			bfReq:  typed,
-			Inode:  InodeID(typed.Header.Node),
-			Handle: HandleID(typed.Handle),
+			Inode:  InodeID(m.Header().Node),
+			Handle: HandleID(in.Fh),
 		}
 		io = to
 		co = &to.commonOp
