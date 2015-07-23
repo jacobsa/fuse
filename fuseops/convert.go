@@ -46,6 +46,7 @@ func Convert(
 	switch typed := r.(type) {
 	case *bazilfuse.LookupRequest:
 		to := &LookUpInodeOp{
+			bfReq:  typed,
 			Parent: InodeID(typed.Header.Node),
 			Name:   typed.Name,
 		}
@@ -54,6 +55,7 @@ func Convert(
 
 	case *bazilfuse.GetattrRequest:
 		to := &GetInodeAttributesOp{
+			bfReq: typed,
 			Inode: InodeID(typed.Header.Node),
 		}
 		io = to
@@ -61,6 +63,7 @@ func Convert(
 
 	case *bazilfuse.SetattrRequest:
 		to := &SetInodeAttributesOp{
+			bfReq: typed,
 			Inode: InodeID(typed.Header.Node),
 		}
 
@@ -85,6 +88,7 @@ func Convert(
 
 	case *bazilfuse.ForgetRequest:
 		to := &ForgetInodeOp{
+			bfReq: typed,
 			Inode: InodeID(typed.Header.Node),
 			N:     typed.N,
 		}
@@ -93,6 +97,7 @@ func Convert(
 
 	case *bazilfuse.MkdirRequest:
 		to := &MkDirOp{
+			bfReq:  typed,
 			Parent: InodeID(typed.Header.Node),
 			Name:   typed.Name,
 			Mode:   typed.Mode,
@@ -102,6 +107,7 @@ func Convert(
 
 	case *bazilfuse.CreateRequest:
 		to := &CreateFileOp{
+			bfReq:  typed,
 			Parent: InodeID(typed.Header.Node),
 			Name:   typed.Name,
 			Mode:   typed.Mode,
@@ -112,6 +118,7 @@ func Convert(
 
 	case *bazilfuse.SymlinkRequest:
 		to := &CreateSymlinkOp{
+			bfReq:  typed,
 			Parent: InodeID(typed.Header.Node),
 			Name:   typed.NewName,
 			Target: typed.Target,
@@ -121,6 +128,7 @@ func Convert(
 
 	case *bazilfuse.RenameRequest:
 		to := &RenameOp{
+			bfReq:     typed,
 			OldParent: InodeID(typed.Header.Node),
 			OldName:   typed.OldName,
 			NewParent: InodeID(typed.NewDir),
@@ -132,6 +140,7 @@ func Convert(
 	case *bazilfuse.RemoveRequest:
 		if typed.Dir {
 			to := &RmDirOp{
+				bfReq:  typed,
 				Parent: InodeID(typed.Header.Node),
 				Name:   typed.Name,
 			}
@@ -139,6 +148,7 @@ func Convert(
 			co = &to.commonOp
 		} else {
 			to := &UnlinkOp{
+				bfReq:  typed,
 				Parent: InodeID(typed.Header.Node),
 				Name:   typed.Name,
 			}
@@ -149,6 +159,7 @@ func Convert(
 	case *bazilfuse.OpenRequest:
 		if typed.Dir {
 			to := &OpenDirOp{
+				bfReq: typed,
 				Inode: InodeID(typed.Header.Node),
 				Flags: typed.Flags,
 			}
@@ -156,6 +167,7 @@ func Convert(
 			co = &to.commonOp
 		} else {
 			to := &OpenFileOp{
+				bfReq: typed,
 				Inode: InodeID(typed.Header.Node),
 				Flags: typed.Flags,
 			}
@@ -166,6 +178,7 @@ func Convert(
 	case *bazilfuse.ReadRequest:
 		if typed.Dir {
 			to := &ReadDirOp{
+				bfReq:  typed,
 				Inode:  InodeID(typed.Header.Node),
 				Handle: HandleID(typed.Handle),
 				Offset: DirOffset(typed.Offset),
@@ -175,6 +188,7 @@ func Convert(
 			co = &to.commonOp
 		} else {
 			to := &ReadFileOp{
+				bfReq:  typed,
 				Inode:  InodeID(typed.Header.Node),
 				Handle: HandleID(typed.Handle),
 				Offset: typed.Offset,
@@ -187,12 +201,14 @@ func Convert(
 	case *bazilfuse.ReleaseRequest:
 		if typed.Dir {
 			to := &ReleaseDirHandleOp{
+				bfReq:  typed,
 				Handle: HandleID(typed.Handle),
 			}
 			io = to
 			co = &to.commonOp
 		} else {
 			to := &ReleaseFileHandleOp{
+				bfReq:  typed,
 				Handle: HandleID(typed.Handle),
 			}
 			io = to
@@ -201,6 +217,7 @@ func Convert(
 
 	case *bazilfuse.WriteRequest:
 		to := &WriteFileOp{
+			bfReq:  typed,
 			Inode:  InodeID(typed.Header.Node),
 			Handle: HandleID(typed.Handle),
 			Data:   typed.Data,
@@ -217,6 +234,7 @@ func Convert(
 			co = &to.commonOp
 		} else {
 			to := &SyncFileOp{
+				bfReq:  typed,
 				Inode:  InodeID(typed.Header.Node),
 				Handle: HandleID(typed.Handle),
 			}
@@ -226,6 +244,7 @@ func Convert(
 
 	case *bazilfuse.FlushRequest:
 		to := &FlushFileOp{
+			bfReq:  typed,
 			Inode:  InodeID(typed.Header.Node),
 			Handle: HandleID(typed.Handle),
 		}
@@ -234,6 +253,7 @@ func Convert(
 
 	case *bazilfuse.ReadlinkRequest:
 		to := &ReadSymlinkOp{
+			bfReq: typed,
 			Inode: InodeID(typed.Header.Node),
 		}
 		io = to
