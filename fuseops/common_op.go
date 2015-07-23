@@ -30,8 +30,9 @@ import (
 type internalOp interface {
 	Op
 
-	// Respond to the underlying fuseshim request, successfully.
-	respond()
+	// Create a response message for the kernel, with leading pading for a
+	// fusekernel.OutHeader struct.
+	kernelResponse() []byte
 }
 
 // A helper for embedding common behavior.
@@ -42,8 +43,11 @@ type commonOp struct {
 	// The op in which this struct is embedded.
 	op internalOp
 
-	// The underlying fuseshim request for this op.
-	bazilReq fuseshim.Request
+	// The fuse unique ID of this request, as assigned by the kernel.
+	fuseID uint64
+
+	// A function that can be used to send a reply to the kernel.
+	sendReply func([]byte) error
 
 	// A function that can be used to log debug information about the op. The
 	// first argument is a call depth.
