@@ -264,28 +264,20 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.ReadRequest:
-		if typed.Dir {
-			to := &ReadDirOp{
-				bfReq:  typed,
-				Inode:  InodeID(typed.Header.Node),
-				Handle: HandleID(typed.Handle),
-				Offset: DirOffset(typed.Offset),
-				Size:   typed.Size,
-			}
-			io = to
-			co = &to.commonOp
-		} else {
-			to := &ReadFileOp{
-				bfReq:  typed,
-				Inode:  InodeID(typed.Header.Node),
-				Handle: HandleID(typed.Handle),
-				Offset: typed.Offset,
-				Size:   typed.Size,
-			}
-			io = to
-			co = &to.commonOp
+	case fusekernel.OpReaddir:
+		in := (*fusekernel.ReadIn)(m.Data())
+		if m.Len() < fusekernel.ReadInSize(protocol) {
+			goto corrupt
 		}
+
+		to := &ReadDirOp{
+			Inode:  InodeID(m.Header().Node),
+			Handle: HandleID(in.Fh),
+			Offset: int64(in.Offset),
+			Size:   int(in.Size),
+		}
+		io = to
+		co = &to.commonOp
 
 	case *fuseshim.ReleaseRequest:
 		if typed.Dir {
