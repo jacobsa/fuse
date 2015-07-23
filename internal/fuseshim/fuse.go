@@ -460,6 +460,12 @@ func (m *Message) Header() Header {
 	}
 }
 
+// Destroy the message, releasing its resources. The message must not be used
+// further.
+func (m *Message) Destroy() {
+	putMessage(m)
+}
+
 // fileMode returns a Go os.FileMode from a Unix mode.
 func fileMode(unixMode uint32) os.FileMode {
 	mode := os.FileMode(unixMode & 0777)
@@ -527,7 +533,7 @@ func (c *Conn) Protocol() fusekernel.Protocol {
 // Read and sanity check a message from the kernel. Return io.EOF when the
 // kernel has hung up. The offset will point to the limit of the header.
 //
-// The message must later be returend with putMessage.
+// The message must later be returned by calling m.Destroy.
 func (c *Conn) ReadMessage() (m *Message, err error) {
 	m = getMessage(c)
 loop:
@@ -540,17 +546,17 @@ loop:
 		goto loop
 	}
 	if err != nil && err != syscall.ENODEV {
-		putMessage(m)
+		m.Destroy()
 		return nil, err
 	}
 	if n <= 0 {
-		putMessage(m)
+		m.Destroy()
 		return nil, io.EOF
 	}
 	m.buf = m.buf[:n]
 
 	if n < fusekernel.InHeaderSize {
-		putMessage(m)
+		m.Destroy()
 		return nil, errors.New("fuse: message too short")
 	}
 
@@ -568,7 +574,7 @@ loop:
 	if m.hdr.Len != uint32(n) {
 		// prepare error message before returning m to pool
 		err := fmt.Errorf("fuse: read %d opcode %d but expected %d", n, m.hdr.Opcode, m.hdr.Len)
-		putMessage(m)
+		m.Destroy()
 		return nil, err
 	}
 
@@ -1018,7 +1024,7 @@ func (c *Conn) ReadRequest() (Request, error) {
 	return req, nil
 
 corrupt:
-	putMessage(m)
+	m.Destroy()
 	return nil, fmt.Errorf("fuse: malformed message")
 
 unrecognized:
