@@ -232,6 +232,13 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
+	case fusekernel.OpOpen:
+		to := &OpenFileOp{
+			Inode: InodeID(m.Header().Node),
+		}
+		io = to
+		co = &to.commonOp
+
 	case *fuseshim.OpenRequest:
 		if typed.Dir {
 			to := &OpenDirOp{
