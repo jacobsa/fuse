@@ -249,6 +249,21 @@ func Convert(
 			co = &to.commonOp
 		}
 
+	case fusekernel.OpRead:
+		in := (*fusekernel.ReadIn)(m.Data())
+		if m.Len() < fusekernel.ReadInSize(protocol) {
+			goto corrupt
+		}
+
+		to := &ReadFileOp{
+			Inode:  InodeID(m.Header().Node),
+			Handle: HandleID(in.Fh),
+			Offset: int64(in.Offset),
+			Size:   int(in.Size),
+		}
+		io = to
+		co = &to.commonOp
+
 	case *fuseshim.ReadRequest:
 		if typed.Dir {
 			to := &ReadDirOp{
