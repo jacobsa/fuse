@@ -34,7 +34,7 @@ func (a *Attr) SetFlags(f uint32) {
 	a.Flags_ = f
 }
 
-type setattrIn struct {
+type SetattrIn struct {
 	setattrInCommon
 
 	// OS X only
@@ -47,15 +47,15 @@ type setattrIn struct {
 	Flags_       uint32 // see chflags(2)
 }
 
-func (in *setattrIn) BkupTime() time.Time {
+func (in *SetattrIn) BkupTime() time.Time {
 	return time.Unix(int64(in.Bkuptime_), int64(in.BkuptimeNsec))
 }
 
-func (in *setattrIn) Chgtime() time.Time {
+func (in *SetattrIn) Chgtime() time.Time {
 	return time.Unix(int64(in.Chgtime_), int64(in.ChgtimeNsec))
 }
 
-func (in *setattrIn) Flags() uint32 {
+func (in *SetattrIn) Flags() uint32 {
 	return in.Flags_
 }
 
@@ -63,7 +63,7 @@ func openFlags(flags uint32) OpenFlags {
 	return OpenFlags(flags)
 }
 
-type getxattrIn struct {
+type GetxattrIn struct {
 	getxattrInCommon
 
 	// OS X only
@@ -71,18 +71,10 @@ type getxattrIn struct {
 	Padding  uint32
 }
 
-func (g *getxattrIn) position() uint32 {
-	return g.Position
-}
-
-type setxattrIn struct {
+type SetxattrIn struct {
 	setxattrInCommon
 
 	// OS X only
 	Position uint32
 	Padding  uint32
-}
-
-func (s *setxattrIn) position() uint32 {
-	return s.Position
 }

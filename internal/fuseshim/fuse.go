@@ -561,7 +561,7 @@ loop:
 	}
 
 	// OSXFUSE sometimes sends the wrong m.hdr.Len in a FUSE_WRITE message.
-	if m.hdr.Len < uint32(n) && m.hdr.Len >= uint32(unsafe.Sizeof(writeIn{})) && m.hdr.Opcode == fusekernel.OpWrite {
+	if m.hdr.Len < uint32(n) && m.hdr.Len >= uint32(unsafe.Sizeof(fusekernel.WriteIn{})) && m.hdr.Opcode == fusekernel.OpWrite {
 		m.hdr.Len = uint32(n)
 	}
 
@@ -579,7 +579,6 @@ loop:
 	var req Request
 	switch m.hdr.Opcode {
 	default:
-		Debug(noOpcode{Opcode: m.hdr.Opcode})
 		goto unrecognized
 
 	case fusekernel.OpLookup:
@@ -594,7 +593,7 @@ loop:
 		}
 
 	case fusekernel.OpForget:
-		in := (*forgetIn)(m.data())
+		in := (*fusekernel.ForgetIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
@@ -611,7 +610,7 @@ loop:
 			}
 
 		default:
-			in := (*getattrIn)(m.data())
+			in := (*fusekernel.GetattrIn)(m.data())
 			if m.len() < unsafe.Sizeof(*in) {
 				goto corrupt
 			}
@@ -623,13 +622,13 @@ loop:
 		}
 
 	case fusekernel.OpSetattr:
-		in := (*setattrIn)(m.data())
+		in := (*fusekernel.SetattrIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &SetattrRequest{
 			Header:   m.Header(),
-			Valid:    SetattrValid(in.Valid),
+			Valid:    fusekernel.SetattrValid(in.Valid),
 			Handle:   HandleID(in.Fh),
 			Size:     in.Size,
 			Atime:    time.Unix(int64(in.Atime), int64(in.AtimeNsec)),
@@ -668,7 +667,7 @@ loop:
 		}
 
 	case fusekernel.OpLink:
-		in := (*linkIn)(m.data())
+		in := (*fusekernel.LinkIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
@@ -684,11 +683,11 @@ loop:
 		}
 
 	case fusekernel.OpMknod:
-		size := mknodInSize(c.proto)
+		size := fusekernel.MknodInSize(c.proto)
 		if m.len() < size {
 			goto corrupt
 		}
-		in := (*mknodIn)(m.data())
+		in := (*fusekernel.MknodIn)(m.data())
 		name := m.bytes()[size:]
 		if len(name) < 2 || name[len(name)-1] != '\x00' {
 			goto corrupt
@@ -706,11 +705,11 @@ loop:
 		req = r
 
 	case fusekernel.OpMkdir:
-		size := mkdirInSize(c.proto)
+		size := fusekernel.MkdirInSize(c.proto)
 		if m.len() < size {
 			goto corrupt
 		}
-		in := (*mkdirIn)(m.data())
+		in := (*fusekernel.MkdirIn)(m.data())
 		name := m.bytes()[size:]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
@@ -742,7 +741,7 @@ loop:
 		}
 
 	case fusekernel.OpRename:
-		in := (*renameIn)(m.data())
+		in := (*fusekernel.RenameIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
@@ -768,19 +767,19 @@ loop:
 		}
 
 	case fusekernel.OpOpendir, fusekernel.OpOpen:
-		in := (*openIn)(m.data())
+		in := (*fusekernel.OpenIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &OpenRequest{
 			Header: m.Header(),
 			Dir:    m.hdr.Opcode == fusekernel.OpOpendir,
-			Flags:  openFlags(in.Flags),
+			Flags:  fusekernel.OpenFlags(in.Flags),
 		}
 
 	case fusekernel.OpRead, fusekernel.OpReaddir:
-		in := (*readIn)(m.data())
-		if m.len() < readInSize(c.proto) {
+		in := (*fusekernel.ReadIn)(m.data())
+		if m.len() < fusekernel.ReadInSize(c.proto) {
 			goto corrupt
 		}
 		r := &ReadRequest{
@@ -791,28 +790,28 @@ loop:
 			Size:   int(in.Size),
 		}
 		if c.proto.GE(fusekernel.Protocol{7, 9}) {
-			r.Flags = ReadFlags(in.ReadFlags)
+			r.Flags = fusekernel.ReadFlags(in.ReadFlags)
 			r.LockOwner = in.LockOwner
-			r.FileFlags = openFlags(in.Flags)
+			r.FileFlags = fusekernel.OpenFlags(in.Flags)
 		}
 		req = r
 
 	case fusekernel.OpWrite:
-		in := (*writeIn)(m.data())
-		if m.len() < writeInSize(c.proto) {
+		in := (*fusekernel.WriteIn)(m.data())
+		if m.len() < fusekernel.WriteInSize(c.proto) {
 			goto corrupt
 		}
 		r := &WriteRequest{
 			Header: m.Header(),
 			Handle: HandleID(in.Fh),
 			Offset: int64(in.Offset),
-			Flags:  WriteFlags(in.WriteFlags),
+			Flags:  fusekernel.WriteFlags(in.WriteFlags),
 		}
 		if c.proto.GE(fusekernel.Protocol{7, 9}) {
 			r.LockOwner = in.LockOwner
-			r.FileFlags = openFlags(in.Flags)
+			r.FileFlags = fusekernel.OpenFlags(in.Flags)
 		}
-		buf := m.bytes()[writeInSize(c.proto):]
+		buf := m.bytes()[fusekernel.WriteInSize(c.proto):]
 		if uint32(len(buf)) < in.Size {
 			goto corrupt
 		}
@@ -825,7 +824,7 @@ loop:
 		}
 
 	case fusekernel.OpRelease, fusekernel.OpReleasedir:
-		in := (*releaseIn)(m.data())
+		in := (*fusekernel.ReleaseIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
@@ -833,13 +832,13 @@ loop:
 			Header:       m.Header(),
 			Dir:          m.hdr.Opcode == fusekernel.OpReleasedir,
 			Handle:       HandleID(in.Fh),
-			Flags:        openFlags(in.Flags),
-			ReleaseFlags: ReleaseFlags(in.ReleaseFlags),
+			Flags:        fusekernel.OpenFlags(in.Flags),
+			ReleaseFlags: fusekernel.ReleaseFlags(in.ReleaseFlags),
 			LockOwner:    in.LockOwner,
 		}
 
 	case fusekernel.OpFsync, fusekernel.OpFsyncdir:
-		in := (*fsyncIn)(m.data())
+		in := (*fusekernel.FsyncIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
@@ -851,7 +850,7 @@ loop:
 		}
 
 	case fusekernel.OpSetxattr:
-		in := (*setxattrIn)(m.data())
+		in := (*fusekernel.SetxattrIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
@@ -869,13 +868,13 @@ loop:
 		req = &SetxattrRequest{
 			Header:   m.Header(),
 			Flags:    in.Flags,
-			Position: in.position(),
+			Position: in.Position(),
 			Name:     string(name[:i]),
 			Xattr:    xattr,
 		}
 
 	case fusekernel.OpGetxattr:
-		in := (*getxattrIn)(m.data())
+		in := (*fusekernel.GetxattrIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
@@ -888,18 +887,18 @@ loop:
 			Header:   m.Header(),
 			Name:     string(name[:i]),
 			Size:     in.Size,
-			Position: in.position(),
+			Position: in.Position,
 		}
 
 	case fusekernel.OpListxattr:
-		in := (*getxattrIn)(m.data())
+		in := (*fusekernel.GetxattrIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &ListxattrRequest{
 			Header:   m.Header(),
 			Size:     in.Size,
-			Position: in.position(),
+			Position: in.Position,
 		}
 
 	case fusekernel.OpRemovexattr:
@@ -914,7 +913,7 @@ loop:
 		}
 
 	case fusekernel.OpFlush:
-		in := (*flushIn)(m.data())
+		in := (*fusekernel.FlushIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
@@ -926,7 +925,7 @@ loop:
 		}
 
 	case fusekernel.OpInit:
-		in := (*initIn)(m.data())
+		in := (*fusekernel.InitIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
@@ -945,7 +944,7 @@ loop:
 		panic("fusekernel.OpSetlkw")
 
 	case fusekernel.OpAccess:
-		in := (*accessIn)(m.data())
+		in := (*fusekernel.AccessIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
@@ -955,11 +954,11 @@ loop:
 		}
 
 	case fusekernel.OpCreate:
-		size := createInSize(c.proto)
+		size := fusekernel.CreateInSize(c.proto)
 		if m.len() < size {
 			goto corrupt
 		}
-		in := (*createIn)(m.data())
+		in := (*fusekernel.CreateIn)(m.data())
 		name := m.bytes()[size:]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
@@ -967,7 +966,7 @@ loop:
 		}
 		r := &CreateRequest{
 			Header: m.Header(),
-			Flags:  openFlags(in.Flags),
+			Flags:  fusekernel.OpenFlags(in.Flags),
 			Mode:   fileMode(in.Mode),
 			Name:   string(name[:i]),
 		}
@@ -977,7 +976,7 @@ loop:
 		req = r
 
 	case fusekernel.OpInterrupt:
-		in := (*interruptIn)(m.data())
+		in := (*fusekernel.InterruptIn)(m.data())
 		if m.len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
@@ -1006,7 +1005,6 @@ loop:
 	return req, nil
 
 corrupt:
-	Debug(malformedMessage{})
 	putMessage(m)
 	return nil, fmt.Errorf("fuse: malformed message")
 
@@ -1052,24 +1050,11 @@ func (c *Conn) writeToKernel(msg []byte) error {
 	c.wio.RLock()
 	defer c.wio.RUnlock()
 	nn, err := syscall.Write(c.fd(), msg)
-	if err == nil && nn != len(msg) {
-		Debug(bugShortKernelWrite{
-			Written: int64(nn),
-			Length:  int64(len(msg)),
-			Error:   errorString(err),
-			Stack:   stack(),
-		})
-	}
 	return err
 }
 
 func (c *Conn) respond(msg []byte) {
-	if err := c.writeToKernel(msg); err != nil {
-		Debug(bugKernelWriteError{
-			Error: errorString(err),
-			Stack: stack(),
-		})
-	}
+	c.writeToKernel(msg)
 }
 
 type notCachedError struct{}
@@ -1349,7 +1334,7 @@ func (r *GetattrRequest) String() string {
 
 // Respond replies to the request with the given response.
 func (r *GetattrRequest) Respond(resp *GetattrResponse) {
-	size := attrOutSize(r.Header.Conn.proto)
+	size := fusekernel.AttrOutSize(r.Header.Conn.proto)
 	buf := newBuffer(size)
 	out := (*attrOut)(buf.alloc(size))
 	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
@@ -1534,7 +1519,7 @@ func (r *LookupRequest) String() string {
 
 // Respond replies to the request with the given response.
 func (r *LookupRequest) Respond(resp *LookupResponse) {
-	size := entryOutSize(r.Header.Conn.proto)
+	size := fusekernel.EntryOutSize(r.Header.Conn.proto)
 	buf := newBuffer(size)
 	out := (*entryOut)(buf.alloc(size))
 	out.Nodeid = uint64(resp.Node)
@@ -1608,7 +1593,7 @@ func (r *CreateRequest) String() string {
 
 // Respond replies to the request with the given response.
 func (r *CreateRequest) Respond(resp *CreateResponse) {
-	eSize := entryOutSize(r.Header.Conn.proto)
+	eSize := fusekernel.EntryOutSize(r.Header.Conn.proto)
 	buf := newBuffer(eSize + unsafe.Sizeof(openOut{}))
 
 	e := (*entryOut)(buf.alloc(eSize))
@@ -1654,7 +1639,7 @@ func (r *MkdirRequest) String() string {
 
 // Respond replies to the request with the given response.
 func (r *MkdirRequest) Respond(resp *MkdirResponse) {
-	size := entryOutSize(r.Header.Conn.proto)
+	size := fusekernel.EntryOutSize(r.Header.Conn.proto)
 	buf := newBuffer(size)
 	out := (*entryOut)(buf.alloc(size))
 	out.Nodeid = uint64(resp.Node)
@@ -1988,7 +1973,7 @@ func (r *SetattrRequest) String() string {
 // Respond replies to the request with the given response,
 // giving the updated attributes.
 func (r *SetattrRequest) Respond(resp *SetattrResponse) {
-	size := attrOutSize(r.Header.Conn.proto)
+	size := fusekernel.AttrOutSize(r.Header.Conn.proto)
 	buf := newBuffer(size)
 	out := (*attrOut)(buf.alloc(size))
 	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
@@ -2062,7 +2047,7 @@ func (r *SymlinkRequest) String() string {
 
 // Respond replies to the request, indicating that the symlink was created.
 func (r *SymlinkRequest) Respond(resp *SymlinkResponse) {
-	size := entryOutSize(r.Header.Conn.proto)
+	size := fusekernel.EntryOutSize(r.Header.Conn.proto)
 	buf := newBuffer(size)
 	out := (*entryOut)(buf.alloc(size))
 	out.Nodeid = uint64(resp.Node)
@@ -2111,7 +2096,7 @@ func (r *LinkRequest) String() string {
 }
 
 func (r *LinkRequest) Respond(resp *LookupResponse) {
-	size := entryOutSize(r.Header.Conn.proto)
+	size := fusekernel.EntryOutSize(r.Header.Conn.proto)
 	buf := newBuffer(size)
 	out := (*entryOut)(buf.alloc(size))
 	out.Nodeid = uint64(resp.Node)
@@ -2157,7 +2142,7 @@ func (r *MknodRequest) String() string {
 }
 
 func (r *MknodRequest) Respond(resp *LookupResponse) {
-	size := entryOutSize(r.Header.Conn.proto)
+	size := fusekernel.EntryOutSize(r.Header.Conn.proto)
 	buf := newBuffer(size)
 	out := (*entryOut)(buf.alloc(size))
 	out.Nodeid = uint64(resp.Node)

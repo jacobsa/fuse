@@ -397,7 +397,7 @@ type entryOut struct {
 	Attr           Attr
 }
 
-func entryOutSize(p Protocol) uintptr {
+func EntryOutSize(p Protocol) uintptr {
 	switch {
 	case p.LT(Protocol{7, 9}):
 		return unsafe.Offsetof(entryOut{}.Attr) + unsafe.Offsetof(entryOut{}.Attr.Blksize)
@@ -406,11 +406,11 @@ func entryOutSize(p Protocol) uintptr {
 	}
 }
 
-type forgetIn struct {
+type ForgetIn struct {
 	Nlookup uint64
 }
 
-type getattrIn struct {
+type GetattrIn struct {
 	GetattrFlags uint32
 	dummy        uint32
 	Fh           uint64
@@ -423,7 +423,7 @@ type attrOut struct {
 	Attr          Attr
 }
 
-func attrOutSize(p Protocol) uintptr {
+func AttrOutSize(p Protocol) uintptr {
 	switch {
 	case p.LT(Protocol{7, 9}):
 		return unsafe.Offsetof(attrOut{}.Attr) + unsafe.Offsetof(attrOut{}.Attr.Blksize)
@@ -440,7 +440,7 @@ type getxtimesOut struct {
 	CrtimeNsec   uint32
 }
 
-type mknodIn struct {
+type MknodIn struct {
 	Mode    uint32
 	Rdev    uint32
 	Umask   uint32
@@ -448,43 +448,43 @@ type mknodIn struct {
 	// "filename\x00" follows.
 }
 
-func mknodInSize(p Protocol) uintptr {
+func MknodInSize(p Protocol) uintptr {
 	switch {
 	case p.LT(Protocol{7, 12}):
-		return unsafe.Offsetof(mknodIn{}.Umask)
+		return unsafe.Offsetof(MknodIn{}.Umask)
 	default:
-		return unsafe.Sizeof(mknodIn{})
+		return unsafe.Sizeof(MknodIn{})
 	}
 }
 
-type mkdirIn struct {
+type MkdirIn struct {
 	Mode  uint32
 	Umask uint32
 	// filename follows
 }
 
-func mkdirInSize(p Protocol) uintptr {
+func MkdirInSize(p Protocol) uintptr {
 	switch {
 	case p.LT(Protocol{7, 12}):
-		return unsafe.Offsetof(mkdirIn{}.Umask) + 4
+		return unsafe.Offsetof(MkdirIn{}.Umask) + 4
 	default:
-		return unsafe.Sizeof(mkdirIn{})
+		return unsafe.Sizeof(MkdirIn{})
 	}
 }
 
-type renameIn struct {
+type RenameIn struct {
 	Newdir uint64
 	// "oldname\x00newname\x00" follows
 }
 
 // OS X
-type exchangeIn struct {
+type ExchangeIn struct {
 	Olddir  uint64
 	Newdir  uint64
 	Options uint64
 }
 
-type linkIn struct {
+type LinkIn struct {
 	Oldnodeid uint64
 }
 
@@ -507,7 +507,7 @@ type setattrInCommon struct {
 	Unused5   uint32
 }
 
-type openIn struct {
+type OpenIn struct {
 	Flags  uint32
 	Unused uint32
 }
@@ -518,37 +518,37 @@ type openOut struct {
 	Padding   uint32
 }
 
-type createIn struct {
+type CreateIn struct {
 	Flags   uint32
 	Mode    uint32
 	Umask   uint32
 	padding uint32
 }
 
-func createInSize(p Protocol) uintptr {
+func CreateInSize(p Protocol) uintptr {
 	switch {
 	case p.LT(Protocol{7, 12}):
-		return unsafe.Offsetof(createIn{}.Umask)
+		return unsafe.Offsetof(CreateIn{}.Umask)
 	default:
-		return unsafe.Sizeof(createIn{})
+		return unsafe.Sizeof(CreateIn{})
 	}
 }
 
-type releaseIn struct {
+type ReleaseIn struct {
 	Fh           uint64
 	Flags        uint32
 	ReleaseFlags uint32
 	LockOwner    uint32
 }
 
-type flushIn struct {
+type FlushIn struct {
 	Fh         uint64
 	FlushFlags uint32
 	Padding    uint32
 	LockOwner  uint64
 }
 
-type readIn struct {
+type ReadIn struct {
 	Fh        uint64
 	Offset    uint64
 	Size      uint32
@@ -558,12 +558,12 @@ type readIn struct {
 	padding   uint32
 }
 
-func readInSize(p Protocol) uintptr {
+func ReadInSize(p Protocol) uintptr {
 	switch {
 	case p.LT(Protocol{7, 9}):
-		return unsafe.Offsetof(readIn{}.ReadFlags) + 4
+		return unsafe.Offsetof(ReadIn{}.ReadFlags) + 4
 	default:
-		return unsafe.Sizeof(readIn{})
+		return unsafe.Sizeof(ReadIn{})
 	}
 }
 
@@ -583,7 +583,7 @@ func (fl ReadFlags) String() string {
 	return flagString(uint32(fl), readFlagNames)
 }
 
-type writeIn struct {
+type WriteIn struct {
 	Fh         uint64
 	Offset     uint64
 	Size       uint32
@@ -593,12 +593,12 @@ type writeIn struct {
 	padding    uint32
 }
 
-func writeInSize(p Protocol) uintptr {
+func WriteInSize(p Protocol) uintptr {
 	switch {
 	case p.LT(Protocol{7, 9}):
-		return unsafe.Offsetof(writeIn{}.LockOwner)
+		return unsafe.Offsetof(WriteIn{}.LockOwner)
 	default:
-		return unsafe.Sizeof(writeIn{})
+		return unsafe.Sizeof(WriteIn{})
 	}
 }
 
@@ -631,7 +631,7 @@ type statfsOut struct {
 	St kstatfs
 }
 
-type fsyncIn struct {
+type FsyncIn struct {
 	Fh         uint64
 	FsyncFlags uint32
 	Padding    uint32
@@ -660,7 +660,7 @@ type getxattrOut struct {
 	Padding uint32
 }
 
-type lkIn struct {
+type LkIn struct {
 	Fh      uint64
 	Owner   uint64
 	Lk      fileLock
@@ -668,12 +668,12 @@ type lkIn struct {
 	padding uint32
 }
 
-func lkInSize(p Protocol) uintptr {
+func LkInSize(p Protocol) uintptr {
 	switch {
 	case p.LT(Protocol{7, 9}):
-		return unsafe.Offsetof(lkIn{}.LkFlags)
+		return unsafe.Offsetof(LkIn{}.LkFlags)
 	default:
-		return unsafe.Sizeof(lkIn{})
+		return unsafe.Sizeof(LkIn{})
 	}
 }
 
@@ -681,19 +681,19 @@ type lkOut struct {
 	Lk fileLock
 }
 
-type accessIn struct {
+type AccessIn struct {
 	Mask    uint32
 	Padding uint32
 }
 
-type initIn struct {
+type InitIn struct {
 	Major        uint32
 	Minor        uint32
 	MaxReadahead uint32
 	Flags        uint32
 }
 
-const InitInSize = int(unsafe.Sizeof(initIn{}))
+const InitInSize = int(unsafe.Sizeof(InitIn{}))
 
 type initOut struct {
 	Major        uint32
@@ -704,11 +704,11 @@ type initOut struct {
 	MaxWrite     uint32
 }
 
-type interruptIn struct {
+type InterruptIn struct {
 	Unique uint64
 }
 
-type bmapIn struct {
+type BmapIn struct {
 	Block     uint64
 	BlockSize uint32
 	Padding   uint32
@@ -753,13 +753,13 @@ const (
 	notifyCodeInvalEntry int32 = 3
 )
 
-type notifyInvalInodeOut struct {
+type NotifyInvalInodeOut struct {
 	Ino uint64
 	Off int64
 	Len int64
 }
 
-type notifyInvalEntryOut struct {
+type NotifyInvalEntryOut struct {
 	Parent  uint64
 	Namelen uint32
 	padding uint32
