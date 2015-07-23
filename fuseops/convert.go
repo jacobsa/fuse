@@ -204,6 +204,20 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
+	case fusekernel.OpUnlink:
+		buf := m.Bytes()
+		n := len(buf)
+		if n == 0 || buf[n-1] != '\x00' {
+			goto corrupt
+		}
+
+		to := &UnlinkOp{
+			Parent: InodeID(m.Header().Node),
+			Name:   string(buf[:n-1]),
+		}
+		io = to
+		co = &to.commonOp
+
 	case *fuseshim.RemoveRequest:
 		if typed.Dir {
 			to := &RmDirOp{
