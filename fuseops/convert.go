@@ -109,7 +109,6 @@ func Convert(
 			Parent: InodeID(typed.Header.Node),
 			Name:   typed.Name,
 			Mode:   typed.Mode,
-			Flags:  typed.Flags,
 		}
 		io = to
 		co = &to.commonOp
@@ -159,7 +158,6 @@ func Convert(
 			to := &OpenDirOp{
 				bfReq: typed,
 				Inode: InodeID(typed.Header.Node),
-				Flags: typed.Flags,
 			}
 			io = to
 			co = &to.commonOp
@@ -167,7 +165,6 @@ func Convert(
 			to := &OpenFileOp{
 				bfReq: typed,
 				Inode: InodeID(typed.Header.Node),
-				Flags: typed.Flags,
 			}
 			io = to
 			co = &to.commonOp

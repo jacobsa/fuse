@@ -273,9 +273,6 @@ type CreateFileOp struct {
 	Name string
 	Mode os.FileMode
 
-	// Flags for the open operation.
-	Flags fuseshim.OpenFlags
-
 	// Set by the file system: information about the inode that was created.
 	//
 	// The lookup count for the inode is implicitly incremented. See notes on
@@ -470,9 +467,6 @@ type OpenDirOp struct {
 	// The ID of the inode to be opened.
 	Inode InodeID
 
-	// Mode and options flags.
-	Flags fuseshim.OpenFlags
-
 	// Set by the file system: an opaque ID that will be echoed in follow-up
 	// calls for this directory using the same struct file in the kernel. In
 	// practice this usually means follow-up calls using the file descriptor
@@ -632,9 +626,6 @@ type OpenFileOp struct {
 
 	// The ID of the inode to be opened.
 	Inode InodeID
-
-	// Mode and options flags.
-	Flags fuseshim.OpenFlags
 
 	// An opaque ID that will be echoed in follow-up calls for this file using
 	// the same struct file in the kernel. In practice this usually means
