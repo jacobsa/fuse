@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/jacobsa/bazilfuse"
+	"github.com/jacobsa/fuse/internal/fuseshim"
 	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
 )
@@ -30,7 +30,7 @@ import (
 type internalOp interface {
 	Op
 
-	// Respond to the underlying bazilfuse request, successfully.
+	// Respond to the underlying fuseshim request, successfully.
 	respond()
 }
 
@@ -42,8 +42,8 @@ type commonOp struct {
 	// The op in which this struct is embedded.
 	op internalOp
 
-	// The underlying bazilfuse request for this op.
-	bazilReq bazilfuse.Request
+	// The underlying fuseshim request for this op.
+	bazilReq fuseshim.Request
 
 	// A function that can be used to log debug information about the op. The
 	// first argument is a call depth.
@@ -81,7 +81,7 @@ func (o *commonOp) ShortDesc() (desc string) {
 func (o *commonOp) init(
 	ctx context.Context,
 	op internalOp,
-	bazilReq bazilfuse.Request,
+	bazilReq fuseshim.Request,
 	debugLog func(int, string, ...interface{}),
 	errorLogger *log.Logger,
 	finished func(error)) {
@@ -122,7 +122,7 @@ func (o *commonOp) Respond(err error) {
 	// Report that the user is responding.
 	o.finished(err)
 
-	// If successful, we should respond to bazilfuse with the appropriate struct.
+	// If successful, we should respond to fuseshim with the appropriate struct.
 	if err == nil {
 		o.op.respond()
 		return

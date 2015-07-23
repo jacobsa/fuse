@@ -19,14 +19,12 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-
-	"github.com/jacobsa/bazilfuse"
 )
 
 // This function is an implementation detail of the fuse package, and must not
 // be called by anyone else.
 //
-// Convert the supplied bazilfuse request struct to an Op. finished will be
+// Convert the supplied fuseshim request struct to an Op. finished will be
 // called with the error supplied to o.Respond when the user invokes that
 // method, before a response is sent to the kernel.
 //
@@ -36,7 +34,7 @@ import (
 // The debug logging function and error logger may be nil.
 func Convert(
 	opCtx context.Context,
-	r bazilfuse.Request,
+	r fuseshim.Request,
 	debugLogForOp func(int, string, ...interface{}),
 	errorLogger *log.Logger,
 	finished func(error)) (o Op) {
@@ -44,7 +42,7 @@ func Convert(
 
 	var io internalOp
 	switch typed := r.(type) {
-	case *bazilfuse.LookupRequest:
+	case *fuseshim.LookupRequest:
 		to := &LookUpInodeOp{
 			bfReq:  typed,
 			Parent: InodeID(typed.Header.Node),
@@ -53,7 +51,7 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *bazilfuse.GetattrRequest:
+	case *fuseshim.GetattrRequest:
 		to := &GetInodeAttributesOp{
 			bfReq: typed,
 			Inode: InodeID(typed.Header.Node),
@@ -61,32 +59,32 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *bazilfuse.SetattrRequest:
+	case *fuseshim.SetattrRequest:
 		to := &SetInodeAttributesOp{
 			bfReq: typed,
 			Inode: InodeID(typed.Header.Node),
 		}
 
-		if typed.Valid&bazilfuse.SetattrSize != 0 {
+		if typed.Valid&fuseshim.SetattrSize != 0 {
 			to.Size = &typed.Size
 		}
 
-		if typed.Valid&bazilfuse.SetattrMode != 0 {
+		if typed.Valid&fuseshim.SetattrMode != 0 {
 			to.Mode = &typed.Mode
 		}
 
-		if typed.Valid&bazilfuse.SetattrAtime != 0 {
+		if typed.Valid&fuseshim.SetattrAtime != 0 {
 			to.Atime = &typed.Atime
 		}
 
-		if typed.Valid&bazilfuse.SetattrMtime != 0 {
+		if typed.Valid&fuseshim.SetattrMtime != 0 {
 			to.Mtime = &typed.Mtime
 		}
 
 		io = to
 		co = &to.commonOp
 
-	case *bazilfuse.ForgetRequest:
+	case *fuseshim.ForgetRequest:
 		to := &ForgetInodeOp{
 			bfReq: typed,
 			Inode: InodeID(typed.Header.Node),
@@ -95,7 +93,7 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *bazilfuse.MkdirRequest:
+	case *fuseshim.MkdirRequest:
 		to := &MkDirOp{
 			bfReq:  typed,
 			Parent: InodeID(typed.Header.Node),
@@ -105,7 +103,7 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *bazilfuse.CreateRequest:
+	case *fuseshim.CreateRequest:
 		to := &CreateFileOp{
 			bfReq:  typed,
 			Parent: InodeID(typed.Header.Node),
@@ -116,7 +114,7 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *bazilfuse.SymlinkRequest:
+	case *fuseshim.SymlinkRequest:
 		to := &CreateSymlinkOp{
 			bfReq:  typed,
 			Parent: InodeID(typed.Header.Node),
@@ -126,7 +124,7 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *bazilfuse.RenameRequest:
+	case *fuseshim.RenameRequest:
 		to := &RenameOp{
 			bfReq:     typed,
 			OldParent: InodeID(typed.Header.Node),
@@ -137,7 +135,7 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *bazilfuse.RemoveRequest:
+	case *fuseshim.RemoveRequest:
 		if typed.Dir {
 			to := &RmDirOp{
 				bfReq:  typed,
@@ -156,7 +154,7 @@ func Convert(
 			co = &to.commonOp
 		}
 
-	case *bazilfuse.OpenRequest:
+	case *fuseshim.OpenRequest:
 		if typed.Dir {
 			to := &OpenDirOp{
 				bfReq: typed,
@@ -175,7 +173,7 @@ func Convert(
 			co = &to.commonOp
 		}
 
-	case *bazilfuse.ReadRequest:
+	case *fuseshim.ReadRequest:
 		if typed.Dir {
 			to := &ReadDirOp{
 				bfReq:  typed,
@@ -198,7 +196,7 @@ func Convert(
 			co = &to.commonOp
 		}
 
-	case *bazilfuse.ReleaseRequest:
+	case *fuseshim.ReleaseRequest:
 		if typed.Dir {
 			to := &ReleaseDirHandleOp{
 				bfReq:  typed,
@@ -215,7 +213,7 @@ func Convert(
 			co = &to.commonOp
 		}
 
-	case *bazilfuse.WriteRequest:
+	case *fuseshim.WriteRequest:
 		to := &WriteFileOp{
 			bfReq:  typed,
 			Inode:  InodeID(typed.Header.Node),
@@ -226,7 +224,7 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *bazilfuse.FsyncRequest:
+	case *fuseshim.FsyncRequest:
 		// We don't currently support this for directories.
 		if typed.Dir {
 			to := &unknownOp{}
@@ -242,7 +240,7 @@ func Convert(
 			co = &to.commonOp
 		}
 
-	case *bazilfuse.FlushRequest:
+	case *fuseshim.FlushRequest:
 		to := &FlushFileOp{
 			bfReq:  typed,
 			Inode:  InodeID(typed.Header.Node),
@@ -251,7 +249,7 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *bazilfuse.ReadlinkRequest:
+	case *fuseshim.ReadlinkRequest:
 		to := &ReadSymlinkOp{
 			bfReq: typed,
 			Inode: InodeID(typed.Header.Node),
@@ -280,8 +278,8 @@ func Convert(
 func convertAttributes(
 	inode InodeID,
 	attr InodeAttributes,
-	expiration time.Time) bazilfuse.Attr {
-	return bazilfuse.Attr{
+	expiration time.Time) fuseshim.Attr {
+	return fuseshim.Attr{
 		Inode:  uint64(inode),
 		Size:   attr.Size,
 		Mode:   attr.Mode,
@@ -317,8 +315,8 @@ func convertExpirationTime(t time.Time) (d time.Duration) {
 
 func convertChildInodeEntry(
 	in *ChildInodeEntry,
-	out *bazilfuse.LookupResponse) {
-	out.Node = bazilfuse.NodeID(in.Child)
+	out *fuseshim.LookupResponse) {
+	out.Node = fuseshim.NodeID(in.Child)
 	out.Generation = uint64(in.Generation)
 	out.Attr = convertAttributes(in.Child, in.Attributes, in.AttributesExpiration)
 	out.EntryValid = convertExpirationTime(in.EntryExpiration)
