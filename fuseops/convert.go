@@ -239,22 +239,12 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
-	case *fuseshim.OpenRequest:
-		if typed.Dir {
-			to := &OpenDirOp{
-				bfReq: typed,
-				Inode: InodeID(typed.Header.Node),
-			}
-			io = to
-			co = &to.commonOp
-		} else {
-			to := &OpenFileOp{
-				bfReq: typed,
-				Inode: InodeID(typed.Header.Node),
-			}
-			io = to
-			co = &to.commonOp
+	case fusekernel.OpOpendir:
+		to := &OpenDirOp{
+			Inode: InodeID(m.Header().Node),
 		}
+		io = to
+		co = &to.commonOp
 
 	case fusekernel.OpRead:
 		in := (*fusekernel.ReadIn)(m.Data())
