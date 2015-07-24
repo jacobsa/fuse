@@ -919,9 +919,10 @@ func (o *ReadSymlinkOp) kernelResponse() (b buffer.Buffer) {
 
 // TODO(jacobsa): Untangle the way ops work and move these to an internal
 // package, along with Convert. I think all of the behavior wants to be on
-// Connection. Ops have only String methods. Connection.ReadRequest returns an
+// Connection. Ops have only String methods. Connection.ReadOp returns an
 // interace{} and a context. If we must restore debug logging later, we can
-// stuff an op ID in that context and add a Connection.Logf method.
+// stuff an op ID in that context and add a Connection.Logf method. Connection
+// has a Reply method that takes a descendent context and an error.
 
 // Do not use this struct directly. See the TODO in fuseops/ops.go.
 type InternalStatFSOp struct {
