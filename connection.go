@@ -255,6 +255,22 @@ func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
 	}
 }
 
+// Write the supplied message to the kernel.
+func (c *Connection) writeMessage(msg []byte) (err error) {
+	// Avoid the retry loop in os.File.Write.
+	n, err := syscall.Write(int(c.wrapped.Dev.Fd()), msg)
+	if err != nil {
+		return
+	}
+
+	if n != len(msg) {
+		err = fmt.Errorf("Wrote %d bytes; expected %d", n, len(msg))
+		return
+	}
+
+	return
+}
+
 // Read the next op from the kernel process. Return io.EOF if the kernel has
 // closed the connection.
 //
@@ -312,9 +328,9 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			}
 
 			// Send the reply to the kernel.
-			err = c.wrapped.WriteToKernel(replyMsg)
+			err = c.writeMessage(replyMsg)
 			if err != nil {
-				err = fmt.Errorf("WriteToKernel: %v", err)
+				err = fmt.Errorf("writeMessage: %v", err)
 				return
 			}
 
