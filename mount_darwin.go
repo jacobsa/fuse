@@ -86,7 +86,6 @@ func callMount(
 	cmd.ExtraFiles = []*os.File{dev}
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "MOUNT_FUSEFS_CALL_BY_LIB=")
-	// TODO this is used for fs typenames etc, let app influence it
 	cmd.Env = append(cmd.Env, "MOUNT_FUSEFS_DAEMON_PATH="+bin)
 
 	var buf bytes.Buffer
