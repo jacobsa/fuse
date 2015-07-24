@@ -114,6 +114,14 @@ type GetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
+func (o *GetInodeAttributesOp) DebugString() string {
+	return fmt.Sprintf(
+		"Inode: %d, Exp: %v, Attr: %s",
+		o.Inode,
+		o.AttributesExpiration,
+		o.Attributes.DebugString())
+}
+
 func (o *GetInodeAttributesOp) kernelResponse() (msg []byte) {
 	size := fusekernel.AttrOutSize(fusekernel.Protocol{0, 0})
 	buf := fuseshim.NewBuffer(size)
@@ -123,14 +131,6 @@ func (o *GetInodeAttributesOp) kernelResponse() (msg []byte) {
 
 	msg = buf
 	return
-}
-
-func (o *GetInodeAttributesOp) DebugString() string {
-	return fmt.Sprintf(
-		"Inode: %d, Exp: %v, Attr: %s",
-		o.Inode,
-		o.AttributesExpiration,
-		o.Attributes.DebugString())
 }
 
 // Change attributes for an inode.
