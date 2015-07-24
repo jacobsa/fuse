@@ -38,6 +38,11 @@ type Connection struct {
 	errorLogger *log.Logger
 	wrapped     *fuseshim.Conn
 
+	// The device through which we're talking to the kernel, and the protocol
+	// version that we're using to talk to it.
+	dev      *os.File
+	protocol fusekernel.Protocol
+
 	// The context from which all op contexts inherit.
 	parentCtx context.Context
 
@@ -66,6 +71,8 @@ func newConnection(
 		debugLogger: debugLogger,
 		errorLogger: errorLogger,
 		wrapped:     wrapped,
+		dev:         wrapped.Dev,
+		protocol:    wrapped.Protocol(),
 		parentCtx:   parentCtx,
 		cancelFuncs: make(map[uint64]func()),
 	}
@@ -225,7 +232,7 @@ func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
 	// Loop past transient errors.
 	for {
 		// Attempt a reaed.
-		err = m.Init(c.wrapped.Dev)
+		err = m.Init(c.dev)
 
 		// Special cases:
 		//
@@ -258,7 +265,7 @@ func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
 // Write the supplied message to the kernel.
 func (c *Connection) writeMessage(msg []byte) (err error) {
 	// Avoid the retry loop in os.File.Write.
-	n, err := syscall.Write(int(c.wrapped.Dev.Fd()), msg)
+	n, err := syscall.Write(int(c.dev.Fd()), msg)
 	if err != nil {
 		return
 	}
@@ -341,7 +348,7 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		op, err = fuseops.Convert(
 			opCtx,
 			m,
-			c.wrapped.Protocol(),
+			c.protocol,
 			debugLogForOp,
 			c.errorLogger,
 			sendReply)
