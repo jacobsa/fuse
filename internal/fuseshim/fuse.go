@@ -125,10 +125,10 @@ type Conn struct {
 	MountError error
 
 	// File handle for kernel communication. Only safe to access if
-	// rio or wio is held.
-	dev *os.File
-	wio sync.RWMutex
-	rio sync.RWMutex
+	// Rio or Wio is held.
+	Dev *os.File
+	Wio sync.RWMutex
+	Rio sync.RWMutex
 
 	// Protocol version negotiated with InitRequest/InitResponse.
 	proto fusekernel.Protocol
@@ -162,7 +162,7 @@ func Mount(dir string, options ...MountOption) (*Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.dev = f
+	c.Dev = f
 
 	if err := initMount(c, &conf); err != nil {
 		c.Close()
@@ -513,16 +513,16 @@ func (malformedMessage) String() string {
 
 // Close closes the FUSE connection.
 func (c *Conn) Close() error {
-	c.wio.Lock()
-	defer c.wio.Unlock()
-	c.rio.Lock()
-	defer c.rio.Unlock()
-	return c.dev.Close()
+	c.Wio.Lock()
+	defer c.Wio.Unlock()
+	c.Rio.Lock()
+	defer c.Rio.Unlock()
+	return c.Dev.Close()
 }
 
-// caller must hold wio or rio
+// caller must hold Wio or Rio
 func (c *Conn) fd() int {
-	return int(c.dev.Fd())
+	return int(c.Dev.Fd())
 }
 
 func (c *Conn) Protocol() fusekernel.Protocol {
@@ -536,9 +536,9 @@ func (c *Conn) Protocol() fusekernel.Protocol {
 func (c *Conn) ReadMessage() (m *Message, err error) {
 	m = getMessage(c)
 loop:
-	c.rio.RLock()
+	c.Rio.RLock()
 	n, err := syscall.Read(c.fd(), m.buf)
-	c.rio.RUnlock()
+	c.Rio.RUnlock()
 	if err == syscall.EINTR {
 		// OSXFUSE sends EINTR to userspace when a request interrupt
 		// completed before it got sent to userspace?
@@ -1068,8 +1068,8 @@ func (c *Conn) writeToKernel(msg []byte) error {
 }
 
 func (c *Conn) WriteToKernel(msg []byte) error {
-	c.wio.RLock()
-	defer c.wio.RUnlock()
+	c.Wio.RLock()
+	defer c.Wio.RUnlock()
 	_, err := syscall.Write(c.fd(), msg)
 	return err
 }

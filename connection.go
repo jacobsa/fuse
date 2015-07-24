@@ -16,14 +16,18 @@ package fuse
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"path"
 	"runtime"
 	"sync"
+	"syscall"
 
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
 	"github.com/jacobsa/fuse/internal/fuseshim"
 )
@@ -202,6 +206,60 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 	cancel()
 }
 
+func (c *Connection) allocateInMessage() (m *buffer.InMessage) {
+	// TODO(jacobsa): Use a freelist.
+	m = new(buffer.InMessage)
+	return
+}
+
+func (c *Connection) destroyInMessage(m *buffer.InMessage) {
+	// TODO(jacobsa): Use a freelist.
+}
+
+// Read the next message from the kernel. The message must later be destroyed
+// using destroyInMessage.
+func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
+	// Allocate a message.
+	m = c.allocateInMessage()
+
+	// Loop past transient errors.
+	for {
+		// Lock and read.
+		//
+		// TODO(jacobsa): Ensure that we document concurrency constraints that make
+		// it safe, then kill the lock here.
+		c.wrapped.Rio.RLock()
+		err = m.Init(c.wrapped.Dev)
+		c.wrapped.Rio.RUnlock()
+
+		// Special cases:
+		//
+		//  *  ENODEV means fuse has hung up.
+		//
+		//  *  EINTR means we should try again. (This seems to happen often on
+		//     OS X, cf. http://golang.org/issue/11180)
+		//
+		if pe, ok := err.(*os.PathError); ok {
+			switch pe.Err {
+			case syscall.ENODEV:
+				err = io.EOF
+
+			case syscall.EINTR:
+				err = nil
+				continue
+			}
+		}
+
+		if err != nil {
+			c.destroyInMessage(m)
+			m = nil
+			return
+		}
+
+		return
+	}
+}
+
 // Read the next op from the kernel process. Return io.EOF if the kernel has
 // closed the connection.
 //
@@ -212,9 +270,9 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 	// Keep going until we find a request we know how to convert.
 	for {
-		// Read the next message from the fuseshim connection.
-		var m *fuseshim.Message
-		m, err = c.wrapped.ReadMessage()
+		// Read the next message from the kernel.
+		var m *buffer.InMessage
+		m, err = c.readMessage()
 		if err != nil {
 			return
 		}
@@ -224,7 +282,7 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		c.nextOpID++
 
 		// Set up op dependencies.
-		opCtx := c.beginOp(m.Hdr.Opcode, m.Hdr.Unique)
+		opCtx := c.beginOp(m.Header().Opcode, m.Header().Unique)
 
 		var debugLogForOp func(int, string, ...interface{})
 		if c.debugLogger != nil {
@@ -238,12 +296,11 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			fuseID uint64,
 			replyMsg []byte,
 			opErr error) (err error) {
-			// Make sure we destroy the message, as required by
-			// fuseshim.Connection.ReadMessage.
-			defer m.Destroy()
+			// Make sure we destroy the message, as required by readMessage.
+			defer c.destroyInMessage(m)
 
 			// Clean up state for this op.
-			c.finishOp(m.Hdr.Opcode, m.Hdr.Unique)
+			c.finishOp(m.Header().Opcode, m.Header().Unique)
 
 			// Debug logging
 			if c.debugLogger != nil {
