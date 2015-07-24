@@ -50,7 +50,7 @@ func Convert(
 	var io internalOp
 	switch m.Header().Opcode {
 	case fusekernel.OpLookup:
-		buf := m.Bytes()
+		buf := m.ConsumeBytes(m.Len())
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
 			err = errors.New("Corrupt OpLookup")
@@ -74,8 +74,9 @@ func Convert(
 		co = &to.commonOp
 
 	case fusekernel.OpSetattr:
-		in := (*fusekernel.SetattrIn)(m.Data())
-		if m.Len() < unsafe.Sizeof(*in) {
+		type input fusekernel.SetattrIn
+		in := (*input)(m.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
 			err = errors.New("Corrupt OpSetattr")
 			return
 		}
@@ -109,8 +110,9 @@ func Convert(
 		co = &to.commonOp
 
 	case fusekernel.OpForget:
-		in := (*fusekernel.ForgetIn)(m.Data())
-		if m.Len() < unsafe.Sizeof(*in) {
+		type input fusekernel.ForgetIn
+		in := (*input)(m.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
 			err = errors.New("Corrupt OpForget")
 			return
 		}

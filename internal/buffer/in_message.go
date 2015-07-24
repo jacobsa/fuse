@@ -41,6 +41,11 @@ func (m *InMessage) Header() (h *fusekernel.InHeader) {
 	panic("TODO")
 }
 
+// Return the number of bytes left to consume.
+func (m *InMessage) Len() uintptr {
+	panic("TODO")
+}
+
 // Consume the next n bytes from the message, returning a nil pointer if there
 // are fewer than n bytes available.
 func (m *InMessage) Consume(n uintptr) (p unsafe.Pointer) {
