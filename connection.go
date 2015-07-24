@@ -410,12 +410,6 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 	}
 }
 
-func (c *Connection) waitForReady() (err error) {
-	<-c.wrapped.Ready
-	err = c.wrapped.MountError
-	return
-}
-
 // Close the connection. Must not be called until operations that were read
 // from the connection have been responded to.
 func (c *Connection) close() (err error) {
