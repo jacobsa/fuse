@@ -9,10 +9,11 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/jacobsa/fuse/internal/buffer"
 )
 
 var errNoAvail = errors.New("no available fuse devices")
-
 var errNotLoaded = errors.New("osxfusefs is not loaded")
 
 func loadOSXFUSE() error {
@@ -68,7 +69,7 @@ func callMount(dir string, conf *mountConfig, f *os.File, ready chan<- struct{},
 		//
 		// OSXFUSE seems to ignore InitResponse.MaxWrite, and uses
 		// this instead.
-		"-o", "iosize="+strconv.FormatUint(maxWrite, 10),
+		"-o", "iosize="+strconv.FormatUint(buffer.MaxWriteSize, 10),
 		// refers to fd passed in cmd.ExtraFiles
 		"3",
 		dir,
