@@ -15,7 +15,6 @@
 package buffer
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"syscall"
@@ -51,7 +50,17 @@ type InMessage struct {
 // Consume will consume the bytes directly after the fusekernel.InHeader
 // struct.
 func (m *InMessage) Init(r io.Reader) (err error) {
-	err = errors.New("TODO")
+	n, err := r.Read(m.storage[:])
+	if err != nil {
+		return
+	}
+
+	if uintptr(n) < unsafe.Sizeof(fusekernel.InHeader{}) {
+		err = fmt.Errorf("Unexpectedly read only %d bytes.", n)
+		return
+	}
+
+	m.remaining = m.storage[:n]
 	return
 }
 
