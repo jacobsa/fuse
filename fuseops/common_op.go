@@ -36,7 +36,7 @@ type internalOp interface {
 	//
 	// Special case: a zero return value means that the kernel is not expecting a
 	// response.
-	kernelResponse() (b buffer.Buffer)
+	kernelResponse() (b buffer.OutMessage)
 }
 
 // A function that sends a reply message back to the kernel for the request
@@ -142,11 +142,11 @@ func (o *commonOp) Respond(err error) {
 	// If successful, we ask the op for an appopriate response to the kernel, and
 	// it is responsible for leaving room for the fusekernel.OutHeader struct.
 	// Otherwise, create our own.
-	var b buffer.Buffer
+	var b buffer.OutMessage
 	if err == nil {
 		b = o.op.kernelResponse()
 	} else {
-		b = buffer.New(0)
+		b = buffer.NewOutMessage(0)
 	}
 
 	// Fill in the header if a reply is needed.

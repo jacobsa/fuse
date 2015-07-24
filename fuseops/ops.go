@@ -88,9 +88,9 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *LookUpInodeOp) kernelResponse() (b buffer.Buffer) {
+func (o *LookUpInodeOp) kernelResponse() (b buffer.OutMessage) {
 	size := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.New(size)
+	b = buffer.NewOutMessage(size)
 	out := (*fusekernel.EntryOut)(b.Grow(size))
 	convertChildInodeEntry(&o.Entry, out)
 
@@ -123,9 +123,9 @@ func (o *GetInodeAttributesOp) DebugString() string {
 		o.Attributes.DebugString())
 }
 
-func (o *GetInodeAttributesOp) kernelResponse() (b buffer.Buffer) {
+func (o *GetInodeAttributesOp) kernelResponse() (b buffer.OutMessage) {
 	size := fusekernel.AttrOutSize(o.protocol)
-	b = buffer.New(size)
+	b = buffer.NewOutMessage(size)
 	out := (*fusekernel.AttrOut)(b.Grow(size))
 	out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
 	convertAttributes(o.Inode, &o.Attributes, &out.Attr)
@@ -157,9 +157,9 @@ type SetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *SetInodeAttributesOp) kernelResponse() (b buffer.Buffer) {
+func (o *SetInodeAttributesOp) kernelResponse() (b buffer.OutMessage) {
 	size := fusekernel.AttrOutSize(o.protocol)
-	b = buffer.New(size)
+	b = buffer.NewOutMessage(size)
 	out := (*fusekernel.AttrOut)(b.Grow(size))
 	out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
 	convertAttributes(o.Inode, &o.Attributes, &out.Attr)
@@ -216,7 +216,7 @@ type ForgetInodeOp struct {
 	N uint64
 }
 
-func (o *ForgetInodeOp) kernelResponse() (b buffer.Buffer) {
+func (o *ForgetInodeOp) kernelResponse() (b buffer.OutMessage) {
 	// No response.
 	return
 }
@@ -259,9 +259,9 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *MkDirOp) kernelResponse() (b buffer.Buffer) {
+func (o *MkDirOp) kernelResponse() (b buffer.OutMessage) {
 	size := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.New(size)
+	b = buffer.NewOutMessage(size)
 	out := (*fusekernel.EntryOut)(b.Grow(size))
 	convertChildInodeEntry(&o.Entry, out)
 
@@ -311,9 +311,9 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *CreateFileOp) kernelResponse() (b buffer.Buffer) {
+func (o *CreateFileOp) kernelResponse() (b buffer.OutMessage) {
 	eSize := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.New(eSize + unsafe.Sizeof(fusekernel.OpenOut{}))
+	b = buffer.NewOutMessage(eSize + unsafe.Sizeof(fusekernel.OpenOut{}))
 
 	e := (*fusekernel.EntryOut)(b.Grow(eSize))
 	convertChildInodeEntry(&o.Entry, e)
@@ -357,9 +357,9 @@ func (o *CreateSymlinkOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *CreateSymlinkOp) kernelResponse() (b buffer.Buffer) {
+func (o *CreateSymlinkOp) kernelResponse() (b buffer.OutMessage) {
 	size := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.New(size)
+	b = buffer.NewOutMessage(size)
 	out := (*fusekernel.EntryOut)(b.Grow(size))
 	convertChildInodeEntry(&o.Entry, out)
 
@@ -418,8 +418,8 @@ type RenameOp struct {
 	NewName   string
 }
 
-func (o *RenameOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(0)
+func (o *RenameOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(0)
 	return
 }
 
@@ -439,8 +439,8 @@ type RmDirOp struct {
 	Name   string
 }
 
-func (o *RmDirOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(0)
+func (o *RmDirOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(0)
 	return
 }
 
@@ -459,8 +459,8 @@ type UnlinkOp struct {
 	Name   string
 }
 
-func (o *UnlinkOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(0)
+func (o *UnlinkOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(0)
 	return
 }
 
@@ -491,8 +491,8 @@ type OpenDirOp struct {
 	Handle HandleID
 }
 
-func (o *OpenDirOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(unsafe.Sizeof(fusekernel.OpenOut{}))
+func (o *OpenDirOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.OpenOut{}))
 	out := (*fusekernel.OpenOut)(b.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
 	out.Fh = uint64(o.Handle)
 
@@ -589,8 +589,8 @@ type ReadDirOp struct {
 	Data []byte
 }
 
-func (o *ReadDirOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(uintptr(len(o.Data)))
+func (o *ReadDirOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(uintptr(len(o.Data)))
 	b.Append(o.Data)
 	return
 }
@@ -612,8 +612,8 @@ type ReleaseDirHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseDirHandleOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(0)
+func (o *ReleaseDirHandleOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(0)
 	return
 }
 
@@ -643,8 +643,8 @@ type OpenFileOp struct {
 	Handle HandleID
 }
 
-func (o *OpenFileOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(unsafe.Sizeof(fusekernel.OpenOut{}))
+func (o *OpenFileOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.OpenOut{}))
 	out := (*fusekernel.OpenOut)(b.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
 	out.Fh = uint64(o.Handle)
 
@@ -680,8 +680,8 @@ type ReadFileOp struct {
 	Data []byte
 }
 
-func (o *ReadFileOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(uintptr(len(o.Data)))
+func (o *ReadFileOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(uintptr(len(o.Data)))
 	b.Append(o.Data)
 	return
 }
@@ -756,8 +756,8 @@ type WriteFileOp struct {
 	Data []byte
 }
 
-func (o *WriteFileOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(unsafe.Sizeof(fusekernel.WriteOut{}))
+func (o *WriteFileOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.WriteOut{}))
 	out := (*fusekernel.WriteOut)(b.Grow(unsafe.Sizeof(fusekernel.WriteOut{})))
 	out.Size = uint32(len(o.Data))
 
@@ -788,8 +788,8 @@ type SyncFileOp struct {
 	Handle HandleID
 }
 
-func (o *SyncFileOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(0)
+func (o *SyncFileOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(0)
 	return
 }
 
@@ -848,8 +848,8 @@ type FlushFileOp struct {
 	Handle HandleID
 }
 
-func (o *FlushFileOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(0)
+func (o *FlushFileOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(0)
 	return
 }
 
@@ -870,8 +870,8 @@ type ReleaseFileHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseFileHandleOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(0)
+func (o *ReleaseFileHandleOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(0)
 	return
 }
 
@@ -888,7 +888,7 @@ func (o *unknownOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *unknownOp) kernelResponse() (b buffer.Buffer) {
+func (o *unknownOp) kernelResponse() (b buffer.OutMessage) {
 	panic(fmt.Sprintf("Should never get here for unknown op: %s", o.ShortDesc()))
 }
 
@@ -907,8 +907,8 @@ type ReadSymlinkOp struct {
 	Target string
 }
 
-func (o *ReadSymlinkOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(uintptr(len(o.Target)))
+func (o *ReadSymlinkOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(uintptr(len(o.Target)))
 	b.AppendString(o.Target)
 	return
 }
@@ -929,8 +929,8 @@ type InternalStatFSOp struct {
 	commonOp
 }
 
-func (o *InternalStatFSOp) kernelResponse() (b buffer.Buffer) {
-	b = buffer.New(unsafe.Sizeof(fusekernel.StatfsOut{}))
+func (o *InternalStatFSOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.StatfsOut{}))
 	b.Grow(unsafe.Sizeof(fusekernel.StatfsOut{}))
 
 	return
@@ -942,6 +942,6 @@ type InternalInterruptOp struct {
 	FuseID uint64
 }
 
-func (o *InternalInterruptOp) kernelResponse() (b buffer.Buffer) {
+func (o *InternalInterruptOp) kernelResponse() (b buffer.OutMessage) {
 	panic("Shouldn't get here.")
 }
