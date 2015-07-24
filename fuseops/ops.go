@@ -922,6 +922,8 @@ type InternalStatFSOp struct {
 func (o *InternalStatFSOp) kernelResponse() (msg []byte) {
 	buf := fuseshim.NewBuffer(unsafe.Sizeof(fusekernel.StatfsOut{}))
 	buf.Alloc(unsafe.Sizeof(fusekernel.StatfsOut{}))
+
+	msg = buf
 	return
 }
 
