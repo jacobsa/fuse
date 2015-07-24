@@ -63,17 +63,31 @@ func (m *InMessage) Header() (h *fusekernel.InHeader) {
 
 // Return the number of bytes left to consume.
 func (m *InMessage) Len() uintptr {
-	panic("TODO")
+	return uintptr(len(m.remaining))
 }
 
 // Consume the next n bytes from the message, returning a nil pointer if there
 // are fewer than n bytes available.
 func (m *InMessage) Consume(n uintptr) (p unsafe.Pointer) {
-	panic("TODO")
+	if m.Len() == 0 || n > m.Len() {
+		return
+	}
+
+	p = unsafe.Pointer(&m.remaining[0])
+	m.remaining = m.remaining[n:]
+
+	return
 }
 
 // Equivalent to Consume, except returns a slice of bytes. The result will be
-// nil if Consume fails.
+// nil if Consume would fail.
 func (m *InMessage) ConsumeBytes(n uintptr) (b []byte) {
-	panic("TODO")
+	if n > m.Len() {
+		return
+	}
+
+	b = m.remaining[:n]
+	m.remaining = m.remaining[n:]
+
+	return
 }
