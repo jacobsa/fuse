@@ -917,3 +917,32 @@ func (o *ReadSymlinkOp) kernelResponse() (msg []byte) {
 	o.bfReq.Respond(o.Target)
 	return
 }
+
+////////////////////////////////////////////////////////////////////////
+// Internal
+////////////////////////////////////////////////////////////////////////
+
+// TODO(jacobsa): Untangle the way ops work and move these to an internal
+// package, along with Convert. I think all of the behavior wants to be on
+// Connection. Ops have only String methods. Connection.ReadRequest returns an
+// interace{} and a context. If we must restore debug logging later, we can
+// stuff an op ID in that context and add a Connection.Logf method.
+
+// Do not use this struct directly. See the TODO in fuseops/ops.go.
+type InternalStatFSOp struct {
+	commonOp
+}
+
+func (o *InternalStatFSOp) kernelResponse() (msg []byte) {
+	panic("TODO")
+}
+
+// Do not use this struct directly. See the TODO in fuseops/ops.go.
+type InternalInterruptOp struct {
+	commonOp
+	FuseID uint64
+}
+
+func (o *InternalInterruptOp) kernelResponse() (msg []byte) {
+	panic("Shouldn't get here.")
+}
