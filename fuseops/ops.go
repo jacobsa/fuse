@@ -345,10 +345,12 @@ func (o *CreateSymlinkOp) ShortDesc() (desc string) {
 }
 
 func (o *CreateSymlinkOp) kernelResponse() (msg []byte) {
-	resp := fuseshim.SymlinkResponse{}
-	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
+	size := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	buf := fuseshim.NewBuffer(size)
+	out := (*fusekernel.EntryOut)(buf.Alloc(size))
+	convertChildInodeEntry(&o.Entry, out)
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
@@ -405,7 +407,7 @@ type RenameOp struct {
 }
 
 func (o *RenameOp) kernelResponse() (msg []byte) {
-	o.bfReq.Respond()
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -426,7 +428,7 @@ type RmDirOp struct {
 }
 
 func (o *RmDirOp) kernelResponse() (msg []byte) {
-	o.bfReq.Respond()
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -446,7 +448,7 @@ type UnlinkOp struct {
 }
 
 func (o *UnlinkOp) kernelResponse() (msg []byte) {
-	o.bfReq.Respond()
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -603,7 +605,7 @@ type ReleaseDirHandleOp struct {
 }
 
 func (o *ReleaseDirHandleOp) kernelResponse() (msg []byte) {
-	o.bfReq.Respond()
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -786,7 +788,7 @@ type SyncFileOp struct {
 }
 
 func (o *SyncFileOp) kernelResponse() (msg []byte) {
-	o.bfReq.Respond()
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -846,7 +848,7 @@ type FlushFileOp struct {
 }
 
 func (o *FlushFileOp) kernelResponse() (msg []byte) {
-	o.bfReq.Respond()
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -868,7 +870,7 @@ type ReleaseFileHandleOp struct {
 }
 
 func (o *ReleaseFileHandleOp) kernelResponse() (msg []byte) {
-	o.bfReq.Respond()
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
