@@ -532,7 +532,7 @@ func (c *Conn) Protocol() fusekernel.Protocol {
 // Read and sanity check a message from the kernel. Return io.EOF when the
 // kernel has hung up. The offset will point to the limit of the header.
 //
-// The message must later be returned by calling m.Destroy.
+// The message must later be disposed of by calling m.Destroy.
 func (c *Conn) ReadMessage() (m *Message, err error) {
 	m = getMessage(c)
 loop:
