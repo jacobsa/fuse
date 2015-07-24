@@ -91,7 +91,7 @@ func newConnection(
 		Dev: dev,
 	}
 
-	err = fuseshim.InitMount(wrapped, maxReadahead, TODO)
+	err = fuseshim.InitMount(wrapped, maxReadahead, 0)
 	if err != nil {
 		err = fmt.Errorf("fuseshim.InitMount: %v", err)
 		return
