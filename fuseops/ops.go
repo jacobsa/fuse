@@ -945,3 +945,30 @@ type InternalInterruptOp struct {
 func (o *InternalInterruptOp) kernelResponse() (b buffer.OutMessage) {
 	panic("Shouldn't get here.")
 }
+
+// Do not use this struct directly. See the TODO in fuseops/ops.go.
+type InternalInitOp struct {
+	commonOp
+
+	// In
+	Kernel fusekernel.Protocol
+
+	// Out
+	Library      fusekernel.Protocol
+	MaxReadahead uint32
+	Flags        fusekernel.InitFlags
+	MaxWrite     uint32
+}
+
+func (o *InternalInitOp) kernelResponse() (b buffer.OutMessage) {
+	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.InitOut{}))
+	out := (*fusekernel.InitOut)(b.Grow(unsafe.Sizeof(fusekernel.InitOut{})))
+
+	out.Major = o.Library.Major
+	out.Minor = o.Library.Minor
+	out.MaxReadahead = o.MaxReadahead
+	out.Flags = uint32(o.Flags)
+	out.MaxWrite = o.MaxWrite
+
+	return
+}

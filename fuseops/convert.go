@@ -418,6 +418,22 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
+	case fusekernel.OpInit:
+		type input fusekernel.InitIn
+		in := (*input)(m.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			err = errors.New("Corrupt OpInit")
+			return
+		}
+
+		to := &InternalInitOp{
+			Kernel:       fusekernel.Protocol{in.Major, in.Minor},
+			MaxReadahead: in.MaxReadahead,
+			Flags:        fusekernel.InitFlags(in.Flags),
+		}
+		io = to
+		co = &to.commonOp
+
 	default:
 		to := &unknownOp{
 			opCode: m.Header().Opcode,
