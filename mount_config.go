@@ -15,8 +15,10 @@
 package fuse
 
 import (
+	"fmt"
 	"log"
 	"runtime"
+	"strings"
 
 	"golang.org/x/net/context"
 )
@@ -126,7 +128,26 @@ func (c *MountConfig) toMap() (opts map[string]string) {
 	return
 }
 
+func escapeOptionsKey(s string) (res string) {
+	res = s
+	res = strings.Replace(res, `\`, `\\`, -1)
+	res = strings.Replace(res, `,`, `\,`, -1)
+	return
+}
+
 // Create an options string suitable for passing to the mount helper.
 func (c *MountConfig) toOptionsString() string {
-	panic("TODO")
+	var components []string
+	for k, v := range c.toMap() {
+		k = escapeOptionsKey(k)
+
+		component := k
+		if v != "" {
+			component = fmt.Sprintf("%s=%s", k, v)
+		}
+
+		components = append(components, component)
+	}
+
+	return strings.Join(components, ",")
 }
