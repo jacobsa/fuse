@@ -1,4 +1,4 @@
-package fuseshim
+package fuse
 
 import (
 	"bytes"
@@ -109,23 +109,42 @@ func callMount(dir string, conf *mountConfig, f *os.File, ready chan<- struct{},
 	return err
 }
 
-func mount(dir string, conf *mountConfig, ready chan<- struct{}, errp *error) (*os.File, error) {
-	f, err := openOSXFUSEDev()
+// Begin the process of mounting at the given directory, returning a connection
+// to the kernel. Mounting continues in the background, and is complete when an
+// error is written to the supplied channel. The file system may need to
+// service the connection in order for mounting to complete.
+func mount(
+	dir string,
+	conf *mountConfig,
+	ready chan<- error) (dev *os.File, err error) {
+	// Open the device.
+	dev, err = openOSXFUSEDev()
+
+	// Special case: we may need to explicitly load osxfuse. Load it, then try
+	// again.
 	if err == errNotLoaded {
 		err = loadOSXFUSE()
 		if err != nil {
-			return nil, err
+			err = fmt.Errorf("loadOSXFUSE: %v", err)
+			return
 		}
-		// try again
-		f, err = openOSXFUSEDev()
+
+		dev, err = openOSXFUSEDev()
 	}
+
+	// Propagate errors.
 	if err != nil {
-		return nil, err
+		err = fmt.Errorf("openOSXFUSEDev: %v", err)
+		return
 	}
-	err = callMount(dir, conf, f, ready, errp)
+
+	// Call the mount binary with the device.
+	err = callMount(dir, conf, dev, ready)
 	if err != nil {
-		f.Close()
-		return nil, err
+		dev.Close()
+		err = fmt.Errorf("callMount: %v", err)
+		return
 	}
-	return f, nil
+
+	return
 }
