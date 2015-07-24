@@ -439,7 +439,7 @@ func convertAttributes(
 	out.Gid = in.Gid
 
 	// Set the mode.
-	out.Mode = uint32(in.Mode) & 077
+	out.Mode = uint32(in.Mode) & 0777
 	switch {
 	default:
 		out.Mode |= syscall.S_IFREG
