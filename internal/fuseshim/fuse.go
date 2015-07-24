@@ -1075,7 +1075,7 @@ func (c *Conn) WriteToKernel(msg []byte) error {
 }
 
 func (c *Conn) respond(msg []byte) {
-	c.WriteToKernel(msg)
+	c.writeToKernel(msg)
 }
 
 type notCachedError struct{}
@@ -1100,7 +1100,7 @@ var (
 //
 // A returned ENOENT is translated to a friendlier error.
 func (c *Conn) sendInvalidate(msg []byte) error {
-	switch err := c.WriteToKernel(msg); err {
+	switch err := c.writeToKernel(msg); err {
 	case syscall.ENOENT:
 		return ErrNotCached
 	default:
