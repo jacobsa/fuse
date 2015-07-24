@@ -1,8 +1,8 @@
-package fuseshim
+package fusekernel
 
 import "time"
 
-type attr struct {
+type Attr struct {
 	Ino       uint64
 	Size      uint64
 	Blocks    uint64
@@ -21,31 +21,31 @@ type attr struct {
 	padding   uint32
 }
 
-func (a *attr) Crtime() time.Time {
+func (a *Attr) Crtime() time.Time {
 	return time.Time{}
 }
 
-func (a *attr) SetCrtime(s uint64, ns uint32) {
+func (a *Attr) SetCrtime(s uint64, ns uint32) {
 	// Ignored on Linux.
 }
 
-func (a *attr) SetFlags(f uint32) {
+func (a *Attr) SetFlags(f uint32) {
 	// Ignored on Linux.
 }
 
-type setattrIn struct {
+type SetattrIn struct {
 	setattrInCommon
 }
 
-func (in *setattrIn) BkupTime() time.Time {
+func (in *SetattrIn) BkupTime() time.Time {
 	return time.Time{}
 }
 
-func (in *setattrIn) Chgtime() time.Time {
+func (in *SetattrIn) Chgtime() time.Time {
 	return time.Time{}
 }
 
-func (in *setattrIn) Flags() uint32 {
+func (in *SetattrIn) Flags() uint32 {
 	return 0
 }
 
@@ -61,10 +61,10 @@ func openFlags(flags uint32) OpenFlags {
 	return OpenFlags(flags)
 }
 
-type getxattrIn struct {
+type GetxattrIn struct {
 	getxattrInCommon
 }
 
-type setxattrIn struct {
+type SetxattrIn struct {
 	setxattrInCommon
 }

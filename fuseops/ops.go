@@ -60,6 +60,7 @@ type Op interface {
 // when resolving user paths to dentry structs, which are then cached.
 type LookUpInodeOp struct {
 	commonOp
+	protocol fusekernel.Protocol
 
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
@@ -88,7 +89,7 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 }
 
 func (o *LookUpInodeOp) kernelResponse() (msg []byte) {
-	size := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	size := fusekernel.EntryOutSize(o.protocol)
 	buf := fuseshim.NewBuffer(size)
 	out := (*fusekernel.EntryOut)(buf.Alloc(size))
 	convertChildInodeEntry(&o.Entry, out)
@@ -103,6 +104,7 @@ func (o *LookUpInodeOp) kernelResponse() (msg []byte) {
 // field of ChildInodeEntry, etc.
 type GetInodeAttributesOp struct {
 	commonOp
+	protocol fusekernel.Protocol
 
 	// The inode of interest.
 	Inode InodeID
@@ -123,7 +125,7 @@ func (o *GetInodeAttributesOp) DebugString() string {
 }
 
 func (o *GetInodeAttributesOp) kernelResponse() (msg []byte) {
-	size := fusekernel.AttrOutSize(fusekernel.Protocol{0, 0})
+	size := fusekernel.AttrOutSize(o.protocol)
 	buf := fuseshim.NewBuffer(size)
 	out := (*fusekernel.AttrOut)(buf.Alloc(size))
 	out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
@@ -139,6 +141,7 @@ func (o *GetInodeAttributesOp) kernelResponse() (msg []byte) {
 // cases like ftrunctate(2).
 type SetInodeAttributesOp struct {
 	commonOp
+	protocol fusekernel.Protocol
 
 	// The inode of interest.
 	Inode InodeID
@@ -157,7 +160,7 @@ type SetInodeAttributesOp struct {
 }
 
 func (o *SetInodeAttributesOp) kernelResponse() (msg []byte) {
-	size := fusekernel.AttrOutSize(fusekernel.Protocol{0, 0})
+	size := fusekernel.AttrOutSize(o.protocol)
 	buf := fuseshim.NewBuffer(size)
 	out := (*fusekernel.AttrOut)(buf.Alloc(size))
 	out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
@@ -238,6 +241,7 @@ func (o *ForgetInodeOp) kernelResponse() (msg []byte) {
 // Therefore the file system should return EEXIST if the name already exists.
 type MkDirOp struct {
 	commonOp
+	protocol fusekernel.Protocol
 
 	// The ID of parent directory inode within which to create the child.
 	Parent InodeID
@@ -259,7 +263,7 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 }
 
 func (o *MkDirOp) kernelResponse() (msg []byte) {
-	size := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	size := fusekernel.EntryOutSize(o.protocol)
 	buf := fuseshim.NewBuffer(size)
 	out := (*fusekernel.EntryOut)(buf.Alloc(size))
 	convertChildInodeEntry(&o.Entry, out)
@@ -280,6 +284,7 @@ func (o *MkDirOp) kernelResponse() (msg []byte) {
 // Therefore the file system should return EEXIST if the name already exists.
 type CreateFileOp struct {
 	commonOp
+	protocol fusekernel.Protocol
 
 	// The ID of parent directory inode within which to create the child file.
 	Parent InodeID
@@ -311,7 +316,7 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 }
 
 func (o *CreateFileOp) kernelResponse() (msg []byte) {
-	eSize := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	eSize := fusekernel.EntryOutSize(o.protocol)
 	buf := fuseshim.NewBuffer(eSize + unsafe.Sizeof(fusekernel.OpenOut{}))
 
 	e := (*fusekernel.EntryOut)(buf.Alloc(eSize))
@@ -328,6 +333,7 @@ func (o *CreateFileOp) kernelResponse() (msg []byte) {
 // return EEXIST (cf. the notes on CreateFileOp and MkDirOp).
 type CreateSymlinkOp struct {
 	commonOp
+	protocol fusekernel.Protocol
 
 	// The ID of parent directory inode within which to create the child symlink.
 	Parent InodeID
@@ -357,7 +363,7 @@ func (o *CreateSymlinkOp) ShortDesc() (desc string) {
 }
 
 func (o *CreateSymlinkOp) kernelResponse() (msg []byte) {
-	size := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	size := fusekernel.EntryOutSize(o.protocol)
 	buf := fuseshim.NewBuffer(size)
 	out := (*fusekernel.EntryOut)(buf.Alloc(size))
 	convertChildInodeEntry(&o.Entry, out)
