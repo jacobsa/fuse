@@ -206,8 +206,7 @@ type ForgetInodeOp struct {
 }
 
 func (o *ForgetInodeOp) kernelResponse() (msg []byte) {
-	o.bfReq.Respond()
-	return
+	panic("TODO: Signal that no response should happen here.")
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -248,10 +247,12 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 }
 
 func (o *MkDirOp) kernelResponse() (msg []byte) {
-	resp := fuseshim.MkdirResponse{}
-	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
+	size := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	buf := fuseshim.NewBuffer(size)
+	out := (*fusekernel.EntryOut)(buf.Alloc(size))
+	convertChildInodeEntry(&o.Entry, out)
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
@@ -298,15 +299,16 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 }
 
 func (o *CreateFileOp) kernelResponse() (msg []byte) {
-	resp := fuseshim.CreateResponse{
-		OpenResponse: fuseshim.OpenResponse{
-			Handle: fuseshim.HandleID(o.Handle),
-		},
-	}
+	eSize := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	buf := fuseshim.NewBuffer(eSize + unsafe.Sizeof(fusekernel.OpenOut{}))
 
-	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
+	e := (*fusekernel.EntryOut)(buf.Alloc(eSize))
+	convertChildInodeEntry(&o.Entry, e)
 
-	o.bfReq.Respond(&resp)
+	oo := (*fusekernel.OpenOut)(buf.Alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
+	oo.Fh = uint64(o.Handle)
+
+	msg = buf
 	return
 }
 
