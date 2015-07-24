@@ -57,15 +57,17 @@ func Convert(
 		}
 
 		to := &LookUpInodeOp{
-			Parent: InodeID(m.Hdr.Nodeid),
-			Name:   string(buf[:n-1]),
+			protocol: protocol,
+			Parent:   InodeID(m.Hdr.Nodeid),
+			Name:     string(buf[:n-1]),
 		}
 		io = to
 		co = &to.commonOp
 
 	case fusekernel.OpGetattr:
 		to := &GetInodeAttributesOp{
-			Inode: InodeID(m.Hdr.Nodeid),
+			protocol: protocol,
+			Inode:    InodeID(m.Hdr.Nodeid),
 		}
 		io = to
 		co = &to.commonOp
@@ -78,7 +80,8 @@ func Convert(
 		}
 
 		to := &SetInodeAttributesOp{
-			Inode: InodeID(m.Hdr.Nodeid),
+			protocol: protocol,
+			Inode:    InodeID(m.Hdr.Nodeid),
 		}
 
 		valid := fusekernel.SetattrValid(in.Valid)
@@ -134,9 +137,10 @@ func Convert(
 		name = name[:i]
 
 		to := &MkDirOp{
-			Parent: InodeID(m.Hdr.Nodeid),
-			Name:   string(name),
-			Mode:   fuseshim.FileMode(in.Mode),
+			protocol: protocol,
+			Parent:   InodeID(m.Hdr.Nodeid),
+			Name:     string(name),
+			Mode:     fuseshim.FileMode(in.Mode),
 		}
 		io = to
 		co = &to.commonOp
@@ -157,9 +161,10 @@ func Convert(
 		name = name[:i]
 
 		to := &CreateFileOp{
-			Parent: InodeID(m.Hdr.Nodeid),
-			Name:   string(name),
-			Mode:   fuseshim.FileMode(in.Mode),
+			protocol: protocol,
+			Parent:   InodeID(m.Hdr.Nodeid),
+			Name:     string(name),
+			Mode:     fuseshim.FileMode(in.Mode),
 		}
 		io = to
 		co = &to.commonOp
@@ -179,9 +184,10 @@ func Convert(
 		newName, target := names[0:i], names[i+1:len(names)-1]
 
 		to := &CreateSymlinkOp{
-			Parent: InodeID(m.Hdr.Nodeid),
-			Name:   string(newName),
-			Target: string(target),
+			protocol: protocol,
+			Parent:   InodeID(m.Hdr.Nodeid),
+			Name:     string(newName),
+			Target:   string(target),
 		}
 		io = to
 		co = &to.commonOp
