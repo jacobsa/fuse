@@ -1,4 +1,4 @@
-package fuseshim
+package fuse
 
 import (
 	"bytes"
