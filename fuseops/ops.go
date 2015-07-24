@@ -480,11 +480,11 @@ type OpenDirOp struct {
 }
 
 func (o *OpenDirOp) kernelResponse() (msg []byte) {
-	resp := fuseshim.OpenResponse{
-		Handle: fuseshim.HandleID(o.Handle),
-	}
+	buf := fuseshim.NewBuffer(unsafe.Sizeof(fusekernel.OpenOut{}))
+	out := (*fusekernel.OpenOut)(buf.Alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
+	out.Fh = uint64(o.Handle)
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
@@ -579,11 +579,8 @@ type ReadDirOp struct {
 }
 
 func (o *ReadDirOp) kernelResponse() (msg []byte) {
-	resp := fuseshim.ReadResponse{
-		Data: o.Data,
-	}
-
-	o.bfReq.Respond(&resp)
+	msg = fuseshim.NewBuffer(uintptr(len(o.Data)))
+	msg = append(msg, o.Data...)
 	return
 }
 
@@ -636,11 +633,9 @@ type OpenFileOp struct {
 }
 
 func (o *OpenFileOp) kernelResponse() (msg []byte) {
-	type kernelOut fusekernel.OpenOut
-
-	buf := fuseshim.NewBuffer(unsafe.Sizeof(kernelOut{}))
-	out := (*kernelOut)(buf.Alloc(unsafe.Sizeof(kernelOut{})))
-	kernelOut.Fh = uint64(o.Handle)
+	buf := fuseshim.NewBuffer(unsafe.Sizeof(fusekernel.OpenOut{}))
+	out := (*fusekernel.OpenOut)(buf.Alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
+	out.Fh = uint64(o.Handle)
 
 	msg = buf
 	return
@@ -676,11 +671,8 @@ type ReadFileOp struct {
 }
 
 func (o *ReadFileOp) kernelResponse() (msg []byte) {
-	resp := fuseshim.ReadResponse{
-		Data: o.Data,
-	}
-
-	o.bfReq.Respond(&resp)
+	msg = fuseshim.NewBuffer(uintptr(len(o.Data)))
+	msg = append(msg, o.Data...)
 	return
 }
 
@@ -755,11 +747,11 @@ type WriteFileOp struct {
 }
 
 func (o *WriteFileOp) kernelResponse() (msg []byte) {
-	resp := fuseshim.WriteResponse{
-		Size: len(o.Data),
-	}
+	buf := fuseshim.NewBuffer(unsafe.Sizeof(fusekernel.WriteOut{}))
+	out := (*fusekernel.WriteOut)(buf.Alloc(unsafe.Sizeof(fusekernel.WriteOut{})))
+	out.Size = uint32(len(o.Data))
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
@@ -907,7 +899,8 @@ type ReadSymlinkOp struct {
 }
 
 func (o *ReadSymlinkOp) kernelResponse() (msg []byte) {
-	o.bfReq.Respond(o.Target)
+	msg = fuseshim.NewBuffer(uintptr(len(o.Target)))
+	msg = append(msg, o.Target...)
 	return
 }
 
