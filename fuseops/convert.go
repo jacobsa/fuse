@@ -417,7 +417,12 @@ func Convert(
 	return
 }
 
-func convertTime(t time.Time) (secs uint64, nsec uint32)
+func convertTime(t time.Time) (secs uint64, nsec uint32) {
+	totalNano := t.UnixNano()
+	secs = uint64(totalNano / 1e9)
+	nsec = uint32(totalNano % 1e9)
+	return
+}
 
 func convertAttributes(
 	inodeID InodeID,
