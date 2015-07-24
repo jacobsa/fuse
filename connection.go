@@ -32,6 +32,25 @@ import (
 	"github.com/jacobsa/fuse/internal/fuseshim"
 )
 
+// Ask the Linux kernel for larger read requests.
+//
+// As of 2015-03-26, the behavior in the kernel is:
+//
+//  *  (http://goo.gl/bQ1f1i, http://goo.gl/HwBrR6) Set the local variable
+//     ra_pages to be init_response->max_readahead divided by the page size.
+//
+//  *  (http://goo.gl/gcIsSh, http://goo.gl/LKV2vA) Set
+//     backing_dev_info::ra_pages to the min of that value and what was sent
+//     in the request's max_readahead field.
+//
+//  *  (http://goo.gl/u2SqzH) Use backing_dev_info::ra_pages when deciding
+//     how much to read ahead.
+//
+//  *  (http://goo.gl/JnhbdL) Don't read ahead at all if that field is zero.
+//
+// Reading a page at a time is a drag. Ask for a larger size.
+const maxReadahead = 1 << 20
+
 // A connection to the fuse kernel process.
 type Connection struct {
 	debugLogger *log.Logger
@@ -58,15 +77,27 @@ type Connection struct {
 	cancelFuncs map[uint64]func()
 }
 
-// Responsibility for closing the wrapped connection is transferred to the
-// result. You must call c.close() eventually.
+// Create a connection wrapping the supplied file descriptor connected to the
+// kernel. You must eventually call c.close().
 //
 // The loggers may be nil.
 func newConnection(
 	parentCtx context.Context,
 	debugLogger *log.Logger,
 	errorLogger *log.Logger,
-	wrapped *fuseshim.Conn) (c *Connection, err error) {
+	dev *os.File) (c *Connection, err error) {
+	// Create an initialized a wrapped fuseshim connection.
+	wrapped := &fuseshim.Conn{
+		Dev: dev,
+	}
+
+	err = fuseshim.InitMount(wrapped, maxReadahead, 0)
+	if err != nil {
+		err = fmt.Errorf("fuseshim.InitMount: %v", err)
+		return
+	}
+
+	// Create an object wrapping it.
 	c = &Connection{
 		debugLogger: debugLogger,
 		errorLogger: errorLogger,
