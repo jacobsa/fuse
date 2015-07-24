@@ -61,6 +61,7 @@ type SampleTest struct {
 // REQUIRES: t.Server has been set.
 func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
 	cfg := t.MountConfig
+	cfg.ErrorLogger = log.New(os.Stderr, "fuse error: ", log.Flags())
 	if *fDebug {
 		cfg.DebugLogger = log.New(os.Stderr, "fuse: ", 0)
 	}

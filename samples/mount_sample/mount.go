@@ -138,7 +138,8 @@ func main() {
 	}
 
 	cfg := &fuse.MountConfig{
-		ReadOnly: *fReadOnly,
+		ReadOnly:    *fReadOnly,
+		ErrorLogger: log.New(os.Stderr, "fuse error: ", log.Flags()),
 	}
 
 	if *fDebug {
