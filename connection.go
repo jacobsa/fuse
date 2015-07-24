@@ -261,7 +261,7 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		}
 
 		// Log the receipt of the operation.
-		c.debugLog(opID, 1, "<- %v", op)
+		c.debugLog(opID, 1, "<- %v", op.ShortDesc())
 
 		// Special case: responding to statfs is required to make mounting work on
 		// OS X. We don't currently expose the capability for the file system to
