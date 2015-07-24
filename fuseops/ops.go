@@ -626,9 +626,11 @@ type OpenFileOp struct {
 }
 
 func (o *OpenFileOp) kernelResponse() (msg []byte) {
-	buf := fuseshim.NewBuffer(unsafe.Sizeof(fusekernel.OpenOut{}))
-	out := (*fusekernel.OpenOut)(buf.Alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
-	out.Fh = uint64(o.Handle)
+	type kernelOut fusekernel.OpenOut
+
+	buf := fuseshim.NewBuffer(unsafe.Sizeof(kernelOut{}))
+	out := (*kernelOut)(buf.Alloc(unsafe.Sizeof(kernelOut{})))
+	kernelOut.Fh = uint64(o.Handle)
 
 	msg = buf
 	return
