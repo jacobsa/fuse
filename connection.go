@@ -15,6 +15,7 @@
 package fuse
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"path"
@@ -24,6 +25,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
 	"github.com/jacobsa/fuse/internal/fuseshim"
 )
@@ -202,6 +204,21 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 	cancel()
 }
 
+func (c *Connection) allocateInMessage() (m *buffer.InMessage) {
+	panic("TODO")
+}
+
+func (c *Connection) destroyInMessage(m *buffer.InMessage) {
+	panic("TODO")
+}
+
+// Read the next message from the kernel. The message must later be destroyed
+// using destroyInMessage.
+func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
+	err = errors.New("TODO")
+	return
+}
+
 // Read the next op from the kernel process. Return io.EOF if the kernel has
 // closed the connection.
 //
@@ -212,9 +229,9 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 	// Keep going until we find a request we know how to convert.
 	for {
-		// Read the next message from the fuseshim connection.
-		var m *fuseshim.Message
-		m, err = c.wrapped.ReadMessage()
+		// Read the next message from the kernel.
+		var m *buffer.InMessage
+		m, err = c.readMessage()
 		if err != nil {
 			return
 		}
@@ -224,7 +241,7 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		c.nextOpID++
 
 		// Set up op dependencies.
-		opCtx := c.beginOp(m.Hdr.Opcode, m.Hdr.Unique)
+		opCtx := c.beginOp(m.Header().Opcode, m.Header().Unique)
 
 		var debugLogForOp func(int, string, ...interface{})
 		if c.debugLogger != nil {
@@ -238,12 +255,11 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			fuseID uint64,
 			replyMsg []byte,
 			opErr error) (err error) {
-			// Make sure we destroy the message, as required by
-			// fuseshim.Connection.ReadMessage.
-			defer m.Destroy()
+			// Make sure we destroy the message, as required by readMessage.
+			defer c.destroyInMessage(m)
 
 			// Clean up state for this op.
-			c.finishOp(m.Hdr.Opcode, m.Hdr.Unique)
+			c.finishOp(m.Header().Opcode, m.Header().Unique)
 
 			// Debug logging
 			if c.debugLogger != nil {
