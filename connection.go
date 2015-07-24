@@ -388,6 +388,9 @@ func (c *Connection) waitForReady() (err error) {
 // Close the connection. Must not be called until operations that were read
 // from the connection have been responded to.
 func (c *Connection) close() (err error) {
-	err = c.wrapped.Close()
+	// Posix doesn't say that close can be called concurrently with read or
+	// write, but luckily we exclude the possibility of a race by requiring the
+	// user to respond to all ops first.
+	err = c.dev.Close()
 	return
 }
