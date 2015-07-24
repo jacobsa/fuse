@@ -40,7 +40,7 @@ type internalOp interface {
 // A function that sends a reply message back to the kernel for the request
 // with the given fuse unique ID. The error argument is for informational
 // purposes only; the error to hand to the kernel is encoded in the message.
-type replyFunc func(uint64, []byte, error) error
+type replyFunc func(Op, uint64, []byte, error) error
 
 // A helper for embedding common behavior.
 type commonOp struct {
@@ -111,9 +111,9 @@ func (o *commonOp) init(
 
 	// When the op is finished, report to both reqtrace and the connection.
 	prevSendReply := o.sendReply
-	o.sendReply = func(fuseID uint64, msg []byte, opErr error) (err error) {
+	o.sendReply = func(op Op, fuseID uint64, msg []byte, opErr error) (err error) {
 		reportForTrace(opErr)
-		err = prevSendReply(fuseID, msg, opErr)
+		err = prevSendReply(op, fuseID, msg, opErr)
 		return
 	}
 }
@@ -155,25 +155,8 @@ func (o *commonOp) Respond(err error) {
 		h.Error = -int32(errno)
 	}
 
-	// Log the error, if any.
-	if err != nil {
-		if o.debugLog != nil {
-			o.Logf(
-				"-> (%s) error: %v",
-				o.op.ShortDesc(),
-				err)
-		}
-
-		if o.errorLogger != nil {
-			o.errorLogger.Printf(
-				"(%s) error: %v",
-				o.op.ShortDesc(),
-				err)
-		}
-	}
-
 	// Reply.
-	replyErr := o.sendReply(o.fuseID, msg, err)
+	replyErr := o.sendReply(o.op, o.fuseID, msg, err)
 	if replyErr != nil && o.errorLogger != nil {
 		o.errorLogger.Printf("Error from sendReply: %v", replyErr)
 	}

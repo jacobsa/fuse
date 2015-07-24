@@ -234,6 +234,7 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		}
 
 		sendReply := func(
+			op fuseops.Op,
 			fuseID uint64,
 			replyMsg []byte,
 			opErr error) (err error) {
@@ -243,6 +244,20 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 
 			// Clean up state for this op.
 			c.finishOp(m.Hdr.Opcode, m.Hdr.Unique)
+
+			// Debug logging
+			if c.debugLogger != nil {
+				if opErr == nil {
+					op.Logf("-> %s OK", op.ShortDesc())
+				} else {
+					op.Logf("-> %s error: %v", op.ShortDesc(), opErr)
+				}
+			}
+
+			// Error logging
+			if opErr != nil && c.errorLogger != nil {
+				c.errorLogger.Printf("(%s) error: %v", op.ShortDesc(), opErr)
+			}
 
 			// Send the reply to the kernel.
 			err = c.wrapped.WriteToKernel(replyMsg)
