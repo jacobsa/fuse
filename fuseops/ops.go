@@ -217,7 +217,8 @@ type ForgetInodeOp struct {
 }
 
 func (o *ForgetInodeOp) kernelResponse() (msg []byte) {
-	panic("TODO: Signal that no response should happen here.")
+	// No response.
+	return
 }
 
 ////////////////////////////////////////////////////////////////////////

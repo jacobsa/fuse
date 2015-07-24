@@ -34,6 +34,9 @@ type internalOp interface {
 
 	// Create a response message for the kernel, with leading pading for a
 	// fusekernel.OutHeader struct.
+	//
+	// Special case: a return value of nil means that the kernel is not expecting
+	// a response.
 	kernelResponse() []byte
 }
 
@@ -147,17 +150,19 @@ func (o *commonOp) Respond(err error) {
 		msg = fuseshim.NewBuffer(0)
 	}
 
-	// Fill in the header.
-	h := (*fusekernel.OutHeader)(unsafe.Pointer(&msg[0]))
-	h.Unique = o.fuseID
-	h.Len = uint32(len(msg))
-	if err != nil {
-		errno := fuseshim.EIO
-		if ferr, ok := err.(fuseshim.ErrorNumber); ok {
-			errno = ferr.Errno()
-		}
+	// Fill in the header if a reply is needed.
+	if msg != nil {
+		h := (*fusekernel.OutHeader)(unsafe.Pointer(&msg[0]))
+		h.Unique = o.fuseID
+		h.Len = uint32(len(msg))
+		if err != nil {
+			errno := fuseshim.EIO
+			if ferr, ok := err.(fuseshim.ErrorNumber); ok {
+				errno = ferr.Errno()
+			}
 
-		h.Error = -int32(errno)
+			h.Error = -int32(errno)
+		}
 	}
 
 	// Reply.

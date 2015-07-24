@@ -1061,10 +1061,13 @@ func errorString(err error) string {
 	return err.Error()
 }
 
-func (c *Conn) WriteToKernel(msg []byte) error {
+func (c *Conn) writeToKernel(msg []byte) error {
 	out := (*fusekernel.OutHeader)(unsafe.Pointer(&msg[0]))
 	out.Len = uint32(len(msg))
+	return c.WriteToKernel(msg)
+}
 
+func (c *Conn) WriteToKernel(msg []byte) error {
 	c.wio.RLock()
 	defer c.wio.RUnlock()
 	_, err := syscall.Write(c.fd(), msg)
