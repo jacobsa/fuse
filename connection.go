@@ -29,7 +29,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
-	"github.com/jacobsa/fuse/internal/fuseshim"
 )
 
 // Ask the Linux kernel for larger read requests.
@@ -85,26 +84,68 @@ func newConnection(
 	debugLogger *log.Logger,
 	errorLogger *log.Logger,
 	dev *os.File) (c *Connection, err error) {
-	// Create an initialized a wrapped fuseshim connection.
-	wrapped := &fuseshim.Conn{
-		Dev: dev,
-	}
-
-	err = fuseshim.InitMount(wrapped, maxReadahead, 0)
-	if err != nil {
-		err = fmt.Errorf("fuseshim.InitMount: %v", err)
-		return
-	}
-
-	// Create an object wrapping it.
 	c = &Connection{
 		debugLogger: debugLogger,
 		errorLogger: errorLogger,
-		dev:         wrapped.Dev,
-		protocol:    wrapped.Protocol(),
+		dev:         dev,
 		parentCtx:   parentCtx,
 		cancelFuncs: make(map[uint64]func()),
 	}
+
+	// Initialize.
+	err = c.Init()
+	if err != nil {
+		c.close()
+		err = fmt.Errorf("Init: %v", err)
+		return
+	}
+
+	return
+}
+
+// Do the work necessary to cause the mount process to complete.
+func (c *Connection) Init() (err error) {
+	// Read the init op.
+	op, err := c.ReadOp()
+	if err != nil {
+		err = fmt.Errorf("Reading init op: %v", err)
+		return
+	}
+
+	initOp, ok := op.(*fuseops.InitOp)
+	if !ok {
+		err = fmt.Errorf("Expected *fuseops.InitOp, got %T", op)
+		return
+	}
+
+	// Make sure the protocol version spoken by the kernel is new enough.
+	min := fusekernel.Protocol{
+		fusekernel.ProtoVersionMinMajor,
+		fusekernel.ProtoVersionMinMinor,
+	}
+
+	if initOp.Kernel.LT(min) {
+		initOp.Respond(syscall.EPROTO)
+		err = fmt.Errorf("Version too old: %v", initOp.Kernel)
+		return
+	}
+
+	// Downgrade our protocol if necessary.
+	c.protocol = fusekernel.Protocol{
+		fusekernel.ProtoVersionMaxMajor,
+		fusekernel.ProtoVersionMaxMinor,
+	}
+
+	if initOp.Kernel.LT(c.protocol) {
+		c.protocol = r.Kernel
+	}
+
+	// Respond to the init op.
+	initOp.Library = c.protocol
+	initOp.MaxReadahead = maxReadahead
+	initOp.MaxWrite = buffer.MaxWriteSize
+	initOp.Flags = fusekernel.InitBigWrites
+	initOp.Respond(nil)
 
 	return
 }
