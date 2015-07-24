@@ -43,7 +43,8 @@ const bufSize = pageSize + MaxWriteSize
 // struct. Provides storage for messages and convenient access to their
 // contents.
 type InMessage struct {
-	buf [bufSize]byte
+	remaining []byte
+	storage   [bufSize]byte
 }
 
 // Initialize with the data read by a single call to r.Read. The first call to
@@ -56,7 +57,8 @@ func (m *InMessage) Init(r io.Reader) (err error) {
 
 // Return a reference to the header read in the most recent call to Init.
 func (m *InMessage) Header() (h *fusekernel.InHeader) {
-	panic("TODO")
+	h = (*fusekernel.InHeader)(unsafe.Pointer(&m.storage[0]))
+	return
 }
 
 // Return the number of bytes left to consume.
