@@ -16,16 +16,34 @@ package buffer
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"syscall"
 	"unsafe"
 
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
+// All requests read from the kernel, without data, are shorter than
+// this.
+const pageSize = 4096
+
+func init() {
+	// Confirm the page size.
+	if syscall.Getpagesize() != pageSize {
+		panic(fmt.Sprintf("Page size is unexpectedly %d", syscall.Getpagesize()))
+	}
+}
+
+// We size the buffer to have enough room for a fuse request plus data
+// associated with a write request.
+const bufSize = pageSize + MaxWriteSize
+
 // An incoming message from the kernel, including leading fusekernel.InHeader
 // struct. Provides storage for messages and convenient access to their
 // contents.
 type InMessage struct {
+	buf [bufSize]byte
 }
 
 // Initialize with the data read by a single call to r.Read. The first call to
