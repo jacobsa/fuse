@@ -6,13 +6,13 @@ import (
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
-// buffer provides a mechanism for constructing a message from
-// multiple segments.
-type buffer []byte
+// Buffer provides a mechanism for constructing a message from multiple
+// segments.
+type Buffer []byte
 
 // alloc allocates size bytes and returns a pointer to the new
 // segment.
-func (w *buffer) alloc(size uintptr) unsafe.Pointer {
+func (w *Buffer) Alloc(size uintptr) unsafe.Pointer {
 	s := int(size)
 	if len(*w)+s > cap(*w) {
 		old := *w
@@ -25,15 +25,15 @@ func (w *buffer) alloc(size uintptr) unsafe.Pointer {
 }
 
 // reset clears out the contents of the buffer.
-func (w *buffer) reset() {
+func (w *Buffer) reset() {
 	for i := range (*w)[:cap(*w)] {
 		(*w)[i] = 0
 	}
 	*w = (*w)[:0]
 }
 
-func newBuffer(extra uintptr) buffer {
+func NewBuffer(extra uintptr) (buf Buffer) {
 	const hdrSize = unsafe.Sizeof(fusekernel.OutHeader{})
-	buf := make(buffer, hdrSize, hdrSize+extra)
-	return buf
+	buf = make(Buffer, hdrSize, hdrSize+extra)
+	return
 }

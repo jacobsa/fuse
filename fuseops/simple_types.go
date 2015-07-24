@@ -97,6 +97,16 @@ type InodeAttributes struct {
 	Gid uint32
 }
 
+func (a *InodeAttributes) DebugString() string {
+	return fmt.Sprintf(
+		"%d %d %v %d %d",
+		a.Size,
+		a.Nlink,
+		a.Mode,
+		a.Uid,
+		a.Gid)
+}
+
 // A generation number for an inode. Irrelevant for file systems that won't be
 // exported over NFS. For those that will and that reuse inode IDs when they
 // become free, the generation number must change when an ID is reused.

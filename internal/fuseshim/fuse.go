@@ -259,7 +259,7 @@ type Header struct {
 	Pid  uint32    // process ID of process making request
 
 	// for returning to reqPool
-	msg *message
+	msg *Message
 }
 
 func (h *Header) String() string {
@@ -364,7 +364,7 @@ func (h *Header) RespondError(err error) {
 	}
 	// FUSE uses negative errors!
 	// TODO: File bug report against OSXFUSE: positive error causes kernel panic.
-	buf := newBuffer(0)
+	buf := NewBuffer(0)
 	hOut := (*fusekernel.OutHeader)(unsafe.Pointer(&buf[0]))
 	hOut.Error = -int32(errno)
 	h.respond(buf)
@@ -382,19 +382,19 @@ var bufSize = maxRequestSize + maxWrite
 // Conn.ReadRequest, Request.Respond, or Request.RespondError.
 //
 // Messages in the pool are guaranteed to have conn and off zeroed,
-// buf allocated and len==bufSize, and hdr set.
+// buf allocated and len==bufSize, and Hdr set.
 var reqPool struct {
 	Mu       sync.Mutex
-	Freelist []*message
+	Freelist []*Message
 }
 
-func allocMessage() *message {
-	m := &message{buf: make([]byte, bufSize)}
-	m.hdr = (*fusekernel.InHeader)(unsafe.Pointer(&m.buf[0]))
+func allocMessage() *Message {
+	m := &Message{buf: make([]byte, bufSize)}
+	m.Hdr = (*fusekernel.InHeader)(unsafe.Pointer(&m.buf[0]))
 	return m
 }
 
-func getMessage(c *Conn) (m *message) {
+func getMessage(c *Conn) (m *Message) {
 	reqPool.Mu.Lock()
 	l := len(reqPool.Freelist)
 	if l != 0 {
@@ -412,7 +412,7 @@ func getMessage(c *Conn) (m *message) {
 	return m
 }
 
-func putMessage(m *message) {
+func putMessage(m *Message) {
 	m.buf = m.buf[:bufSize]
 	m.conn = nil
 	m.off = 0
@@ -423,31 +423,30 @@ func putMessage(m *message) {
 }
 
 // a message represents the bytes of a single FUSE message
-type message struct {
+type Message struct {
 	conn *Conn
 	buf  []byte               // all bytes
-	hdr  *fusekernel.InHeader // header
+	Hdr  *fusekernel.InHeader // header
 	off  int                  // offset for reading additional fields
 }
 
-func (m *message) len() uintptr {
+func (m *Message) Len() uintptr {
 	return uintptr(len(m.buf) - m.off)
 }
 
-func (m *message) data() unsafe.Pointer {
-	var p unsafe.Pointer
+func (m *Message) Data() (p unsafe.Pointer) {
 	if m.off < len(m.buf) {
 		p = unsafe.Pointer(&m.buf[m.off])
 	}
 	return p
 }
 
-func (m *message) bytes() []byte {
+func (m *Message) Bytes() []byte {
 	return m.buf[m.off:]
 }
 
-func (m *message) Header() Header {
-	h := m.hdr
+func (m *Message) Header() Header {
+	h := m.Hdr
 	return Header{
 		Conn: m.conn,
 		ID:   RequestID(h.Unique),
@@ -460,8 +459,14 @@ func (m *message) Header() Header {
 	}
 }
 
-// fileMode returns a Go os.FileMode from a Unix mode.
-func fileMode(unixMode uint32) os.FileMode {
+// Destroy the message, releasing its resources. The message must not be used
+// further.
+func (m *Message) Destroy() {
+	putMessage(m)
+}
+
+// FileMode returns a Go os.FileMode from a Unix mode.
+func FileMode(unixMode uint32) os.FileMode {
 	mode := os.FileMode(unixMode & 0777)
 	switch unixMode & syscall.S_IFMT {
 	case syscall.S_IFREG:
@@ -524,12 +529,12 @@ func (c *Conn) Protocol() fusekernel.Protocol {
 	return c.proto
 }
 
-// ReadRequest returns the next FUSE request from the kernel.
+// Read and sanity check a message from the kernel. Return io.EOF when the
+// kernel has hung up. The offset will point to the limit of the header.
 //
-// Caller must call either Request.Respond or Request.RespondError in
-// a reasonable time. Caller must not retain Request after that call.
-func (c *Conn) ReadRequest() (Request, error) {
-	m := getMessage(c)
+// The message must later be disposed of by calling m.Destroy.
+func (c *Conn) ReadMessage() (m *Message, err error) {
+	m = getMessage(c)
 loop:
 	c.rio.RLock()
 	n, err := syscall.Read(c.fd(), m.buf)
@@ -540,49 +545,62 @@ loop:
 		goto loop
 	}
 	if err != nil && err != syscall.ENODEV {
-		putMessage(m)
+		m.Destroy()
 		return nil, err
 	}
 	if n <= 0 {
-		putMessage(m)
+		m.Destroy()
 		return nil, io.EOF
 	}
 	m.buf = m.buf[:n]
 
 	if n < fusekernel.InHeaderSize {
-		putMessage(m)
+		m.Destroy()
 		return nil, errors.New("fuse: message too short")
 	}
 
 	// FreeBSD FUSE sends a short length in the header
 	// for FUSE_INIT even though the actual read length is correct.
-	if n == fusekernel.InHeaderSize+fusekernel.InitInSize && m.hdr.Opcode == fusekernel.OpInit && m.hdr.Len < uint32(n) {
-		m.hdr.Len = uint32(n)
+	if n == fusekernel.InHeaderSize+fusekernel.InitInSize && m.Hdr.Opcode == fusekernel.OpInit && m.Hdr.Len < uint32(n) {
+		m.Hdr.Len = uint32(n)
 	}
 
-	// OSXFUSE sometimes sends the wrong m.hdr.Len in a FUSE_WRITE message.
-	if m.hdr.Len < uint32(n) && m.hdr.Len >= uint32(unsafe.Sizeof(fusekernel.WriteIn{})) && m.hdr.Opcode == fusekernel.OpWrite {
-		m.hdr.Len = uint32(n)
+	// OSXFUSE sometimes sends the wrong m.Hdr.Len in a FUSE_WRITE message.
+	if m.Hdr.Len < uint32(n) && m.Hdr.Len >= uint32(unsafe.Sizeof(fusekernel.WriteIn{})) && m.Hdr.Opcode == fusekernel.OpWrite {
+		m.Hdr.Len = uint32(n)
 	}
 
-	if m.hdr.Len != uint32(n) {
+	if m.Hdr.Len != uint32(n) {
 		// prepare error message before returning m to pool
-		err := fmt.Errorf("fuse: read %d opcode %d but expected %d", n, m.hdr.Opcode, m.hdr.Len)
-		putMessage(m)
+		err := fmt.Errorf("fuse: read %d opcode %d but expected %d", n, m.Hdr.Opcode, m.Hdr.Len)
+		m.Destroy()
 		return nil, err
 	}
 
 	m.off = fusekernel.InHeaderSize
+	return
+}
+
+// ReadRequest returns the next FUSE request from the kernel.
+//
+// Caller must call either Request.Respond or Request.RespondError in
+// a reasonable time. Caller must not retain Request after that call.
+func (c *Conn) ReadRequest() (Request, error) {
+	// Read a message.
+	m, err := c.ReadMessage()
+	if err != nil {
+		return nil, err
+	}
 
 	// Convert to data structures.
 	// Do not trust kernel to hand us well-formed data.
 	var req Request
-	switch m.hdr.Opcode {
+	switch m.Hdr.Opcode {
 	default:
 		goto unrecognized
 
 	case fusekernel.OpLookup:
-		buf := m.bytes()
+		buf := m.Bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
 			goto corrupt
@@ -593,8 +611,8 @@ loop:
 		}
 
 	case fusekernel.OpForget:
-		in := (*fusekernel.ForgetIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.ForgetIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &ForgetRequest{
@@ -610,8 +628,8 @@ loop:
 			}
 
 		default:
-			in := (*fusekernel.GetattrIn)(m.data())
-			if m.len() < unsafe.Sizeof(*in) {
+			in := (*fusekernel.GetattrIn)(m.Data())
+			if m.Len() < unsafe.Sizeof(*in) {
 				goto corrupt
 			}
 			req = &GetattrRequest{
@@ -622,8 +640,8 @@ loop:
 		}
 
 	case fusekernel.OpSetattr:
-		in := (*fusekernel.SetattrIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.SetattrIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &SetattrRequest{
@@ -633,7 +651,7 @@ loop:
 			Size:     in.Size,
 			Atime:    time.Unix(int64(in.Atime), int64(in.AtimeNsec)),
 			Mtime:    time.Unix(int64(in.Mtime), int64(in.MtimeNsec)),
-			Mode:     fileMode(in.Mode),
+			Mode:     FileMode(in.Mode),
 			Uid:      in.Uid,
 			Gid:      in.Gid,
 			Bkuptime: in.BkupTime(),
@@ -642,7 +660,7 @@ loop:
 		}
 
 	case fusekernel.OpReadlink:
-		if len(m.bytes()) > 0 {
+		if len(m.Bytes()) > 0 {
 			goto corrupt
 		}
 		req = &ReadlinkRequest{
@@ -650,8 +668,8 @@ loop:
 		}
 
 	case fusekernel.OpSymlink:
-		// m.bytes() is "newName\0target\0"
-		names := m.bytes()
+		// m.Bytes() is "newName\0target\0"
+		names := m.Bytes()
 		if len(names) == 0 || names[len(names)-1] != 0 {
 			goto corrupt
 		}
@@ -667,11 +685,11 @@ loop:
 		}
 
 	case fusekernel.OpLink:
-		in := (*fusekernel.LinkIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.LinkIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
-		newName := m.bytes()[unsafe.Sizeof(*in):]
+		newName := m.Bytes()[unsafe.Sizeof(*in):]
 		if len(newName) < 2 || newName[len(newName)-1] != 0 {
 			goto corrupt
 		}
@@ -684,33 +702,33 @@ loop:
 
 	case fusekernel.OpMknod:
 		size := fusekernel.MknodInSize(c.proto)
-		if m.len() < size {
+		if m.Len() < size {
 			goto corrupt
 		}
-		in := (*fusekernel.MknodIn)(m.data())
-		name := m.bytes()[size:]
+		in := (*fusekernel.MknodIn)(m.Data())
+		name := m.Bytes()[size:]
 		if len(name) < 2 || name[len(name)-1] != '\x00' {
 			goto corrupt
 		}
 		name = name[:len(name)-1]
 		r := &MknodRequest{
 			Header: m.Header(),
-			Mode:   fileMode(in.Mode),
+			Mode:   FileMode(in.Mode),
 			Rdev:   in.Rdev,
 			Name:   string(name),
 		}
 		if c.proto.GE(fusekernel.Protocol{7, 12}) {
-			r.Umask = fileMode(in.Umask) & os.ModePerm
+			r.Umask = FileMode(in.Umask) & os.ModePerm
 		}
 		req = r
 
 	case fusekernel.OpMkdir:
 		size := fusekernel.MkdirInSize(c.proto)
-		if m.len() < size {
+		if m.Len() < size {
 			goto corrupt
 		}
-		in := (*fusekernel.MkdirIn)(m.data())
-		name := m.bytes()[size:]
+		in := (*fusekernel.MkdirIn)(m.Data())
+		name := m.Bytes()[size:]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
 			goto corrupt
@@ -719,17 +737,17 @@ loop:
 			Header: m.Header(),
 			Name:   string(name[:i]),
 			// observed on Linux: mkdirIn.Mode & syscall.S_IFMT == 0,
-			// and this causes fileMode to go into it's "no idea"
+			// and this causes FileMode to go into it's "no idea"
 			// code branch; enforce type to directory
-			Mode: fileMode((in.Mode &^ syscall.S_IFMT) | syscall.S_IFDIR),
+			Mode: FileMode((in.Mode &^ syscall.S_IFMT) | syscall.S_IFDIR),
 		}
 		if c.proto.GE(fusekernel.Protocol{7, 12}) {
-			r.Umask = fileMode(in.Umask) & os.ModePerm
+			r.Umask = FileMode(in.Umask) & os.ModePerm
 		}
 		req = r
 
 	case fusekernel.OpUnlink, fusekernel.OpRmdir:
-		buf := m.bytes()
+		buf := m.Bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
 			goto corrupt
@@ -737,16 +755,16 @@ loop:
 		req = &RemoveRequest{
 			Header: m.Header(),
 			Name:   string(buf[:n-1]),
-			Dir:    m.hdr.Opcode == fusekernel.OpRmdir,
+			Dir:    m.Hdr.Opcode == fusekernel.OpRmdir,
 		}
 
 	case fusekernel.OpRename:
-		in := (*fusekernel.RenameIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.RenameIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		newDirNodeID := NodeID(in.Newdir)
-		oldNew := m.bytes()[unsafe.Sizeof(*in):]
+		oldNew := m.Bytes()[unsafe.Sizeof(*in):]
 		// oldNew should be "old\x00new\x00"
 		if len(oldNew) < 4 {
 			goto corrupt
@@ -767,24 +785,24 @@ loop:
 		}
 
 	case fusekernel.OpOpendir, fusekernel.OpOpen:
-		in := (*fusekernel.OpenIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.OpenIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &OpenRequest{
 			Header: m.Header(),
-			Dir:    m.hdr.Opcode == fusekernel.OpOpendir,
+			Dir:    m.Hdr.Opcode == fusekernel.OpOpendir,
 			Flags:  fusekernel.OpenFlags(in.Flags),
 		}
 
 	case fusekernel.OpRead, fusekernel.OpReaddir:
-		in := (*fusekernel.ReadIn)(m.data())
-		if m.len() < fusekernel.ReadInSize(c.proto) {
+		in := (*fusekernel.ReadIn)(m.Data())
+		if m.Len() < fusekernel.ReadInSize(c.proto) {
 			goto corrupt
 		}
 		r := &ReadRequest{
 			Header: m.Header(),
-			Dir:    m.hdr.Opcode == fusekernel.OpReaddir,
+			Dir:    m.Hdr.Opcode == fusekernel.OpReaddir,
 			Handle: HandleID(in.Fh),
 			Offset: int64(in.Offset),
 			Size:   int(in.Size),
@@ -797,8 +815,8 @@ loop:
 		req = r
 
 	case fusekernel.OpWrite:
-		in := (*fusekernel.WriteIn)(m.data())
-		if m.len() < fusekernel.WriteInSize(c.proto) {
+		in := (*fusekernel.WriteIn)(m.Data())
+		if m.Len() < fusekernel.WriteInSize(c.proto) {
 			goto corrupt
 		}
 		r := &WriteRequest{
@@ -811,7 +829,7 @@ loop:
 			r.LockOwner = in.LockOwner
 			r.FileFlags = fusekernel.OpenFlags(in.Flags)
 		}
-		buf := m.bytes()[fusekernel.WriteInSize(c.proto):]
+		buf := m.Bytes()[fusekernel.WriteInSize(c.proto):]
 		if uint32(len(buf)) < in.Size {
 			goto corrupt
 		}
@@ -824,13 +842,13 @@ loop:
 		}
 
 	case fusekernel.OpRelease, fusekernel.OpReleasedir:
-		in := (*fusekernel.ReleaseIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.ReleaseIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &ReleaseRequest{
 			Header:       m.Header(),
-			Dir:          m.hdr.Opcode == fusekernel.OpReleasedir,
+			Dir:          m.Hdr.Opcode == fusekernel.OpReleasedir,
 			Handle:       HandleID(in.Fh),
 			Flags:        fusekernel.OpenFlags(in.Flags),
 			ReleaseFlags: fusekernel.ReleaseFlags(in.ReleaseFlags),
@@ -838,24 +856,24 @@ loop:
 		}
 
 	case fusekernel.OpFsync, fusekernel.OpFsyncdir:
-		in := (*fusekernel.FsyncIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.FsyncIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &FsyncRequest{
-			Dir:    m.hdr.Opcode == fusekernel.OpFsyncdir,
+			Dir:    m.Hdr.Opcode == fusekernel.OpFsyncdir,
 			Header: m.Header(),
 			Handle: HandleID(in.Fh),
 			Flags:  in.FsyncFlags,
 		}
 
 	case fusekernel.OpSetxattr:
-		in := (*fusekernel.SetxattrIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.SetxattrIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		m.off += int(unsafe.Sizeof(*in))
-		name := m.bytes()
+		name := m.Bytes()
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
 			goto corrupt
@@ -874,11 +892,11 @@ loop:
 		}
 
 	case fusekernel.OpGetxattr:
-		in := (*fusekernel.GetxattrIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.GetxattrIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
-		name := m.bytes()[unsafe.Sizeof(*in):]
+		name := m.Bytes()[unsafe.Sizeof(*in):]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
 			goto corrupt
@@ -891,8 +909,8 @@ loop:
 		}
 
 	case fusekernel.OpListxattr:
-		in := (*fusekernel.GetxattrIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.GetxattrIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &ListxattrRequest{
@@ -902,7 +920,7 @@ loop:
 		}
 
 	case fusekernel.OpRemovexattr:
-		buf := m.bytes()
+		buf := m.Bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
 			goto corrupt
@@ -913,8 +931,8 @@ loop:
 		}
 
 	case fusekernel.OpFlush:
-		in := (*fusekernel.FlushIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.FlushIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &FlushRequest{
@@ -925,8 +943,8 @@ loop:
 		}
 
 	case fusekernel.OpInit:
-		in := (*fusekernel.InitIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.InitIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &InitRequest{
@@ -944,8 +962,8 @@ loop:
 		panic("fusekernel.OpSetlkw")
 
 	case fusekernel.OpAccess:
-		in := (*fusekernel.AccessIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.AccessIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &AccessRequest{
@@ -955,11 +973,11 @@ loop:
 
 	case fusekernel.OpCreate:
 		size := fusekernel.CreateInSize(c.proto)
-		if m.len() < size {
+		if m.Len() < size {
 			goto corrupt
 		}
-		in := (*fusekernel.CreateIn)(m.data())
-		name := m.bytes()[size:]
+		in := (*fusekernel.CreateIn)(m.Data())
+		name := m.Bytes()[size:]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
 			goto corrupt
@@ -967,17 +985,17 @@ loop:
 		r := &CreateRequest{
 			Header: m.Header(),
 			Flags:  fusekernel.OpenFlags(in.Flags),
-			Mode:   fileMode(in.Mode),
+			Mode:   FileMode(in.Mode),
 			Name:   string(name[:i]),
 		}
 		if c.proto.GE(fusekernel.Protocol{7, 12}) {
-			r.Umask = fileMode(in.Umask) & os.ModePerm
+			r.Umask = FileMode(in.Umask) & os.ModePerm
 		}
 		req = r
 
 	case fusekernel.OpInterrupt:
-		in := (*fusekernel.InterruptIn)(m.data())
-		if m.len() < unsafe.Sizeof(*in) {
+		in := (*fusekernel.InterruptIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
 			goto corrupt
 		}
 		req = &InterruptRequest{
@@ -1005,7 +1023,7 @@ loop:
 	return req, nil
 
 corrupt:
-	putMessage(m)
+	m.Destroy()
 	return nil, fmt.Errorf("fuse: malformed message")
 
 unrecognized:
@@ -1046,7 +1064,10 @@ func errorString(err error) string {
 func (c *Conn) writeToKernel(msg []byte) error {
 	out := (*fusekernel.OutHeader)(unsafe.Pointer(&msg[0]))
 	out.Len = uint32(len(msg))
+	return c.WriteToKernel(msg)
+}
 
+func (c *Conn) WriteToKernel(msg []byte) error {
 	c.wio.RLock()
 	defer c.wio.RUnlock()
 	_, err := syscall.Write(c.fd(), msg)
@@ -1096,11 +1117,11 @@ func (c *Conn) sendInvalidate(msg []byte) error {
 // Returns ErrNotCached if the kernel is not currently caching the
 // node.
 func (c *Conn) InvalidateNode(nodeID NodeID, off int64, size int64) error {
-	buf := newBuffer(unsafe.Sizeof(fusekernel.NotifyInvalInodeOut{}))
+	buf := NewBuffer(unsafe.Sizeof(fusekernel.NotifyInvalInodeOut{}))
 	h := (*fusekernel.OutHeader)(unsafe.Pointer(&buf[0]))
 	// h.Unique is 0
 	h.Error = fusekernel.NotifyCodeInvalInode
-	out := (*fusekernel.NotifyInvalInodeOut)(buf.alloc(unsafe.Sizeof(fusekernel.NotifyInvalInodeOut{})))
+	out := (*fusekernel.NotifyInvalInodeOut)(buf.Alloc(unsafe.Sizeof(fusekernel.NotifyInvalInodeOut{})))
 	out.Ino = uint64(nodeID)
 	out.Off = off
 	out.Len = size
@@ -1123,11 +1144,11 @@ func (c *Conn) InvalidateEntry(parent NodeID, name string) error {
 		// very unlikely, but we don't want to silently truncate
 		return syscall.ENAMETOOLONG
 	}
-	buf := newBuffer(unsafe.Sizeof(fusekernel.NotifyInvalEntryOut{}) + uintptr(len(name)) + 1)
+	buf := NewBuffer(unsafe.Sizeof(fusekernel.NotifyInvalEntryOut{}) + uintptr(len(name)) + 1)
 	h := (*fusekernel.OutHeader)(unsafe.Pointer(&buf[0]))
 	// h.Unique is 0
 	h.Error = fusekernel.NotifyCodeInvalEntry
-	out := (*fusekernel.NotifyInvalEntryOut)(buf.alloc(unsafe.Sizeof(fusekernel.NotifyInvalEntryOut{})))
+	out := (*fusekernel.NotifyInvalEntryOut)(buf.Alloc(unsafe.Sizeof(fusekernel.NotifyInvalEntryOut{})))
 	out.Parent = uint64(parent)
 	out.Namelen = uint32(len(name))
 	buf = append(buf, name...)
@@ -1168,8 +1189,8 @@ func (r *InitResponse) String() string {
 
 // Respond replies to the request with the given response.
 func (r *InitRequest) Respond(resp *InitResponse) {
-	buf := newBuffer(unsafe.Sizeof(fusekernel.InitOut{}))
-	out := (*fusekernel.InitOut)(buf.alloc(unsafe.Sizeof(fusekernel.InitOut{})))
+	buf := NewBuffer(unsafe.Sizeof(fusekernel.InitOut{}))
+	out := (*fusekernel.InitOut)(buf.Alloc(unsafe.Sizeof(fusekernel.InitOut{})))
 	out.Major = resp.Library.Major
 	out.Minor = resp.Library.Minor
 	out.MaxReadahead = resp.MaxReadahead
@@ -1197,8 +1218,8 @@ func (r *StatfsRequest) String() string {
 
 // Respond replies to the request with the given response.
 func (r *StatfsRequest) Respond(resp *StatfsResponse) {
-	buf := newBuffer(unsafe.Sizeof(fusekernel.StatfsOut{}))
-	out := (*fusekernel.StatfsOut)(buf.alloc(unsafe.Sizeof(fusekernel.StatfsOut{})))
+	buf := NewBuffer(unsafe.Sizeof(fusekernel.StatfsOut{}))
+	out := (*fusekernel.StatfsOut)(buf.Alloc(unsafe.Sizeof(fusekernel.StatfsOut{})))
 	out.St = fusekernel.Kstatfs{
 		Blocks:  resp.Blocks,
 		Bfree:   resp.Bfree,
@@ -1243,7 +1264,7 @@ func (r *AccessRequest) String() string {
 // Respond replies to the request indicating that access is allowed.
 // To deny access, use RespondError.
 func (r *AccessRequest) Respond() {
-	buf := newBuffer(0)
+	buf := NewBuffer(0)
 	r.respond(buf)
 }
 
@@ -1335,8 +1356,8 @@ func (r *GetattrRequest) String() string {
 // Respond replies to the request with the given response.
 func (r *GetattrRequest) Respond(resp *GetattrResponse) {
 	size := fusekernel.AttrOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*fusekernel.AttrOut)(buf.alloc(size))
+	buf := NewBuffer(size)
+	out := (*fusekernel.AttrOut)(buf.Alloc(size))
 	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
 	out.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
 	resp.Attr.attr(&out.Attr, r.Header.Conn.proto)
@@ -1378,12 +1399,12 @@ func (r *GetxattrRequest) String() string {
 // Respond replies to the request with the given response.
 func (r *GetxattrRequest) Respond(resp *GetxattrResponse) {
 	if r.Size == 0 {
-		buf := newBuffer(unsafe.Sizeof(fusekernel.GetxattrOut{}))
-		out := (*fusekernel.GetxattrOut)(buf.alloc(unsafe.Sizeof(fusekernel.GetxattrOut{})))
+		buf := NewBuffer(unsafe.Sizeof(fusekernel.GetxattrOut{}))
+		out := (*fusekernel.GetxattrOut)(buf.Alloc(unsafe.Sizeof(fusekernel.GetxattrOut{})))
 		out.Size = uint32(len(resp.Xattr))
 		r.respond(buf)
 	} else {
-		buf := newBuffer(uintptr(len(resp.Xattr)))
+		buf := NewBuffer(uintptr(len(resp.Xattr)))
 		buf = append(buf, resp.Xattr...)
 		r.respond(buf)
 	}
@@ -1414,12 +1435,12 @@ func (r *ListxattrRequest) String() string {
 // Respond replies to the request with the given response.
 func (r *ListxattrRequest) Respond(resp *ListxattrResponse) {
 	if r.Size == 0 {
-		buf := newBuffer(unsafe.Sizeof(fusekernel.GetxattrOut{}))
-		out := (*fusekernel.GetxattrOut)(buf.alloc(unsafe.Sizeof(fusekernel.GetxattrOut{})))
+		buf := NewBuffer(unsafe.Sizeof(fusekernel.GetxattrOut{}))
+		out := (*fusekernel.GetxattrOut)(buf.Alloc(unsafe.Sizeof(fusekernel.GetxattrOut{})))
 		out.Size = uint32(len(resp.Xattr))
 		r.respond(buf)
 	} else {
-		buf := newBuffer(uintptr(len(resp.Xattr)))
+		buf := NewBuffer(uintptr(len(resp.Xattr)))
 		buf = append(buf, resp.Xattr...)
 		r.respond(buf)
 	}
@@ -1456,7 +1477,7 @@ func (r *RemovexattrRequest) String() string {
 
 // Respond replies to the request, indicating that the attribute was removed.
 func (r *RemovexattrRequest) Respond() {
-	buf := newBuffer(0)
+	buf := NewBuffer(0)
 	r.respond(buf)
 }
 
@@ -1501,7 +1522,7 @@ func (r *SetxattrRequest) String() string {
 
 // Respond replies to the request, indicating that the extended attribute was set.
 func (r *SetxattrRequest) Respond() {
-	buf := newBuffer(0)
+	buf := NewBuffer(0)
 	r.respond(buf)
 }
 
@@ -1520,8 +1541,8 @@ func (r *LookupRequest) String() string {
 // Respond replies to the request with the given response.
 func (r *LookupRequest) Respond(resp *LookupResponse) {
 	size := fusekernel.EntryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*fusekernel.EntryOut)(buf.alloc(size))
+	buf := NewBuffer(size)
+	out := (*fusekernel.EntryOut)(buf.Alloc(size))
 	out.Nodeid = uint64(resp.Node)
 	out.Generation = resp.Generation
 	out.EntryValid = uint64(resp.EntryValid / time.Second)
@@ -1559,8 +1580,8 @@ func (r *OpenRequest) String() string {
 
 // Respond replies to the request with the given response.
 func (r *OpenRequest) Respond(resp *OpenResponse) {
-	buf := newBuffer(unsafe.Sizeof(fusekernel.OpenOut{}))
-	out := (*fusekernel.OpenOut)(buf.alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
+	buf := NewBuffer(unsafe.Sizeof(fusekernel.OpenOut{}))
+	out := (*fusekernel.OpenOut)(buf.Alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
 	out.Fh = uint64(resp.Handle)
 	out.OpenFlags = uint32(resp.Flags)
 	r.respond(buf)
@@ -1594,9 +1615,9 @@ func (r *CreateRequest) String() string {
 // Respond replies to the request with the given response.
 func (r *CreateRequest) Respond(resp *CreateResponse) {
 	eSize := fusekernel.EntryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(eSize + unsafe.Sizeof(fusekernel.OpenOut{}))
+	buf := NewBuffer(eSize + unsafe.Sizeof(fusekernel.OpenOut{}))
 
-	e := (*fusekernel.EntryOut)(buf.alloc(eSize))
+	e := (*fusekernel.EntryOut)(buf.Alloc(eSize))
 	e.Nodeid = uint64(resp.Node)
 	e.Generation = resp.Generation
 	e.EntryValid = uint64(resp.EntryValid / time.Second)
@@ -1605,7 +1626,7 @@ func (r *CreateRequest) Respond(resp *CreateResponse) {
 	e.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
 	resp.Attr.attr(&e.Attr, r.Header.Conn.proto)
 
-	o := (*fusekernel.OpenOut)(buf.alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
+	o := (*fusekernel.OpenOut)(buf.Alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
 	o.Fh = uint64(resp.Handle)
 	o.OpenFlags = uint32(resp.Flags)
 
@@ -1640,8 +1661,8 @@ func (r *MkdirRequest) String() string {
 // Respond replies to the request with the given response.
 func (r *MkdirRequest) Respond(resp *MkdirResponse) {
 	size := fusekernel.EntryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*fusekernel.EntryOut)(buf.alloc(size))
+	buf := NewBuffer(size)
+	out := (*fusekernel.EntryOut)(buf.Alloc(size))
 	out.Nodeid = uint64(resp.Node)
 	out.Generation = resp.Generation
 	out.EntryValid = uint64(resp.EntryValid / time.Second)
@@ -1681,7 +1702,7 @@ func (r *ReadRequest) String() string {
 
 // Respond replies to the request with the given response.
 func (r *ReadRequest) Respond(resp *ReadResponse) {
-	buf := newBuffer(uintptr(len(resp.Data)))
+	buf := NewBuffer(uintptr(len(resp.Data)))
 	buf = append(buf, resp.Data...)
 	r.respond(buf)
 }
@@ -1724,7 +1745,7 @@ func (r *ReleaseRequest) String() string {
 
 // Respond replies to the request, indicating that the handle has been released.
 func (r *ReleaseRequest) Respond() {
-	buf := newBuffer(0)
+	buf := NewBuffer(0)
 	r.respond(buf)
 }
 
@@ -1743,7 +1764,7 @@ func (r *DestroyRequest) String() string {
 
 // Respond replies to the request.
 func (r *DestroyRequest) Respond() {
-	buf := newBuffer(0)
+	buf := NewBuffer(0)
 	r.respond(buf)
 }
 
@@ -1883,8 +1904,8 @@ func (r *WriteRequest) MarshalJSON() ([]byte, error) {
 
 // Respond replies to the request with the given response.
 func (r *WriteRequest) Respond(resp *WriteResponse) {
-	buf := newBuffer(unsafe.Sizeof(fusekernel.WriteOut{}))
-	out := (*fusekernel.WriteOut)(buf.alloc(unsafe.Sizeof(fusekernel.WriteOut{})))
+	buf := NewBuffer(unsafe.Sizeof(fusekernel.WriteOut{}))
+	out := (*fusekernel.WriteOut)(buf.Alloc(unsafe.Sizeof(fusekernel.WriteOut{})))
 	out.Size = uint32(resp.Size)
 	r.respond(buf)
 }
@@ -1974,8 +1995,8 @@ func (r *SetattrRequest) String() string {
 // giving the updated attributes.
 func (r *SetattrRequest) Respond(resp *SetattrResponse) {
 	size := fusekernel.AttrOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*fusekernel.AttrOut)(buf.alloc(size))
+	buf := NewBuffer(size)
+	out := (*fusekernel.AttrOut)(buf.Alloc(size))
 	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
 	out.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
 	resp.Attr.attr(&out.Attr, r.Header.Conn.proto)
@@ -2009,7 +2030,7 @@ func (r *FlushRequest) String() string {
 
 // Respond replies to the request, indicating that the flush succeeded.
 func (r *FlushRequest) Respond() {
-	buf := newBuffer(0)
+	buf := NewBuffer(0)
 	r.respond(buf)
 }
 
@@ -2029,7 +2050,7 @@ func (r *RemoveRequest) String() string {
 
 // Respond replies to the request, indicating that the file was removed.
 func (r *RemoveRequest) Respond() {
-	buf := newBuffer(0)
+	buf := NewBuffer(0)
 	r.respond(buf)
 }
 
@@ -2048,8 +2069,8 @@ func (r *SymlinkRequest) String() string {
 // Respond replies to the request, indicating that the symlink was created.
 func (r *SymlinkRequest) Respond(resp *SymlinkResponse) {
 	size := fusekernel.EntryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*fusekernel.EntryOut)(buf.alloc(size))
+	buf := NewBuffer(size)
+	out := (*fusekernel.EntryOut)(buf.Alloc(size))
 	out.Nodeid = uint64(resp.Node)
 	out.Generation = resp.Generation
 	out.EntryValid = uint64(resp.EntryValid / time.Second)
@@ -2077,7 +2098,7 @@ func (r *ReadlinkRequest) String() string {
 }
 
 func (r *ReadlinkRequest) Respond(target string) {
-	buf := newBuffer(uintptr(len(target)))
+	buf := NewBuffer(uintptr(len(target)))
 	buf = append(buf, target...)
 	r.respond(buf)
 }
@@ -2097,8 +2118,8 @@ func (r *LinkRequest) String() string {
 
 func (r *LinkRequest) Respond(resp *LookupResponse) {
 	size := fusekernel.EntryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*fusekernel.EntryOut)(buf.alloc(size))
+	buf := NewBuffer(size)
+	out := (*fusekernel.EntryOut)(buf.Alloc(size))
 	out.Nodeid = uint64(resp.Node)
 	out.Generation = resp.Generation
 	out.EntryValid = uint64(resp.EntryValid / time.Second)
@@ -2123,7 +2144,7 @@ func (r *RenameRequest) String() string {
 }
 
 func (r *RenameRequest) Respond() {
-	buf := newBuffer(0)
+	buf := NewBuffer(0)
 	r.respond(buf)
 }
 
@@ -2143,8 +2164,8 @@ func (r *MknodRequest) String() string {
 
 func (r *MknodRequest) Respond(resp *LookupResponse) {
 	size := fusekernel.EntryOutSize(r.Header.Conn.proto)
-	buf := newBuffer(size)
-	out := (*fusekernel.EntryOut)(buf.alloc(size))
+	buf := NewBuffer(size)
+	out := (*fusekernel.EntryOut)(buf.Alloc(size))
 	out.Nodeid = uint64(resp.Node)
 	out.Generation = resp.Generation
 	out.EntryValid = uint64(resp.EntryValid / time.Second)
@@ -2170,7 +2191,7 @@ func (r *FsyncRequest) String() string {
 }
 
 func (r *FsyncRequest) Respond() {
-	buf := newBuffer(0)
+	buf := NewBuffer(0)
 	r.respond(buf)
 }
 

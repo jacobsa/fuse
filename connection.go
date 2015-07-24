@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/internal/fusekernel"
 	"github.com/jacobsa/fuse/internal/fuseshim"
 )
 
@@ -41,11 +42,11 @@ type Connection struct {
 
 	mu sync.Mutex
 
-	// A map from fuseshim request ID (*not* the op ID for logging used above) to
-	// a function that cancel's its associated context.
+	// A map from fuse "unique" request ID (*not* the op ID for logging used
+	// above) to a function that cancel's its associated context.
 	//
 	// GUARDED_BY(mu)
-	cancelFuncs map[fuseshim.RequestID]func()
+	cancelFuncs map[uint64]func()
 }
 
 // Responsibility for closing the wrapped connection is transferred to the
@@ -62,7 +63,7 @@ func newConnection(
 		errorLogger: errorLogger,
 		wrapped:     wrapped,
 		parentCtx:   parentCtx,
-		cancelFuncs: make(map[fuseshim.RequestID]func()),
+		cancelFuncs: make(map[uint64]func()),
 	}
 
 	return
@@ -104,28 +105,27 @@ func (c *Connection) debugLog(
 
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) recordCancelFunc(
-	reqID fuseshim.RequestID,
+	fuseID uint64,
 	f func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if _, ok := c.cancelFuncs[reqID]; ok {
-		panic(fmt.Sprintf("Already have cancel func for request %v", reqID))
+	if _, ok := c.cancelFuncs[fuseID]; ok {
+		panic(fmt.Sprintf("Already have cancel func for request %v", fuseID))
 	}
 
-	c.cancelFuncs[reqID] = f
+	c.cancelFuncs[fuseID] = f
 }
 
 // Set up state for an op that is about to be returned to the user, given its
-// underlying fuseshim request.
+// underlying fuse opcode and request ID.
 //
 // Return a context that should be used for the op.
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) beginOp(
-	bfReq fuseshim.Request) (ctx context.Context) {
-	reqID := bfReq.Hdr().ID
-
+	opCode uint32,
+	fuseID uint64) (ctx context.Context) {
 	// Start with the parent context.
 	ctx = c.parentCtx
 
@@ -137,26 +137,26 @@ func (c *Connection) beginOp(
 	// should not record any state keyed on their ID.
 	//
 	// Cf. https://github.com/osxfuse/osxfuse/issues/208
-	if _, ok := bfReq.(*fuseshim.ForgetRequest); !ok {
+	if opCode != fusekernel.OpForget {
 		var cancel func()
 		ctx, cancel = context.WithCancel(ctx)
-		c.recordCancelFunc(reqID, cancel)
+		c.recordCancelFunc(fuseID, cancel)
 	}
 
 	return
 }
 
 // Clean up all state associated with an op to which the user has responded,
-// given its underlying fuseshim request. This must be called before a response
-// is sent to the kernel, to avoid a race where the request's ID might be
-// reused by osxfuse.
+// given its underlying fuse opcode and request ID. This must be called before
+// a response is sent to the kernel, to avoid a race where the request's ID
+// might be reused by osxfuse.
 //
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) finishOp(bfReq fuseshim.Request) {
+func (c *Connection) finishOp(
+	opCode uint32,
+	fuseID uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
-	reqID := bfReq.Hdr().ID
 
 	// Even though the op is finished, context.WithCancel requires us to arrange
 	// for the cancellation function to be invoked. We also must remove it from
@@ -164,19 +164,19 @@ func (c *Connection) finishOp(bfReq fuseshim.Request) {
 	//
 	// Special case: we don't do this for Forget requests. See the note in
 	// beginOp above.
-	if _, ok := bfReq.(*fuseshim.ForgetRequest); !ok {
-		cancel, ok := c.cancelFuncs[reqID]
+	if opCode != fusekernel.OpForget {
+		cancel, ok := c.cancelFuncs[fuseID]
 		if !ok {
-			panic(fmt.Sprintf("Unknown request ID in finishOp: %v", reqID))
+			panic(fmt.Sprintf("Unknown request ID in finishOp: %v", fuseID))
 		}
 
 		cancel()
-		delete(c.cancelFuncs, reqID)
+		delete(c.cancelFuncs, fuseID)
 	}
 }
 
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) handleInterrupt(req *fuseshim.InterruptRequest) {
+func (c *Connection) handleInterrupt(fuseID uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -194,7 +194,7 @@ func (c *Connection) handleInterrupt(req *fuseshim.InterruptRequest) {
 	//
 	// Cf. https://github.com/osxfuse/osxfuse/issues/208
 	// Cf. http://comments.gmane.org/gmane.comp.file-systems.fuse.devel/14675
-	cancel, ok := c.cancelFuncs[req.IntrID]
+	cancel, ok := c.cancelFuncs[fuseID]
 	if !ok {
 		return
 	}
@@ -212,38 +212,19 @@ func (c *Connection) handleInterrupt(req *fuseshim.InterruptRequest) {
 func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 	// Keep going until we find a request we know how to convert.
 	for {
-		// Read a fuseshim request.
-		var bfReq fuseshim.Request
-		bfReq, err = c.wrapped.ReadRequest()
-
+		// Read the next message from the fuseshim connection.
+		var m *fuseshim.Message
+		m, err = c.wrapped.ReadMessage()
 		if err != nil {
 			return
 		}
 
-		// Choose an ID for this operation.
+		// Choose an ID for this operation for the purposes of logging.
 		opID := c.nextOpID
 		c.nextOpID++
 
-		// Log the receipt of the operation.
-		c.debugLog(opID, 1, "<- %v", bfReq)
-
-		// Special case: responding to statfs is required to make mounting work on
-		// OS X. We don't currently expose the capability for the file system to
-		// intercept this.
-		if statfsReq, ok := bfReq.(*fuseshim.StatfsRequest); ok {
-			c.debugLog(opID, 1, "-> (Statfs) OK")
-			statfsReq.Respond(&fuseshim.StatfsResponse{})
-			continue
-		}
-
-		// Special case: handle interrupt requests.
-		if interruptReq, ok := bfReq.(*fuseshim.InterruptRequest); ok {
-			c.handleInterrupt(interruptReq)
-			continue
-		}
-
 		// Set up op dependencies.
-		opCtx := c.beginOp(bfReq)
+		opCtx := c.beginOp(m.Hdr.Opcode, m.Hdr.Unique)
 
 		var debugLogForOp func(int, string, ...interface{})
 		if c.debugLogger != nil {
@@ -252,14 +233,72 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			}
 		}
 
-		finished := func(err error) { c.finishOp(bfReq) }
+		sendReply := func(
+			op fuseops.Op,
+			fuseID uint64,
+			replyMsg []byte,
+			opErr error) (err error) {
+			// Make sure we destroy the message, as required by
+			// fuseshim.Connection.ReadMessage.
+			defer m.Destroy()
 
-		op = fuseops.Convert(
+			// Clean up state for this op.
+			c.finishOp(m.Hdr.Opcode, m.Hdr.Unique)
+
+			// Debug logging
+			if c.debugLogger != nil {
+				if opErr == nil {
+					op.Logf("-> OK: %s", op.DebugString())
+				} else {
+					op.Logf("-> error: %v", opErr)
+				}
+			}
+
+			// Error logging
+			if opErr != nil && c.errorLogger != nil {
+				c.errorLogger.Printf("(%s) error: %v", op.ShortDesc(), opErr)
+			}
+
+			// Send the reply to the kernel.
+			err = c.wrapped.WriteToKernel(replyMsg)
+			if err != nil {
+				err = fmt.Errorf("WriteToKernel: %v", err)
+				return
+			}
+
+			return
+		}
+
+		// Convert the message to an Op.
+		op, err = fuseops.Convert(
 			opCtx,
-			bfReq,
+			m,
+			c.wrapped.Protocol(),
 			debugLogForOp,
 			c.errorLogger,
-			finished)
+			sendReply)
+
+		if err != nil {
+			err = fmt.Errorf("fuseops.Convert: %v", err)
+			return
+		}
+
+		// Log the receipt of the operation.
+		c.debugLog(opID, 1, "<- %v", op.ShortDesc())
+
+		// Special case: responding to statfs is required to make mounting work on
+		// OS X. We don't currently expose the capability for the file system to
+		// intercept this.
+		if _, ok := op.(*fuseops.InternalStatFSOp); ok {
+			op.Respond(nil)
+			continue
+		}
+
+		// Special case: handle interrupt requests.
+		if interruptOp, ok := op.(*fuseops.InternalInterruptOp); ok {
+			c.handleInterrupt(interruptOp.FuseID)
+			continue
+		}
 
 		return
 	}

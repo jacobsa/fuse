@@ -19,7 +19,9 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"unsafe"
 
+	"github.com/jacobsa/fuse/internal/fusekernel"
 	"github.com/jacobsa/fuse/internal/fuseshim"
 	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
@@ -30,9 +32,18 @@ import (
 type internalOp interface {
 	Op
 
-	// Respond to the underlying fuseshim request, successfully.
-	respond()
+	// Create a response message for the kernel, with leading pading for a
+	// fusekernel.OutHeader struct.
+	//
+	// Special case: a return value of nil means that the kernel is not expecting
+	// a response.
+	kernelResponse() []byte
 }
+
+// A function that sends a reply message back to the kernel for the request
+// with the given fuse unique ID. The error argument is for informational
+// purposes only; the error to hand to the kernel is encoded in the message.
+type replyFunc func(Op, uint64, []byte, error) error
 
 // A helper for embedding common behavior.
 type commonOp struct {
@@ -42,8 +53,11 @@ type commonOp struct {
 	// The op in which this struct is embedded.
 	op internalOp
 
-	// The underlying fuseshim request for this op.
-	bazilReq fuseshim.Request
+	// The fuse unique ID of this request, as assigned by the kernel.
+	fuseID uint64
+
+	// A function that can be used to send a reply to the kernel.
+	sendReply replyFunc
 
 	// A function that can be used to log debug information about the op. The
 	// first argument is a call depth.
@@ -55,14 +69,11 @@ type commonOp struct {
 	//
 	// May be nil.
 	errorLogger *log.Logger
-
-	// A function that is invoked with the error given to Respond, for use in
-	// closing off traces and reporting back to the connection.
-	finished func(error)
 }
 
 func (o *commonOp) ShortDesc() (desc string) {
-	opName := reflect.TypeOf(o.op).String()
+	v := reflect.ValueOf(o.op)
+	opName := v.Type().String()
 
 	// Attempt to better handle the usual case: a string that looks like
 	// "*fuseops.GetInodeAttributesOp".
@@ -72,36 +83,46 @@ func (o *commonOp) ShortDesc() (desc string) {
 		opName = opName[len(prefix) : len(opName)-len(suffix)]
 	}
 
-	// Include the inode number to which the op applies.
-	desc = fmt.Sprintf("%s(inode=%v)", opName, o.bazilReq.Hdr().Node)
+	desc = opName
+
+	// Include the inode number to which the op applies, if possible.
+	if f := v.Elem().FieldByName("Inode"); f.IsValid() {
+		desc = fmt.Sprintf("%s(inode=%v)", desc, f.Interface())
+	}
 
 	return
+}
+
+func (o *commonOp) DebugString() string {
+	// By default, defer to ShortDesc.
+	return o.op.ShortDesc()
 }
 
 func (o *commonOp) init(
 	ctx context.Context,
 	op internalOp,
-	bazilReq fuseshim.Request,
+	fuseID uint64,
+	sendReply replyFunc,
 	debugLog func(int, string, ...interface{}),
-	errorLogger *log.Logger,
-	finished func(error)) {
+	errorLogger *log.Logger) {
 	// Initialize basic fields.
 	o.ctx = ctx
 	o.op = op
-	o.bazilReq = bazilReq
+	o.fuseID = fuseID
+	o.sendReply = sendReply
 	o.debugLog = debugLog
 	o.errorLogger = errorLogger
-	o.finished = finished
 
 	// Set up a trace span for this op.
 	var reportForTrace reqtrace.ReportFunc
 	o.ctx, reportForTrace = reqtrace.StartSpan(o.ctx, o.op.ShortDesc())
 
 	// When the op is finished, report to both reqtrace and the connection.
-	prevFinish := o.finished
-	o.finished = func(err error) {
-		reportForTrace(err)
-		prevFinish(err)
+	prevSendReply := o.sendReply
+	o.sendReply = func(op Op, fuseID uint64, msg []byte, opErr error) (err error) {
+		reportForTrace(opErr)
+		err = prevSendReply(op, fuseID, msg, opErr)
+		return
 	}
 }
 
@@ -119,30 +140,34 @@ func (o *commonOp) Logf(format string, v ...interface{}) {
 }
 
 func (o *commonOp) Respond(err error) {
-	// Report that the user is responding.
-	o.finished(err)
-
-	// If successful, we should respond to fuseshim with the appropriate struct.
+	// If successful, we ask the op for an appopriate response to the kernel, and
+	// it is responsible for leaving room for the fusekernel.OutHeader struct.
+	// Otherwise, create our own.
+	var msg []byte
 	if err == nil {
-		o.op.respond()
-		return
+		msg = o.op.kernelResponse()
+	} else {
+		msg = fuseshim.NewBuffer(0)
 	}
 
-	// Log the error.
-	if o.debugLog != nil {
-		o.Logf(
-			"-> (%s) error: %v",
-			o.op.ShortDesc(),
-			err)
+	// Fill in the header if a reply is needed.
+	if msg != nil {
+		h := (*fusekernel.OutHeader)(unsafe.Pointer(&msg[0]))
+		h.Unique = o.fuseID
+		h.Len = uint32(len(msg))
+		if err != nil {
+			errno := fuseshim.EIO
+			if ferr, ok := err.(fuseshim.ErrorNumber); ok {
+				errno = ferr.Errno()
+			}
+
+			h.Error = -int32(errno)
+		}
 	}
 
-	if o.errorLogger != nil {
-		o.errorLogger.Printf(
-			"(%s) error: %v",
-			o.op.ShortDesc(),
-			err)
+	// Reply.
+	replyErr := o.sendReply(o.op, o.fuseID, msg, err)
+	if replyErr != nil && o.errorLogger != nil {
+		o.errorLogger.Printf("Error from sendReply: %v", replyErr)
 	}
-
-	// Send a response to the kernel.
-	o.bazilReq.RespondError(err)
 }

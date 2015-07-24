@@ -18,7 +18,9 @@ import (
 	"fmt"
 	"os"
 	"time"
+	"unsafe"
 
+	"github.com/jacobsa/fuse/internal/fusekernel"
 	"github.com/jacobsa/fuse/internal/fuseshim"
 	"golang.org/x/net/context"
 )
@@ -29,6 +31,9 @@ import (
 type Op interface {
 	// A short description of the op, to be used in logging.
 	ShortDesc() string
+
+	// A long description of the op, to be used in debug logging.
+	DebugString() string
 
 	// A context that can be used for long-running operations.
 	Context() context.Context
@@ -55,7 +60,6 @@ type Op interface {
 // when resolving user paths to dentry structs, which are then cached.
 type LookUpInodeOp struct {
 	commonOp
-	bfReq *fuseshim.LookupRequest
 
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
@@ -83,11 +87,13 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *LookUpInodeOp) respond() {
-	resp := fuseshim.LookupResponse{}
-	convertChildInodeEntry(&o.Entry, &resp)
+func (o *LookUpInodeOp) kernelResponse() (msg []byte) {
+	size := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	buf := fuseshim.NewBuffer(size)
+	out := (*fusekernel.EntryOut)(buf.Alloc(size))
+	convertChildInodeEntry(&o.Entry, out)
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
@@ -97,7 +103,6 @@ func (o *LookUpInodeOp) respond() {
 // field of ChildInodeEntry, etc.
 type GetInodeAttributesOp struct {
 	commonOp
-	bfReq *fuseshim.GetattrRequest
 
 	// The inode of interest.
 	Inode InodeID
@@ -109,12 +114,22 @@ type GetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *GetInodeAttributesOp) respond() {
-	resp := fuseshim.GetattrResponse{
-		Attr: convertAttributes(o.Inode, o.Attributes, o.AttributesExpiration),
-	}
+func (o *GetInodeAttributesOp) DebugString() string {
+	return fmt.Sprintf(
+		"Inode: %d, Exp: %v, Attr: %s",
+		o.Inode,
+		o.AttributesExpiration,
+		o.Attributes.DebugString())
+}
 
-	o.bfReq.Respond(&resp)
+func (o *GetInodeAttributesOp) kernelResponse() (msg []byte) {
+	size := fusekernel.AttrOutSize(fusekernel.Protocol{0, 0})
+	buf := fuseshim.NewBuffer(size)
+	out := (*fusekernel.AttrOut)(buf.Alloc(size))
+	out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
+	convertAttributes(o.Inode, &o.Attributes, &out.Attr)
+
+	msg = buf
 	return
 }
 
@@ -124,7 +139,6 @@ func (o *GetInodeAttributesOp) respond() {
 // cases like ftrunctate(2).
 type SetInodeAttributesOp struct {
 	commonOp
-	bfReq *fuseshim.SetattrRequest
 
 	// The inode of interest.
 	Inode InodeID
@@ -142,12 +156,14 @@ type SetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *SetInodeAttributesOp) respond() {
-	resp := fuseshim.SetattrResponse{
-		Attr: convertAttributes(o.Inode, o.Attributes, o.AttributesExpiration),
-	}
+func (o *SetInodeAttributesOp) kernelResponse() (msg []byte) {
+	size := fusekernel.AttrOutSize(fusekernel.Protocol{0, 0})
+	buf := fuseshim.NewBuffer(size)
+	out := (*fusekernel.AttrOut)(buf.Alloc(size))
+	out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
+	convertAttributes(o.Inode, &o.Attributes, &out.Attr)
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
@@ -192,7 +208,6 @@ func (o *SetInodeAttributesOp) respond() {
 // implicitly decrementing all lookup counts to zero.
 type ForgetInodeOp struct {
 	commonOp
-	bfReq *fuseshim.ForgetRequest
 
 	// The inode whose reference count should be decremented.
 	Inode InodeID
@@ -201,8 +216,8 @@ type ForgetInodeOp struct {
 	N uint64
 }
 
-func (o *ForgetInodeOp) respond() {
-	o.bfReq.Respond()
+func (o *ForgetInodeOp) kernelResponse() (msg []byte) {
+	// No response.
 	return
 }
 
@@ -223,7 +238,6 @@ func (o *ForgetInodeOp) respond() {
 // Therefore the file system should return EEXIST if the name already exists.
 type MkDirOp struct {
 	commonOp
-	bfReq *fuseshim.MkdirRequest
 
 	// The ID of parent directory inode within which to create the child.
 	Parent InodeID
@@ -244,11 +258,13 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *MkDirOp) respond() {
-	resp := fuseshim.MkdirResponse{}
-	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
+func (o *MkDirOp) kernelResponse() (msg []byte) {
+	size := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	buf := fuseshim.NewBuffer(size)
+	out := (*fusekernel.EntryOut)(buf.Alloc(size))
+	convertChildInodeEntry(&o.Entry, out)
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
@@ -264,7 +280,6 @@ func (o *MkDirOp) respond() {
 // Therefore the file system should return EEXIST if the name already exists.
 type CreateFileOp struct {
 	commonOp
-	bfReq *fuseshim.CreateRequest
 
 	// The ID of parent directory inode within which to create the child file.
 	Parent InodeID
@@ -295,16 +310,17 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *CreateFileOp) respond() {
-	resp := fuseshim.CreateResponse{
-		OpenResponse: fuseshim.OpenResponse{
-			Handle: fuseshim.HandleID(o.Handle),
-		},
-	}
+func (o *CreateFileOp) kernelResponse() (msg []byte) {
+	eSize := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	buf := fuseshim.NewBuffer(eSize + unsafe.Sizeof(fusekernel.OpenOut{}))
 
-	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
+	e := (*fusekernel.EntryOut)(buf.Alloc(eSize))
+	convertChildInodeEntry(&o.Entry, e)
 
-	o.bfReq.Respond(&resp)
+	oo := (*fusekernel.OpenOut)(buf.Alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
+	oo.Fh = uint64(o.Handle)
+
+	msg = buf
 	return
 }
 
@@ -312,7 +328,6 @@ func (o *CreateFileOp) respond() {
 // return EEXIST (cf. the notes on CreateFileOp and MkDirOp).
 type CreateSymlinkOp struct {
 	commonOp
-	bfReq *fuseshim.SymlinkRequest
 
 	// The ID of parent directory inode within which to create the child symlink.
 	Parent InodeID
@@ -341,11 +356,13 @@ func (o *CreateSymlinkOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *CreateSymlinkOp) respond() {
-	resp := fuseshim.SymlinkResponse{}
-	convertChildInodeEntry(&o.Entry, &resp.LookupResponse)
+func (o *CreateSymlinkOp) kernelResponse() (msg []byte) {
+	size := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	buf := fuseshim.NewBuffer(size)
+	out := (*fusekernel.EntryOut)(buf.Alloc(size))
+	convertChildInodeEntry(&o.Entry, out)
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
@@ -389,7 +406,6 @@ func (o *CreateSymlinkOp) respond() {
 //
 type RenameOp struct {
 	commonOp
-	bfReq *fuseshim.RenameRequest
 
 	// The old parent directory, and the name of the entry within it to be
 	// relocated.
@@ -402,8 +418,8 @@ type RenameOp struct {
 	NewName   string
 }
 
-func (o *RenameOp) respond() {
-	o.bfReq.Respond()
+func (o *RenameOp) kernelResponse() (msg []byte) {
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -416,7 +432,6 @@ func (o *RenameOp) respond() {
 // Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
 type RmDirOp struct {
 	commonOp
-	bfReq *fuseshim.RemoveRequest
 
 	// The ID of parent directory inode, and the name of the directory being
 	// removed within it.
@@ -424,8 +439,8 @@ type RmDirOp struct {
 	Name   string
 }
 
-func (o *RmDirOp) respond() {
-	o.bfReq.Respond()
+func (o *RmDirOp) kernelResponse() (msg []byte) {
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -437,7 +452,6 @@ func (o *RmDirOp) respond() {
 // Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
 type UnlinkOp struct {
 	commonOp
-	bfReq *fuseshim.RemoveRequest
 
 	// The ID of parent directory inode, and the name of the entry being removed
 	// within it.
@@ -445,8 +459,8 @@ type UnlinkOp struct {
 	Name   string
 }
 
-func (o *UnlinkOp) respond() {
-	o.bfReq.Respond()
+func (o *UnlinkOp) kernelResponse() (msg []byte) {
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -462,7 +476,6 @@ func (o *UnlinkOp) respond() {
 // https://github.com/osxfuse/osxfuse/issues/199).
 type OpenDirOp struct {
 	commonOp
-	bfReq *fuseshim.OpenRequest
 
 	// The ID of the inode to be opened.
 	Inode InodeID
@@ -478,19 +491,18 @@ type OpenDirOp struct {
 	Handle HandleID
 }
 
-func (o *OpenDirOp) respond() {
-	resp := fuseshim.OpenResponse{
-		Handle: fuseshim.HandleID(o.Handle),
-	}
+func (o *OpenDirOp) kernelResponse() (msg []byte) {
+	buf := fuseshim.NewBuffer(unsafe.Sizeof(fusekernel.OpenOut{}))
+	out := (*fusekernel.OpenOut)(buf.Alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
+	out.Fh = uint64(o.Handle)
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
 // Read entries from a directory previously opened with OpenDir.
 type ReadDirOp struct {
 	commonOp
-	bfReq *fuseshim.ReadRequest
 
 	// The directory inode that we are reading, and the handle previously
 	// returned by OpenDir when opening that inode.
@@ -578,12 +590,9 @@ type ReadDirOp struct {
 	Data []byte
 }
 
-func (o *ReadDirOp) respond() {
-	resp := fuseshim.ReadResponse{
-		Data: o.Data,
-	}
-
-	o.bfReq.Respond(&resp)
+func (o *ReadDirOp) kernelResponse() (msg []byte) {
+	msg = fuseshim.NewBuffer(uintptr(len(o.Data)))
+	msg = append(msg, o.Data...)
 	return
 }
 
@@ -597,7 +606,6 @@ func (o *ReadDirOp) respond() {
 // Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
 type ReleaseDirHandleOp struct {
 	commonOp
-	bfReq *fuseshim.ReleaseRequest
 
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
@@ -605,8 +613,8 @@ type ReleaseDirHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseDirHandleOp) respond() {
-	o.bfReq.Respond()
+func (o *ReleaseDirHandleOp) kernelResponse() (msg []byte) {
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -622,7 +630,6 @@ func (o *ReleaseDirHandleOp) respond() {
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
 type OpenFileOp struct {
 	commonOp
-	bfReq *fuseshim.OpenRequest
 
 	// The ID of the inode to be opened.
 	Inode InodeID
@@ -637,12 +644,12 @@ type OpenFileOp struct {
 	Handle HandleID
 }
 
-func (o *OpenFileOp) respond() {
-	resp := fuseshim.OpenResponse{
-		Handle: fuseshim.HandleID(o.Handle),
-	}
+func (o *OpenFileOp) kernelResponse() (msg []byte) {
+	buf := fuseshim.NewBuffer(unsafe.Sizeof(fusekernel.OpenOut{}))
+	out := (*fusekernel.OpenOut)(buf.Alloc(unsafe.Sizeof(fusekernel.OpenOut{})))
+	out.Fh = uint64(o.Handle)
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
@@ -653,7 +660,6 @@ func (o *OpenFileOp) respond() {
 // more.
 type ReadFileOp struct {
 	commonOp
-	bfReq *fuseshim.ReadRequest
 
 	// The file inode that we are reading, and the handle previously returned by
 	// CreateFile or OpenFile when opening that inode.
@@ -676,12 +682,9 @@ type ReadFileOp struct {
 	Data []byte
 }
 
-func (o *ReadFileOp) respond() {
-	resp := fuseshim.ReadResponse{
-		Data: o.Data,
-	}
-
-	o.bfReq.Respond(&resp)
+func (o *ReadFileOp) kernelResponse() (msg []byte) {
+	msg = fuseshim.NewBuffer(uintptr(len(o.Data)))
+	msg = append(msg, o.Data...)
 	return
 }
 
@@ -718,7 +721,6 @@ func (o *ReadFileOp) respond() {
 // concurrent requests".)
 type WriteFileOp struct {
 	commonOp
-	bfReq *fuseshim.WriteRequest
 
 	// The file inode that we are modifying, and the handle previously returned
 	// by CreateFile or OpenFile when opening that inode.
@@ -756,12 +758,12 @@ type WriteFileOp struct {
 	Data []byte
 }
 
-func (o *WriteFileOp) respond() {
-	resp := fuseshim.WriteResponse{
-		Size: len(o.Data),
-	}
+func (o *WriteFileOp) kernelResponse() (msg []byte) {
+	buf := fuseshim.NewBuffer(unsafe.Sizeof(fusekernel.WriteOut{}))
+	out := (*fusekernel.WriteOut)(buf.Alloc(unsafe.Sizeof(fusekernel.WriteOut{})))
+	out.Size = uint32(len(o.Data))
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
@@ -783,15 +785,14 @@ func (o *WriteFileOp) respond() {
 // file (but which is not used in "real" file systems).
 type SyncFileOp struct {
 	commonOp
-	bfReq *fuseshim.FsyncRequest
 
 	// The file and handle being sync'd.
 	Inode  InodeID
 	Handle HandleID
 }
 
-func (o *SyncFileOp) respond() {
-	o.bfReq.Respond()
+func (o *SyncFileOp) kernelResponse() (msg []byte) {
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -844,15 +845,14 @@ func (o *SyncFileOp) respond() {
 // return any errors that occur.
 type FlushFileOp struct {
 	commonOp
-	bfReq *fuseshim.FlushRequest
 
 	// The file and handle being flushed.
 	Inode  InodeID
 	Handle HandleID
 }
 
-func (o *FlushFileOp) respond() {
-	o.bfReq.Respond()
+func (o *FlushFileOp) kernelResponse() (msg []byte) {
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -866,7 +866,6 @@ func (o *FlushFileOp) respond() {
 // Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
 type ReleaseFileHandleOp struct {
 	commonOp
-	bfReq *fuseshim.ReleaseRequest
 
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
@@ -874,8 +873,8 @@ type ReleaseFileHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseFileHandleOp) respond() {
-	o.bfReq.Respond()
+func (o *ReleaseFileHandleOp) kernelResponse() (msg []byte) {
+	msg = fuseshim.NewBuffer(0)
 	return
 }
 
@@ -883,14 +882,16 @@ func (o *ReleaseFileHandleOp) respond() {
 // non-nil error.
 type unknownOp struct {
 	commonOp
+	opCode uint32
+	inode  InodeID
 }
 
 func (o *unknownOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("%T(inode=%v)", o.bazilReq, o.bazilReq.Hdr().Node)
+	desc = fmt.Sprintf("<opcode %d>(inode=%v)", o.opCode, o.inode)
 	return
 }
 
-func (o *unknownOp) respond() {
+func (o *unknownOp) kernelResponse() (msg []byte) {
 	panic(fmt.Sprintf("Should never get here for unknown op: %s", o.ShortDesc()))
 }
 
@@ -901,7 +902,6 @@ func (o *unknownOp) respond() {
 // Read the target of a symlink inode.
 type ReadSymlinkOp struct {
 	commonOp
-	bfReq *fuseshim.ReadlinkRequest
 
 	// The symlink inode that we are reading.
 	Inode InodeID
@@ -910,7 +910,41 @@ type ReadSymlinkOp struct {
 	Target string
 }
 
-func (o *ReadSymlinkOp) respond() {
-	o.bfReq.Respond(o.Target)
+func (o *ReadSymlinkOp) kernelResponse() (msg []byte) {
+	msg = fuseshim.NewBuffer(uintptr(len(o.Target)))
+	msg = append(msg, o.Target...)
 	return
+}
+
+////////////////////////////////////////////////////////////////////////
+// Internal
+////////////////////////////////////////////////////////////////////////
+
+// TODO(jacobsa): Untangle the way ops work and move these to an internal
+// package, along with Convert. I think all of the behavior wants to be on
+// Connection. Ops have only String methods. Connection.ReadRequest returns an
+// interace{} and a context. If we must restore debug logging later, we can
+// stuff an op ID in that context and add a Connection.Logf method.
+
+// Do not use this struct directly. See the TODO in fuseops/ops.go.
+type InternalStatFSOp struct {
+	commonOp
+}
+
+func (o *InternalStatFSOp) kernelResponse() (msg []byte) {
+	buf := fuseshim.NewBuffer(unsafe.Sizeof(fusekernel.StatfsOut{}))
+	buf.Alloc(unsafe.Sizeof(fusekernel.StatfsOut{}))
+
+	msg = buf
+	return
+}
+
+// Do not use this struct directly. See the TODO in fuseops/ops.go.
+type InternalInterruptOp struct {
+	commonOp
+	FuseID uint64
+}
+
+func (o *InternalInterruptOp) kernelResponse() (msg []byte) {
+	panic("Shouldn't get here.")
 }
