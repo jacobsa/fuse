@@ -25,7 +25,6 @@ import (
 
 	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
-	"github.com/jacobsa/fuse/internal/fuseshim"
 	"golang.org/x/net/context"
 )
 
@@ -92,7 +91,7 @@ func Convert(
 		}
 
 		if valid&fusekernel.SetattrMode != 0 {
-			mode := fuseshim.FileMode(in.Mode)
+			mode := convertFileMode(in.Mode)
 			to.Mode = &mode
 		}
 
@@ -150,7 +149,7 @@ func Convert(
 			// the fact that this is a directory is implicit in the fact that the
 			// opcode is mkdir. But we want the correct mode to go through, so ensure
 			// that os.ModeDir is set.
-			Mode: fuseshim.FileMode(in.Mode) | os.ModeDir,
+			Mode: convertFileMode(in.Mode) | os.ModeDir,
 		}
 
 		io = to
@@ -175,7 +174,7 @@ func Convert(
 			protocol: protocol,
 			Parent:   InodeID(m.Header().Nodeid),
 			Name:     string(name),
-			Mode:     fuseshim.FileMode(in.Mode),
+			Mode:     convertFileMode(in.Mode),
 		}
 		io = to
 		co = &to.commonOp
@@ -508,4 +507,34 @@ func convertChildInodeEntry(
 	out.AttrValid, out.AttrValidNsec = convertExpirationTime(in.AttributesExpiration)
 
 	convertAttributes(in.Child, &in.Attributes, &out.Attr)
+}
+
+func convertFileMode(unixMode uint32) os.FileMode {
+	mode := os.FileMode(unixMode & 0777)
+	switch unixMode & syscall.S_IFMT {
+	case syscall.S_IFREG:
+		// nothing
+	case syscall.S_IFDIR:
+		mode |= os.ModeDir
+	case syscall.S_IFCHR:
+		mode |= os.ModeCharDevice | os.ModeDevice
+	case syscall.S_IFBLK:
+		mode |= os.ModeDevice
+	case syscall.S_IFIFO:
+		mode |= os.ModeNamedPipe
+	case syscall.S_IFLNK:
+		mode |= os.ModeSymlink
+	case syscall.S_IFSOCK:
+		mode |= os.ModeSocket
+	default:
+		// no idea
+		mode |= os.ModeDevice
+	}
+	if unixMode&syscall.S_ISUID != 0 {
+		mode |= os.ModeSetuid
+	}
+	if unixMode&syscall.S_ISGID != 0 {
+		mode |= os.ModeSetgid
+	}
+	return mode
 }
