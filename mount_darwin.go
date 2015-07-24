@@ -24,31 +24,29 @@ func loadOSXFUSE() error {
 	return err
 }
 
-func openOSXFUSEDev() (*os.File, error) {
-	var f *os.File
-	var err error
+func openOSXFUSEDev() (dev *os.File, err error) {
+	// Try each device name.
 	for i := uint64(0); ; i++ {
-		path := "/dev/osxfuse" + strconv.FormatUint(i, 10)
-		f, err = os.OpenFile(path, os.O_RDWR, 0000)
+		path := fmt.Sprintf("/dev/osxfuse%d", i)
+		dev, err = os.OpenFile(path, os.O_RDWR, 0000)
 		if os.IsNotExist(err) {
 			if i == 0 {
-				// not even the first device was found -> fuse is not loaded
-				return nil, errNotLoaded
+				// Not even the first device was found. Fuse must not be loaded.
+				err = errNotLoaded
+				return
 			}
 
-			// we've run out of kernel-provided devices
-			return nil, errNoAvail
+			// Otherwise we've run out of kernel-provided devices
+			err = errNoAvail
+			return
 		}
 
 		if err2, ok := err.(*os.PathError); ok && err2.Err == syscall.EBUSY {
-			// try the next one
+			// This device is in use; try the next one.
 			continue
 		}
 
-		if err != nil {
-			return nil, err
-		}
-		return f, nil
+		return
 	}
 }
 
