@@ -146,11 +146,13 @@ type SetInodeAttributesOp struct {
 }
 
 func (o *SetInodeAttributesOp) kernelResponse() (msg []byte) {
-	resp := fuseshim.SetattrResponse{
-		Attr: convertAttributes(o.Inode, o.Attributes, o.AttributesExpiration),
-	}
+	size := fusekernel.AttrOutSize(fusekernel.Protocol{0, 0})
+	buf := fuseshim.NewBuffer(size)
+	out := (*fusekernel.AttrOut)(buf.Alloc(size))
+	out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
+	convertAttributes(o.Inode, &o.Attributes, &out.Attr)
 
-	o.bfReq.Respond(&resp)
+	msg = buf
 	return
 }
 
