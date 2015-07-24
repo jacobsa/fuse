@@ -140,8 +140,16 @@ func Convert(
 			protocol: protocol,
 			Parent:   InodeID(m.Hdr.Nodeid),
 			Name:     string(name),
-			Mode:     fuseshim.FileMode(in.Mode),
+
+			// On Linux, vfs_mkdir calls through to the inode with at most
+			// permissions and sticky bits set (cf. https://goo.gl/WxgQXk), and fuse
+			// passes that on directly (cf. https://goo.gl/f31aMo). In other words,
+			// the fact that this is a directory is implicit in the fact that the
+			// opcode is mkdir. But we want the correct mode to go through, so ensure
+			// that os.ModeDir is set.
+			Mode: fuseshim.FileMode(in.Mode) | os.ModeDir,
 		}
+
 		io = to
 		co = &to.commonOp
 
