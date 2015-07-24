@@ -55,6 +55,28 @@ func (b *Buffer) Grow(size uintptr) (p unsafe.Pointer) {
 	return
 }
 
+// Equivalent to growing by the length of p, then copying p into the new segment.
+func (b *Buffer) Append(p []byte) {
+	sh := reflect.SliceHeader{
+		Data: uintptr(b.Grow(uintptr(len(p)))),
+		Len:  len(p),
+		Cap:  len(p),
+	}
+
+	copy(*(*[]byte)(unsafe.Pointer(&sh)), p)
+}
+
+// Equivalent to growing by the length of s, then copying s into the new segment.
+func (b *Buffer) AppendString(s string) {
+	sh := reflect.SliceHeader{
+		Data: uintptr(b.Grow(uintptr(len(s)))),
+		Len:  len(s),
+		Cap:  len(s),
+	}
+
+	copy(*(*[]byte)(unsafe.Pointer(&sh)), s)
+}
+
 // Return a reference to the current contents of the buffer.
 func (b *Buffer) Bytes() []byte {
 	return b.slice
