@@ -112,6 +112,17 @@ type MountConfig struct {
 	Options map[string]string
 }
 
+// Create a map containing all of the key=value mount options to be given to
+// the mount helper.
+func (c *MountConfig) toMap() (opts map[string]string) {
+	panic("TODO")
+}
+
+// Create an options string suitable for passing to the mount helper.
+func (c *MountConfig) toOptionsString() string {
+	panic("TODO")
+}
+
 // Convert to mount options to be passed to package fuseshim.
 func (c *MountConfig) bazilfuseOptions() (opts []fuseshim.MountOption) {
 	isDarwin := runtime.GOOS == "darwin"

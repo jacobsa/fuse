@@ -53,13 +53,13 @@ func openOSXFUSEDev() (dev *os.File, err error) {
 
 func callMount(
 	dir string,
-	cfg *mountConfig,
+	cfg *MountConfig,
 	dev *os.File,
 	ready chan<- error) (err error) {
 	const bin = "/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs"
 
 	// The mount helper doesn't understand any escaping.
-	for k, v := range conf.options {
+	for k, v := range cfg.toMap() {
 		if strings.Contains(k, ",") || strings.Contains(v, ",") {
 			return fmt.Errorf(
 				"mount options cannot contain commas on darwin: %q=%q",
@@ -72,7 +72,7 @@ func callMount(
 	// buffer.
 	cmd := exec.Command(
 		bin,
-		"-o", conf.getOptions(),
+		"-o", cfg.toOptionsString(),
 		// Tell osxfuse-kext how large our buffer is. It must split
 		// writes larger than this into multiple writes.
 		//
@@ -121,7 +121,7 @@ func callMount(
 // service the connection in order for mounting to complete.
 func mount(
 	dir string,
-	conf *mountConfig,
+	cfg *MountConfig,
 	ready chan<- error) (dev *os.File, err error) {
 	// Open the device.
 	dev, err = openOSXFUSEDev()
@@ -145,7 +145,7 @@ func mount(
 	}
 
 	// Call the mount binary with the device.
-	err = callMount(dir, conf, dev, ready)
+	err = callMount(dir, cfg, dev, ready)
 	if err != nil {
 		dev.Close()
 		err = fmt.Errorf("callMount: %v", err)
