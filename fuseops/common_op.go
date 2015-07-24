@@ -19,9 +19,8 @@ import (
 	"log"
 	"reflect"
 	"strings"
-	"unsafe"
 
-	"github.com/jacobsa/fuse/internal/fusekernel"
+	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fuseshim"
 	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
@@ -32,12 +31,12 @@ import (
 type internalOp interface {
 	Op
 
-	// Create a response message for the kernel, with leading pading for a
-	// fusekernel.OutHeader struct.
+	// Create a response message for the kernel, leaving the leading
+	// fusekernel.OutHeader untouched.
 	//
-	// Special case: a return value of nil means that the kernel is not expecting
-	// a response.
-	kernelResponse() []byte
+	// Special case: a zero return value means that the kernel is not expecting a
+	// response.
+	kernelResponse() (b buffer.Buffer)
 }
 
 // A function that sends a reply message back to the kernel for the request
@@ -143,16 +142,17 @@ func (o *commonOp) Respond(err error) {
 	// If successful, we ask the op for an appopriate response to the kernel, and
 	// it is responsible for leaving room for the fusekernel.OutHeader struct.
 	// Otherwise, create our own.
-	var msg []byte
+	var b buffer.Buffer
 	if err == nil {
-		msg = o.op.kernelResponse()
+		b = o.op.kernelResponse()
 	} else {
-		msg = fuseshim.NewBuffer(0)
+		b = buffer.New(0)
 	}
 
 	// Fill in the header if a reply is needed.
+	msg := b.Bytes()
 	if msg != nil {
-		h := (*fusekernel.OutHeader)(unsafe.Pointer(&msg[0]))
+		h := b.OutHeader()
 		h.Unique = o.fuseID
 		h.Len = uint32(len(msg))
 		if err != nil {

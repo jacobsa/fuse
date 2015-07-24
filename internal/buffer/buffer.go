@@ -25,7 +25,7 @@ import (
 // message from multiple segments, where the first segment is always a
 // fusekernel.OutHeader message.
 //
-// Must be created with New.
+// Must be created with New. Exception: the zero value has Bytes() == nil.
 type Buffer struct {
 	slice []byte
 }
