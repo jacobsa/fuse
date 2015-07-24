@@ -32,6 +32,9 @@ type Op interface {
 	// A short description of the op, to be used in logging.
 	ShortDesc() string
 
+	// A long description of the op, to be used in debug logging.
+	DebugString() string
+
 	// A context that can be used for long-running operations.
 	Context() context.Context
 
@@ -120,6 +123,14 @@ func (o *GetInodeAttributesOp) kernelResponse() (msg []byte) {
 
 	msg = buf
 	return
+}
+
+func (o *GetInodeAttributesOp) DebugString() string {
+	return fmt.Sprintf(
+		"Inode: %d, Exp: %v, Attr: %s",
+		o.Inode,
+		o.AttributesExpiration,
+		o.Attributes.DebugString())
 }
 
 // Change attributes for an inode.

@@ -90,6 +90,11 @@ func (o *commonOp) ShortDesc() (desc string) {
 	return
 }
 
+func (o *commonOp) DebugString() string {
+	// By default, defer to ShortDesc.
+	return o.op.ShortDesc()
+}
+
 func (o *commonOp) init(
 	ctx context.Context,
 	op internalOp,

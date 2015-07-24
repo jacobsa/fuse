@@ -248,9 +248,9 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			// Debug logging
 			if c.debugLogger != nil {
 				if opErr == nil {
-					op.Logf("-> %s OK", op.ShortDesc())
+					op.Logf("-> OK: %s", op.DebugString())
 				} else {
-					op.Logf("-> %s error: %v", op.ShortDesc(), opErr)
+					op.Logf("-> error: %v", opErr)
 				}
 			}
 
