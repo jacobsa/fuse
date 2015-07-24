@@ -455,9 +455,10 @@ func convertExpirationTime(t time.Time) (d time.Duration) {
 
 func convertChildInodeEntry(
 	in *ChildInodeEntry,
-	out *fuseshim.LookupResponse) {
-	out.Node = fuseshim.NodeID(in.Child)
-	out.Generation = uint64(in.Generation)
+	out *fusekernel.EntryOut) {
+	out.Nodeid = in.Child
+	out.Generation = in.Generation
+	convertAttributes(in.Attributes, &out.Attr)
 	out.Attr = convertAttributes(in.Child, in.Attributes, in.AttributesExpiration)
 	out.EntryValid = convertExpirationTime(in.EntryExpiration)
 }

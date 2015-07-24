@@ -85,11 +85,17 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 }
 
 func (o *LookUpInodeOp) kernelResponse() (msg []byte) {
-	resp := fuseshim.LookupResponse{}
-	convertChildInodeEntry(&o.Entry, &resp)
-
-	o.bfReq.Respond(&resp)
-	return
+	size := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
+	buf := NewBuffer(size)
+	out := (*fusekernel.EntryOut)(buf.Alloc(size))
+	out.Nodeid = uint64(resp.Node)
+	out.Generation = resp.Generation
+	out.EntryValid = uint64(resp.EntryValid / time.Second)
+	out.EntryValidNsec = uint32(resp.EntryValid % time.Second / time.Nanosecond)
+	out.AttrValid = uint64(resp.Attr.Valid / time.Second)
+	out.AttrValidNsec = uint32(resp.Attr.Valid % time.Second / time.Nanosecond)
+	resp.Attr.attr(&out.Attr, r.Header.Conn.proto)
+	r.respond(buf)
 }
 
 // Refresh the attributes for an inode whose ID was previously returned in a
