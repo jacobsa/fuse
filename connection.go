@@ -15,7 +15,6 @@
 package fuse
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"path"
@@ -215,8 +214,27 @@ func (c *Connection) destroyInMessage(m *buffer.InMessage) {
 // Read the next message from the kernel. The message must later be destroyed
 // using destroyInMessage.
 func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
-	err = errors.New("TODO")
-	return
+	// Allocate a message.
+	m = c.allocateInMessage()
+
+	// Loop past transient errors.
+	for {
+		// Lock and read.
+		//
+		// TODO(jacobsa): Ensure that we document concurrency constraints that make
+		// it safe, then kill the lock here.
+		c.wrapped.Rio.RLock()
+		err = m.Init(c.wrapped.Dev)
+		c.wrapped.Rio.RUnlock()
+
+		if err != nil {
+			c.destroyInMessage(m)
+			m = nil
+			return
+		}
+
+		return
+	}
 }
 
 // Read the next op from the kernel process. Return io.EOF if the kernel has
