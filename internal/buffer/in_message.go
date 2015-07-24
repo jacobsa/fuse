@@ -55,11 +55,14 @@ func (m *InMessage) Init(r io.Reader) (err error) {
 		return
 	}
 
-	// Make sure the message is long enough that calling Header is safe.
-	if uintptr(n) < unsafe.Sizeof(fusekernel.InHeader{}) {
+	// Make sure the message is long enough.
+	const headerSize = unsafe.Sizeof(fusekernel.InHeader{})
+	if uintptr(n) < headerSize {
 		err = fmt.Errorf("Unexpectedly read only %d bytes.", n)
 		return
 	}
+
+	m.remaining = m.storage[headerSize:n]
 
 	// Check the header's length.
 	if int(m.Header().Len) != n {
@@ -71,7 +74,6 @@ func (m *InMessage) Init(r io.Reader) (err error) {
 		return
 	}
 
-	m.remaining = m.storage[:n]
 	return
 }
 
