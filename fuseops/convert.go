@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"errors"
 	"log"
+	"os"
+	"syscall"
 	"time"
 	"unsafe"
 
@@ -415,39 +417,55 @@ func Convert(
 	return
 }
 
+func convertTime(t time.Time) (secs uint64, nsec uint32)
+
 func convertAttributes(
-	inode InodeID,
-	attr InodeAttributes,
-	expiration time.Time) fuseshim.Attr {
-	return fuseshim.Attr{
-		Inode:  uint64(inode),
-		Size:   attr.Size,
-		Mode:   attr.Mode,
-		Nlink:  uint32(attr.Nlink),
-		Atime:  attr.Atime,
-		Mtime:  attr.Mtime,
-		Ctime:  attr.Ctime,
-		Crtime: attr.Crtime,
-		Uid:    attr.Uid,
-		Gid:    attr.Gid,
-		Valid:  convertExpirationTime(expiration),
+	inodeID InodeID,
+	in *InodeAttributes,
+	out *fusekernel.Attr) {
+	out.Ino = uint64(inodeID)
+	out.Size = in.Size
+	out.Atime, out.AtimeNsec = convertTime(in.Atime)
+	out.Mtime, out.MtimeNsec = convertTime(in.Mtime)
+	out.Ctime, out.CtimeNsec = convertTime(in.Ctime)
+	out.SetCrtime(convertTime(in.Crtime))
+	out.Nlink = uint32(in.Nlink) // TODO(jacobsa): Make the public field uint32?
+	out.Uid = in.Uid
+	out.Gid = in.Gid
+
+	// Set the mode.
+	out.Mode = uint32(in.Mode) & 077
+	switch {
+	default:
+		out.Mode |= syscall.S_IFREG
+	case in.Mode&os.ModeDir != 0:
+		out.Mode |= syscall.S_IFDIR
+	case in.Mode&os.ModeDevice != 0:
+		if in.Mode&os.ModeCharDevice != 0 {
+			out.Mode |= syscall.S_IFCHR
+		} else {
+			out.Mode |= syscall.S_IFBLK
+		}
+	case in.Mode&os.ModeNamedPipe != 0:
+		out.Mode |= syscall.S_IFIFO
+	case in.Mode&os.ModeSymlink != 0:
+		out.Mode |= syscall.S_IFLNK
+	case in.Mode&os.ModeSocket != 0:
+		out.Mode |= syscall.S_IFSOCK
 	}
 }
 
 // Convert an absolute cache expiration time to a relative time from now for
-// consumption by fuse.
-func convertExpirationTime(t time.Time) (d time.Duration) {
+// consumption by the fuse kernel module.
+func convertExpirationTime(t time.Time) (secs uint64, nsecs uint32) {
 	// Fuse represents durations as unsigned 64-bit counts of seconds and 32-bit
-	// counts of nanoseconds (cf. http://goo.gl/EJupJV). The bazil.org/fuse
-	// package converts time.Duration values to this form in a straightforward
-	// way (cf. http://goo.gl/FJhV8j).
-	//
-	// So negative durations are right out. There is no need to cap the positive
-	// magnitude, because 2^64 seconds is well longer than the 2^63 ns range of
-	// time.Duration.
-	d = t.Sub(time.Now())
-	if d < 0 {
-		d = 0
+	// counts of nanoseconds (cf. http://goo.gl/EJupJV). So negative durations
+	// are right out. There is no need to cap the positive magnitude, because
+	// 2^64 seconds is well longer than the 2^63 ns range of time.Duration.
+	d := t.Sub(time.Now())
+	if d > 0 {
+		secs = uint64(d / time.Second)
+		nsecs = uint32((d % time.Second) / time.Nanosecond)
 	}
 
 	return
@@ -456,9 +474,10 @@ func convertExpirationTime(t time.Time) (d time.Duration) {
 func convertChildInodeEntry(
 	in *ChildInodeEntry,
 	out *fusekernel.EntryOut) {
-	out.Nodeid = in.Child
-	out.Generation = in.Generation
-	convertAttributes(in.Attributes, &out.Attr)
-	out.Attr = convertAttributes(in.Child, in.Attributes, in.AttributesExpiration)
-	out.EntryValid = convertExpirationTime(in.EntryExpiration)
+	out.Nodeid = uint64(in.Child)
+	out.Generation = uint64(in.Generation)
+	out.EntryValid, out.EntryValidNsec = convertExpirationTime(in.EntryExpiration)
+	out.AttrValid, out.AttrValidNsec = convertExpirationTime(in.AttributesExpiration)
+
+	convertAttributes(in.Child, &in.Attributes, &out.Attr)
 }

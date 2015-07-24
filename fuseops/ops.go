@@ -88,7 +88,7 @@ func (o *LookUpInodeOp) kernelResponse() (msg []byte) {
 	size := fusekernel.EntryOutSize(fusekernel.Protocol{0, 0})
 	buf := NewBuffer(size)
 	out := (*fusekernel.EntryOut)(buf.Alloc(size))
-	out.Nodeid = uint64(resp.Node)
+	out.Nodeid = uint64(o.Entry.InodeID)
 	out.Generation = resp.Generation
 	out.EntryValid = uint64(resp.EntryValid / time.Second)
 	out.EntryValidNsec = uint32(resp.EntryValid % time.Second / time.Nanosecond)
