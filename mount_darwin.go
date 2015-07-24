@@ -51,16 +51,25 @@ func openOSXFUSEDev() (dev *os.File, err error) {
 	}
 }
 
-func callMount(dir string, conf *mountConfig, f *os.File, ready chan<- struct{}, errp *error) error {
-	bin := "/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs"
+func callMount(
+	dir string,
+	cfg *mountConfig,
+	dev *os.File,
+	ready chan<- error) (err error) {
+	const bin = "/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs"
 
+	// The mount helper doesn't understand any escaping.
 	for k, v := range conf.options {
 		if strings.Contains(k, ",") || strings.Contains(v, ",") {
-			// Silly limitation but the mount helper does not
-			// understand any escaping. See TestMountOptionCommaError.
-			return fmt.Errorf("mount options cannot contain commas on darwin: %q=%q", k, v)
+			return fmt.Errorf(
+				"mount options cannot contain commas on darwin: %q=%q",
+				k,
+				v)
 		}
 	}
+
+	// Call the mount helper, passing in the device file and saving output into a
+	// buffer.
 	cmd := exec.Command(
 		bin,
 		"-o", conf.getOptions(),
@@ -74,33 +83,36 @@ func callMount(dir string, conf *mountConfig, f *os.File, ready chan<- struct{},
 		"3",
 		dir,
 	)
-	cmd.ExtraFiles = []*os.File{f}
+	cmd.ExtraFiles = []*os.File{dev}
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "MOUNT_FUSEFS_CALL_BY_LIB=")
 	// TODO this is used for fs typenames etc, let app influence it
 	cmd.Env = append(cmd.Env, "MOUNT_FUSEFS_DAEMON_PATH="+bin)
+
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
-		return err
+		return
 	}
+
+	// In the background, wait for the command to complete.
 	go func() {
 		err := cmd.Wait()
 		if err != nil {
 			if buf.Len() > 0 {
 				output := buf.Bytes()
 				output = bytes.TrimRight(output, "\n")
-				msg := err.Error() + ": " + string(output)
-				err = errors.New(msg)
+				err = fmt.Errorf("%v: %s", err, output)
 			}
 		}
-		*errp = err
-		close(ready)
+
+		ready <- err
 	}()
-	return err
+
+	return
 }
 
 // Begin the process of mounting at the given directory, returning a connection
