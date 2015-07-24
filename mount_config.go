@@ -18,8 +18,6 @@ import (
 	"log"
 	"runtime"
 
-	"github.com/jacobsa/fuse/internal/fuseshim"
-
 	"golang.org/x/net/context"
 )
 
@@ -75,21 +73,12 @@ type MountConfig struct {
 // Create a map containing all of the key=value mount options to be given to
 // the mount helper.
 func (c *MountConfig) toMap() (opts map[string]string) {
-	panic("TODO")
-}
-
-// Create an options string suitable for passing to the mount helper.
-func (c *MountConfig) toOptionsString() string {
-	panic("TODO")
-}
-
-// Convert to mount options to be passed to package fuseshim.
-func (c *MountConfig) bazilfuseOptions() (opts []fuseshim.MountOption) {
 	isDarwin := runtime.GOOS == "darwin"
+	opts = make(map[string]string)
 
 	// Enable permissions checking in the kernel. See the comments on
 	// InodeAttributes.Mode.
-	opts = append(opts, fuseshim.SetOption("default_permissions", ""))
+	opts["default_permissions"] = ""
 
 	// HACK(jacobsa): Work around what appears to be a bug in systemd v219, as
 	// shipped in Ubuntu 15.04, where it automatically unmounts any file system
@@ -107,17 +96,17 @@ func (c *MountConfig) bazilfuseOptions() (opts []fuseshim.MountOption) {
 
 	// Special file system name?
 	if fsname != "" {
-		opts = append(opts, fuseshim.FSName(fsname))
+		opts["fsname"] = fsname
 	}
 
 	// Read only?
 	if c.ReadOnly {
-		opts = append(opts, fuseshim.ReadOnly())
+		opts["ro"] = ""
 	}
 
 	// OS X: set novncache when appropriate.
 	if isDarwin && !c.EnableVnodeCaching {
-		opts = append(opts, fuseshim.SetOption("novncache", ""))
+		opts["novncache"] = ""
 	}
 
 	// OS X: disable the use of "Apple Double" (._foo and .DS_Store) files, which
@@ -126,13 +115,18 @@ func (c *MountConfig) bazilfuseOptions() (opts []fuseshim.MountOption) {
 	//
 	// Cf. https://github.com/osxfuse/osxfuse/wiki/Mount-options
 	if isDarwin {
-		opts = append(opts, fuseshim.SetOption("noappledouble", ""))
+		opts["noappledouble"] = ""
 	}
 
 	// Last but not least: other user-supplied options.
 	for k, v := range c.Options {
-		opts = append(opts, fuseshim.SetOption(k, v))
+		opts[k] = v
 	}
 
 	return
+}
+
+// Create an options string suitable for passing to the mount helper.
+func (c *MountConfig) toOptionsString() string {
+	panic("TODO")
 }
