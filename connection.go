@@ -15,7 +15,6 @@
 package fuse
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"path"
@@ -236,13 +235,17 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 
 		sendReply := func(
 			fuseID uint64,
-			msg []byte,
+			replyMsg []byte,
 			opErr error) (err error) {
-			// TODO(jacobsa): Turn this into a method and maybe kill the fuseID
-			// parameter.
-			//
-			// TODO(jacobsa): Don't forget to destroy the message.
-			err = errors.New("TODO")
+			// Clean up state for this op.
+			c.finishOp(m.Hdr.Opcode, m.Hdr.Unique)
+
+			// Send the reply to the kernel.
+			panic("TODO")
+
+			// Destroy the message, as required by fuseshim.Connection.ReadMessage.
+			m.Destroy()
+
 			return
 		}
 
