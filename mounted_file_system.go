@@ -17,8 +17,6 @@ package fuse
 import (
 	"fmt"
 
-	"github.com/jacobsa/fuse/internal/fuseshim"
-
 	"golang.org/x/net/context"
 )
 
@@ -74,10 +72,11 @@ func Mount(
 		joinStatusAvailable: make(chan struct{}),
 	}
 
-	// Open a fuseshim connection.
-	bfConn, err := fuseshim.Mount(mfs.dir, config.bazilfuseOptions()...)
+	// Begin the mounting process, which will continue in the background.
+	ready := make(chan error, 1)
+	dev, err := mount(dir, config, ready)
 	if err != nil {
-		err = fmt.Errorf("fuseshim.Mount: %v", err)
+		err = fmt.Errorf("mount: %v", err)
 		return
 	}
 
@@ -87,15 +86,14 @@ func Mount(
 		opContext = context.Background()
 	}
 
-	// Create our own Connection object wrapping it.
+	// Create a Connection object wrapping the device.
 	connection, err := newConnection(
 		opContext,
 		config.DebugLogger,
 		config.ErrorLogger,
-		bfConn)
+		dev)
 
 	if err != nil {
-		bfConn.Close()
 		err = fmt.Errorf("newConnection: %v", err)
 		return
 	}
@@ -107,9 +105,9 @@ func Mount(
 		close(mfs.joinStatusAvailable)
 	}()
 
-	// Wait for the connection to say it is ready.
-	if err = connection.waitForReady(); err != nil {
-		err = fmt.Errorf("WaitForReady: %v", err)
+	// Wait for the mount process to complete.
+	if err = <-ready; err != nil {
+		err = fmt.Errorf("mount (background): %v", err)
 		return
 	}
 
