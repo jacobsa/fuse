@@ -50,7 +50,7 @@ func Convert(
 		buf := m.Bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
-			err = errors.New("Corrupted OpLookup")
+			err = errors.New("Corrupt OpLookup")
 			return
 		}
 
@@ -71,7 +71,7 @@ func Convert(
 	case fusekernel.OpSetattr:
 		in := (*fusekernel.SetattrIn)(m.Data())
 		if m.Len() < unsafe.Sizeof(*in) {
-			err = errors.New("Corrupted OpSetattr")
+			err = errors.New("Corrupt OpSetattr")
 			return
 		}
 
@@ -105,7 +105,7 @@ func Convert(
 	case fusekernel.OpForget:
 		in := (*fusekernel.ForgetIn)(m.Data())
 		if m.Len() < unsafe.Sizeof(*in) {
-			err = errors.New("Corrupted OpForget")
+			err = errors.New("Corrupt OpForget")
 			return
 		}
 
@@ -119,14 +119,14 @@ func Convert(
 	case fusekernel.OpMkdir:
 		size := fusekernel.MkdirInSize(protocol)
 		if m.Len() < size {
-			err = errors.New("Corrupted OpMkdir")
+			err = errors.New("Corrupt OpMkdir")
 			return
 		}
 		in := (*fusekernel.MkdirIn)(m.Data())
 		name := m.Bytes()[size:]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
-			err = errors.New("Corrupted OpMkdir")
+			err = errors.New("Corrupt OpMkdir")
 			return
 		}
 		name = name[:i]
@@ -142,14 +142,14 @@ func Convert(
 	case fusekernel.OpCreate:
 		size := fusekernel.CreateInSize(protocol)
 		if m.Len() < size {
-			err = errors.New("Corrupted OpCreate")
+			err = errors.New("Corrupt OpCreate")
 			return
 		}
 		in := (*fusekernel.CreateIn)(m.Data())
 		name := m.Bytes()[size:]
 		i := bytes.IndexByte(name, '\x00')
 		if i < 0 {
-			err = errors.New("Corrupted OpCreate")
+			err = errors.New("Corrupt OpCreate")
 			return
 		}
 		name = name[:i]
@@ -166,12 +166,12 @@ func Convert(
 		// m.Bytes() is "newName\0target\0"
 		names := m.Bytes()
 		if len(names) == 0 || names[len(names)-1] != 0 {
-			err = errors.New("Corrupted OpSymlink")
+			err = errors.New("Corrupt OpSymlink")
 			return
 		}
 		i := bytes.IndexByte(names, '\x00')
 		if i < 0 {
-			err = errors.New("Corrupted OpSymlink")
+			err = errors.New("Corrupt OpSymlink")
 			return
 		}
 		newName, target := names[0:i], names[i+1:len(names)-1]
@@ -187,22 +187,22 @@ func Convert(
 	case fusekernel.OpRename:
 		in := (*fusekernel.RenameIn)(m.Data())
 		if m.Len() < unsafe.Sizeof(*in) {
-			err = errors.New("Corrupted OpRename")
+			err = errors.New("Corrupt OpRename")
 			return
 		}
 		names := m.Bytes()[unsafe.Sizeof(*in):]
 		// names should be "old\x00new\x00"
 		if len(names) < 4 {
-			err = errors.New("Corrupted OpRename")
+			err = errors.New("Corrupt OpRename")
 			return
 		}
 		if names[len(names)-1] != '\x00' {
-			err = errors.New("Corrupted OpRename")
+			err = errors.New("Corrupt OpRename")
 			return
 		}
 		i := bytes.IndexByte(names, '\x00')
 		if i < 0 {
-			err = errors.New("Corrupted OpRename")
+			err = errors.New("Corrupt OpRename")
 			return
 		}
 		oldName, newName := names[:i], names[i+1:len(names)-1]
@@ -220,7 +220,7 @@ func Convert(
 		buf := m.Bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
-			err = errors.New("Corrupted OpUnlink")
+			err = errors.New("Corrupt OpUnlink")
 			return
 		}
 
@@ -235,7 +235,7 @@ func Convert(
 		buf := m.Bytes()
 		n := len(buf)
 		if n == 0 || buf[n-1] != '\x00' {
-			err = errors.New("Corrupted OpRmdir")
+			err = errors.New("Corrupt OpRmdir")
 			return
 		}
 
@@ -263,7 +263,7 @@ func Convert(
 	case fusekernel.OpRead:
 		in := (*fusekernel.ReadIn)(m.Data())
 		if m.Len() < fusekernel.ReadInSize(protocol) {
-			err = errors.New("Corrupted OpRead")
+			err = errors.New("Corrupt OpRead")
 			return
 		}
 
@@ -279,7 +279,7 @@ func Convert(
 	case fusekernel.OpReaddir:
 		in := (*fusekernel.ReadIn)(m.Data())
 		if m.Len() < fusekernel.ReadInSize(protocol) {
-			err = errors.New("Corrupted OpReaddir")
+			err = errors.New("Corrupt OpReaddir")
 			return
 		}
 
@@ -295,7 +295,7 @@ func Convert(
 	case fusekernel.OpRelease:
 		in := (*fusekernel.ReleaseIn)(m.Data())
 		if m.Len() < unsafe.Sizeof(*in) {
-			err = errors.New("Corrupted OpRelease")
+			err = errors.New("Corrupt OpRelease")
 			return
 		}
 
@@ -308,7 +308,7 @@ func Convert(
 	case fusekernel.OpReleasedir:
 		in := (*fusekernel.ReleaseIn)(m.Data())
 		if m.Len() < unsafe.Sizeof(*in) {
-			err = errors.New("Corrupted OpReleasedir")
+			err = errors.New("Corrupt OpReleasedir")
 			return
 		}
 
@@ -322,13 +322,13 @@ func Convert(
 		in := (*fusekernel.WriteIn)(m.Data())
 		size := fusekernel.WriteInSize(protocol)
 		if m.Len() < size {
-			err = errors.New("Corrupted OpWrite")
+			err = errors.New("Corrupt OpWrite")
 			return
 		}
 
 		buf := m.Bytes()[size:]
 		if len(buf) < int(in.Size) {
-			err = errors.New("Corrupted OpWrite")
+			err = errors.New("Corrupt OpWrite")
 			return
 		}
 
@@ -344,7 +344,7 @@ func Convert(
 	case fusekernel.OpFsync:
 		in := (*fusekernel.FsyncIn)(m.Data())
 		if m.Len() < unsafe.Sizeof(*in) {
-			err = errors.New("Corrupted OpFsync")
+			err = errors.New("Corrupt OpFsync")
 			return
 		}
 
@@ -358,7 +358,7 @@ func Convert(
 	case fusekernel.OpFlush:
 		in := (*fusekernel.FlushIn)(m.Data())
 		if m.Len() < unsafe.Sizeof(*in) {
-			err = errors.New("Corrupted OpFlush")
+			err = errors.New("Corrupt OpFlush")
 			return
 		}
 
@@ -384,7 +384,7 @@ func Convert(
 	case fusekernel.OpInterrupt:
 		in := (*fusekernel.InterruptIn)(m.Data())
 		if m.Len() < unsafe.Sizeof(*in) {
-			err = errors.New("Corrupted OpInterrupt")
+			err = errors.New("Corrupt OpInterrupt")
 			return
 		}
 
