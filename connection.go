@@ -266,15 +266,14 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 		// Special case: responding to statfs is required to make mounting work on
 		// OS X. We don't currently expose the capability for the file system to
 		// intercept this.
-		if statfsReq, ok := bfReq.(*fuseshim.StatfsRequest); ok {
-			c.debugLog(opID, 1, "-> (Statfs) OK")
-			statfsReq.Respond(&fuseshim.StatfsResponse{})
+		if _, ok := op.(*fuseops.InternalStatFSOp); ok {
+			op.Respond(nil)
 			continue
 		}
 
 		// Special case: handle interrupt requests.
-		if interruptReq, ok := bfReq.(*fuseshim.InterruptRequest); ok {
-			c.handleInterrupt(interruptReq)
+		if interruptOp, ok := op.(*fuseops.InternalInterruptOp); ok {
+			c.handleInterrupt(interruptOp.FuseID)
 			continue
 		}
 
