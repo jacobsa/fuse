@@ -232,15 +232,27 @@ func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
 		err = m.Init(c.wrapped.Dev)
 		c.wrapped.Rio.RUnlock()
 
+		// Special cases:
+		//
+		//  *  ENODEV means fuse has hung up.
+		//
+		//  *  EINTR means we should try again. (This seems to happen often on
+		//     OS X, cf. http://golang.org/issue/11180)
+		//
+		if pe, ok := err.(*os.PathError); ok {
+			switch pe.Err {
+			case syscall.ENODEV:
+				err = io.EOF
+
+			case syscall.EINTR:
+				err = nil
+				continue
+			}
+		}
+
 		if err != nil {
 			c.destroyInMessage(m)
 			m = nil
-
-			// Special case: ENODEV means fuse has hung up.
-			if pe, ok := err.(*os.PathError); ok && pe.Err == syscall.ENODEV {
-				err = io.EOF
-			}
-
 			return
 		}
 
