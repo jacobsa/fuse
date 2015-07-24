@@ -376,6 +376,24 @@ func Convert(
 		io = to
 		co = &to.commonOp
 
+	case fusekernel.OpStatfs:
+		to := &InternalStatFSOp{}
+		io = to
+		co = &to.commonOp
+
+	case fusekernel.OpInterrupt:
+		in := (*fusekernel.InterruptIn)(m.Data())
+		if m.Len() < unsafe.Sizeof(*in) {
+			err = errors.New("Corrupted OpInterrupt")
+			return
+		}
+
+		to := &InternalInterruptOp{
+			FuseID: in.Unique,
+		}
+		io = to
+		co = &to.commonOp
+
 	default:
 		to := &unknownOp{
 			opCode: m.Hdr.Opcode,
