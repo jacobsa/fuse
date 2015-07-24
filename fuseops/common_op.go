@@ -81,7 +81,7 @@ func (o *commonOp) ShortDesc() (desc string) {
 	}
 
 	// Include the inode number to which the op applies, if possible.
-	if f := v.FieldByName("Inode"); f.IsValid() {
+	if f := v.Elem().FieldByName("Inode"); f.IsValid() {
 		desc = fmt.Sprintf("%s(inode=%v)", opName, f.Interface())
 	}
 
