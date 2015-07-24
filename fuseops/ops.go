@@ -915,7 +915,9 @@ type InternalStatFSOp struct {
 }
 
 func (o *InternalStatFSOp) kernelResponse() (msg []byte) {
-	panic("TODO")
+	buf := fuseshim.NewBuffer(unsafe.Sizeof(fusekernel.StatfsOut{}))
+	buf.Alloc(unsafe.Sizeof(fusekernel.StatfsOut{}))
+	return
 }
 
 // Do not use this struct directly. See the TODO in fuseops/ops.go.
