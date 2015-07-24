@@ -16,10 +16,13 @@ package fuse
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"path"
 	"runtime"
 	"sync"
+	"syscall"
 
 	"golang.org/x/net/context"
 
@@ -232,6 +235,12 @@ func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
 		if err != nil {
 			c.destroyInMessage(m)
 			m = nil
+
+			// Special case: ENODEV means fuse has hung up.
+			if pe, ok := err.(*os.PathError); ok && pe.Err == syscall.ENODEV {
+				err = io.EOF
+			}
+
 			return
 		}
 
