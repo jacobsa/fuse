@@ -55,7 +55,6 @@ const maxReadahead = 1 << 20
 type Connection struct {
 	debugLogger *log.Logger
 	errorLogger *log.Logger
-	wrapped     *fuseshim.Conn
 
 	// The device through which we're talking to the kernel, and the protocol
 	// version that we're using to talk to it.
@@ -101,7 +100,6 @@ func newConnection(
 	c = &Connection{
 		debugLogger: debugLogger,
 		errorLogger: errorLogger,
-		wrapped:     wrapped,
 		dev:         wrapped.Dev,
 		protocol:    wrapped.Protocol(),
 		parentCtx:   parentCtx,
