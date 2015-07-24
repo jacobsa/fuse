@@ -14,10 +14,8 @@
 
 package fuse
 
-import "github.com/jacobsa/fuse/internal/fuseshim"
-
 // Attempt to unmount the file system whose mount point is the supplied
 // directory.
 func Unmount(dir string) error {
-	return fuseshim.Unmount(dir)
+	return unmount(dir)
 }
