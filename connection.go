@@ -112,9 +112,9 @@ func (c *Connection) Init() (err error) {
 		return
 	}
 
-	initOp, ok := op.(*fuseops.InitOp)
+	initOp, ok := op.(*fuseops.InternalInitOp)
 	if !ok {
-		err = fmt.Errorf("Expected *fuseops.InitOp, got %T", op)
+		err = fmt.Errorf("Expected *fuseops.InternalInitOp, got %T", op)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (c *Connection) Init() (err error) {
 	}
 
 	if initOp.Kernel.LT(c.protocol) {
-		c.protocol = r.Kernel
+		c.protocol = initOp.Kernel
 	}
 
 	// Respond to the init op.
