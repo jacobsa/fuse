@@ -224,13 +224,8 @@ func (c *Connection) readMessage() (m *buffer.InMessage, err error) {
 
 	// Loop past transient errors.
 	for {
-		// Lock and read.
-		//
-		// TODO(jacobsa): Ensure that we document concurrency constraints that make
-		// it safe, then kill the lock here.
-		c.wrapped.Rio.RLock()
+		// Attempt a reaed.
 		err = m.Init(c.wrapped.Dev)
-		c.wrapped.Rio.RUnlock()
 
 		// Special cases:
 		//
