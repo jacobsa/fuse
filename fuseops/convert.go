@@ -157,9 +157,9 @@ func Convert(
 		co = &to.commonOp
 
 	case fusekernel.OpCreate:
-		in := (*fusekernel.MkdirIn)(m.Consume(fusekernel.CreateInSize(protocol)))
+		in := (*fusekernel.CreateIn)(m.Consume(fusekernel.CreateInSize(protocol)))
 		if in == nil {
-			err = errors.New("Corrupt OpMkdir")
+			err = errors.New("Corrupt OpCreate")
 			return
 		}
 
