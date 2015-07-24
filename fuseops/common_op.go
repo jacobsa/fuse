@@ -19,9 +19,9 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"syscall"
 
 	"github.com/jacobsa/fuse/internal/buffer"
-	"github.com/jacobsa/fuse/internal/fuseshim"
 	"github.com/jacobsa/reqtrace"
 	"golang.org/x/net/context"
 )
@@ -156,12 +156,13 @@ func (o *commonOp) Respond(err error) {
 		h.Unique = o.fuseID
 		h.Len = uint32(len(msg))
 		if err != nil {
-			errno := fuseshim.EIO
-			if ferr, ok := err.(fuseshim.ErrorNumber); ok {
-				errno = ferr.Errno()
+			// If the user gave us a syscall.Errno, use that value in the reply.
+			// Otherwise use the generic EIO.
+			if errno, ok := err.(syscall.Errno); ok {
+				h.Error = -int32(errno)
+			} else {
+				h.Error = -int32(syscall.EIO)
 			}
-
-			h.Error = -int32(errno)
 		}
 	}
 

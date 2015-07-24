@@ -14,20 +14,16 @@
 
 package fuse
 
-import (
-	"syscall"
-
-	"github.com/jacobsa/fuse/internal/fuseshim"
-)
+import "syscall"
 
 const (
 	// Errors corresponding to kernel error numbers. These may be treated
 	// specially by fuseops.Op.Respond methods.
-	EEXIST    = fuseshim.EEXIST
-	EINVAL    = fuseshim.Errno(syscall.EINVAL)
-	EIO       = fuseshim.EIO
-	ENOENT    = fuseshim.ENOENT
-	ENOSYS    = fuseshim.ENOSYS
-	ENOTDIR   = fuseshim.Errno(syscall.ENOTDIR)
-	ENOTEMPTY = fuseshim.Errno(syscall.ENOTEMPTY)
+	EEXIST    = syscall.EEXIST
+	EINVAL    = syscall.EINVAL
+	EIO       = syscall.EIO
+	ENOENT    = syscall.ENOENT
+	ENOSYS    = syscall.ENOSYS
+	ENOTDIR   = syscall.ENOTDIR
+	ENOTEMPTY = syscall.ENOTEMPTY
 )

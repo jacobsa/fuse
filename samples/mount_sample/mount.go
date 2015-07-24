@@ -23,9 +23,9 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"syscall"
 
 	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/internal/fuseshim"
 	"github.com/jacobsa/fuse/samples/flushfs"
 	"golang.org/x/net/context"
 )
@@ -58,11 +58,11 @@ func makeFlushFS() (server fuse.Server, err error) {
 	var fsyncErr error
 
 	if *fFlushError != 0 {
-		flushErr = fuseshim.Errno(*fFlushError)
+		flushErr = syscall.Errno(*fFlushError)
 	}
 
 	if *fFsyncError != 0 {
-		fsyncErr = fuseshim.Errno(*fFsyncError)
+		fsyncErr = syscall.Errno(*fFsyncError)
 	}
 
 	// Report flushes and fsyncs by writing the contents followed by a newline.
