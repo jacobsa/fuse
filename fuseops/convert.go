@@ -282,8 +282,7 @@ func Convert(
 		co = &to.commonOp
 
 	case fusekernel.OpRead:
-		type input fusekernel.ReadIn
-		in := (*input)(m.Consume(unsafe.Sizeof(input{})))
+		in := (*fusekernel.ReadIn)(m.Consume(fusekernel.ReadInSize(protocol)))
 		if in == nil {
 			err = errors.New("Corrupt OpRead")
 			return
@@ -299,8 +298,7 @@ func Convert(
 		co = &to.commonOp
 
 	case fusekernel.OpReaddir:
-		type input fusekernel.ReadIn
-		in := (*input)(m.Consume(unsafe.Sizeof(input{})))
+		in := (*fusekernel.ReadIn)(m.Consume(fusekernel.ReadInSize(protocol)))
 		if in == nil {
 			err = errors.New("Corrupt OpReaddir")
 			return
