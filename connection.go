@@ -204,11 +204,13 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 }
 
 func (c *Connection) allocateInMessage() (m *buffer.InMessage) {
-	panic("TODO")
+	// TODO(jacobsa): Use a freelist.
+	m = new(buffer.InMessage)
+	return
 }
 
 func (c *Connection) destroyInMessage(m *buffer.InMessage) {
-	panic("TODO")
+	// TODO(jacobsa): Use a freelist.
 }
 
 // Read the next message from the kernel. The message must later be destroyed
