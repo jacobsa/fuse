@@ -237,14 +237,19 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			fuseID uint64,
 			replyMsg []byte,
 			opErr error) (err error) {
+			// Make sure we destroy the message, as required by
+			// fuseshim.Connection.ReadMessage.
+			defer m.Destroy()
+
 			// Clean up state for this op.
 			c.finishOp(m.Hdr.Opcode, m.Hdr.Unique)
 
 			// Send the reply to the kernel.
-			panic("TODO")
-
-			// Destroy the message, as required by fuseshim.Connection.ReadMessage.
-			m.Destroy()
+			err = c.wrapped.WriteToKernel(replyMsg)
+			if err != nil {
+				err = fmt.Errorf("WriteToKernel: %v", err)
+				return
+			}
 
 			return
 		}
