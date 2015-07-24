@@ -344,14 +344,13 @@ func Convert(
 		co = &to.commonOp
 
 	case fusekernel.OpWrite:
-		in := (*fusekernel.WriteIn)(m.Data())
-		size := fusekernel.WriteInSize(protocol)
-		if m.Len() < size {
+		in := (*fusekernel.WriteIn)(m.Consume(fusekernel.WriteInSize(protocol)))
+		if in == nil {
 			err = errors.New("Corrupt OpWrite")
 			return
 		}
 
-		buf := m.Bytes()[size:]
+		buf := m.ConsumeBytes(m.Len())
 		if len(buf) < int(in.Size) {
 			err = errors.New("Corrupt OpWrite")
 			return
@@ -367,8 +366,9 @@ func Convert(
 		co = &to.commonOp
 
 	case fusekernel.OpFsync:
-		in := (*fusekernel.FsyncIn)(m.Data())
-		if m.Len() < unsafe.Sizeof(*in) {
+		type input fusekernel.FsyncIn
+		in := (*input)(m.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
 			err = errors.New("Corrupt OpFsync")
 			return
 		}
@@ -381,8 +381,9 @@ func Convert(
 		co = &to.commonOp
 
 	case fusekernel.OpFlush:
-		in := (*fusekernel.FlushIn)(m.Data())
-		if m.Len() < unsafe.Sizeof(*in) {
+		type input fusekernel.FlushIn
+		in := (*input)(m.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
 			err = errors.New("Corrupt OpFlush")
 			return
 		}
@@ -407,8 +408,9 @@ func Convert(
 		co = &to.commonOp
 
 	case fusekernel.OpInterrupt:
-		in := (*fusekernel.InterruptIn)(m.Data())
-		if m.Len() < unsafe.Sizeof(*in) {
+		type input fusekernel.InterruptIn
+		in := (*input)(m.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
 			err = errors.New("Corrupt OpInterrupt")
 			return
 		}
