@@ -90,7 +90,7 @@ type Connection struct {
 // context that the user uses to reply to the op.
 type opState struct {
 	inMsg *buffer.InMessage
-	op    Op
+	op    fuseops.Op
 	opID  uint64 // For logging
 }
 
@@ -125,7 +125,7 @@ func newConnection(
 // Do the work necessary to cause the mount process to complete.
 func (c *Connection) Init() (err error) {
 	// Read the init op.
-	op, err := c.ReadOp()
+	ctx, op, err := c.ReadOp()
 	if err != nil {
 		err = fmt.Errorf("Reading init op: %v", err)
 		return
@@ -133,6 +133,7 @@ func (c *Connection) Init() (err error) {
 
 	initOp, ok := op.(*internalInitOp)
 	if !ok {
+		c.Reply(ctx, syscall.EPROTO)
 		err = fmt.Errorf("Expected *internalInitOp, got %T", op)
 		return
 	}
@@ -144,7 +145,7 @@ func (c *Connection) Init() (err error) {
 	}
 
 	if initOp.Kernel.LT(min) {
-		initOp.Respond(syscall.EPROTO)
+		c.Reply(ctx, syscall.EPROTO)
 		err = fmt.Errorf("Version too old: %v", initOp.Kernel)
 		return
 	}
@@ -164,8 +165,8 @@ func (c *Connection) Init() (err error) {
 	initOp.MaxReadahead = maxReadahead
 	initOp.MaxWrite = buffer.MaxWriteSize
 	initOp.Flags = fusekernel.InitBigWrites
-	initOp.Respond(nil)
 
+	c.Reply(ctx, nil)
 	return
 }
 
