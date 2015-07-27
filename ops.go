@@ -22,35 +22,7 @@ import (
 
 	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
-	"golang.org/x/net/context"
 )
-
-// A common interface implemented by all ops in this package. Use a type switch
-// to find particular concrete types, responding with fuse.ENOSYS if a type is
-// not supported.
-type Op interface {
-	// A short description of the op, to be used in logging.
-	ShortDesc() string
-
-	// A long description of the op, to be used in debug logging.
-	DebugString() string
-
-	// A context that can be used for long-running operations.
-	Context() context.Context
-
-	// Repond to the operation with the supplied error. If there is no error, set
-	// any necessary output fields and then call Respond(nil). The user must not
-	// call with a nil error for unrecognized ops; instead, use ENOSYS.
-	//
-	// Once this is invoked, the user must exclude any further calls to any
-	// method of this op.
-	Respond(error)
-
-	// Log information tied to this operation, with semantics equivalent to
-	// log.Printf, except that the format is different and logging is suppressed
-	// if no debug logger was set when mounting.
-	Logf(format string, v ...interface{})
-}
 
 ////////////////////////////////////////////////////////////////////////
 // Inodes
