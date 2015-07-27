@@ -31,6 +31,10 @@ import (
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
+type contextKeyType uint64
+
+const contextKey contextKeyType = 0
+
 // Ask the Linux kernel for larger read requests.
 //
 // As of 2015-03-26, the behavior in the kernel is:
@@ -85,8 +89,9 @@ type Connection struct {
 // State that is maintained for each in-flight op. This is stuffed into the
 // context that the user uses to reply to the op.
 type opState struct {
-	op    Op
 	inMsg *buffer.InMessage
+	op    Op
+	opID  uint64 // For logging
 }
 
 // Create a connection wrapping the supplied file descriptor connected to the
@@ -400,86 +405,38 @@ func (c *Connection) ReadOp() (ctx context.Context, op fuseops.Op, err error) {
 			return
 		}
 
-		// Choose an ID for this operation for the purposes of logging.
+		// Convert the message to an op.
+		op, err := convertInMessage(m, c.protocol)
+		if err != nil {
+			err = fmt.Errorf("convertInMessage: %v", err)
+			return
+		}
+
+		// Choose an ID for this operation for the purposes of logging, and log it.
 		opID := c.nextOpID
 		c.nextOpID++
 
-		// Set up op dependencies.
-		opCtx := c.beginOp(m.Header().Opcode, m.Header().Unique)
+		c.debugLog(opID, 1, "<- %#v", op)
 
-		var debugLogForOp func(int, string, ...interface{})
-		if c.debugLogger != nil {
-			debugLogForOp = func(calldepth int, format string, v ...interface{}) {
-				c.debugLog(opID, calldepth+1, format, v...)
-			}
-		}
-
-		sendReply := func(
-			op fuseops.Op,
-			fuseID uint64,
-			replyMsg []byte,
-			opErr error) (err error) {
-			// Make sure we destroy the message, as required by readMessage.
-			defer c.destroyInMessage(m)
-
-			// Clean up state for this op.
-			c.finishOp(m.Header().Opcode, m.Header().Unique)
-
-			// Debug logging
-			if debugLogForOp != nil {
-				if opErr == nil {
-					debugLogForOp(1, "-> OK: %s", op.DebugString())
-				} else {
-					debugLogForOp(1, "-> error: %v", opErr)
-				}
-			}
-
-			// Error logging
-			if opErr != nil && c.errorLogger != nil {
-				c.errorLogger.Printf("(%s) error: %v", op.ShortDesc(), opErr)
-			}
-
-			// Send the reply to the kernel.
-			err = c.writeMessage(replyMsg)
-			if err != nil {
-				err = fmt.Errorf("writeMessage: %v", err)
-				return
-			}
-
-			return
-		}
-
-		// Convert the message to an Op.
-		op, err = fuseops.Convert(
-			opCtx,
-			m,
-			c.protocol,
-			debugLogForOp,
-			c.errorLogger,
-			sendReply)
-
-		if err != nil {
-			err = fmt.Errorf("fuseops.Convert: %v", err)
-			return
-		}
-
-		// Log the receipt of the operation.
-		c.debugLog(opID, 1, "<- %v", op.ShortDesc())
-
-		// Special case: responding to statfs is required to make mounting work on
-		// OS X. We don't currently expose the capability for the file system to
-		// intercept this.
-		if _, ok := op.(*fuseops.InternalStatFSOp); ok {
-			op.Respond(nil)
-			continue
-		}
-
-		// Special case: handle interrupt requests.
+		// Special case: handle interrupt requests inline.
 		if interruptOp, ok := op.(*fuseops.InternalInterruptOp); ok {
 			c.handleInterrupt(interruptOp.FuseID)
 			continue
 		}
 
+		// Set up a context that remembers information about this op.
+		ctx = c.beginOp(m.Header().Opcode, m.Header().Unique)
+		ctx = context.WithValue(ctx, contextKey, opState{m, opID, op})
+
+		// Special case: responding to statfs is required to make mounting work on
+		// OS X. We don't currently expose the capability for the file system to
+		// intercept this.
+		if _, ok := op.(*internalStatFSOp); ok {
+			c.Reply(ctx, nil)
+			continue
+		}
+
+		// Return the op to the user.
 		return
 	}
 }
