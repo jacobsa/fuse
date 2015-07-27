@@ -286,8 +286,18 @@ type unknownOp struct {
 	inode  fuseops.InodeID
 }
 
+func (o *unknownOp) ShortDesc() string {
+	return fmt.Sprintf("<opcode %d>(inode=%d)", o.opCode, o.inode)
+}
+
+func (o *unknownOp) DebugString() string {
+	return o.ShortDesc()
+}
+
 func (o *unknownOp) kernelResponse() (b buffer.OutMessage) {
-	panic(fmt.Sprintf("Should never get here for unknown op: %s", o.ShortDesc()))
+	panic(fmt.Sprintf(
+		"Expected an error response for unknown op: %s",
+		o.ShortDesc()))
 }
 
 ////////////////////////////////////////////////////////////////////////
