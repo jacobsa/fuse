@@ -27,13 +27,13 @@ import (
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
-// Convert a kernel message to an appropriate implementation of fuseops.Op. If
-// the op is unknown, a special unexported type will be used.
+// Convert a kernel message to an appropriate op. If the op is unknown, a
+// special unexported type will be used.
 //
 // The caller is responsible for arranging for the message to be destroyed.
 func convertInMessage(
 	m *buffer.InMessage,
-	protocol fusekernel.Protocol) (o fuseops.Op, err error) {
+	protocol fusekernel.Protocol) (o interface{}, err error) {
 	switch m.Header().Opcode {
 	case fusekernel.OpLookup:
 		buf := m.ConsumeBytes(m.Len())
