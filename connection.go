@@ -82,6 +82,13 @@ type Connection struct {
 	cancelFuncs map[uint64]func()
 }
 
+// State that is maintained for each in-flight op. This is stuffed into the
+// context that the user uses to reply to the op.
+type opState struct {
+	op    Op
+	inMsg *buffer.InMessage
+}
+
 // Create a connection wrapping the supplied file descriptor connected to the
 // kernel. You must eventually call c.close().
 //
@@ -372,14 +379,18 @@ func (c *Connection) writeMessage(msg []byte) (err error) {
 	return
 }
 
-// Read the next op from the kernel process. Return io.EOF if the kernel has
-// closed the connection.
+// Read the next op from the kernel process, returning the op and a context
+// that should be used for work related to the op. Return io.EOF if the kernel
+// has closed the connection.
+//
+// If err != nil, the user is responsible for later calling c.Reply with the
+// returned context.
 //
 // This function delivers ops in exactly the order they are received from
 // /dev/fuse. It must not be called multiple times concurrently.
 //
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) ReadOp() (op fuseops.Op, err error) {
+func (c *Connection) ReadOp() (ctx context.Context, op fuseops.Op, err error) {
 	// Keep going until we find a request we know how to convert.
 	for {
 		// Read the next message from the kernel.
