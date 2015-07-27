@@ -446,8 +446,45 @@ func (c *Connection) ReadOp() (ctx context.Context, op fuseops.Op, err error) {
 // if successful). The context must be the context returned by ReadOp.
 //
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) Reply(ctx context.Context, err error) {
-	panic("TODO")
+func (c *Connection) Reply(ctx context.Context, opErr error) {
+	// Extract the state we stuffed in earlier.
+	state, ok := ctx.Value(contextKey).(opState)
+	if !ok {
+		panic(fmt.Sprintf("Reply called with invalid context: %#v", ctx))
+	}
+
+	op := state.op
+	m := state.inMsg
+	opID := state.opID
+
+	// Make sure we destroy the message when we're done.
+	defer c.destroyInMessage(m)
+
+	// Clean up state for this op.
+	c.finishOp(m.Header().Opcode, m.Header().Unique)
+
+	// Debug logging
+	if c.debugLogger != nil {
+		if opErr == nil {
+			c.debugLog(opID, 1, "-> OK: %#v", op)
+		} else {
+			c.debugLog(opID, 1, "-> error: %v", opErr)
+		}
+	}
+
+	// Error logging
+	if opErr != nil && c.errorLogger != nil {
+		c.errorLogger.Printf("(%#v) error: %v", op, opErr)
+	}
+
+	// Send the reply to the kernel.
+	err = c.writeMessage(replyMsg)
+	if err != nil {
+		err = fmt.Errorf("writeMessage: %v", err)
+		return
+	}
+
+	return
 }
 
 // Close the connection. Must not be called until operations that were read
