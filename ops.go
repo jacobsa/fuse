@@ -193,45 +193,14 @@ type unknownOp struct {
 	inode  fuseops.InodeID
 }
 
-func (o *unknownOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("<opcode %d>(inode=%v)", o.opCode, o.inode)
-	return
-}
-
-func (o *unknownOp) DebugString() string {
-	return o.ShortDesc()
-}
-
-// Common implementation for our "internal" ops that don't need to be pretty.
-type internalOp struct {
-}
-
-func (o *internalOp) ShortDesc() string   { return "<internalOp>" }
-func (o *internalOp) DebugString() string { return "<internalOp>" }
-
 type internalStatFSOp struct {
-	internalOp
-}
-
-func (o *internalStatFSOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.StatfsOut{}))
-	b.Grow(unsafe.Sizeof(fusekernel.StatfsOut{}))
-
-	return
 }
 
 type internalInterruptOp struct {
-	internalOp
 	FuseID uint64
 }
 
-func (o *internalInterruptOp) kernelResponse() (b buffer.OutMessage) {
-	panic("Shouldn't get here.")
-}
-
 type internalInitOp struct {
-	internalOp
-
 	// In
 	Kernel fusekernel.Protocol
 
@@ -240,17 +209,4 @@ type internalInitOp struct {
 	MaxReadahead uint32
 	Flags        fusekernel.InitFlags
 	MaxWrite     uint32
-}
-
-func (o *internalInitOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.InitOut{}))
-	out := (*fusekernel.InitOut)(b.Grow(unsafe.Sizeof(fusekernel.InitOut{})))
-
-	out.Major = o.Library.Major
-	out.Minor = o.Library.Minor
-	out.MaxReadahead = o.MaxReadahead
-	out.Flags = uint32(o.Flags)
-	out.MaxWrite = o.MaxWrite
-
-	return
 }
