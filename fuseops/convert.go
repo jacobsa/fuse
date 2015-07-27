@@ -472,7 +472,7 @@ func convertAttributes(
 	out.Mtime, out.MtimeNsec = convertTime(in.Mtime)
 	out.Ctime, out.CtimeNsec = convertTime(in.Ctime)
 	out.SetCrtime(convertTime(in.Crtime))
-	out.Nlink = uint32(in.Nlink) // TODO(jacobsa): Make the public field uint32?
+	out.Nlink = in.Nlink
 	out.Uid = in.Uid
 	out.Gid = in.Gid
 
