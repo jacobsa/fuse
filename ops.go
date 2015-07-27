@@ -34,7 +34,7 @@ func kernelResponse(
 	// If the user replied with an error, create room enough just for the result
 	// header and fill it in with an error. Otherwise create an appropriate
 	// response.
-	var b *buffer.OutMessage
+	var b buffer.OutMessage
 	if opErr != nil {
 		b = buffer.NewOutMessage(0)
 		if errno, ok := opErr.(syscall.Errno); ok {
@@ -60,7 +60,7 @@ func kernelResponse(
 // op.
 func kernelResponseForOp(
 	op fuseops.Op,
-	protocol fusekernel.Protocol) (b *buffer.OutMessage) {
+	protocol fusekernel.Protocol) (b buffer.OutMessage) {
 	// Create the appropriate output message
 	switch o := op.(type) {
 	case *fuseops.LookUpInodeOp:
