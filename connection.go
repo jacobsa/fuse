@@ -415,11 +415,11 @@ func (c *Connection) ReadOp() (op fuseops.Op, err error) {
 			c.finishOp(m.Header().Opcode, m.Header().Unique)
 
 			// Debug logging
-			if c.debugLogger != nil {
+			if debugLogForOp != nil {
 				if opErr == nil {
-					op.Logf("-> OK: %s", op.DebugString())
+					debugLogForOp(1, "-> OK: %s", op.DebugString())
 				} else {
-					op.Logf("-> error: %v", opErr)
+					debugLogForOp(1, "-> error: %v", opErr)
 				}
 			}
 
