@@ -20,51 +20,29 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
+
+type internalOp struct {
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Inodes
 ////////////////////////////////////////////////////////////////////////
 
-// Look up a child by name within a parent directory. The kernel sends this
-// when resolving user paths to dentry structs, which are then cached.
-type LookUpInodeOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
-	// The ID of the directory inode to which the child belongs.
-	Parent InodeID
-
-	// The name of the child of interest, relative to the parent. For example, in
-	// this directory structure:
-	//
-	//     foo/
-	//         bar/
-	//             baz
-	//
-	// the file system may receive a request to look up the child named "bar" for
-	// the parent foo/.
-	Name string
-
-	// The resulting entry. Must be filled out by the file system.
-	//
-	// The lookup count for the inode is implicitly incremented. See notes on
-	// ForgetInodeOp for more information.
-	Entry ChildInodeEntry
+type lookUpInodeOp struct {
+	internalOp
+	wrapped fuseops.LookUpInodeOp
 }
 
-func (o *LookUpInodeOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("LookUpInode(parent=%v, name=%q)", o.Parent, o.Name)
-	return
-}
-
-func (o *LookUpInodeOp) kernelResponse() (b buffer.OutMessage) {
-	size := fusekernel.EntryOutSize(o.protocol)
+func (o *lookUpInodeOp) kernelResponse(
+	protocol fusekernel.Protocol) (b buffer.OutMessage) {
+	size := fusekernel.EntryOutSize(protocol)
 	b = buffer.NewOutMessage(size)
 	out := (*fusekernel.EntryOut)(b.Grow(size))
-	convertChildInodeEntry(&o.Entry, out)
+	convertChildInodeEntry(&o.wrapped.Entry, out)
 
 	return
 }
