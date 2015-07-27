@@ -30,7 +30,6 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/jacobsa/bazilfuse"
 	"github.com/jacobsa/fuse/fsutil"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples"
@@ -58,8 +57,8 @@ type flushFSTest struct {
 
 func (t *flushFSTest) setUp(
 	ti *TestInfo,
-	flushErr bazilfuse.Errno,
-	fsyncErr bazilfuse.Errno,
+	flushErr syscall.Errno,
+	fsyncErr syscall.Errno,
 	readOnly bool) {
 	var err error
 
@@ -810,7 +809,7 @@ func init() { RegisterTestSuite(&FlushErrorTest{}) }
 
 func (t *FlushErrorTest) SetUp(ti *TestInfo) {
 	const noErr = 0
-	t.flushFSTest.setUp(ti, bazilfuse.ENOENT, noErr, false)
+	t.flushFSTest.setUp(ti, syscall.ENOENT, noErr, false)
 }
 
 func (t *FlushErrorTest) Close() {
@@ -890,7 +889,7 @@ func init() { RegisterTestSuite(&FsyncErrorTest{}) }
 
 func (t *FsyncErrorTest) SetUp(ti *TestInfo) {
 	const noErr = 0
-	t.flushFSTest.setUp(ti, noErr, bazilfuse.ENOENT, false)
+	t.flushFSTest.setUp(ti, noErr, syscall.ENOENT, false)
 }
 
 func (t *FsyncErrorTest) Fsync() {
