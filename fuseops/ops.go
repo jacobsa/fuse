@@ -15,23 +15,9 @@
 package fuseops
 
 import (
-	"fmt"
 	"os"
 	"time"
-
-	"github.com/jacobsa/fuse/internal/fusekernel"
 )
-
-// A common interface implemented by all ops in this package. Use a type switch
-// to find particular concrete types, responding with fuse.ENOSYS if a type is
-// not supported.
-type Op interface {
-	// A short description of the op, to be used in logging.
-	ShortDesc() string
-
-	// A long description of the op, to be used in debug logging.
-	DebugString() string
-}
 
 ////////////////////////////////////////////////////////////////////////
 // Inodes
@@ -40,9 +26,6 @@ type Op interface {
 // Look up a child by name within a parent directory. The kernel sends this
 // when resolving user paths to dentry structs, which are then cached.
 type LookUpInodeOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The ID of the directory inode to which the child belongs.
 	Parent InodeID
 
@@ -64,19 +47,11 @@ type LookUpInodeOp struct {
 	Entry ChildInodeEntry
 }
 
-func (o *LookUpInodeOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("LookUpInode(parent=%v, name=%q)", o.Parent, o.Name)
-	return
-}
-
 // Refresh the attributes for an inode whose ID was previously returned in a
 // LookUpInodeOp. The kernel sends this when the FUSE VFS layer's cache of
 // inode attributes is stale. This is controlled by the AttributesExpiration
 // field of ChildInodeEntry, etc.
 type GetInodeAttributesOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The inode of interest.
 	Inode InodeID
 
@@ -87,22 +62,11 @@ type GetInodeAttributesOp struct {
 	AttributesExpiration time.Time
 }
 
-func (o *GetInodeAttributesOp) DebugString() string {
-	return fmt.Sprintf(
-		"Inode: %d, Exp: %v, Attr: %s",
-		o.Inode,
-		o.AttributesExpiration,
-		o.Attributes.DebugString())
-}
-
 // Change attributes for an inode.
 //
 // The kernel sends this for obvious cases like chmod(2), and for less obvious
 // cases like ftrunctate(2).
 type SetInodeAttributesOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The inode of interest.
 	Inode InodeID
 
@@ -159,8 +123,6 @@ type SetInodeAttributesOp struct {
 // Rather they should take fuse.Connection.ReadOp returning io.EOF as
 // implicitly decrementing all lookup counts to zero.
 type ForgetInodeOp struct {
-	commonOp
-
 	// The inode whose reference count should be decremented.
 	Inode InodeID
 
@@ -184,9 +146,6 @@ type ForgetInodeOp struct {
 //
 // Therefore the file system should return EEXIST if the name already exists.
 type MkDirOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The ID of parent directory inode within which to create the child.
 	Parent InodeID
 
@@ -201,11 +160,6 @@ type MkDirOp struct {
 	Entry ChildInodeEntry
 }
 
-func (o *MkDirOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("MkDir(parent=%v, name=%q)", o.Parent, o.Name)
-	return
-}
-
 // Create a file inode and open it.
 //
 // The kernel sends this when the user asks to open a file with the O_CREAT
@@ -217,9 +171,6 @@ func (o *MkDirOp) ShortDesc() (desc string) {
 //
 // Therefore the file system should return EEXIST if the name already exists.
 type CreateFileOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The ID of parent directory inode within which to create the child file.
 	Parent InodeID
 
@@ -244,17 +195,9 @@ type CreateFileOp struct {
 	Handle HandleID
 }
 
-func (o *CreateFileOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("CreateFile(parent=%v, name=%q)", o.Parent, o.Name)
-	return
-}
-
 // Create a symlink inode. If the name already exists, the file system should
 // return EEXIST (cf. the notes on CreateFileOp and MkDirOp).
 type CreateSymlinkOp struct {
-	commonOp
-	protocol fusekernel.Protocol
-
 	// The ID of parent directory inode within which to create the child symlink.
 	Parent InodeID
 
@@ -270,16 +213,6 @@ type CreateSymlinkOp struct {
 	// The lookup count for the inode is implicitly incremented. See notes on
 	// ForgetInodeOp for more information.
 	Entry ChildInodeEntry
-}
-
-func (o *CreateSymlinkOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf(
-		"CreateSymlink(parent=%v, name=%q, target=%q)",
-		o.Parent,
-		o.Name,
-		o.Target)
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -321,8 +254,6 @@ func (o *CreateSymlinkOp) ShortDesc() (desc string) {
 //     about this.
 //
 type RenameOp struct {
-	commonOp
-
 	// The old parent directory, and the name of the entry within it to be
 	// relocated.
 	OldParent InodeID
@@ -342,8 +273,6 @@ type RenameOp struct {
 //
 // Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
 type RmDirOp struct {
-	commonOp
-
 	// The ID of parent directory inode, and the name of the directory being
 	// removed within it.
 	Parent InodeID
@@ -357,8 +286,6 @@ type RmDirOp struct {
 //
 // Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
 type UnlinkOp struct {
-	commonOp
-
 	// The ID of parent directory inode, and the name of the entry being removed
 	// within it.
 	Parent InodeID
@@ -376,8 +303,6 @@ type UnlinkOp struct {
 // user-space process. On OS X it may not be sent for every open(2) (cf.
 // https://github.com/osxfuse/osxfuse/issues/199).
 type OpenDirOp struct {
-	commonOp
-
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -394,8 +319,6 @@ type OpenDirOp struct {
 
 // Read entries from a directory previously opened with OpenDir.
 type ReadDirOp struct {
-	commonOp
-
 	// The directory inode that we are reading, and the handle previously
 	// returned by OpenDir when opening that inode.
 	Inode  InodeID
@@ -491,8 +414,6 @@ type ReadDirOp struct {
 //
 // Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
 type ReleaseDirHandleOp struct {
-	commonOp
-
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
@@ -510,8 +431,6 @@ type ReleaseDirHandleOp struct {
 // process. On OS X it may not be sent for every open(2)
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
 type OpenFileOp struct {
-	commonOp
-
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -531,8 +450,6 @@ type OpenFileOp struct {
 // some reads may be served by the page cache. See notes on WriteFileOp for
 // more.
 type ReadFileOp struct {
-	commonOp
-
 	// The file inode that we are reading, and the handle previously returned by
 	// CreateFile or OpenFile when opening that inode.
 	Inode  InodeID
@@ -586,8 +503,6 @@ type ReadFileOp struct {
 // (See also http://goo.gl/ocdTdM, fuse-devel thread "Fuse guarantees on
 // concurrent requests".)
 type WriteFileOp struct {
-	commonOp
-
 	// The file inode that we are modifying, and the handle previously returned
 	// by CreateFile or OpenFile when opening that inode.
 	Inode  InodeID
@@ -641,8 +556,6 @@ type WriteFileOp struct {
 // See also: FlushFileOp, which may perform a similar function when closing a
 // file (but which is not used in "real" file systems).
 type SyncFileOp struct {
-	commonOp
-
 	// The file and handle being sync'd.
 	Inode  InodeID
 	Handle HandleID
@@ -696,8 +609,6 @@ type SyncFileOp struct {
 // to at least schedule a real flush, and maybe do it immediately in order to
 // return any errors that occur.
 type FlushFileOp struct {
-	commonOp
-
 	// The file and handle being flushed.
 	Inode  InodeID
 	Handle HandleID
@@ -712,25 +623,10 @@ type FlushFileOp struct {
 //
 // Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
 type ReleaseFileHandleOp struct {
-	commonOp
-
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	Handle HandleID
-}
-
-// A sentinel used for unknown ops. The user is expected to respond with a
-// non-nil error.
-type unknownOp struct {
-	commonOp
-	opCode uint32
-	inode  InodeID
-}
-
-func (o *unknownOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("<opcode %d>(inode=%v)", o.opCode, o.inode)
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -739,8 +635,6 @@ func (o *unknownOp) ShortDesc() (desc string) {
 
 // Read the target of a symlink inode.
 type ReadSymlinkOp struct {
-	commonOp
-
 	// The symlink inode that we are reading.
 	Inode InodeID
 

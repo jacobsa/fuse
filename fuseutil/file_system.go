@@ -29,8 +29,8 @@ import (
 // loop" that switches on op types, instead receiving typed method calls
 // directly.
 //
-// The FileSystem implementation should not call Op.Respond, instead returning
-// the error with which the caller should respond.
+// The FileSystem implementation should not call Connection.Reply, instead
+// returning the error with which the caller should respond.
 //
 // See NotImplementedFileSystem for a convenient way to embed default
 // implementations for methods you don't care about.
@@ -110,7 +110,7 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 func (s *fileSystemServer) handleOp(
 	c *fuse.Connection,
 	ctx context.Context,
-	op fuseops.Op) {
+	op interface{}) {
 	defer s.opsInFlight.Done()
 
 	// Dispatch to the appropriate method.

@@ -26,7 +26,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
@@ -90,7 +89,7 @@ type Connection struct {
 // context that the user uses to reply to the op.
 type opState struct {
 	inMsg *buffer.InMessage
-	op    fuseops.Op
+	op    interface{}
 	opID  uint32 // For logging
 }
 
@@ -396,7 +395,7 @@ func (c *Connection) writeMessage(msg []byte) (err error) {
 // /dev/fuse. It must not be called multiple times concurrently.
 //
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) ReadOp() (ctx context.Context, op fuseops.Op, err error) {
+func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 	// Keep going until we find a request we know how to convert.
 	for {
 		// Read the next message from the kernel.

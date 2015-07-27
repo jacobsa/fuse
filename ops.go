@@ -28,7 +28,7 @@ import (
 // response, return a nil response.
 func kernelResponse(
 	fuseID uint64,
-	op fuseops.Op,
+	op interface{},
 	opErr error,
 	protocol fusekernel.Protocol) (msg []byte) {
 	// If the user replied with an error, create room enough just for the result
@@ -59,7 +59,7 @@ func kernelResponse(
 // Like kernelResponse, but assumes the user replied with a nil error to the
 // op.
 func kernelResponseForOp(
-	op fuseops.Op,
+	op interface{},
 	protocol fusekernel.Protocol) (b buffer.OutMessage) {
 	// Create the appropriate output message
 	switch o := op.(type) {
