@@ -23,7 +23,7 @@ import (
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
-type internalOp struct {
+type opCommon struct {
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -31,7 +31,7 @@ type internalOp struct {
 ////////////////////////////////////////////////////////////////////////
 
 type lookUpInodeOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.LookUpInodeOp
 }
 
@@ -46,7 +46,7 @@ func (o *lookUpInodeOp) kernelResponse(
 }
 
 type getInodeAttributesOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.GetInodeAttributesOp
 }
 
@@ -61,7 +61,7 @@ func (o *getInodeAttributesOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type setInodeAttributesOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.SetInodeAttributesOp
 }
 
@@ -76,7 +76,7 @@ func (o *setInodeAttributesOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type forgetInodeOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.ForgetInodeOp
 }
 
@@ -90,7 +90,7 @@ func (o *forgetInodeOp) kernelResponse() (b buffer.OutMessage) {
 ////////////////////////////////////////////////////////////////////////
 
 type mkDirOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.MkDirOp
 }
 
@@ -104,7 +104,7 @@ func (o *mkDirOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type createFileOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.CreateFileOp
 }
 
@@ -122,7 +122,7 @@ func (o *createFileOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type createSymlinkOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.CreateSymlinkOp
 }
 
@@ -140,7 +140,7 @@ func (o *createSymlinkOp) kernelResponse() (b buffer.OutMessage) {
 ////////////////////////////////////////////////////////////////////////
 
 type renameOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.RenameOp
 }
 
@@ -150,7 +150,7 @@ func (o *renameOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type rmDirOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.RmDirOp
 }
 
@@ -160,7 +160,7 @@ func (o *rmDirOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type unlinkOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.UnlinkOp
 }
 
@@ -174,7 +174,7 @@ func (o *unlinkOp) kernelResponse() (b buffer.OutMessage) {
 ////////////////////////////////////////////////////////////////////////
 
 type openDirOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.OpenDirOp
 }
 
@@ -187,7 +187,7 @@ func (o *openDirOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type readDirOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.ReadDirOp
 }
 
@@ -198,7 +198,7 @@ func (o *readDirOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type releaseDirHandleOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.ReleaseDirHandleOp
 }
 
@@ -212,7 +212,7 @@ func (o *releaseDirHandleOp) kernelResponse() (b buffer.OutMessage) {
 ////////////////////////////////////////////////////////////////////////
 
 type openFileOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.OpenFileOp
 }
 
@@ -225,7 +225,7 @@ func (o *openFileOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type readFileOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.ReadFileOp
 }
 
@@ -236,7 +236,7 @@ func (o *readFileOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type writeFileOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.WriteFileOp
 }
 
@@ -249,7 +249,7 @@ func (o *writeFileOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type syncFileOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.SyncFileOp
 }
 
@@ -259,7 +259,7 @@ func (o *syncFileOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type flushFileOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.FlushFileOp
 }
 
@@ -269,7 +269,7 @@ func (o *flushFileOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type releaseFileHandleOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.ReleaseFileHandleOp
 }
 
@@ -281,7 +281,7 @@ func (o *releaseFileHandleOp) kernelResponse() (b buffer.OutMessage) {
 // A sentinel used for unknown ops. The user is expected to respond with a
 // non-nil error.
 type unknownOp struct {
-	internalOp
+	opCommon
 	opCode uint32
 	inode  fuseops.InodeID
 }
@@ -295,7 +295,7 @@ func (o *unknownOp) kernelResponse() (b buffer.OutMessage) {
 ////////////////////////////////////////////////////////////////////////
 
 type readSymlinkOp struct {
-	internalOp
+	opCommon
 	wrapped fuseops.ReadSymlinkOp
 }
 
@@ -310,7 +310,7 @@ func (o *readSymlinkOp) kernelResponse() (b buffer.OutMessage) {
 ////////////////////////////////////////////////////////////////////////
 
 type internalStatFSOp struct {
-	internalOp
+	opCommon
 }
 
 func (o *internalStatFSOp) kernelResponse() (b buffer.OutMessage) {
@@ -321,7 +321,7 @@ func (o *internalStatFSOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type internalInterruptOp struct {
-	internalOp
+	opCommon
 	FuseID uint64
 }
 
@@ -330,7 +330,7 @@ func (o *internalInterruptOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type internalInitOp struct {
-	internalOp
+	opCommon
 
 	// In
 	Kernel fusekernel.Protocol
