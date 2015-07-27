@@ -340,7 +340,7 @@ func convertInMessage(
 		}
 
 	case fusekernel.OpStatfs:
-		o = &internalStatFSOp{}
+		o = &statFSOp{}
 
 	case fusekernel.OpInterrupt:
 		type input fusekernel.InterruptIn
@@ -350,7 +350,7 @@ func convertInMessage(
 			return
 		}
 
-		o = &internalInterruptOp{
+		o = &interruptOp{
 			FuseID: in.Unique,
 		}
 
@@ -362,7 +362,7 @@ func convertInMessage(
 			return
 		}
 
-		o = &internalInitOp{
+		o = &initOp{
 			Kernel:       fusekernel.Protocol{in.Major, in.Minor},
 			MaxReadahead: in.MaxReadahead,
 			Flags:        fusekernel.InitFlags(in.Flags),

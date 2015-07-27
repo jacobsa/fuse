@@ -158,14 +158,14 @@ func kernelResponseForOp(
 		b = buffer.NewOutMessage(uintptr(len(o.Target)))
 		b.AppendString(o.Target)
 
-	case *internalStatFSOp:
+	case *statFSOp:
 		b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.StatfsOut{}))
 		b.Grow(unsafe.Sizeof(fusekernel.StatfsOut{}))
 
-	case *internalInterruptOp:
+	case *interruptOp:
 		// No response.
 
-	case *internalInitOp:
+	case *initOp:
 		b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.InitOut{}))
 		out := (*fusekernel.InitOut)(b.Grow(unsafe.Sizeof(fusekernel.InitOut{})))
 
@@ -193,14 +193,14 @@ type unknownOp struct {
 	inode  fuseops.InodeID
 }
 
-type internalStatFSOp struct {
+type statFSOp struct {
 }
 
-type internalInterruptOp struct {
+type interruptOp struct {
 	FuseID uint64
 }
 
-type internalInitOp struct {
+type initOp struct {
 	// In
 	Kernel fusekernel.Protocol
 

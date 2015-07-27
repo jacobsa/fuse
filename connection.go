@@ -130,10 +130,10 @@ func (c *Connection) Init() (err error) {
 		return
 	}
 
-	initOp, ok := op.(*internalInitOp)
+	initOp, ok := op.(*initOp)
 	if !ok {
 		c.Reply(ctx, syscall.EPROTO)
-		err = fmt.Errorf("Expected *internalInitOp, got %T", op)
+		err = fmt.Errorf("Expected *initOp, got %T", op)
 		return
 	}
 
@@ -419,7 +419,7 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 		c.debugLog(opID, 1, "<- %#v", op)
 
 		// Special case: handle interrupt requests inline.
-		if interruptOp, ok := op.(*internalInterruptOp); ok {
+		if interruptOp, ok := op.(*interruptOp); ok {
 			c.handleInterrupt(interruptOp.FuseID)
 			continue
 		}
@@ -431,7 +431,7 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 		// Special case: responding to statfs is required to make mounting work on
 		// OS X. We don't currently expose the capability for the file system to
 		// intercept this.
-		if _, ok := op.(*internalStatFSOp); ok {
+		if _, ok := op.(*statFSOp); ok {
 			c.Reply(ctx, nil)
 			continue
 		}
