@@ -18,9 +18,7 @@ import (
 	"fmt"
 	"os"
 	"time"
-	"unsafe"
 
-	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
 	"golang.org/x/net/context"
 )
@@ -765,64 +763,4 @@ type ReadSymlinkOp struct {
 
 	// Set by the file system: the target of the symlink.
 	Target string
-}
-
-////////////////////////////////////////////////////////////////////////
-// Internal
-////////////////////////////////////////////////////////////////////////
-
-// TODO(jacobsa): Untangle the way ops work and move these to an internal
-// package, along with Convert. I think all of the behavior wants to be on
-// Connection. Ops have only String methods. Connection.ReadOp returns an
-// interace{} and a context. If we must restore debug logging later, we can
-// stuff an op ID in that context and add a Connection.Logf method. Connection
-// has a Reply method that takes a descendent context and an error.
-
-// Do not use this struct directly. See the TODO in fuseops/ops.go.
-type InternalStatFSOp struct {
-	commonOp
-}
-
-func (o *InternalStatFSOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.StatfsOut{}))
-	b.Grow(unsafe.Sizeof(fusekernel.StatfsOut{}))
-
-	return
-}
-
-// Do not use this struct directly. See the TODO in fuseops/ops.go.
-type InternalInterruptOp struct {
-	commonOp
-	FuseID uint64
-}
-
-func (o *InternalInterruptOp) kernelResponse() (b buffer.OutMessage) {
-	panic("Shouldn't get here.")
-}
-
-// Do not use this struct directly. See the TODO in fuseops/ops.go.
-type InternalInitOp struct {
-	commonOp
-
-	// In
-	Kernel fusekernel.Protocol
-
-	// Out
-	Library      fusekernel.Protocol
-	MaxReadahead uint32
-	Flags        fusekernel.InitFlags
-	MaxWrite     uint32
-}
-
-func (o *InternalInitOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.InitOut{}))
-	out := (*fusekernel.InitOut)(b.Grow(unsafe.Sizeof(fusekernel.InitOut{})))
-
-	out.Major = o.Library.Major
-	out.Minor = o.Library.Minor
-	out.MaxReadahead = o.MaxReadahead
-	out.Flags = uint32(o.Flags)
-	out.MaxWrite = o.MaxWrite
-
-	return
 }
