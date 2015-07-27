@@ -24,13 +24,45 @@ import (
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
-// Given an op, return the response that should be sent to the kernel. If the
-// op requires no response, return a nil response. If the op is unknown, return
-// an error that should be sent to the kernel.
+// Return the response that should be sent to the kernel. If the op requires no
+// response, return a nil response.
 func kernelResponse(
-	untyped fuseops.Op,
-	protocol fusekernel.Protocol) (b buffer.OutMessage, err error) {
-	switch o := untyped.(type) {
+	fuseID uint64,
+	op fuseops.Op,
+	opErr error,
+	protocol fusekernel.Protocol) (msg []byte) {
+	// If the user replied with an error, create room enough just for the result
+	// header and fill it in with an error. Otherwise create an appropriate
+	// response.
+	var b *buffer.OutMessage
+	if opErr != nil {
+		b = buffer.NewOutMessage(0)
+		if errno, ok := opErr.(syscall.Errno); ok {
+			b.OutHeader().Error = -int32(errno)
+		} else {
+			b.OutHeader().Error = -int32(syscall.EIO)
+		}
+	} else {
+		b = kernelResponseForOp(op, protocol)
+	}
+
+	msg = b.Bytes()
+
+	// Fill in the rest of the header.
+	h := b.OutHeader()
+	h.Unique = fuseID
+	h.Len = uint32(len(msg))
+
+	return
+}
+
+// Like kernelResponse, but assumes the user replied with a nil error to the
+// op.
+func kernelResponseForOp(
+	op fuseops.Op,
+	protocol fusekernel.Protocol) (b *buffer.OutMessage) {
+	// Create the appropriate output message
+	switch o := op.(type) {
 	case *fuseops.LookUpInodeOp:
 		size := fusekernel.EntryOutSize(protocol)
 		b = buffer.NewOutMessage(size)
@@ -142,7 +174,7 @@ func kernelResponse(
 		out.MaxWrite = o.MaxWrite
 
 	default:
-		err = syscall.ENOSYS
+		panic(fmt.Sprintf("Unknown op: %#v", op))
 	}
 
 	return
