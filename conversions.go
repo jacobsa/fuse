@@ -43,7 +43,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &LookUpInodeOp{
+		to := &fuseops.LookUpInodeOp{
 			protocol: protocol,
 			Parent:   InodeID(m.Header().Nodeid),
 			Name:     string(buf[:n-1]),
@@ -52,7 +52,7 @@ func convertInMessage(
 		co = &to.commonOp
 
 	case fusekernel.OpGetattr:
-		to := &GetInodeAttributesOp{
+		to := &fuseops.GetInodeAttributesOp{
 			protocol: protocol,
 			Inode:    InodeID(m.Header().Nodeid),
 		}
@@ -67,7 +67,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &SetInodeAttributesOp{
+		to := &fuseops.SetInodeAttributesOp{
 			protocol: protocol,
 			Inode:    InodeID(m.Header().Nodeid),
 		}
@@ -103,7 +103,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &ForgetInodeOp{
+		to := &fuseops.ForgetInodeOp{
 			Inode: InodeID(m.Header().Nodeid),
 			N:     in.Nlookup,
 		}
@@ -125,7 +125,7 @@ func convertInMessage(
 		}
 		name = name[:i]
 
-		to := &MkDirOp{
+		to := &fuseops.MkDirOp{
 			protocol: protocol,
 			Parent:   InodeID(m.Header().Nodeid),
 			Name:     string(name),
@@ -157,7 +157,7 @@ func convertInMessage(
 		}
 		name = name[:i]
 
-		to := &CreateFileOp{
+		to := &fuseops.CreateFileOp{
 			protocol: protocol,
 			Parent:   InodeID(m.Header().Nodeid),
 			Name:     string(name),
@@ -180,7 +180,7 @@ func convertInMessage(
 		}
 		newName, target := names[0:i], names[i+1:len(names)-1]
 
-		to := &CreateSymlinkOp{
+		to := &fuseops.CreateSymlinkOp{
 			protocol: protocol,
 			Parent:   InodeID(m.Header().Nodeid),
 			Name:     string(newName),
@@ -214,7 +214,7 @@ func convertInMessage(
 		}
 		oldName, newName := names[:i], names[i+1:len(names)-1]
 
-		to := &RenameOp{
+		to := &fuseops.RenameOp{
 			OldParent: InodeID(m.Header().Nodeid),
 			OldName:   string(oldName),
 			NewParent: InodeID(in.Newdir),
@@ -231,7 +231,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &UnlinkOp{
+		to := &fuseops.UnlinkOp{
 			Parent: InodeID(m.Header().Nodeid),
 			Name:   string(buf[:n-1]),
 		}
@@ -246,7 +246,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &RmDirOp{
+		to := &fuseops.RmDirOp{
 			Parent: InodeID(m.Header().Nodeid),
 			Name:   string(buf[:n-1]),
 		}
@@ -254,14 +254,14 @@ func convertInMessage(
 		co = &to.commonOp
 
 	case fusekernel.OpOpen:
-		to := &OpenFileOp{
+		to := &fuseops.OpenFileOp{
 			Inode: InodeID(m.Header().Nodeid),
 		}
 		io = to
 		co = &to.commonOp
 
 	case fusekernel.OpOpendir:
-		to := &OpenDirOp{
+		to := &fuseops.OpenDirOp{
 			Inode: InodeID(m.Header().Nodeid),
 		}
 		io = to
@@ -274,7 +274,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &ReadFileOp{
+		to := &fuseops.ReadFileOp{
 			Inode:  InodeID(m.Header().Nodeid),
 			Handle: HandleID(in.Fh),
 			Offset: int64(in.Offset),
@@ -290,7 +290,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &ReadDirOp{
+		to := &fuseops.ReadDirOp{
 			Inode:  InodeID(m.Header().Nodeid),
 			Handle: HandleID(in.Fh),
 			Offset: DirOffset(in.Offset),
@@ -307,7 +307,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &ReleaseFileHandleOp{
+		to := &fuseops.ReleaseFileHandleOp{
 			Handle: HandleID(in.Fh),
 		}
 		io = to
@@ -321,7 +321,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &ReleaseDirHandleOp{
+		to := &fuseops.ReleaseDirHandleOp{
 			Handle: HandleID(in.Fh),
 		}
 		io = to
@@ -340,7 +340,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &WriteFileOp{
+		to := &fuseops.WriteFileOp{
 			Inode:  InodeID(m.Header().Nodeid),
 			Handle: HandleID(in.Fh),
 			Data:   buf,
@@ -357,7 +357,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &SyncFileOp{
+		to := &fuseops.SyncFileOp{
 			Inode:  InodeID(m.Header().Nodeid),
 			Handle: HandleID(in.Fh),
 		}
@@ -372,7 +372,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &FlushFileOp{
+		to := &fuseops.FlushFileOp{
 			Inode:  InodeID(m.Header().Nodeid),
 			Handle: HandleID(in.Fh),
 		}
@@ -380,14 +380,14 @@ func convertInMessage(
 		co = &to.commonOp
 
 	case fusekernel.OpReadlink:
-		to := &ReadSymlinkOp{
+		to := &fuseops.ReadSymlinkOp{
 			Inode: InodeID(m.Header().Nodeid),
 		}
 		io = to
 		co = &to.commonOp
 
 	case fusekernel.OpStatfs:
-		to := &InternalStatFSOp{}
+		to := &fuseops.InternalStatFSOp{}
 		io = to
 		co = &to.commonOp
 
@@ -399,7 +399,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &InternalInterruptOp{
+		to := &fuseops.InternalInterruptOp{
 			FuseID: in.Unique,
 		}
 		io = to
@@ -413,7 +413,7 @@ func convertInMessage(
 			return
 		}
 
-		to := &InternalInitOp{
+		to := &fuseops.InternalInitOp{
 			Kernel:       fusekernel.Protocol{in.Major, in.Minor},
 			MaxReadahead: in.MaxReadahead,
 			Flags:        fusekernel.InitFlags(in.Flags),
