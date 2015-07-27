@@ -75,14 +75,16 @@ func kernelResponseForOp(
 		size := fusekernel.AttrOutSize(protocol)
 		b = buffer.NewOutMessage(size)
 		out := (*fusekernel.AttrOut)(b.Grow(size))
-		out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
+		out.AttrValid, out.AttrValidNsec = convertExpirationTime(
+			o.AttributesExpiration)
 		convertAttributes(o.Inode, &o.Attributes, &out.Attr)
 
 	case *fuseops.SetInodeAttributesOp:
 		size := fusekernel.AttrOutSize(protocol)
 		b = buffer.NewOutMessage(size)
 		out := (*fusekernel.AttrOut)(b.Grow(size))
-		out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
+		out.AttrValid, out.AttrValidNsec = convertExpirationTime(
+			o.AttributesExpiration)
 		convertAttributes(o.Inode, &o.Attributes, &out.Attr)
 
 	case *fuseops.ForgetInodeOp:
