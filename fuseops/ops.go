@@ -88,15 +88,6 @@ func (o *LookUpInodeOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *LookUpInodeOp) kernelResponse() (b buffer.OutMessage) {
-	size := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.NewOutMessage(size)
-	out := (*fusekernel.EntryOut)(b.Grow(size))
-	convertChildInodeEntry(&o.Entry, out)
-
-	return
-}
-
 // Refresh the attributes for an inode whose ID was previously returned in a
 // LookUpInodeOp. The kernel sends this when the FUSE VFS layer's cache of
 // inode attributes is stale. This is controlled by the AttributesExpiration
@@ -123,16 +114,6 @@ func (o *GetInodeAttributesOp) DebugString() string {
 		o.Attributes.DebugString())
 }
 
-func (o *GetInodeAttributesOp) kernelResponse() (b buffer.OutMessage) {
-	size := fusekernel.AttrOutSize(o.protocol)
-	b = buffer.NewOutMessage(size)
-	out := (*fusekernel.AttrOut)(b.Grow(size))
-	out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
-	convertAttributes(o.Inode, &o.Attributes, &out.Attr)
-
-	return
-}
-
 // Change attributes for an inode.
 //
 // The kernel sends this for obvious cases like chmod(2), and for less obvious
@@ -155,16 +136,6 @@ type SetInodeAttributesOp struct {
 	// ChildInodeEntry.AttributesExpiration for more.
 	Attributes           InodeAttributes
 	AttributesExpiration time.Time
-}
-
-func (o *SetInodeAttributesOp) kernelResponse() (b buffer.OutMessage) {
-	size := fusekernel.AttrOutSize(o.protocol)
-	b = buffer.NewOutMessage(size)
-	out := (*fusekernel.AttrOut)(b.Grow(size))
-	out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
-	convertAttributes(o.Inode, &o.Attributes, &out.Attr)
-
-	return
 }
 
 // Decrement the reference count for an inode ID previously issued by the file
@@ -216,11 +187,6 @@ type ForgetInodeOp struct {
 	N uint64
 }
 
-func (o *ForgetInodeOp) kernelResponse() (b buffer.OutMessage) {
-	// No response.
-	return
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Inode creation
 ////////////////////////////////////////////////////////////////////////
@@ -256,15 +222,6 @@ type MkDirOp struct {
 
 func (o *MkDirOp) ShortDesc() (desc string) {
 	desc = fmt.Sprintf("MkDir(parent=%v, name=%q)", o.Parent, o.Name)
-	return
-}
-
-func (o *MkDirOp) kernelResponse() (b buffer.OutMessage) {
-	size := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.NewOutMessage(size)
-	out := (*fusekernel.EntryOut)(b.Grow(size))
-	convertChildInodeEntry(&o.Entry, out)
-
 	return
 }
 
@@ -311,19 +268,6 @@ func (o *CreateFileOp) ShortDesc() (desc string) {
 	return
 }
 
-func (o *CreateFileOp) kernelResponse() (b buffer.OutMessage) {
-	eSize := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.NewOutMessage(eSize + unsafe.Sizeof(fusekernel.OpenOut{}))
-
-	e := (*fusekernel.EntryOut)(b.Grow(eSize))
-	convertChildInodeEntry(&o.Entry, e)
-
-	oo := (*fusekernel.OpenOut)(b.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
-	oo.Fh = uint64(o.Handle)
-
-	return
-}
-
 // Create a symlink inode. If the name already exists, the file system should
 // return EEXIST (cf. the notes on CreateFileOp and MkDirOp).
 type CreateSymlinkOp struct {
@@ -353,15 +297,6 @@ func (o *CreateSymlinkOp) ShortDesc() (desc string) {
 		o.Parent,
 		o.Name,
 		o.Target)
-
-	return
-}
-
-func (o *CreateSymlinkOp) kernelResponse() (b buffer.OutMessage) {
-	size := fusekernel.EntryOutSize(o.protocol)
-	b = buffer.NewOutMessage(size)
-	out := (*fusekernel.EntryOut)(b.Grow(size))
-	convertChildInodeEntry(&o.Entry, out)
 
 	return
 }
@@ -418,11 +353,6 @@ type RenameOp struct {
 	NewName   string
 }
 
-func (o *RenameOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
-}
-
 // Unlink a directory from its parent. Because directories cannot have a link
 // count above one, this means the directory inode should be deleted as well
 // once the kernel sends ForgetInodeOp.
@@ -439,11 +369,6 @@ type RmDirOp struct {
 	Name   string
 }
 
-func (o *RmDirOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
-}
-
 // Unlink a file or symlink from its parent. If this brings the inode's link
 // count to zero, the inode should be deleted once the kernel sends
 // ForgetInodeOp. It may still be referenced before then if a user still has
@@ -457,11 +382,6 @@ type UnlinkOp struct {
 	// within it.
 	Parent InodeID
 	Name   string
-}
-
-func (o *UnlinkOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -489,14 +409,6 @@ type OpenDirOp struct {
 	// directory handle. The file system must ensure this ID remains valid until
 	// a later call to ReleaseDirHandle.
 	Handle HandleID
-}
-
-func (o *OpenDirOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.OpenOut{}))
-	out := (*fusekernel.OpenOut)(b.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
-	out.Fh = uint64(o.Handle)
-
-	return
 }
 
 // Read entries from a directory previously opened with OpenDir.
@@ -589,12 +501,6 @@ type ReadDirOp struct {
 	Data []byte
 }
 
-func (o *ReadDirOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(uintptr(len(o.Data)))
-	b.Append(o.Data)
-	return
-}
-
 // Release a previously-minted directory handle. The kernel sends this when
 // there are no more references to an open directory: all file descriptors are
 // closed and all memory mappings are unmapped.
@@ -610,11 +516,6 @@ type ReleaseDirHandleOp struct {
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
 	Handle HandleID
-}
-
-func (o *ReleaseDirHandleOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -641,14 +542,6 @@ type OpenFileOp struct {
 	// file handle. The file system must ensure this ID remains valid until a
 	// later call to ReleaseFileHandle.
 	Handle HandleID
-}
-
-func (o *OpenFileOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.OpenOut{}))
-	out := (*fusekernel.OpenOut)(b.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
-	out.Fh = uint64(o.Handle)
-
-	return
 }
 
 // Read data from a file previously opened with CreateFile or OpenFile.
@@ -678,12 +571,6 @@ type ReadFileOp struct {
 	// Set by the file system: the data read. If this is less than the requested
 	// size, it indicates EOF. An error should not be returned in this case.
 	Data []byte
-}
-
-func (o *ReadFileOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(uintptr(len(o.Data)))
-	b.Append(o.Data)
-	return
 }
 
 // Write data to a file previously opened with CreateFile or OpenFile.
@@ -756,14 +643,6 @@ type WriteFileOp struct {
 	Data []byte
 }
 
-func (o *WriteFileOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(unsafe.Sizeof(fusekernel.WriteOut{}))
-	out := (*fusekernel.WriteOut)(b.Grow(unsafe.Sizeof(fusekernel.WriteOut{})))
-	out.Size = uint32(len(o.Data))
-
-	return
-}
-
 // Synchronize the current contents of an open file to storage.
 //
 // vfs.txt documents this as being called for by the fsync(2) system call
@@ -786,11 +665,6 @@ type SyncFileOp struct {
 	// The file and handle being sync'd.
 	Inode  InodeID
 	Handle HandleID
-}
-
-func (o *SyncFileOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
 }
 
 // Flush the current state of an open file to storage upon closing a file
@@ -848,11 +722,6 @@ type FlushFileOp struct {
 	Handle HandleID
 }
 
-func (o *FlushFileOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
-}
-
 // Release a previously-minted file handle. The kernel calls this when there
 // are no more references to an open file: all file descriptors are closed
 // and all memory mappings are unmapped.
@@ -870,11 +739,6 @@ type ReleaseFileHandleOp struct {
 	Handle HandleID
 }
 
-func (o *ReleaseFileHandleOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(0)
-	return
-}
-
 // A sentinel used for unknown ops. The user is expected to respond with a
 // non-nil error.
 type unknownOp struct {
@@ -886,10 +750,6 @@ type unknownOp struct {
 func (o *unknownOp) ShortDesc() (desc string) {
 	desc = fmt.Sprintf("<opcode %d>(inode=%v)", o.opCode, o.inode)
 	return
-}
-
-func (o *unknownOp) kernelResponse() (b buffer.OutMessage) {
-	panic(fmt.Sprintf("Should never get here for unknown op: %s", o.ShortDesc()))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -905,12 +765,6 @@ type ReadSymlinkOp struct {
 
 	// Set by the file system: the target of the symlink.
 	Target string
-}
-
-func (o *ReadSymlinkOp) kernelResponse() (b buffer.OutMessage) {
-	b = buffer.NewOutMessage(uintptr(len(o.Target)))
-	b.AppendString(o.Target)
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
