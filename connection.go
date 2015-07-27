@@ -480,7 +480,10 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	// Send the reply to the kernel.
 	replyMsg := kernelResponse(m.Header().Unique, op, opErr, c.protocol)
 	if err := c.writeMessage(replyMsg); err != nil {
-		log.Fatalf("writeMessage: %v", err)
+		if c.errorLogger != nil {
+			c.errorLogger.Printf("writeMessage: %v", err)
+		}
+
 		return
 	}
 }
