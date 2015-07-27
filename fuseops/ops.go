@@ -22,17 +22,6 @@ import (
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
-// A common interface implemented by all ops in this package. Use a type switch
-// to find particular concrete types, responding with fuse.ENOSYS if a type is
-// not supported.
-type Op interface {
-	// A short description of the op, to be used in logging.
-	ShortDesc() string
-
-	// A long description of the op, to be used in debug logging.
-	DebugString() string
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Inodes
 ////////////////////////////////////////////////////////////////////////
