@@ -309,8 +309,16 @@ func (o *readSymlinkOp) kernelResponse() (b buffer.OutMessage) {
 // Internal
 ////////////////////////////////////////////////////////////////////////
 
-type internalStatFSOp struct {
+// Common implementation for our "internal" ops that don't need to be pretty.
+type internalOp struct {
 	opCommon
+}
+
+func (o *internalOp) ShortDesc() string   { return "<internalOp>" }
+func (o *internalOp) DebugString() string { return "<internalOp>" }
+
+type internalStatFSOp struct {
+	internalOp
 }
 
 func (o *internalStatFSOp) kernelResponse() (b buffer.OutMessage) {
@@ -321,7 +329,7 @@ func (o *internalStatFSOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type internalInterruptOp struct {
-	opCommon
+	internalOp
 	FuseID uint64
 }
 
@@ -330,7 +338,7 @@ func (o *internalInterruptOp) kernelResponse() (b buffer.OutMessage) {
 }
 
 type internalInitOp struct {
-	opCommon
+	internalOp
 
 	// In
 	Kernel fusekernel.Protocol

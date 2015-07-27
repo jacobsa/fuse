@@ -119,9 +119,9 @@ func (c *Connection) Init() (err error) {
 		return
 	}
 
-	initOp, ok := op.(*fuseops.InternalInitOp)
+	initOp, ok := op.(*internalInitOp)
 	if !ok {
-		err = fmt.Errorf("Expected *fuseops.InternalInitOp, got %T", op)
+		err = fmt.Errorf("Expected *internalInitOp, got %T", op)
 		return
 	}
 
