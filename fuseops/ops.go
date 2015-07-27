@@ -15,7 +15,6 @@
 package fuseops
 
 import (
-	"fmt"
 	"os"
 	"time"
 )
@@ -48,11 +47,6 @@ type LookUpInodeOp struct {
 	Entry ChildInodeEntry
 }
 
-func (o *LookUpInodeOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("LookUpInode(parent=%v, name=%q)", o.Parent, o.Name)
-	return
-}
-
 // Refresh the attributes for an inode whose ID was previously returned in a
 // LookUpInodeOp. The kernel sends this when the FUSE VFS layer's cache of
 // inode attributes is stale. This is controlled by the AttributesExpiration
@@ -66,14 +60,6 @@ type GetInodeAttributesOp struct {
 	// more.
 	Attributes           InodeAttributes
 	AttributesExpiration time.Time
-}
-
-func (o *GetInodeAttributesOp) DebugString() string {
-	return fmt.Sprintf(
-		"Inode: %d, Exp: %v, Attr: %s",
-		o.Inode,
-		o.AttributesExpiration,
-		o.Attributes.DebugString())
 }
 
 // Change attributes for an inode.
@@ -174,11 +160,6 @@ type MkDirOp struct {
 	Entry ChildInodeEntry
 }
 
-func (o *MkDirOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("MkDir(parent=%v, name=%q)", o.Parent, o.Name)
-	return
-}
-
 // Create a file inode and open it.
 //
 // The kernel sends this when the user asks to open a file with the O_CREAT
@@ -214,11 +195,6 @@ type CreateFileOp struct {
 	Handle HandleID
 }
 
-func (o *CreateFileOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf("CreateFile(parent=%v, name=%q)", o.Parent, o.Name)
-	return
-}
-
 // Create a symlink inode. If the name already exists, the file system should
 // return EEXIST (cf. the notes on CreateFileOp and MkDirOp).
 type CreateSymlinkOp struct {
@@ -237,16 +213,6 @@ type CreateSymlinkOp struct {
 	// The lookup count for the inode is implicitly incremented. See notes on
 	// ForgetInodeOp for more information.
 	Entry ChildInodeEntry
-}
-
-func (o *CreateSymlinkOp) ShortDesc() (desc string) {
-	desc = fmt.Sprintf(
-		"CreateSymlink(parent=%v, name=%q, target=%q)",
-		o.Parent,
-		o.Name,
-		o.Target)
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
