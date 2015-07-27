@@ -17,36 +17,23 @@ package fuse
 import (
 	"bytes"
 	"errors"
-	"log"
 	"os"
 	"syscall"
 	"time"
 	"unsafe"
 
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
-	"golang.org/x/net/context"
 )
 
-// This function is an implementation detail of the fuse package, and must not
-// be called by anyone else.
+// Convert a kernel message to an appropriate implementation of fuseops.Op. If
+// the op is unknown, a special unexported type will be used.
 //
-// Convert the supplied fuse kernel message to an Op. sendReply will be used to
-// send the reply back to the kernel once the user calls o.Respond. If the op
-// is unknown, a special unexported type will be used.
-//
-// The debug logging function and error logger may be nil. The caller is
-// responsible for arranging for the message to be destroyed.
-func Convert(
-	opCtx context.Context,
+// The caller is responsible for arranging for the message to be destroyed.
+func convertInMessage(
 	m *buffer.InMessage,
-	protocol fusekernel.Protocol,
-	debugLogForOp func(int, string, ...interface{}),
-	errorLogger *log.Logger,
-	sendReply replyFunc) (o Op, err error) {
-	var co *commonOp
-
-	var io internalOp
+	protocol fusekernel.Protocol) (o fuseops.Op, err error) {
 	switch m.Header().Opcode {
 	case fusekernel.OpLookup:
 		buf := m.ConsumeBytes(m.Len())
