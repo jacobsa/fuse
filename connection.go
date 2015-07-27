@@ -91,7 +91,7 @@ type Connection struct {
 type opState struct {
 	inMsg *buffer.InMessage
 	op    fuseops.Op
-	opID  uint64 // For logging
+	opID  uint32 // For logging
 }
 
 // Create a connection wrapping the supplied file descriptor connected to the
@@ -407,7 +407,7 @@ func (c *Connection) ReadOp() (ctx context.Context, op fuseops.Op, err error) {
 		}
 
 		// Convert the message to an op.
-		op, err := convertInMessage(m, c.protocol)
+		op, err = convertInMessage(m, c.protocol)
 		if err != nil {
 			err = fmt.Errorf("convertInMessage: %v", err)
 			return
@@ -420,14 +420,14 @@ func (c *Connection) ReadOp() (ctx context.Context, op fuseops.Op, err error) {
 		c.debugLog(opID, 1, "<- %#v", op)
 
 		// Special case: handle interrupt requests inline.
-		if interruptOp, ok := op.(*fuseops.InternalInterruptOp); ok {
+		if interruptOp, ok := op.(*internalInterruptOp); ok {
 			c.handleInterrupt(interruptOp.FuseID)
 			continue
 		}
 
 		// Set up a context that remembers information about this op.
 		ctx = c.beginOp(m.Header().Opcode, m.Header().Unique)
-		ctx = context.WithValue(ctx, contextKey, opState{m, opID, op})
+		ctx = context.WithValue(ctx, contextKey, opState{m, op, opID})
 
 		// Special case: responding to statfs is required to make mounting work on
 		// OS X. We don't currently expose the capability for the file system to
@@ -440,6 +440,14 @@ func (c *Connection) ReadOp() (ctx context.Context, op fuseops.Op, err error) {
 		// Return the op to the user.
 		return
 	}
+}
+
+// Reply to an op previously read using ReadOp, with the supplied error (or nil
+// if successful). The context must be the context returned by ReadOp.
+//
+// LOCKS_EXCLUDED(c.mu)
+func (c *Connection) Reply(ctx context.Context, err error) {
+	panic("TODO")
 }
 
 // Close the connection. Must not be called until operations that were read

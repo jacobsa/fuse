@@ -15,6 +15,7 @@
 package fuse
 
 import (
+	"fmt"
 	"syscall"
 	"unsafe"
 
@@ -150,6 +151,22 @@ func kernelResponse(
 ////////////////////////////////////////////////////////////////////////
 // Internal
 ////////////////////////////////////////////////////////////////////////
+
+// A sentinel used for unknown ops. The user is expected to respond with a
+// non-nil error.
+type unknownOp struct {
+	opCode uint32
+	inode  fuseops.InodeID
+}
+
+func (o *unknownOp) ShortDesc() (desc string) {
+	desc = fmt.Sprintf("<opcode %d>(inode=%v)", o.opCode, o.inode)
+	return
+}
+
+func (o *unknownOp) DebugString() string {
+	return o.ShortDesc()
+}
 
 // Common implementation for our "internal" ops that don't need to be pretty.
 type internalOp struct {
