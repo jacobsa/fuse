@@ -34,17 +34,17 @@ func kernelResponse(
 		size := fusekernel.EntryOutSize(protocol)
 		b = buffer.NewOutMessage(size)
 		out := (*fusekernel.EntryOut)(b.Grow(size))
-		convertChildInodeEntry(&o.wrapped.Entry, out)
+		convertChildInodeEntry(&o.Entry, out)
 
 	case *fuseops.GetInodeAttributesOp:
-		size := fusekernel.AttrOutSize(o.protocol)
+		size := fusekernel.AttrOutSize(protocol)
 		b = buffer.NewOutMessage(size)
 		out := (*fusekernel.AttrOut)(b.Grow(size))
 		out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
 		convertAttributes(o.Inode, &o.Attributes, &out.Attr)
 
 	case *fuseops.SetInodeAttributesOp:
-		size := fusekernel.AttrOutSize(o.protocol)
+		size := fusekernel.AttrOutSize(protocol)
 		b = buffer.NewOutMessage(size)
 		out := (*fusekernel.AttrOut)(b.Grow(size))
 		out.AttrValid, out.AttrValidNsec = convertExpirationTime(o.AttributesExpiration)
@@ -54,13 +54,13 @@ func kernelResponse(
 		// No response.
 
 	case *fuseops.MkDirOp:
-		size := fusekernel.EntryOutSize(o.protocol)
+		size := fusekernel.EntryOutSize(protocol)
 		b = buffer.NewOutMessage(size)
 		out := (*fusekernel.EntryOut)(b.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
 
 	case *fuseops.CreateFileOp:
-		eSize := fusekernel.EntryOutSize(o.protocol)
+		eSize := fusekernel.EntryOutSize(protocol)
 		b = buffer.NewOutMessage(eSize + unsafe.Sizeof(fusekernel.OpenOut{}))
 
 		e := (*fusekernel.EntryOut)(b.Grow(eSize))
@@ -70,7 +70,7 @@ func kernelResponse(
 		oo.Fh = uint64(o.Handle)
 
 	case *fuseops.CreateSymlinkOp:
-		size := fusekernel.EntryOutSize(o.protocol)
+		size := fusekernel.EntryOutSize(protocol)
 		b = buffer.NewOutMessage(size)
 		out := (*fusekernel.EntryOut)(b.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
