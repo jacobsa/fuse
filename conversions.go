@@ -387,7 +387,7 @@ func convertTime(t time.Time) (secs uint64, nsec uint32) {
 
 func convertAttributes(
 	inodeID fuseops.InodeID,
-	in *InodeAttributes,
+	in *fuseops.InodeAttributes,
 	out *fusekernel.Attr) {
 	out.Ino = uint64(inodeID)
 	out.Size = in.Size
@@ -438,7 +438,7 @@ func convertExpirationTime(t time.Time) (secs uint64, nsecs uint32) {
 }
 
 func convertChildInodeEntry(
-	in *ChildInodeEntry,
+	in *fuseops.ChildInodeEntry,
 	out *fusekernel.EntryOut) {
 	out.Nodeid = uint64(in.Child)
 	out.Generation = uint64(in.Generation)
