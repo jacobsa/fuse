@@ -48,16 +48,18 @@ func kernelResponse(
 
 	msg = b.Bytes()
 
-	// Fill in the rest of the header.
-	h := b.OutHeader()
-	h.Unique = fuseID
-	h.Len = uint32(len(msg))
+	// Fill in the rest of the header, if a response is required.
+	if msg != nil {
+		h := b.OutHeader()
+		h.Unique = fuseID
+		h.Len = uint32(len(msg))
+	}
 
 	return
 }
 
 // Like kernelResponse, but assumes the user replied with a nil error to the
-// op.
+// op. Returns a nil response if no response is required.
 func kernelResponseForOp(
 	op interface{},
 	protocol fusekernel.Protocol) (b buffer.OutMessage) {
