@@ -478,13 +478,11 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	}
 
 	// Send the reply to the kernel.
-	err = c.writeMessage(replyMsg)
-	if err != nil {
-		err = fmt.Errorf("writeMessage: %v", err)
+	replyMsg := kernelResponse(m.Header().Unique, op, opErr, c.protocol)
+	if err := c.writeMessage(replyMsg); err != nil {
+		log.Fatalf("writeMessage: %v", err)
 		return
 	}
-
-	return
 }
 
 // Close the connection. Must not be called until operations that were read
