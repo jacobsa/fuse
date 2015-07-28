@@ -65,7 +65,12 @@ func (b *OutMessage) OutHeader() (h *fusekernel.OutHeader) {
 // start of the new segment, which is zeroed. If there is no space left, return
 // the nil pointer.
 func (b *OutMessage) Grow(size uintptr) (p unsafe.Pointer) {
-	panic("TODO")
+	p = b.GrowNoZero(size)
+	if p != nil {
+		memclr(p, size)
+	}
+
+	return
 }
 
 // Equivalent to Grow, except the new segment is not zeroed. Use with caution!
