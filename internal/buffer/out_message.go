@@ -15,7 +15,6 @@
 package buffer
 
 import (
-	"reflect"
 	"unsafe"
 
 	"github.com/jacobsa/fuse/internal/fusekernel"
@@ -35,54 +34,47 @@ type OutMessage struct {
 	storage [outMessageSize]byte
 }
 
-// Create a new buffer whose initial contents are a zeroed fusekernel.OutHeader
-// message, and with room enough to grow by extra bytes.
-func NewOutMessage(extra uintptr) (b OutMessage) {
-	const headerSize = unsafe.Sizeof(fusekernel.OutHeader{})
-	b.slice = make([]byte, headerSize, headerSize+extra)
-	return
+// Reset the message so that it is ready to be used again. Afterward, the
+// contents are solely a zeroed header.
+func (m *OutMessage) Reset() {
+	panic("TODO")
 }
 
-// Return a pointer to the header at the start of the buffer.
+// Return a pointer to the header at the start of the message.
 func (b *OutMessage) OutHeader() (h *fusekernel.OutHeader) {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b.slice))
-	h = (*fusekernel.OutHeader)(unsafe.Pointer(sh.Data))
-	return
+	panic("TODO")
 }
 
 // Grow the buffer by the supplied number of bytes, returning a pointer to the
-// start of the new segment. The sum of the arguments given to Grow must not
-// exceed the argument given to New when creating the buffer.
+// start of the new segment, which is zeroed. If there is no space left, return
+// the nil pointer.
 func (b *OutMessage) Grow(size uintptr) (p unsafe.Pointer) {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b.slice))
-	p = unsafe.Pointer(sh.Data + uintptr(sh.Len))
-	b.slice = b.slice[:len(b.slice)+int(size)]
-	return
+	panic("TODO")
 }
 
-// Equivalent to growing by the length of p, then copying p into the new segment.
+// Equivalent to Grow, except the new segment is not zeroed. Use with caution!
+func (b *OutMessage) GrowNoZero(size uintptr) (p unsafe.Pointer) {
+	panic("TODO")
+}
+
+// Equivalent to growing by the length of p, then copying p over the new
+// segment.
 func (b *OutMessage) Append(p []byte) {
-	sh := reflect.SliceHeader{
-		Data: uintptr(b.Grow(uintptr(len(p)))),
-		Len:  len(p),
-		Cap:  len(p),
-	}
-
-	copy(*(*[]byte)(unsafe.Pointer(&sh)), p)
+	panic("TODO")
 }
 
-// Equivalent to growing by the length of s, then copying s into the new segment.
+// Equivalent to growing by the length of s, then copying s over the new
+// segment.
 func (b *OutMessage) AppendString(s string) {
-	sh := reflect.SliceHeader{
-		Data: uintptr(b.Grow(uintptr(len(s)))),
-		Len:  len(s),
-		Cap:  len(s),
-	}
+	panic("TODO")
+}
 
-	copy(*(*[]byte)(unsafe.Pointer(&sh)), s)
+// Return the current size of the buffer.
+func (b *OutMessage) Len() int {
+	panic("TODO")
 }
 
 // Return a reference to the current contents of the buffer.
 func (b *OutMessage) Bytes() []byte {
-	return b.slice
+	panic("TODO")
 }
