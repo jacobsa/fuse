@@ -117,10 +117,10 @@ func (b *OutMessage) AppendString(src string) {
 
 // Return the current size of the buffer.
 func (b *OutMessage) Len() int {
-	panic("TODO")
+	return int(b.offset)
 }
 
 // Return a reference to the current contents of the buffer.
 func (b *OutMessage) Bytes() []byte {
-	panic("TODO")
+	return b.storage[:int(b.offset)]
 }
