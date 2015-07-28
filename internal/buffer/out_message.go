@@ -58,13 +58,13 @@ func (b *OutMessage) GrowNoZero(size uintptr) (p unsafe.Pointer) {
 }
 
 // Equivalent to growing by the length of p, then copying p over the new
-// segment.
+// segment. Panics if there is not enough room available.
 func (b *OutMessage) Append(p []byte) {
 	panic("TODO")
 }
 
 // Equivalent to growing by the length of s, then copying s over the new
-// segment.
+// segment. Panics if there is not enough room available.
 func (b *OutMessage) AppendString(s string) {
 	panic("TODO")
 }
