@@ -21,14 +21,18 @@ import (
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
+// We size out messages to be large enough to hold a header for the response
+// plus the largest read that may come in.
+const outMessageSize = unsafe.Sizeof(fusekernel.OutHeader{}) + MaxReadSize
+
 // OutMessage provides a mechanism for constructing a single contiguous fuse
 // message from multiple segments, where the first segment is always a
 // fusekernel.OutHeader message.
 //
-// Must be created with NewOutMessage. Exception: the zero value has
-// Bytes() == nil.
+// Must be initialized with Reset.
 type OutMessage struct {
-	slice []byte
+	offset  uintptr
+	storage [outMessageSize]byte
 }
 
 // Create a new buffer whose initial contents are a zeroed fusekernel.OutHeader
