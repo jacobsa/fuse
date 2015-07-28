@@ -20,9 +20,11 @@ import (
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
+const outHeaderSize = unsafe.Sizeof(fusekernel.OutHeader{})
+
 // We size out messages to be large enough to hold a header for the response
 // plus the largest read that may come in.
-const outMessageSize = unsafe.Sizeof(fusekernel.OutHeader{}) + MaxReadSize
+const outMessageSize = outHeaderSize + MaxReadSize
 
 // OutMessage provides a mechanism for constructing a single contiguous fuse
 // message from multiple segments, where the first segment is always a
@@ -37,7 +39,8 @@ type OutMessage struct {
 // Reset the message so that it is ready to be used again. Afterward, the
 // contents are solely a zeroed header.
 func (m *OutMessage) Reset() {
-	panic("TODO")
+	m.offset = outHeaderSize
+	memclr(unsafe.Pointer(&m.storage), outHeaderSize)
 }
 
 // Return a pointer to the header at the start of the message.
