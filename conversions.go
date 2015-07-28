@@ -387,35 +387,31 @@ func convertInMessage(
 // Outgoing messages
 ////////////////////////////////////////////////////////////////////////
 
-// Return the response that should be sent to the kernel. If the op requires no
-// response, return a nil response.
-func kernelResponse(
+// Return the response that should be sent to the kernel, or nil if the op
+// requires no response.
+func (c *Connection) kernelResponse(
 	fuseID uint64,
 	op interface{},
-	opErr error,
-	protocol fusekernel.Protocol) (msg []byte) {
-	// If the user replied with an error, create room enough just for the result
-	// header and fill it in with an error. Otherwise create an appropriate
+	opErr error) (m *buffer.OutMessage) {
+	// If the user replied with an error, create a response containing just the
+	// result header with the error filled in. Otherwise create an appropriate
 	// response.
-	var b buffer.OutMessage
 	if opErr != nil {
-		b = buffer.NewOutMessage(0)
+		m = c.getOutMessage()
 		if errno, ok := opErr.(syscall.Errno); ok {
-			b.OutHeader().Error = -int32(errno)
+			m.OutHeader().Error = -int32(errno)
 		} else {
-			b.OutHeader().Error = -int32(syscall.EIO)
+			m.OutHeader().Error = -int32(syscall.EIO)
 		}
 	} else {
-		b = kernelResponseForOp(op, protocol)
+		m = c.kernelResponseForOp(op)
 	}
 
-	msg = b.Bytes()
-
 	// Fill in the rest of the header, if a response is required.
-	if msg != nil {
-		h := b.OutHeader()
+	if m != nil {
+		h := m.OutHeader()
 		h.Unique = fuseID
-		h.Len = uint32(len(msg))
+		h.Len = uint32(m.Len())
 	}
 
 	return
