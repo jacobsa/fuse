@@ -103,8 +103,16 @@ func (b *OutMessage) Append(src []byte) {
 
 // Equivalent to growing by the length of s, then copying s over the new
 // segment. Panics if there is not enough room available.
-func (b *OutMessage) AppendString(s string) {
-	panic("TODO")
+func (b *OutMessage) AppendString(src string) {
+	p := b.GrowNoZero(uintptr(len(src)))
+	if p == nil {
+		panic(fmt.Sprintf("Can't grow %d bytes", len(src)))
+	}
+
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&src))
+	memmove(p, unsafe.Pointer(sh.Data), uintptr(sh.Len))
+
+	return
 }
 
 // Return the current size of the buffer.
