@@ -57,7 +57,8 @@ func (m *OutMessage) Reset() {
 
 // Return a pointer to the header at the start of the message.
 func (b *OutMessage) OutHeader() (h *fusekernel.OutHeader) {
-	panic("TODO")
+	h = (*fusekernel.OutHeader)(unsafe.Pointer(&b.storage))
+	return
 }
 
 // Grow the buffer by the supplied number of bytes, returning a pointer to the
