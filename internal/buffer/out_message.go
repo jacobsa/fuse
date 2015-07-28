@@ -15,6 +15,7 @@
 package buffer
 
 import (
+	"log"
 	"unsafe"
 
 	"github.com/jacobsa/fuse/internal/fusekernel"
@@ -34,6 +35,17 @@ const outMessageSize = outHeaderSize + MaxReadSize
 type OutMessage struct {
 	offset  uintptr
 	storage [outMessageSize]byte
+}
+
+// Make sure alignment works out correctly, at least for the header.
+func init() {
+	a := unsafe.Alignof(OutMessage{})
+	o := unsafe.Offsetof(OutMessage{}.storage)
+	e := unsafe.Alignof(fusekernel.OutHeader{})
+
+	if a%e != 0 || o%e != 0 {
+		log.Panicf("Bad alignment or offset: %d, %d, need %d", a, o, e)
+	}
 }
 
 // Reset the message so that it is ready to be used again. Afterward, the
