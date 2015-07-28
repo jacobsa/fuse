@@ -32,7 +32,7 @@ import (
 
 type contextKeyType uint64
 
-const contextKey contextKeyType = 0
+var contextKey interface{} = contextKeyType(0)
 
 // Ask the Linux kernel for larger read requests.
 //
@@ -447,7 +447,9 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) Reply(ctx context.Context, opErr error) {
 	// Extract the state we stuffed in earlier.
-	state, ok := ctx.Value(contextKey).(opState)
+	var key interface{} = contextKey
+	foo := ctx.Value(key)
+	state, ok := foo.(opState)
 	if !ok {
 		panic(fmt.Sprintf("Reply called with invalid context: %#v", ctx))
 	}
