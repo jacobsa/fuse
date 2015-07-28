@@ -252,7 +252,7 @@ func convertInMessage(
 			Inode:  fuseops.InodeID(m.Header().Nodeid),
 			Handle: fuseops.HandleID(in.Fh),
 			Offset: int64(in.Offset),
-			Size:   int(in.Size),
+			Dst:    make([]byte, in.Size),
 		}
 
 	case fusekernel.OpReaddir:
@@ -266,7 +266,7 @@ func convertInMessage(
 			Inode:  fuseops.InodeID(m.Header().Nodeid),
 			Handle: fuseops.HandleID(in.Fh),
 			Offset: fuseops.DirOffset(in.Offset),
-			Size:   int(in.Size),
+			Dst:    make([]byte, in.Size),
 		}
 
 	case fusekernel.OpRelease:
@@ -486,7 +486,7 @@ func (c *Connection) kernelResponseForOp(
 
 	case *fuseops.ReadDirOp:
 		m = c.getOutMessage()
-		m.Append(o.Data)
+		m.Append(o.Dst[:o.BytesRead])
 
 	case *fuseops.ReleaseDirHandleOp:
 		m = c.getOutMessage()
@@ -498,7 +498,7 @@ func (c *Connection) kernelResponseForOp(
 
 	case *fuseops.ReadFileOp:
 		m = c.getOutMessage()
-		m.Append(o.Data)
+		m.Append(o.Dst[:o.BytesRead])
 
 	case *fuseops.WriteFileOp:
 		m = c.getOutMessage()
