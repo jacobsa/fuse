@@ -75,7 +75,14 @@ func (b *OutMessage) Grow(size uintptr) (p unsafe.Pointer) {
 
 // Equivalent to Grow, except the new segment is not zeroed. Use with caution!
 func (b *OutMessage) GrowNoZero(size uintptr) (p unsafe.Pointer) {
-	panic("TODO")
+	if outMessageSize-b.offset < size {
+		return
+	}
+
+	p = unsafe.Pointer(uintptr(unsafe.Pointer(&b.storage)) + b.offset)
+	b.offset += size
+
+	return
 }
 
 // Equivalent to growing by the length of p, then copying p over the new
