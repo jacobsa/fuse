@@ -20,3 +20,8 @@ import "unsafe"
 
 // Zero the n bytes starting at p.
 func memclr(p unsafe.Pointer, n uintptr)
+
+//go:noescape
+
+// Copy from src to dst, allowing overlap.
+func memmove(dst unsafe.Pointer, src unsafe.Pointer, n uintptr)

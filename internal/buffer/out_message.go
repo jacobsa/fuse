@@ -15,7 +15,9 @@
 package buffer
 
 import (
+	"fmt"
 	"log"
+	"reflect"
 	"unsafe"
 
 	"github.com/jacobsa/fuse/internal/fusekernel"
@@ -87,8 +89,16 @@ func (b *OutMessage) GrowNoZero(size uintptr) (p unsafe.Pointer) {
 
 // Equivalent to growing by the length of p, then copying p over the new
 // segment. Panics if there is not enough room available.
-func (b *OutMessage) Append(p []byte) {
-	panic("TODO")
+func (b *OutMessage) Append(src []byte) {
+	p := b.GrowNoZero(uintptr(len(src)))
+	if p == nil {
+		panic(fmt.Sprintf("Can't grow %d bytes", len(src)))
+	}
+
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&src))
+	memmove(p, unsafe.Pointer(sh.Data), uintptr(sh.Len))
+
+	return
 }
 
 // Equivalent to growing by the length of s, then copying s over the new

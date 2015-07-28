@@ -31,3 +31,6 @@
 
 TEXT ·memclr(SB),NOSPLIT,$0-16
 	JMP runtime·memclr(SB)
+
+TEXT ·memmove(SB),NOSPLIT,$0-24
+	JMP runtime·memmove(SB)
