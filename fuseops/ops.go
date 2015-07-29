@@ -456,7 +456,11 @@ type OpenFileOp struct {
 	// a particular inode go through the kernel, set this field to true to
 	// disable this behavior.
 	//
-	// More discussion: http://goo.gl/cafzWF
+	// (More discussion: http://goo.gl/cafzWF)
+	//
+	// Note that on OS X it appears that the behavior is always as if this field
+	// is set to true, regardless of its value, at least for files opened in the
+	// same mode. (Cf. https://github.com/osxfuse/osxfuse/issues/223)
 	KeepPageCache bool
 }
 

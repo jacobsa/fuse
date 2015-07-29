@@ -616,6 +616,12 @@ func (t *PageCacheTest) SingleFileHandle_KeepCache() {
 func (t *PageCacheTest) TwoFileHandles_NoKeepCache() {
 	t.fs.SetKeepCache(false)
 
+	// SetKeepCache(false) doesn't work on OS X. See the notes on
+	// OpenFileOp.KeepPageCache.
+	if runtime.GOOS == "darwin" {
+		return
+	}
+
 	// Open the file.
 	f1, err := os.Open(path.Join(t.Dir, "foo"))
 	AssertEq(nil, err)
