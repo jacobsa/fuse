@@ -158,7 +158,13 @@ func (c *Connection) Init() (err error) {
 	initOp.Library = c.protocol
 	initOp.MaxReadahead = maxReadahead
 	initOp.MaxWrite = buffer.MaxWriteSize
-	initOp.Flags = fusekernel.InitBigWrites
+
+	// Tell the kernel not to use pitifully small 4 KiB writes.
+	initOp.Flags |= fusekernel.InitBigWrites
+
+	// Tell the kernel it is free to send further requests while a read request
+	// is in flight.
+	initOp.Flags |= fusekernel.InitAsyncRead
 
 	c.Reply(ctx, nil)
 	return
