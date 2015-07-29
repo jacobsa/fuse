@@ -378,8 +378,10 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 		}
 
 		// Convert the message to an op.
-		op, err = convertInMessage(inMsg, c.protocol)
+		outMsg := c.getOutMessage()
+		op, err = convertInMessage(inMsg, outMsg, c.protocol)
 		if err != nil {
+			c.putOutMessage(outMsg)
 			err = fmt.Errorf("convertInMessage: %v", err)
 			return
 		}
@@ -395,9 +397,6 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 			c.handleInterrupt(interruptOp.FuseID)
 			continue
 		}
-
-		// Allocate an output message up front, to be used later when replying.
-		outMsg := c.getOutMessage()
 
 		// Set up a context that remembers information about this op.
 		ctx = c.beginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
