@@ -112,3 +112,45 @@ func (t *InterruptFSTest) InterruptedDuringRead() {
 	ExpectThat(err, Error(HasSubstr("signal")))
 	ExpectThat(err, Error(HasSubstr("interrupt")))
 }
+
+func (t *InterruptFSTest) InterruptedDuringFlush() {
+	var err error
+	t.fs.EnableFlushBlocking()
+
+	// Start a sub-process that attempts to read the file.
+	cmd := exec.Command("cat", path.Join(t.Dir, "foo"))
+
+	var cmdOutput bytes.Buffer
+	cmd.Stdout = &cmdOutput
+	cmd.Stderr = &cmdOutput
+
+	err = cmd.Start()
+	AssertEq(nil, err)
+
+	// Wait for the command in the background, writing to a channel when it is
+	// finished.
+	cmdErr := make(chan error)
+	go func() {
+		cmdErr <- cmd.Wait()
+	}()
+
+	// Wait for the flush to make it to the file system.
+	t.fs.WaitForFirstFlush()
+
+	// The command should be hanging on the flush, and not yet have returned.
+	select {
+	case err = <-cmdErr:
+		AddFailure("Command returned early with error: %v", err)
+		AbortTest()
+
+	case <-time.After(10 * time.Millisecond):
+	}
+
+	// Send SIGINT.
+	cmd.Process.Signal(os.Interrupt)
+
+	// Now the command should return, with an appropriate error.
+	err = <-cmdErr
+	ExpectThat(err, Error(HasSubstr("signal")))
+	ExpectThat(err, Error(HasSubstr("interrupt")))
+}
