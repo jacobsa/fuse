@@ -126,6 +126,9 @@ type cachingFS struct {
 
 	mu syncutil.InvariantMutex
 
+	// GUARDED_BY(mu)
+	keepPageCache bool
+
 	// The current ID of the lowest numbered non-root inode.
 	//
 	// INVARIANT: baseID > fuseops.RootInodeID
@@ -248,7 +251,10 @@ func (fs *cachingFS) SetMtime(mtime time.Time) {
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) SetKeepCache(keep bool) {
-	// TODO
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	fs.keepPageCache = keep
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -350,6 +356,11 @@ func (fs *cachingFS) OpenDir(
 func (fs *cachingFS) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	op.KeepPageCache = fs.keepPageCache
+
 	return
 }
 
