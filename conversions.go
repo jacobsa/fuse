@@ -387,51 +387,45 @@ func convertInMessage(
 // Outgoing messages
 ////////////////////////////////////////////////////////////////////////
 
-// Return the response that should be sent to the kernel, or nil if the op
-// requires no response.
+// Fill in the response that should be sent to the kernel, or set noResponse if
+// the op requires no response.
 func (c *Connection) kernelResponse(
+	m *buffer.OutMessage,
 	fuseID uint64,
 	op interface{},
-	opErr error) (m *buffer.OutMessage) {
-	// If the user replied with an error, create a response containing just the
-	// result header with the error filled in. Otherwise create an appropriate
-	// response.
+	opErr error) (noResponse bool) {
+	h := m.OutHeader()
+	h.Unique = fuseID
+
+	// Did the user return an error? Otherwise, fill in the rest of the response.
 	if opErr != nil {
-		m = c.getOutMessage()
 		if errno, ok := opErr.(syscall.Errno); ok {
 			m.OutHeader().Error = -int32(errno)
 		} else {
 			m.OutHeader().Error = -int32(syscall.EIO)
 		}
 	} else {
-		m = c.kernelResponseForOp(op)
+		noResponse = c.kernelResponseForOp(m, op)
 	}
 
-	// Fill in the rest of the header, if a response is required.
-	if m != nil {
-		h := m.OutHeader()
-		h.Unique = fuseID
-		h.Len = uint32(m.Len())
-	}
-
+	h.Len = uint32(m.Len())
 	return
 }
 
 // Like kernelResponse, but assumes the user replied with a nil error to the
-// op. Returns a nil response if no response is required.
+// op.
 func (c *Connection) kernelResponseForOp(
-	op interface{}) (m *buffer.OutMessage) {
+	m *buffer.OutMessage,
+	op interface{}) (noResponse bool) {
 	// Create the appropriate output message
 	switch o := op.(type) {
 	case *fuseops.LookUpInodeOp:
 		size := fusekernel.EntryOutSize(c.protocol)
-		m = c.getOutMessage()
 		out := (*fusekernel.EntryOut)(m.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
 
 	case *fuseops.GetInodeAttributesOp:
 		size := fusekernel.AttrOutSize(c.protocol)
-		m = c.getOutMessage()
 		out := (*fusekernel.AttrOut)(m.Grow(size))
 		out.AttrValid, out.AttrValidNsec = convertExpirationTime(
 			o.AttributesExpiration)
@@ -439,24 +433,21 @@ func (c *Connection) kernelResponseForOp(
 
 	case *fuseops.SetInodeAttributesOp:
 		size := fusekernel.AttrOutSize(c.protocol)
-		m = c.getOutMessage()
 		out := (*fusekernel.AttrOut)(m.Grow(size))
 		out.AttrValid, out.AttrValidNsec = convertExpirationTime(
 			o.AttributesExpiration)
 		convertAttributes(o.Inode, &o.Attributes, &out.Attr)
 
 	case *fuseops.ForgetInodeOp:
-		// No response.
+		noResponse = true
 
 	case *fuseops.MkDirOp:
 		size := fusekernel.EntryOutSize(c.protocol)
-		m = c.getOutMessage()
 		out := (*fusekernel.EntryOut)(m.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
 
 	case *fuseops.CreateFileOp:
 		eSize := fusekernel.EntryOutSize(c.protocol)
-		m = c.getOutMessage()
 
 		e := (*fusekernel.EntryOut)(m.Grow(eSize))
 		convertChildInodeEntry(&o.Entry, e)
@@ -466,67 +457,58 @@ func (c *Connection) kernelResponseForOp(
 
 	case *fuseops.CreateSymlinkOp:
 		size := fusekernel.EntryOutSize(c.protocol)
-		m = c.getOutMessage()
 		out := (*fusekernel.EntryOut)(m.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
 
 	case *fuseops.RenameOp:
-		m = c.getOutMessage()
+		// Empty response
 
 	case *fuseops.RmDirOp:
-		m = c.getOutMessage()
+		// Empty response
 
 	case *fuseops.UnlinkOp:
-		m = c.getOutMessage()
+		// Empty response
 
 	case *fuseops.OpenDirOp:
-		m = c.getOutMessage()
 		out := (*fusekernel.OpenOut)(m.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
 		out.Fh = uint64(o.Handle)
 
 	case *fuseops.ReadDirOp:
-		m = c.getOutMessage()
 		m.Append(o.Dst[:o.BytesRead])
 
 	case *fuseops.ReleaseDirHandleOp:
-		m = c.getOutMessage()
+		// Empty response
 
 	case *fuseops.OpenFileOp:
-		m = c.getOutMessage()
 		out := (*fusekernel.OpenOut)(m.Grow(unsafe.Sizeof(fusekernel.OpenOut{})))
 		out.Fh = uint64(o.Handle)
 
 	case *fuseops.ReadFileOp:
-		m = c.getOutMessage()
 		m.Append(o.Dst[:o.BytesRead])
 
 	case *fuseops.WriteFileOp:
-		m = c.getOutMessage()
 		out := (*fusekernel.WriteOut)(m.Grow(unsafe.Sizeof(fusekernel.WriteOut{})))
 		out.Size = uint32(len(o.Data))
 
 	case *fuseops.SyncFileOp:
-		m = c.getOutMessage()
+		// Empty response
 
 	case *fuseops.FlushFileOp:
-		m = c.getOutMessage()
+		// Empty response
 
 	case *fuseops.ReleaseFileHandleOp:
-		m = c.getOutMessage()
+		// Empty response
 
 	case *fuseops.ReadSymlinkOp:
-		m = c.getOutMessage()
 		m.AppendString(o.Target)
 
 	case *statFSOp:
-		m = c.getOutMessage()
 		m.Grow(unsafe.Sizeof(fusekernel.StatfsOut{}))
 
 	case *interruptOp:
-		// No response.
+		noResponse = true
 
 	case *initOp:
-		m = c.getOutMessage()
 		out := (*fusekernel.InitOut)(m.Grow(unsafe.Sizeof(fusekernel.InitOut{})))
 
 		out.Major = o.Library.Major

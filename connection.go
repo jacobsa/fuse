@@ -450,15 +450,17 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	}
 
 	// Send the reply to the kernel, if one is required.
-	outMsg := c.kernelResponse(m.Header().Unique, op, opErr)
-	if outMsg != nil {
-		err := c.writeMessage(outMsg.Bytes())
-		c.putOutMessage(outMsg)
+	outMsg := c.getOutMessage()
+	noResponse := c.kernelResponse(outMsg, m.Header().Unique, op, opErr)
 
+	if !noResponse {
+		err := c.writeMessage(outMsg.Bytes())
 		if err != nil && c.errorLogger != nil {
 			c.errorLogger.Printf("writeMessage: %v", err)
 		}
 	}
+
+	c.putOutMessage(outMsg)
 }
 
 // Close the connection. Must not be called until operations that were read
