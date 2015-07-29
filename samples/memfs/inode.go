@@ -292,7 +292,7 @@ func (in *inode) ReadDir(p []byte, offset int) (n int) {
 		}
 
 		tmp := fuseutil.WriteDirent(p[n:], in.entries[i])
-		if n == 0 {
+		if tmp == 0 {
 			break
 		}
 
