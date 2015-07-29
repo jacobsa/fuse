@@ -15,6 +15,8 @@
 package cachingfs_test
 
 import (
+	"bytes"
+	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -530,4 +532,190 @@ func (t *AttributeCachingTest) StatRenumberMtimeStat_ViaFileDescriptor() {
 	ExpectThat(fooAfter.ModTime(), timeutil.TimeEq(newMtime))
 	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
 	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
+}
+
+////////////////////////////////////////////////////////////////////////
+// Page cache
+////////////////////////////////////////////////////////////////////////
+
+type PageCacheTest struct {
+	cachingFSTest
+}
+
+var _ SetUpInterface = &PageCacheTest{}
+
+func init() { RegisterTestSuite(&PageCacheTest{}) }
+
+func (t *PageCacheTest) SetUp(ti *TestInfo) {
+	const (
+		lookupEntryTimeout = 0
+		getattrTimeout     = 0
+	)
+
+	t.cachingFSTest.setUp(ti, lookupEntryTimeout, getattrTimeout)
+}
+
+func (t *PageCacheTest) SingleFileHandle_NoKeepCache() {
+	t.fs.SetKeepCache(false)
+
+	// Open the file.
+	f, err := os.Open(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	defer f.Close()
+
+	// Read its contents once.
+	f.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c1, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c1))
+
+	// And again.
+	f.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c2, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c2))
+
+	// We should have seen the same contents each time.
+	ExpectTrue(bytes.Equal(c1, c2))
+}
+
+func (t *PageCacheTest) SingleFileHandle_KeepCache() {
+	t.fs.SetKeepCache(true)
+
+	// Open the file.
+	f, err := os.Open(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	defer f.Close()
+
+	// Read its contents once.
+	f.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c1, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c1))
+
+	// And again.
+	f.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c2, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c2))
+
+	// We should have seen the same contents each time.
+	ExpectTrue(bytes.Equal(c1, c2))
+}
+
+func (t *PageCacheTest) TwoFileHandles_NoKeepCache() {
+	t.fs.SetKeepCache(false)
+
+	// SetKeepCache(false) doesn't work on OS X. See the notes on
+	// OpenFileOp.KeepPageCache.
+	if runtime.GOOS == "darwin" {
+		return
+	}
+
+	// Open the file.
+	f1, err := os.Open(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	defer f1.Close()
+
+	// Read its contents once.
+	f1.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c1, err := ioutil.ReadAll(f1)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c1))
+
+	// Open a second handle.
+	f2, err := os.Open(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	defer f2.Close()
+
+	// We should see different contents if we read from that handle, due to the
+	// cache being invalidated at the time of opening.
+	f2.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c2, err := ioutil.ReadAll(f2)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c2))
+
+	ExpectFalse(bytes.Equal(c1, c2))
+
+	// Another read from the second handle should give the same result as the
+	// first one from that handle.
+	f2.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c3, err := ioutil.ReadAll(f2)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c3))
+
+	ExpectTrue(bytes.Equal(c2, c3))
+
+	// And another read from the first handle should give the same result yet
+	// again.
+	f1.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c4, err := ioutil.ReadAll(f1)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c4))
+
+	ExpectTrue(bytes.Equal(c2, c4))
+}
+
+func (t *PageCacheTest) TwoFileHandles_KeepCache() {
+	t.fs.SetKeepCache(true)
+
+	// Open the file.
+	f1, err := os.Open(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	defer f1.Close()
+
+	// Read its contents once.
+	f1.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c1, err := ioutil.ReadAll(f1)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c1))
+
+	// Open a second handle.
+	f2, err := os.Open(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	defer f2.Close()
+
+	// We should see the same contents when we read via the second handle.
+	f2.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c2, err := ioutil.ReadAll(f2)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c2))
+
+	ExpectTrue(bytes.Equal(c1, c2))
+
+	// Ditto if we read again from the first.
+	f1.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c3, err := ioutil.ReadAll(f1)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c3))
+
+	ExpectTrue(bytes.Equal(c1, c3))
 }
