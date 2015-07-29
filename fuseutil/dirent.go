@@ -98,7 +98,7 @@ func WriteDirent(buf []byte, d Dirent) (n int) {
 	// Add any necessary padding.
 	if padLen != 0 {
 		var padding [direntAlignment]byte
-		n += copy(buf, padding[:padLen])
+		n += copy(buf[n:], padding[:padLen])
 	}
 
 	return
