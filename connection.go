@@ -159,6 +159,8 @@ func (c *Connection) Init() (err error) {
 	initOp.MaxReadahead = maxReadahead
 	initOp.MaxWrite = buffer.MaxWriteSize
 
+	initOp.Flags = 0
+
 	// Tell the kernel not to use pitifully small 4 KiB writes.
 	initOp.Flags |= fusekernel.InitBigWrites
 
