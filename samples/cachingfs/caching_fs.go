@@ -43,6 +43,10 @@ const (
 // inode entries and attributes to be cached, used when responding to fuse
 // requests. It also exposes methods for renumbering inodes and updating mtimes
 // that are useful in testing that these durations are honored.
+//
+// Each file responds to reads with random contents. SetKeepCache can be used
+// to control whether the response to OpenFileOp tells the kernel to keep the
+// file's data in the page cache or not.
 type CachingFS interface {
 	fuseutil.FileSystem
 
@@ -234,6 +238,14 @@ func (fs *cachingFS) SetMtime(mtime time.Time) {
 	defer fs.mu.Unlock()
 
 	fs.mtime = mtime
+}
+
+// Instruct the file system whether or not to reply to OpenFileOp with
+// FOPEN_KEEP_CACHE set.
+//
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *cachingFS) SetKeepCache(keep bool) {
+	// TODO
 }
 
 ////////////////////////////////////////////////////////////////////////
