@@ -277,12 +277,24 @@ func convertInMessage(
 			return
 		}
 
-		o = &fuseops.ReadDirOp{
+		to := &fuseops.ReadDirOp{
 			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle: fuseops.HandleID(in.Fh),
 			Offset: fuseops.DirOffset(in.Offset),
-			Dst:    make([]byte, in.Size),
 		}
+		o = to
+
+		readSize := int(in.Size)
+		p := outMsg.GrowNoZero(uintptr(readSize))
+		if p == nil {
+			err = fmt.Errorf("Can't grow for %d-byte read", readSize)
+			return
+		}
+
+		sh := (*reflect.SliceHeader)(unsafe.Pointer(&to.Dst))
+		sh.Data = uintptr(p)
+		sh.Len = readSize
+		sh.Cap = readSize
 
 	case fusekernel.OpRelease:
 		type input fusekernel.ReleaseIn
@@ -489,7 +501,10 @@ func (c *Connection) kernelResponseForOp(
 		out.Fh = uint64(o.Handle)
 
 	case *fuseops.ReadDirOp:
-		m.Append(o.Dst[:o.BytesRead])
+		// convertInMessage already set up the destination buffer to be at the end
+		// of the out message. We need only shrink to the right size based on how
+		// much the user read.
+		m.Shrink(uintptr(m.Len() - (int(buffer.OutMessageInitialSize) + o.BytesRead)))
 
 	case *fuseops.ReleaseDirHandleOp:
 		// Empty response
