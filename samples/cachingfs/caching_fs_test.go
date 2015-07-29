@@ -671,5 +671,45 @@ func (t *PageCacheTest) TwoFileHandles_NoKeepCache() {
 }
 
 func (t *PageCacheTest) TwoFileHandles_KeepCache() {
-	AssertTrue(false, "TODO")
+	t.fs.SetKeepCache(true)
+
+	// Open the file.
+	f1, err := os.Open(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	defer f1.Close()
+
+	// Read its contents once.
+	f1.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c1, err := ioutil.ReadAll(f1)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c1))
+
+	// Open a second handle.
+	f2, err := os.Open(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	defer f2.Close()
+
+	// We should see the same contents when we read via the second handle.
+	f2.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c2, err := ioutil.ReadAll(f2)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c2))
+
+	ExpectTrue(bytes.Equal(c1, c2))
+
+	// Ditto if we read again from the first.
+	f1.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c3, err := ioutil.ReadAll(f1)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c3))
+
+	ExpectTrue(bytes.Equal(c1, c3))
 }
