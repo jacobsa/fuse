@@ -73,6 +73,7 @@ func (t *InterruptFSTest) StatFoo() {
 
 func (t *InterruptFSTest) InterruptedDuringRead() {
 	var err error
+	t.fs.EnableReadBlocking()
 
 	// Start a sub-process that attempts to read the file.
 	cmd := exec.Command("cat", path.Join(t.Dir, "foo"))
@@ -92,7 +93,7 @@ func (t *InterruptFSTest) InterruptedDuringRead() {
 	}()
 
 	// Wait for the read to make it to the file system.
-	t.fs.WaitForReadInFlight()
+	t.fs.WaitForFirstRead()
 
 	// The command should be hanging on the read, and not yet have returned.
 	select {
