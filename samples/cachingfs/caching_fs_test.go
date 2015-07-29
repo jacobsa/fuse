@@ -15,6 +15,8 @@
 package cachingfs_test
 
 import (
+	"bytes"
+	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -553,18 +555,43 @@ func (t *PageCacheTest) SetUp(ti *TestInfo) {
 	t.cachingFSTest.setUp(ti, lookupEntryTimeout, getattrTimeout)
 }
 
-func (t *PageCacheTest) SingleFile_NoKeepCache() {
+func (t *PageCacheTest) SingleFileHandle_NoKeepCache() {
+	t.fs.SetKeepCache(false)
+
+	// Open the file.
+	f, err := os.Open(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	defer f.Close()
+
+	// Read its contents once.
+	f.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c1, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c1))
+
+	// And again.
+	f.Seek(0, 0)
+	AssertEq(nil, err)
+
+	c2, err := ioutil.ReadAll(f)
+	AssertEq(nil, err)
+	AssertEq(cachingfs.FooSize, len(c2))
+
+	// We should have seen the same contents each time.
+	ExpectTrue(bytes.Equal(c1, c2))
+}
+
+func (t *PageCacheTest) SingleFileHandle_KeepCache() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *PageCacheTest) SingleFile_KeepCache() {
+func (t *PageCacheTest) TwoFileHandles_NoKeepCache() {
 	AssertTrue(false, "TODO")
 }
 
-func (t *PageCacheTest) TwoFiles_NoKeepCache() {
-	AssertTrue(false, "TODO")
-}
-
-func (t *PageCacheTest) TwoFiles_KeepCache() {
+func (t *PageCacheTest) TwoFileHandles_KeepCache() {
 	AssertTrue(false, "TODO")
 }

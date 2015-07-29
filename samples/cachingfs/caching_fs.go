@@ -61,6 +61,10 @@ type CachingFS interface {
 	// Cause further queries for the attributes of inodes to use the supplied
 	// time as the inode's mtime.
 	SetMtime(mtime time.Time)
+
+	// Instruct the file system whether or not to reply to OpenFileOp with
+	// FOPEN_KEEP_CACHE set.
+	SetKeepCache(keep bool)
 }
 
 // Create a file system that issues cacheable responses according to the
@@ -240,9 +244,6 @@ func (fs *cachingFS) SetMtime(mtime time.Time) {
 	fs.mtime = mtime
 }
 
-// Instruct the file system whether or not to reply to OpenFileOp with
-// FOPEN_KEEP_CACHE set.
-//
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) SetKeepCache(keep bool) {
 	// TODO
