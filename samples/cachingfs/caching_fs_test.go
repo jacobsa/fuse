@@ -531,3 +531,40 @@ func (t *AttributeCachingTest) StatRenumberMtimeStat_ViaFileDescriptor() {
 	ExpectThat(dirAfter.ModTime(), timeutil.TimeEq(newMtime))
 	ExpectThat(barAfter.ModTime(), timeutil.TimeEq(newMtime))
 }
+
+////////////////////////////////////////////////////////////////////////
+// Page cache
+////////////////////////////////////////////////////////////////////////
+
+type PageCacheTest struct {
+	cachingFSTest
+}
+
+var _ SetUpInterface = &PageCacheTest{}
+
+func init() { RegisterTestSuite(&PageCacheTest{}) }
+
+func (t *PageCacheTest) SetUp(ti *TestInfo) {
+	const (
+		lookupEntryTimeout = 0
+		getattrTimeout     = 0
+	)
+
+	t.cachingFSTest.setUp(ti, lookupEntryTimeout, getattrTimeout)
+}
+
+func (t *PageCacheTest) SingleFile_NoKeepCache() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *PageCacheTest) SingleFile_KeepCache() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *PageCacheTest) TwoFiles_NoKeepCache() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *PageCacheTest) TwoFiles_KeepCache() {
+	AssertTrue(false, "TODO")
+}
