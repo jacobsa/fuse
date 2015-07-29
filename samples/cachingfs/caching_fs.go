@@ -15,7 +15,9 @@
 package cachingfs
 
 import (
+	"crypto/rand"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -348,5 +350,12 @@ func (fs *cachingFS) OpenDir(
 func (fs *cachingFS) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) (err error) {
+	return
+}
+
+func (fs *cachingFS) ReadFile(
+	ctx context.Context,
+	op *fuseops.ReadFileOp) (err error) {
+	op.BytesRead, err = io.ReadFull(rand.Reader, op.Dst)
 	return
 }
