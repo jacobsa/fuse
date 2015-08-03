@@ -154,3 +154,21 @@ func (fs *errorFS) OpenFile(
 
 	return
 }
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *errorFS) ReadFile(
+	ctx context.Context,
+	op *fuseops.ReadFileOp) (err error) {
+	if fs.transformError(op, &err) {
+		return
+	}
+
+	if op.Inode != fooInodeID || op.Offset != 0 {
+		err = fmt.Errorf("Unexpected request: %#v", op)
+		return
+	}
+
+	op.BytesRead = copy(op.Dst, FooContents)
+
+	return
+}
