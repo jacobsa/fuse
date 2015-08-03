@@ -15,6 +15,7 @@
 package errorfs_test
 
 import (
+	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -70,7 +71,15 @@ func (t *ErrorFSTest) OpenFile() {
 }
 
 func (t *ErrorFSTest) ReadFile() {
-	AssertTrue(false, "TODO")
+	t.fs.SetError(reflect.TypeOf(&fuseops.ReadFileOp{}), syscall.EOWNERDEAD)
+
+	// Open
+	f, err := os.Open(path.Join(t.Dir, "foo"))
+	AssertEq(nil, err)
+
+	// Read
+	_, err = ioutil.ReadAll(f)
+	ExpectThat(err, Error(MatchesRegexp("read.*: .*owner died")))
 }
 
 func (t *ErrorFSTest) OpenDir() {
