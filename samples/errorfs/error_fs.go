@@ -172,3 +172,44 @@ func (fs *errorFS) ReadFile(
 
 	return
 }
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *errorFS) OpenDir(
+	ctx context.Context,
+	op *fuseops.OpenDirOp) (err error) {
+	if fs.transformError(op, &err) {
+		return
+	}
+
+	if op.Inode != fuseops.RootInodeID {
+		err = fmt.Errorf("Unsupported inode ID: %d", op.Inode)
+		return
+	}
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *errorFS) ReadDir(
+	ctx context.Context,
+	op *fuseops.ReadDirOp) (err error) {
+	if fs.transformError(op, &err) {
+		return
+	}
+
+	if op.Inode != fuseops.RootInodeID || op.Offset != 0 {
+		err = fmt.Errorf("Unexpected request: %#v", op)
+		return
+	}
+
+	op.BytesRead = fuseutil.WriteDirent(
+		op.Dst,
+		fuseutil.Dirent{
+			Offset: 0,
+			Inode:  fooInodeID,
+			Name:   "foo",
+			Type:   fuseutil.DT_File,
+		})
+
+	return
+}
