@@ -15,14 +15,21 @@
 package errorfs
 
 import (
+	"fmt"
+	"os"
 	"reflect"
 	"sync"
 	"syscall"
 
+	"golang.org/x/net/context"
+
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 )
 
 const FooContents = "xxxx"
+
+const fooInodeID = fuseops.RootInodeID + 1
 
 // A file system whose sole contents are a file named "foo" containing the
 // string defined by FooContents.
@@ -62,4 +69,48 @@ func (fs *errorFS) SetError(t reflect.Type, err syscall.Errno) {
 	defer fs.mu.Unlock()
 
 	fs.errors[t.Name()] = err
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *errorFS) transformError(op interface{}, err *error) bool {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	var ok bool
+	*err, ok = fs.errors[reflect.TypeOf(op).Name()]
+	return ok
+}
+
+////////////////////////////////////////////////////////////////////////
+// File system methods
+////////////////////////////////////////////////////////////////////////
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *errorFS) GetInodeAttributes(
+	ctx context.Context,
+	op *fuseops.GetInodeAttributesOp) (err error) {
+	if fs.transformError(op, &err) {
+		return
+	}
+
+	// Figure out which inode the request is for.
+	switch {
+	case op.Inode == fuseops.RootInodeID:
+		op.Attributes = fuseops.InodeAttributes{
+			Mode: os.ModeDir | 0777,
+		}
+
+	case op.Inode == fooInodeID:
+		op.Attributes = fuseops.InodeAttributes{
+			Nlink: 1,
+			Size:  uint64(len(FooContents)),
+			Mode:  0444,
+		}
+
+	default:
+		err = fmt.Errorf("Unknown inode: %d", op.Inode)
+		return
+	}
+
+	return
 }
