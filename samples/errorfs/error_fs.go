@@ -31,6 +31,12 @@ const FooContents = "xxxx"
 
 const fooInodeID = fuseops.RootInodeID + 1
 
+var fooAttrs = fuseops.InodeAttributes{
+	Nlink: 1,
+	Size:  uint64(len(FooContents)),
+	Mode:  0444,
+}
+
 // A file system whose sole contents are a file named "foo" containing the
 // string defined by FooContents.
 //
@@ -103,16 +109,32 @@ func (fs *errorFS) GetInodeAttributes(
 		}
 
 	case op.Inode == fooInodeID:
-		op.Attributes = fuseops.InodeAttributes{
-			Nlink: 1,
-			Size:  uint64(len(FooContents)),
-			Mode:  0444,
-		}
+		op.Attributes = fooAttrs
 
 	default:
 		err = fmt.Errorf("Unknown inode: %d", op.Inode)
 		return
 	}
+
+	return
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *errorFS) LookUpInode(
+	ctx context.Context,
+	op *fuseops.LookUpInodeOp) (err error) {
+	if fs.transformError(op, &err) {
+		return
+	}
+
+	// Is this a known inode?
+	if !(op.Parent == fuseops.RootInodeID && op.Name == "foo") {
+		err = syscall.ENOENT
+		return
+	}
+
+	op.Entry.Child = fooInodeID
+	op.Entry.Attributes = fooAttrs
 
 	return
 }
