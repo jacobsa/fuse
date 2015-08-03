@@ -66,7 +66,7 @@ func (t *ErrorFSTest) OpenFile() {
 	t.fs.SetError(reflect.TypeOf(&fuseops.OpenFileOp{}), syscall.EOWNERDEAD)
 
 	_, err := os.Open(path.Join(t.Dir, "foo"))
-	ExpectThat(err, Error(HasSubstr("TODO")))
+	ExpectThat(err, Error(MatchesRegexp("open.*: .*owner died")))
 }
 
 func (t *ErrorFSTest) ReadFile() {

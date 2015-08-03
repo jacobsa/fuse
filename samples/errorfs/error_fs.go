@@ -138,3 +138,19 @@ func (fs *errorFS) LookUpInode(
 
 	return
 }
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *errorFS) OpenFile(
+	ctx context.Context,
+	op *fuseops.OpenFileOp) (err error) {
+	if fs.transformError(op, &err) {
+		return
+	}
+
+	if op.Inode != fooInodeID {
+		err = fmt.Errorf("Unsupported inode ID: %d", op.Inode)
+		return
+	}
+
+	return
+}
