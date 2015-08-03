@@ -15,11 +15,17 @@
 package errorfs_test
 
 import (
+	"os"
+	"path"
+	"reflect"
+	"syscall"
 	"testing"
 
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/errorfs"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -57,7 +63,10 @@ func (t *ErrorFSTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *ErrorFSTest) OpenFile() {
-	AssertTrue(false, "TODO")
+	t.fs.SetError(reflect.TypeOf(&fuseops.OpenFileOp{}), syscall.EOWNERDEAD)
+
+	_, err := os.Open(path.Join(t.Dir, "foo"))
+	ExpectThat(err, Error(HasSubstr("TODO")))
 }
 
 func (t *ErrorFSTest) ReadFile() {
