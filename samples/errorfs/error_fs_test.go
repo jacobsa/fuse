@@ -56,6 +56,18 @@ func (t *ErrorFSTest) SetUp(ti *TestInfo) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *ErrorFSTest) DoesFoo() {
+func (t *ErrorFSTest) OpenFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ErrorFSTest) ReadFile() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ErrorFSTest) OpenDir() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *ErrorFSTest) ReadDir() {
 	AssertTrue(false, "TODO")
 }
