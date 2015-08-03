@@ -46,7 +46,7 @@ type FS interface {
 
 func New() (fs FS, err error) {
 	fs = &errorFS{
-		errors: make(map[string]syscall.Errno),
+		errors: make(map[reflect.Type]syscall.Errno),
 	}
 
 	return
@@ -57,10 +57,8 @@ type errorFS struct {
 
 	mu sync.Mutex
 
-	// Keys are reflect.Type.Name strings.
-	//
 	// GUARDED_BY(mu)
-	errors map[string]syscall.Errno
+	errors map[reflect.Type]syscall.Errno
 }
 
 // LOCKS_EXCLUDED(fs.mu)
@@ -68,7 +66,7 @@ func (fs *errorFS) SetError(t reflect.Type, err syscall.Errno) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	fs.errors[t.Name()] = err
+	fs.errors[t] = err
 }
 
 // LOCKS_EXCLUDED(fs.mu)
@@ -76,9 +74,13 @@ func (fs *errorFS) transformError(op interface{}, err *error) bool {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	var ok bool
-	*err, ok = fs.errors[reflect.TypeOf(op).Name()]
-	return ok
+	cannedErr, ok := fs.errors[reflect.TypeOf(op)]
+	if ok {
+		*err = cannedErr
+		return true
+	}
+
+	return false
 }
 
 ////////////////////////////////////////////////////////////////////////
