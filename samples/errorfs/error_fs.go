@@ -15,8 +15,8 @@
 package errorfs
 
 import (
-	"errors"
 	"reflect"
+	"sync"
 	"syscall"
 
 	"github.com/jacobsa/fuse/fuseutil"
@@ -38,6 +38,28 @@ type FS interface {
 }
 
 func New() (fs FS, err error) {
-	err = errors.New("TODO")
+	fs = &errorFS{
+		errors: make(map[string]syscall.Errno),
+	}
+
 	return
+}
+
+type errorFS struct {
+	fuseutil.NotImplementedFileSystem
+
+	mu sync.Mutex
+
+	// Keys are reflect.Type.Name strings.
+	//
+	// GUARDED_BY(mu)
+	errors map[string]syscall.Errno
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *errorFS) SetError(t reflect.Type, err syscall.Errno) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	fs.errors[t.Name()] = err
 }
