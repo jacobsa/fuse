@@ -83,7 +83,10 @@ func (t *ErrorFSTest) ReadFile() {
 }
 
 func (t *ErrorFSTest) OpenDir() {
-	AssertTrue(false, "TODO")
+	t.fs.SetError(reflect.TypeOf(&fuseops.OpenDirOp{}), syscall.EOWNERDEAD)
+
+	_, err := os.Open(t.Dir)
+	ExpectThat(err, Error(MatchesRegexp("open.*: .*owner died")))
 }
 
 func (t *ErrorFSTest) ReadDir() {
