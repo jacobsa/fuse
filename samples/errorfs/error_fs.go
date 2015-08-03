@@ -15,6 +15,7 @@
 package errorfs
 
 import (
+	"errors"
 	"reflect"
 	"syscall"
 
@@ -36,6 +37,7 @@ type FS interface {
 	SetError(t reflect.Type, err syscall.Errno)
 }
 
-func New() (fs FS) {
-	panic("TODO")
+func New() (fs FS, err error) {
+	err = errors.New("TODO")
+	return
 }
