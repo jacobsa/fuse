@@ -66,7 +66,8 @@ func (t *ErrorFSTest) SetUp(ti *TestInfo) {
 func (t *ErrorFSTest) OpenFile() {
 	t.fs.SetError(reflect.TypeOf(&fuseops.OpenFileOp{}), syscall.EOWNERDEAD)
 
-	_, err := os.Open(path.Join(t.Dir, "foo"))
+	f, err := os.Open(path.Join(t.Dir, "foo"))
+	defer f.Close()
 	ExpectThat(err, Error(MatchesRegexp("open.*: .*owner died")))
 }
 
@@ -75,6 +76,7 @@ func (t *ErrorFSTest) ReadFile() {
 
 	// Open
 	f, err := os.Open(path.Join(t.Dir, "foo"))
+	defer f.Close()
 	AssertEq(nil, err)
 
 	// Read
@@ -85,7 +87,8 @@ func (t *ErrorFSTest) ReadFile() {
 func (t *ErrorFSTest) OpenDir() {
 	t.fs.SetError(reflect.TypeOf(&fuseops.OpenDirOp{}), syscall.EOWNERDEAD)
 
-	_, err := os.Open(t.Dir)
+	f, err := os.Open(t.Dir)
+	defer f.Close()
 	ExpectThat(err, Error(MatchesRegexp("open.*: .*owner died")))
 }
 
@@ -94,6 +97,7 @@ func (t *ErrorFSTest) ReadDir() {
 
 	// Open
 	f, err := os.Open(t.Dir)
+	defer f.Close()
 	AssertEq(nil, err)
 
 	// Read
