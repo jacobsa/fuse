@@ -423,14 +423,24 @@ func (c *Connection) kernelResponse(
 	h := m.OutHeader()
 	h.Unique = fuseID
 
-	// Did the user return an error? Otherwise, fill in the rest of the response.
+	// If the user returned the error, fill in the error field of the outgoing
+	// message header.
 	if opErr != nil {
+		m.OutHeader().Error = -int32(syscall.EIO)
 		if errno, ok := opErr.(syscall.Errno); ok {
 			m.OutHeader().Error = -int32(errno)
-		} else {
-			m.OutHeader().Error = -int32(syscall.EIO)
 		}
-	} else {
+
+		// Special case: for some types, convertInMessage grew the message in order
+		// to obtain a destination buffer. Make sure that we shrink back to just
+		// the header, because on OS X the kernel otherwise returns EINVAL when we
+		// attempt to write an error response with a length that extends beyond the
+		// header.
+		m.Shrink(uintptr(m.Len() - int(buffer.OutMessageInitialSize)))
+	}
+
+	// Otherwise, fill in the rest of the response.
+	if opErr == nil {
 		noResponse = c.kernelResponseForOp(m, op)
 	}
 
