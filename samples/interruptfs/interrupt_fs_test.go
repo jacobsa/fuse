@@ -19,7 +19,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"runtime"
 	"testing"
 	"time"
 
@@ -73,18 +72,6 @@ func (t *InterruptFSTest) StatFoo() {
 }
 
 func (t *InterruptFSTest) InterruptedDuringRead() {
-	// On Linux, since we have async reads enabled, the kernel sends the read and
-	// the flush ops in parallel. When the process receives SIGINT, the interrupt
-	// is delivered only for the flush, probably because that's what the process
-	// appears to be blocking on. So this test doesn't work.
-	//
-	// Note that this means that cancellation is not delivered for reads on
-	// Linux. This is unfortunate, but probably worth it due to the significant
-	// increase in performance.
-	if runtime.GOOS == "linux" {
-		return
-	}
-
 	var err error
 	t.fs.EnableReadBlocking()
 
