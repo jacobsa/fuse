@@ -401,8 +401,8 @@ func convertInMessage(
 
 	default:
 		o = &unknownOp{
-			opCode: inMsg.Header().Opcode,
-			inode:  fuseops.InodeID(inMsg.Header().Nodeid),
+			OpCode: inMsg.Header().Opcode,
+			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
 		}
 	}
 
