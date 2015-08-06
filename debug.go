@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/jacobsa/fuse/fuseops"
 )
 
 // Decide on the name of the given op.
@@ -47,6 +49,16 @@ func describeRequest(op interface{}) (s string) {
 	switch typed := op.(type) {
 	case *interruptOp:
 		addComponent("fuseid 0x%08x", typed.FuseID)
+
+	case *fuseops.ReadFileOp:
+		addComponent("handle %d", typed.Handle)
+		addComponent("offset %d", typed.Offset)
+		addComponent("%d bytes", len(typed.Dst))
+
+	case *fuseops.WriteFileOp:
+		addComponent("handle %d", typed.Handle)
+		addComponent("offset %d", typed.Offset)
+		addComponent("%d bytes", len(typed.Data))
 	}
 
 	// Use just the name if there is no extra info.
