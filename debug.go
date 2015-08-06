@@ -41,7 +41,3 @@ func describeRequest(op interface{}) (s string) {
 
 	return
 }
-
-func describeResponse(op interface{}) (s string) {
-	return describeRequest(op)
-}
