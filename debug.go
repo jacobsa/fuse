@@ -17,27 +17,43 @@ package fuse
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
+// Decide on the name of the given op.
+func opName(op interface{}) string {
+	// We expect all ops to be pointers.
+	t := reflect.TypeOf(op).Elem()
+
+	// Strip the "Op" from "FooOp".
+	return strings.TrimSuffix(t.Name(), "Op")
+}
+
 func describeRequest(op interface{}) (s string) {
-	// Handle special cases with custom formatting.
+	v := reflect.ValueOf(op).Elem()
+
+	// We will set up a comma-separated list of components.
+	var components []string
+	addComponent := func(format string, v ...interface{}) {
+		components = append(components, fmt.Sprintf(format, v...))
+	}
+
+	// Include an inode number, if available.
+	if f := v.FieldByName("Inode"); f.IsValid() {
+		addComponent("inode %v", f.Interface())
+	}
+
+	// Handle special cases.
 	switch typed := op.(type) {
 	case *interruptOp:
-		s = fmt.Sprintf("interruptOp(fuseid=0x%08x)", typed.FuseID)
-		return
+		addComponent("fuseid 0x%08x", typed.FuseID)
 	}
 
-	v := reflect.ValueOf(op).Elem()
-	t := v.Type()
-
-	// Find the inode number involved, if possible.
-	var inodeDesc string
-	if f := v.FieldByName("Inode"); f.IsValid() {
-		inodeDesc = fmt.Sprintf("(inode=%v)", f.Interface())
+	// Use just the name if there is no extra info.
+	if len(components) == 0 {
+		return opName(op)
 	}
 
-	// Use the type name.
-	s = fmt.Sprintf("%s%s", t.Name(), inodeDesc)
-
-	return
+	// Otherwise, include the extra info.
+	return fmt.Sprintf("%s (%s)", opName(op), strings.Join(components, ", "))
 }
