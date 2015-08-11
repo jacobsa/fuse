@@ -165,6 +165,9 @@ func (c *Connection) Init() (err error) {
 	// Tell the kernel not to use pitifully small 4 KiB writes.
 	initOp.Flags |= fusekernel.InitBigWrites
 
+	// TODO(jacobsa): Add comments motivating this.
+	initOp.Flags |= fusekernel.InitWritebackCache
+
 	c.Reply(ctx, nil)
 	return
 }
