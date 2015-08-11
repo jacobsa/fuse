@@ -89,7 +89,7 @@ type MemFSTest struct {
 func init() { RegisterTestSuite(&MemFSTest{}) }
 
 func (t *MemFSTest) SetUp(ti *TestInfo) {
-	t.Server = memfs.NewMemFS(currentUid(), currentGid(), &t.Clock)
+	t.Server = memfs.NewMemFS(currentUid(), currentGid())
 	t.SampleTest.SetUp(ti)
 }
 
@@ -112,16 +112,10 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 
 	dirName := path.Join(t.Dir, "dir")
 
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
-
 	// Create a directory within the root.
-	createTime := t.Clock.Now()
+	createTime := time.Now()
 	err = os.Mkdir(dirName, 0754)
 	AssertEq(nil, err)
-
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
 
 	// Stat the directory.
 	fi, err = os.Stat(dirName)
@@ -174,16 +168,10 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	err = os.Mkdir(path.Join(t.Dir, "parent"), 0700)
 	AssertEq(nil, err)
 
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
-
 	// Create a child of that directory.
-	createTime := t.Clock.Now()
+	createTime := time.Now()
 	err = os.Mkdir(path.Join(t.Dir, "parent/dir"), 0754)
 	AssertEq(nil, err)
-
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
 
 	// Stat the directory.
 	fi, err = os.Stat(path.Join(t.Dir, "parent/dir"))
@@ -290,12 +278,9 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	fileName := path.Join(t.Dir, "foo")
 	const contents = "Hello\x00world"
 
-	createTime := t.Clock.Now()
+	createTime := time.Now()
 	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
 	AssertEq(nil, err)
-
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
 
 	// Stat it.
 	fi, err = os.Stat(fileName)
@@ -335,12 +320,9 @@ func (t *MemFSTest) CreateNewFile_InSubDir() {
 	fileName := path.Join(dirName, "foo")
 	const contents = "Hello\x00world"
 
-	createTime := t.Clock.Now()
+	createTime := time.Now()
 	err = ioutil.WriteFile(fileName, []byte(contents), 0400)
 	AssertEq(nil, err)
-
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
 
 	// Stat it.
 	fi, err = os.Stat(fileName)
@@ -375,25 +357,19 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	// Write a file.
 	fileName := path.Join(t.Dir, "foo")
 
-	createTime := t.Clock.Now()
+	createTime := time.Now()
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
-
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
 
 	// Open the file and modify it.
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0400)
 	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
-	modifyTime := t.Clock.Now()
+	modifyTime := time.Now()
 	n, err = f.WriteAt([]byte("H"), 0)
 	AssertEq(nil, err)
 	AssertEq(1, n)
-
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
 
 	// Stat the file.
 	fi, err = os.Stat(fileName)
@@ -433,25 +409,19 @@ func (t *MemFSTest) ModifyExistingFile_InSubDir() {
 	// Write a file.
 	fileName := path.Join(dirName, "foo")
 
-	createTime := t.Clock.Now()
+	createTime := time.Now()
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
 	AssertEq(nil, err)
-
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
 
 	// Open the file and modify it.
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0400)
 	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
 
-	modifyTime := t.Clock.Now()
+	modifyTime := time.Now()
 	n, err = f.WriteAt([]byte("H"), 0)
 	AssertEq(nil, err)
 	AssertEq(1, n)
-
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
 
 	// Stat the file.
 	fi, err = os.Stat(fileName)
@@ -574,16 +544,10 @@ func (t *MemFSTest) Rmdir_Empty() {
 	err = os.MkdirAll(path.Join(t.Dir, "foo/bar"), 0754)
 	AssertEq(nil, err)
 
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
-
 	// Remove the leaf.
-	rmTime := t.Clock.Now()
+	rmTime := time.Now()
 	err = os.Remove(path.Join(t.Dir, "foo/bar"))
 	AssertEq(nil, err)
-
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
 
 	// There should be nothing left in the parent.
 	entries, err = fusetesting.ReadDirPicky(path.Join(t.Dir, "foo"))
@@ -618,12 +582,9 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 	var err error
 
 	// Create a directory.
-	createTime := t.Clock.Now()
+	createTime := time.Now()
 	err = os.Mkdir(path.Join(t.Dir, "dir"), 0700)
 	AssertEq(nil, err)
-
-	// Simulate time advancing.
-	t.Clock.AdvanceTime(time.Second)
 
 	// Open the directory for reading.
 	f, err := os.Open(path.Join(t.Dir, "dir"))
