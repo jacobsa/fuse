@@ -16,6 +16,7 @@ package fuse
 
 import (
 	"fmt"
+	"os"
 
 	"golang.org/x/net/context"
 )
@@ -35,6 +36,22 @@ func Mount(
 	dir string,
 	server Server,
 	config *MountConfig) (mfs *MountedFileSystem, err error) {
+	// Sanity check: make sure the mount point exists and is a directory. This
+	// saves us from some confusing errors later on OS X.
+	fi, err := os.Stat(dir)
+	switch {
+	case os.IsNotExist(err):
+		return
+
+	case err != nil:
+		err = fmt.Errorf("Statting mount point: %v", err)
+		return
+
+	case !fi.IsDir():
+		err = fmt.Errorf("Mount point %s is not a directory", dir)
+		return
+	}
+
 	// Initialize the struct.
 	mfs = &MountedFileSystem{
 		dir:                 dir,
