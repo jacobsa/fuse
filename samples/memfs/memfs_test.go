@@ -142,7 +142,7 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	fi, err = os.Stat(t.Dir)
 
 	AssertEq(nil, err)
-	ExpectEq(0, fi.ModTime().Sub(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 
 	// Read the directory.
 	entries, err = fusetesting.ReadDirPicky(dirName)
@@ -197,7 +197,7 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	// Check the parent's mtime.
 	fi, err = os.Stat(path.Join(t.Dir, "parent"))
 	AssertEq(nil, err)
-	ExpectEq(0, fi.ModTime().Sub(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 
 	// Read the directory.
 	entries, err = fusetesting.ReadDirPicky(path.Join(t.Dir, "parent/dir"))
@@ -561,7 +561,7 @@ func (t *MemFSTest) Rmdir_Empty() {
 	// Check the parent's mtime.
 	fi, err := os.Stat(path.Join(t.Dir, "foo"))
 	AssertEq(nil, err)
-	ExpectEq(0, fi.ModTime().Sub(rmTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(rmTime, timeSlop))
 
 	// Remove the parent.
 	err = os.Remove(path.Join(t.Dir, "foo"))
@@ -619,7 +619,7 @@ func (t *MemFSTest) Rmdir_OpenedForReading() {
 	fi, err := f.Stat()
 
 	ExpectEq("dir", fi.Name())
-	ExpectEq(0, fi.ModTime().Sub(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectEq(0, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// Attempt to read from the directory. This shouldn't see any junk from the
@@ -1018,7 +1018,7 @@ func (t *MemFSTest) Chtimes() {
 	// Stat it.
 	fi, err := os.Stat(fileName)
 	AssertEq(nil, err)
-	ExpectEq(0, fi.ModTime().Sub(expectedMtime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(expectedMtime, timeSlop))
 }
 
 func (t *MemFSTest) ReadDirWhileModifying() {
