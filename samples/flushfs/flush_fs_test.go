@@ -590,6 +590,8 @@ func (t *NoErrorsTest) Mmap_NoMsync_MunmapBeforeClose() {
 		syscall.MAP_SHARED)
 
 	AssertEq(nil, err)
+	defer syscall.Munmap(data)
+
 	AssertEq("taco", string(data))
 
 	// Modify the contents.
@@ -638,6 +640,8 @@ func (t *NoErrorsTest) Mmap_NoMsync_CloseBeforeMunmap() {
 		syscall.MAP_SHARED)
 
 	AssertEq(nil, err)
+	defer syscall.Munmap(data)
+
 	AssertEq("taco", string(data))
 
 	// Close the file. We should see a flush.
@@ -682,6 +686,8 @@ func (t *NoErrorsTest) Mmap_WithMsync_MunmapBeforeClose() {
 		syscall.MAP_SHARED)
 
 	AssertEq(nil, err)
+	defer syscall.Munmap(data)
+
 	AssertEq("taco", string(data))
 
 	// Modify the contents.
@@ -738,6 +744,8 @@ func (t *NoErrorsTest) Mmap_WithMsync_CloseBeforeMunmap() {
 		syscall.MAP_SHARED)
 
 	AssertEq(nil, err)
+	defer syscall.Munmap(data)
+
 	AssertEq("taco", string(data))
 
 	// Close the file. We should see a flush.
@@ -941,6 +949,7 @@ func (t *FsyncErrorTest) Msync() {
 		syscall.MAP_SHARED)
 
 	AssertEq(nil, err)
+	defer syscall.Munmap(data)
 
 	// msync the mapping.
 	err = msync(data)
