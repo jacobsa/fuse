@@ -53,6 +53,10 @@ func describeRequest(op interface{}) (s string) {
 	case *unknownOp:
 		addComponent("opcode %d", typed.OpCode)
 
+	case *fuseops.LookUpInodeOp:
+		addComponent("parent %d", typed.Parent)
+		addComponent("name %q", typed.Name)
+
 	case *fuseops.ReadFileOp:
 		addComponent("handle %d", typed.Handle)
 		addComponent("offset %d", typed.Offset)
