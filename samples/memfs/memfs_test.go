@@ -35,6 +35,9 @@ import (
 
 func TestMemFS(t *testing.T) { RunTests(t) }
 
+// TODO(jacobsa): Comments.
+const timeSlop = 5 * time.Millisecond
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -125,7 +128,7 @@ func (t *MemFSTest) Mkdir_OneLevel() {
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(os.ModeDir|applyUmask(0754), fi.Mode())
-	ExpectThat(fi, fusetesting.MtimeIs(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectTrue(fi.IsDir())
 
@@ -181,7 +184,7 @@ func (t *MemFSTest) Mkdir_TwoLevels() {
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(os.ModeDir|applyUmask(0754), fi.Mode())
-	ExpectThat(fi, fusetesting.MtimeIs(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectTrue(fi.IsDir())
 
@@ -290,7 +293,7 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len(contents), fi.Size())
 	ExpectEq(applyUmask(0400), fi.Mode())
-	ExpectThat(fi, fusetesting.MtimeIs(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
 
@@ -332,7 +335,7 @@ func (t *MemFSTest) CreateNewFile_InSubDir() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len(contents), fi.Size())
 	ExpectEq(applyUmask(0400), fi.Mode())
-	ExpectThat(fi, fusetesting.MtimeIs(createTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
 
@@ -379,7 +382,7 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
 	ExpectEq(applyUmask(0600), fi.Mode())
-	ExpectThat(fi, fusetesting.MtimeIs(modifyTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(modifyTime, timeSlop))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
 
@@ -431,7 +434,7 @@ func (t *MemFSTest) ModifyExistingFile_InSubDir() {
 	ExpectEq("foo", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
 	ExpectEq(applyUmask(0600), fi.Mode())
-	ExpectThat(fi, fusetesting.MtimeIs(modifyTime))
+	ExpectThat(fi, fusetesting.MtimeIsWithin(modifyTime, timeSlop))
 	ExpectThat(fi, fusetesting.BirthtimeIs(createTime))
 	ExpectFalse(fi.IsDir())
 
