@@ -90,6 +90,29 @@ func (fs *flushFS) barAttributes() fuseops.InodeAttributes {
 	}
 }
 
+// LOCKS_REQUIRED(fs.mu)
+func (fs *flushFS) getAttributes(id fuseops.InodeID) (
+	attrs fuseops.InodeAttributes,
+	err error) {
+	switch id {
+	case fuseops.RootInodeID:
+		attrs = fs.rootAttributes()
+		return
+
+	case fooID:
+		attrs = fs.fooAttributes()
+		return
+
+	case barID:
+		attrs = fs.barAttributes()
+		return
+
+	default:
+		err = fuse.ENOENT
+		return
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
@@ -134,23 +157,20 @@ func (fs *flushFS) GetInodeAttributes(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	switch op.Inode {
-	case fuseops.RootInodeID:
-		op.Attributes = fs.rootAttributes()
-		return
+	op.Attributes, err = fs.getAttributes(op.Inode)
+	return
+}
 
-	case fooID:
-		op.Attributes = fs.fooAttributes()
-		return
+func (fs *flushFS) SetInodeAttributes(
+	ctx context.Context,
+	op *fuseops.SetInodeAttributesOp) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
-	case barID:
-		op.Attributes = fs.barAttributes()
-		return
+	// Ignore any changes and simply return existing attributes.
+	op.Attributes, err = fs.getAttributes(op.Inode)
 
-	default:
-		err = fuse.ENOENT
-		return
-	}
+	return
 }
 
 func (fs *flushFS) OpenFile(
