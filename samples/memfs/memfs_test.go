@@ -38,7 +38,7 @@ func TestMemFS(t *testing.T) { RunTests(t) }
 // The radius we use for "expect mtime is within"-style assertions. We can't
 // share a synchronized clock with the ultimate source of mtimes because with
 // writeback caching enabled the kernel manufactures them based on wall time.
-const timeSlop = 5 * time.Millisecond
+const timeSlop = 25 * time.Millisecond
 
 ////////////////////////////////////////////////////////////////////////
 // Helpers
