@@ -48,7 +48,7 @@ type MountConfig struct {
 	// performed.
 	DebugLogger *log.Logger
 
-	// Linux only.
+	// Linux only. OS X always behaves as if writeback caching is disabled.
 	//
 	// By default on Linux we allow the kernel to perform writeback caching
 	// (cf. http://goo.gl/LdZzo1):
