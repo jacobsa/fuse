@@ -23,9 +23,7 @@ import (
 	"github.com/jacobsa/oglematchers"
 )
 
-// Match os.FileInfo values that specify an mtime equal to the given time. On
-// platforms where the Sys() method returns a struct containing an mtime, check
-// also that it matches.
+// Match os.FileInfo values that specify an mtime equal to the given time.
 func MtimeIs(expected time.Time) oglematchers.Matcher {
 	return oglematchers.NewMatcher(
 		func(c interface{}) error { return mtimeIsWithin(c, expected, 0) },
