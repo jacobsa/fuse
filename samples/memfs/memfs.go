@@ -26,7 +26,6 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/syncutil"
-	"github.com/jacobsa/timeutil"
 )
 
 type memFS struct {
@@ -35,12 +34,6 @@ type memFS struct {
 	// The UID and GID that every inode receives.
 	uid uint32
 	gid uint32
-
-	/////////////////////////
-	// Dependencies
-	/////////////////////////
-
-	clock timeutil.Clock
 
 	/////////////////////////
 	// Mutable state
@@ -74,11 +67,9 @@ type memFS struct {
 // default_permissions option.
 func NewMemFS(
 	uid uint32,
-	gid uint32,
-	clock timeutil.Clock) fuse.Server {
+	gid uint32) fuse.Server {
 	// Set up the basic struct.
 	fs := &memFS{
-		clock:  clock,
 		inodes: make([]*inode, fuseops.RootInodeID+1),
 		uid:    uid,
 		gid:    gid,
@@ -91,7 +82,7 @@ func NewMemFS(
 		Gid:  gid,
 	}
 
-	fs.inodes[fuseops.RootInodeID] = newInode(clock, rootAttrs)
+	fs.inodes[fuseops.RootInodeID] = newInode(rootAttrs)
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
@@ -165,7 +156,7 @@ func (fs *memFS) getInodeOrDie(id fuseops.InodeID) (inode *inode) {
 func (fs *memFS) allocateInode(
 	attrs fuseops.InodeAttributes) (id fuseops.InodeID, inode *inode) {
 	// Create the inode.
-	inode = newInode(fs.clock, attrs)
+	inode = newInode(attrs)
 
 	// Re-use a free ID if possible. Otherwise mint a new one.
 	numFree := len(fs.freeInodes)
@@ -216,7 +207,7 @@ func (fs *memFS) LookUpInode(
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
-	op.Entry.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 	op.Entry.EntryExpiration = op.Entry.EntryExpiration
 
 	return
@@ -236,7 +227,7 @@ func (fs *memFS) GetInodeAttributes(
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
-	op.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+	op.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 
 	return
 }
@@ -258,7 +249,7 @@ func (fs *memFS) SetInodeAttributes(
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
-	op.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+	op.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 
 	return
 }
@@ -300,7 +291,7 @@ func (fs *memFS) MkDir(
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
-	op.Entry.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 	op.Entry.EntryExpiration = op.Entry.EntryExpiration
 
 	return
@@ -324,7 +315,7 @@ func (fs *memFS) CreateFile(
 	}
 
 	// Set up attributes from the child.
-	now := fs.clock.Now()
+	now := time.Now()
 	childAttrs := fuseops.InodeAttributes{
 		Nlink:  1,
 		Mode:   op.Mode,
@@ -348,7 +339,7 @@ func (fs *memFS) CreateFile(
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
-	op.Entry.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 	op.Entry.EntryExpiration = op.Entry.EntryExpiration
 
 	// We have nothing interesting to put in the Handle field.
@@ -374,7 +365,7 @@ func (fs *memFS) CreateSymlink(
 	}
 
 	// Set up attributes from the child.
-	now := fs.clock.Now()
+	now := time.Now()
 	childAttrs := fuseops.InodeAttributes{
 		Nlink:  1,
 		Mode:   0444 | os.ModeSymlink,
@@ -401,7 +392,7 @@ func (fs *memFS) CreateSymlink(
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
-	op.Entry.AttributesExpiration = fs.clock.Now().Add(365 * 24 * time.Hour)
+	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 	op.Entry.EntryExpiration = op.Entry.EntryExpiration
 
 	return

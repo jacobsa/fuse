@@ -22,19 +22,12 @@ import (
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
-	"github.com/jacobsa/timeutil"
 )
 
 // Common attributes for files and directories.
 //
 // External synchronization is required.
 type inode struct {
-	/////////////////////////
-	// Dependencies
-	/////////////////////////
-
-	clock timeutil.Clock
-
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
@@ -79,16 +72,14 @@ type inode struct {
 // Create a new inode with the supplied attributes, which need not contain
 // time-related information (the inode object will take care of that).
 func newInode(
-	clock timeutil.Clock,
 	attrs fuseops.InodeAttributes) (in *inode) {
 	// Update time info.
-	now := clock.Now()
+	now := time.Now()
 	attrs.Mtime = now
 	attrs.Crtime = now
 
 	// Create the object.
 	in = &inode{
-		clock: clock,
 		attrs: attrs,
 	}
 
@@ -226,7 +217,7 @@ func (in *inode) AddChild(
 	var index int
 
 	// Update the modification time.
-	in.attrs.Mtime = in.clock.Now()
+	in.attrs.Mtime = time.Now()
 
 	// No matter where we place the entry, make sure it has the correct Offset
 	// field.
@@ -260,7 +251,7 @@ func (in *inode) AddChild(
 // REQUIRES: An entry for the given name exists.
 func (in *inode) RemoveChild(name string) {
 	// Update the modification time.
-	in.attrs.Mtime = in.clock.Now()
+	in.attrs.Mtime = time.Now()
 
 	// Find the entry.
 	i, ok := in.findChild(name)
@@ -334,7 +325,7 @@ func (in *inode) WriteAt(p []byte, off int64) (n int, err error) {
 	}
 
 	// Update the modification time.
-	in.attrs.Mtime = in.clock.Now()
+	in.attrs.Mtime = time.Now()
 
 	// Ensure that the contents slice is long enough.
 	newLen := int(off) + len(p)
@@ -361,7 +352,7 @@ func (in *inode) SetAttributes(
 	mode *os.FileMode,
 	mtime *time.Time) {
 	// Update the modification time.
-	in.attrs.Mtime = in.clock.Now()
+	in.attrs.Mtime = time.Now()
 
 	// Truncate?
 	if size != nil {
