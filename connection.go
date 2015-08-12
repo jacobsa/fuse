@@ -165,7 +165,11 @@ func (c *Connection) Init() (err error) {
 	// Tell the kernel not to use pitifully small 4 KiB writes.
 	initOp.Flags |= fusekernel.InitBigWrites
 
-	// TODO(jacobsa): Add comments motivating this.
+	// TODO(jacobsa): Make this opt out and discuss benefits and caveats:
+	//  *  Write performance may be better (cf. http://thread.gmane.org/gmane.comp.file-systems.fuse.devel/13923)
+	//  *  (Discuss what writeback caching even means)
+	//  *  File systems need to implement setattr for dealing with kernel's stored time (find code reference)
+	//  *  File systems no longer "own" mtime; kernel will cache it even if no writes (cf. http://thread.gmane.org/gmane.comp.file-systems.fuse.devel/14808)
 	initOp.Flags |= fusekernel.InitWritebackCache
 
 	c.Reply(ctx, nil)
