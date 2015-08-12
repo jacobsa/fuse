@@ -53,6 +53,10 @@ func (t *cachingFSTest) setUp(
 	getattrTimeout time.Duration) {
 	var err error
 
+	// We assert things about whether or not mtimes are cached, but writeback
+	// caching causes them to always be cached. Turn it off.
+	t.MountConfig.DisableWritebackCaching = true
+
 	// Create the file system.
 	t.fs, err = cachingfs.NewCachingFS(lookupEntryTimeout, getattrTimeout)
 	AssertEq(nil, err)
