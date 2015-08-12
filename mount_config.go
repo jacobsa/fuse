@@ -74,7 +74,8 @@ type MountConfig struct {
 	//
 	// *   close(2) (and anything else calling f_op->flush) writes out all dirty
 	//     pages, then sends a setattr request with an appropriate mtime for
-	//     those writes if there were any, and only then proceeds to send a flush
+	//     those writes if there were any, and only then proceeds to send a
+	//     flush.
 	//
 	//     Code walk:
 	//
