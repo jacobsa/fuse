@@ -120,6 +120,9 @@ func (s *fileSystemServer) handleOp(
 	default:
 		err = fuse.ENOSYS
 
+	case *fuseops.StatFSOp:
+		err = s.fs.StatFS(ctx, typed)
+
 	case *fuseops.LookUpInodeOp:
 		err = s.fs.LookUpInode(ctx, typed)
 
