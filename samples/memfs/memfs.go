@@ -204,6 +204,10 @@ func (fs *memFS) StatFS(
 	op.InodesFree = Capacity_Files
 
 	for _, in := range fs.inodes {
+		if in == nil {
+			continue
+		}
+
 		op.InodesFree--
 		op.BlocksFree -= in.attrs.Size
 		op.BlocksAvailable -= in.attrs.Size
