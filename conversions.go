@@ -371,7 +371,7 @@ func convertInMessage(
 		}
 
 	case fusekernel.OpStatfs:
-		o = &statFSOp{}
+		o = &fuseops.StatFSOp{}
 
 	case fusekernel.OpInterrupt:
 		type input fusekernel.InterruptIn
@@ -557,8 +557,14 @@ func (c *Connection) kernelResponseForOp(
 	case *fuseops.ReadSymlinkOp:
 		m.AppendString(o.Target)
 
-	case *statFSOp:
-		m.Grow(unsafe.Sizeof(fusekernel.StatfsOut{}))
+	case *fuseops.StatFSOp:
+		out := (*fusekernel.StatfsOut)(m.Grow(unsafe.Sizeof(fusekernel.StatfsOut{})))
+		out.St.Blocks = o.Blocks
+		out.St.Bfree = o.BlocksFree
+		out.St.Bavail = o.BlocksAvailable
+		out.St.Files = o.Inodes
+		out.St.Ffree = o.InodesFree
+		out.St.Bsize = o.BlockSize
 
 	case *initOp:
 		out := (*fusekernel.InitOut)(m.Grow(unsafe.Sizeof(fusekernel.InitOut{})))
