@@ -28,6 +28,12 @@ import (
 	"github.com/jacobsa/syncutil"
 )
 
+// The capacities of the file system, as reported to statfs(2).
+const (
+	Capacity_Bytes = 1 << 50
+	Capacity_Files = 1 << 30
+)
+
 type memFS struct {
 	fuseutil.NotImplementedFileSystem
 
