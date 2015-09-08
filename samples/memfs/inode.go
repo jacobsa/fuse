@@ -37,7 +37,7 @@ type inode struct {
 	// INVARIANT: attrs.Mode &^ (os.ModePerm|os.ModeDir|os.ModeSymlink) == 0
 	// INVARIANT: !(isDir() && isSymlink())
 	// INVARIANT: attrs.Size == len(contents)
-	attrs fuseops.InodeAttributes // GUARDED_BY(mu)
+	attrs fuseops.InodeAttributes
 
 	// For directories, entries describing the children of the directory. Unused
 	// entries are of type DT_Unknown.
@@ -50,18 +50,16 @@ type inode struct {
 	// INVARIANT: If !isDir(), len(entries) == 0
 	// INVARIANT: For each i, entries[i].Offset == i+1
 	// INVARIANT: Contains no duplicate names in used entries.
-	entries []fuseutil.Dirent // GUARDED_BY(mu)
+	entries []fuseutil.Dirent
 
 	// For files, the current contents of the file.
 	//
 	// INVARIANT: If !isFile(), len(contents) == 0
-	contents []byte // GUARDED_BY(mu)
+	contents []byte
 
 	// For symlinks, the target of the symlink.
 	//
 	// INVARIANT: If !isSymlink(), len(target) == 0
-	//
-	// GUARDED_BY(mu)
 	target string
 }
 

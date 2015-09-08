@@ -45,6 +45,8 @@ type memFS struct {
 	// be re-used have nil entries. No ID less than fuseops.RootInodeID is ever
 	// used.
 	//
+	// All inodes are protected by the file system mutex.
+	//
 	// INVARIANT: For each inode in, in.CheckInvariants() does not panic.
 	// INVARIANT: len(inodes) > fuseops.RootInodeID
 	// INVARIANT: For all i < fuseops.RootInodeID, inodes[i] == nil
