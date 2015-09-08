@@ -20,6 +20,43 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////
+// File system
+////////////////////////////////////////////////////////////////////////
+
+// Return statistics about the file system's capacity and available resources.
+//
+// Called by statfs(2) and friends:
+//
+//     * (https://goo.gl/Xi1lDr) sys_statfs called user_statfs, which calls
+//        vfs_statfs, which calls statfs_by_dentry.
+//
+//     * (https://goo.gl/VAIOwU) statfs_by_dentry calls the superblock
+//       operation statfs, which in our case points at
+//       fuse_statfs (cf. https://goo.gl/L7BTM3)
+//
+//     * (https://goo.gl/Zn7Sgl) fuse_statfs sends a statfs op, then uses
+//       convert_fuse_statfs to convert the response in a straightforward
+//       manner.
+//
+// Note that this op is particularly important on OS X: if you don't implement
+// it, the file system will not successfully mount. If you don't model a sane
+// amount of free space, the Finder will refuse to copy files into the file
+// system.
+type StatfsOp struct {
+	// The size of the file system's blocks, and how many there are in total.
+	BlockSize uint32
+	Blocks    uint64
+
+	// The number of blocks free, and how many are available to non-root users.
+	BlocksFree      uint64
+	BlocksAvailable uint64
+
+	// The total number of inodes in the file system, and how many remain free.
+	Inodes     uint64
+	InodesFree uint64
+}
+
+////////////////////////////////////////////////////////////////////////
 // Inodes
 ////////////////////////////////////////////////////////////////////////
 
