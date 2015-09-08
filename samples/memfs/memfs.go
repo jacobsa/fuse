@@ -198,8 +198,10 @@ func (fs *memFS) StatFS(
 
 	// Count free/available bytes and inodes.
 	op.BlockSize = 1
+	op.Blocks = Capacity_Bytes
 	op.BlocksFree = Capacity_Bytes
 	op.BlocksAvailable = Capacity_Bytes
+
 	op.Inodes = Capacity_Files
 	op.InodesFree = Capacity_Files
 
