@@ -42,7 +42,7 @@ import (
 // it, the file system will not successfully mount. If you don't model a sane
 // amount of free space, the Finder will refuse to copy files into the file
 // system.
-type StatfsOp struct {
+type StatFSOp struct {
 	// The size of the file system's blocks, and how many there are in total.
 	BlockSize uint32
 	Blocks    uint64
