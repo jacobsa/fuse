@@ -15,8 +15,13 @@
 package statfs_test
 
 import (
+	"bytes"
+	"fmt"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"syscall"
 	"testing"
 
@@ -45,6 +50,62 @@ func convertName(in []int8) (s string) {
 	}
 
 	s = string(tmp)
+	return
+}
+
+// Ask `df` for statistics about the file system's capacity and free space,
+// useful for checking that our reading of statfs(2) output matches the
+// system's. The output is not guaranteed to have resolution greater than 2^10
+// (1 KiB).
+func df(dir string) (capacity, used, available uint64, err error) {
+	// Sample output:
+	//
+	//     Filesystem  1024-blocks Used Available Capacity iused ifree %iused  Mounted on
+	//     fake@bucket          32   16        16    50%       0     0  100%   /Users/jacobsa/tmp/mp
+	//
+	re := regexp.MustCompile(`^\S+\s+(\d+)\s+(\d+)\s+(\d+)\s+\d+%\s+\d+\s+\d+\s+\d+%.*$`)
+
+	// Call df with a block size of 1024 and capture its output.
+	cmd := exec.Command("df", dir)
+	cmd.Env = []string{"BLOCKSIZE=1024"}
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return
+	}
+
+	// Scrape it.
+	for _, line := range bytes.Split(output, []byte{'\n'}) {
+		// Is this the line we're interested in?
+		if !bytes.Contains(line, []byte(dir)) {
+			continue
+		}
+
+		submatches := re.FindSubmatch(line)
+		if submatches == nil {
+			err = fmt.Errorf("Unable to parse line: %q", line)
+			return
+		}
+
+		capacity, err = strconv.ParseUint(string(submatches[1]), 10, 64)
+		if err != nil {
+			return
+		}
+
+		used, err = strconv.ParseUint(string(submatches[2]), 10, 64)
+		if err != nil {
+			return
+		}
+
+		available, err = strconv.ParseUint(string(submatches[3]), 10, 64)
+		if err != nil {
+			return
+		}
+
+		return
+	}
+
+	err = fmt.Errorf("Unable to parse df output:\n%s", output)
 	return
 }
 
@@ -151,7 +212,29 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 }
 
 func (t *StatFSTest) CapacityAndFreeSpace() {
-	AssertTrue(false, "TODO: Use df")
+	canned := fuseops.StatFSOp{
+		Blocks:          1024,
+		BlocksFree:      896,
+		BlocksAvailable: 768,
+	}
+
+	// Check that df agrees with us about a range of block sizes.
+	for log2BlockSize := uint(9); log2BlockSize < 31; log2BlockSize++ {
+		bs := uint64(1) << log2BlockSize
+		desc := fmt.Sprintf("block size: %d (2^%d)", bs, log2BlockSize)
+
+		// Set up the canned response.
+		canned.BlockSize = uint32(bs)
+		t.fs.SetStatFSResponse(canned)
+
+		// Call df.
+		capacity, used, available, err := df(t.canonicalDir)
+		AssertEq(nil, err)
+
+		ExpectEq(bs*canned.Blocks, capacity, "%s", desc)
+		ExpectEq(bs*(canned.Blocks-canned.BlocksAvailable), used, "%s", desc)
+		ExpectEq(bs*canned.BlocksAvailable, available, "%s", desc)
+	}
 }
 
 func (t *StatFSTest) WriteSize() {
