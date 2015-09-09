@@ -57,6 +57,22 @@ func (t *StatFSTest) SetUp(ti *TestInfo) {
 // Tests
 ////////////////////////////////////////////////////////////////////////
 
-func (t *StatFSTest) DoesFoo() {
+func (t *StatFSTest) Syscall_ZeroValues() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *StatFSTest) Syscall_NonZeroValues() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *StatFSTest) CapacityAndFreeSpace() {
+	AssertTrue(false, "TODO: Use df")
+}
+
+func (t *StatFSTest) WriteSize() {
+	AssertTrue(false, "TODO")
+}
+
+func (t *StatFSTest) UnsupportedBlockSizes() {
 	AssertTrue(false, "TODO")
 }
