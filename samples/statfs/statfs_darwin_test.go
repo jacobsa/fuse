@@ -20,7 +20,6 @@ import (
 	"syscall"
 
 	"github.com/jacobsa/fuse/fuseops"
-	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
@@ -72,9 +71,7 @@ func (t *StatFSTest) Syscall_ZeroValues() {
 	ExpectEq(0, stat.Ffree)
 	ExpectEq("osxfusefs", convertName(stat.Fstypename[:]))
 	ExpectEq(t.canonicalDir, convertName(stat.Mntonname[:]))
-	ExpectThat(
-		convertName(stat.Mntfromname[:]),
-		MatchesRegexp(`mount_osxfusefs@osxfuse\d+`))
+	ExpectEq(fsName, convertName(stat.Mntfromname[:]))
 }
 
 func (t *StatFSTest) Syscall_NonZeroValues() {
@@ -108,9 +105,7 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 	ExpectEq(canned.InodesFree, stat.Ffree)
 	ExpectEq("osxfusefs", convertName(stat.Fstypename[:]))
 	ExpectEq(t.canonicalDir, convertName(stat.Mntonname[:]))
-	ExpectThat(
-		convertName(stat.Mntfromname[:]),
-		MatchesRegexp(`mount_osxfusefs@osxfuse\d+`))
+	ExpectEq(fsName, convertName(stat.Mntfromname[:]))
 }
 
 func (t *StatFSTest) UnsupportedBlockSizes() {

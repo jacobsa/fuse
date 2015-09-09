@@ -129,6 +129,12 @@ type MountConfig struct {
 	// entries will be cached for an arbitrarily long time.
 	EnableVnodeCaching bool
 
+	// OS X only.
+	//
+	// The name of the mounted volume, as displayed in the Finder. If empty, a
+	// default name involving the string 'osxfuse' is used.
+	VolumeName string
+
 	// Additional key=value options to pass unadulterated to the underlying mount
 	// command. See `man 8 mount`, the fuse documentation, etc. for
 	// system-specific information.
@@ -172,9 +178,16 @@ func (c *MountConfig) toMap() (opts map[string]string) {
 		opts["ro"] = ""
 	}
 
-	// OS X: set novncache when appropriate.
-	if isDarwin && !c.EnableVnodeCaching {
-		opts["novncache"] = ""
+	// Handle OS X options.
+	if isDarwin {
+		if !c.EnableVnodeCaching {
+			opts["novncache"] = ""
+		}
+
+		if c.VolumeName != "" {
+			// Cf. https://github.com/osxfuse/osxfuse/wiki/Mount-options#volname
+			opts["volname"] = c.VolumeName
+		}
 	}
 
 	// OS X: disable the use of "Apple Double" (._foo and .DS_Store) files, which

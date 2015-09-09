@@ -34,6 +34,9 @@ import (
 
 func TestStatFS(t *testing.T) { RunTests(t) }
 
+const fsName = "some_fs_name"
+const volumeName = "Some volume"
+
 ////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////
@@ -116,6 +119,10 @@ func (t *StatFSTest) SetUp(ti *TestInfo) {
 	// decides to give us, since it causes write acking to race against writes
 	// being issued from the client.
 	t.MountConfig.DisableWritebackCaching = true
+
+	// Configure names.
+	t.MountConfig.FSName = fsName
+	t.MountConfig.VolumeName = volumeName
 
 	// Create the file system.
 	t.fs = statfs.New()
