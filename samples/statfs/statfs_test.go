@@ -270,5 +270,48 @@ func (t *StatFSTest) WriteSize() {
 }
 
 func (t *StatFSTest) UnsupportedBlockSizes() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Test a bunch of block sizes that the OS doesn't support faithfully,
+	// checking what it transforms them too.
+	testCases := []struct {
+		fsBlockSize    uint32
+		expectedBsize  uint32
+		expectedIosize uint32
+	}{
+		0:  {0, 4096, 65536},
+		1:  {1, 512, 512},
+		2:  {3, 512, 512},
+		3:  {511, 512, 512},
+		4:  {513, 1024, 1024},
+		5:  {1023, 1024, 1024},
+		6:  {4095, 4096, 4096},
+		7:  {1<<17 - 1, 1 << 17, 131072},
+		8:  {1<<17 + 1, 1 << 17, 1 << 18},
+		9:  {1<<18 + 1, 1 << 17, 1 << 19},
+		10: {1<<19 + 1, 1 << 17, 1 << 20},
+		11: {1<<20 + 1, 1 << 17, 1 << 20},
+		12: {1 << 21, 1 << 17, 1 << 20},
+		13: {1 << 30, 1 << 17, 1 << 20},
+	}
+
+	for i, tc := range testCases {
+		desc := fmt.Sprintf("Case %d: block size %d", i, tc.fsBlockSize)
+
+		// Set up.
+		canned := fuseops.StatFSOp{
+			BlockSize: tc.fsBlockSize,
+			Blocks:    10,
+		}
+
+		t.fs.SetStatFSResponse(canned)
+
+		// Check.
+		var stat syscall.Statfs_t
+		err = syscall.Statfs(t.Dir, &stat)
+		AssertEq(nil, err)
+
+		ExpectEq(tc.expectedBsize, stat.Bsize, "%s", desc)
+		ExpectEq(tc.expectedIosize, stat.Iosize, "%s", desc)
+	}
 }
