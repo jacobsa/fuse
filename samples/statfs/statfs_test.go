@@ -103,6 +103,11 @@ func df(dir string) (capacity, used, available uint64, err error) {
 			return
 		}
 
+		// Scale appropriately based on the BLOCKSIZE set above.
+		capacity *= 1024
+		used *= 1024
+		available *= 1024
+
 		return
 	}
 
@@ -220,7 +225,7 @@ func (t *StatFSTest) CapacityAndFreeSpace() {
 	}
 
 	// Check that df agrees with us about a range of block sizes.
-	for log2BlockSize := uint(9); log2BlockSize < 31; log2BlockSize++ {
+	for log2BlockSize := uint(9); log2BlockSize <= 17; log2BlockSize++ {
 		bs := uint64(1) << log2BlockSize
 		desc := fmt.Sprintf("block size: %d (2^%d)", bs, log2BlockSize)
 
@@ -233,7 +238,7 @@ func (t *StatFSTest) CapacityAndFreeSpace() {
 		AssertEq(nil, err)
 
 		ExpectEq(bs*canned.Blocks, capacity, "%s", desc)
-		ExpectEq(bs*(canned.Blocks-canned.BlocksAvailable), used, "%s", desc)
+		ExpectEq(bs*(canned.Blocks-canned.BlocksFree), used, "%s", desc)
 		ExpectEq(bs*canned.BlocksAvailable, available, "%s", desc)
 	}
 }
