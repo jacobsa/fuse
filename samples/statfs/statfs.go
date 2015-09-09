@@ -114,6 +114,21 @@ func (fs *statFS) StatFS(
 	return
 }
 
+func (fs *statFS) LookUpInode(
+	ctx context.Context,
+	op *fuseops.LookUpInodeOp) (err error) {
+	// Only the root has children.
+	if op.Parent != fuseops.RootInodeID {
+		err = fuse.ENOENT
+		return
+	}
+
+	op.Entry.Child = childInodeID
+	op.Entry.Attributes = fileAttrs()
+
+	return
+}
+
 func (fs *statFS) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) (err error) {
@@ -128,6 +143,13 @@ func (fs *statFS) GetInodeAttributes(
 		err = fuse.ENOENT
 	}
 
+	return
+}
+
+func (fs *statFS) SetInodeAttributes(
+	ctx context.Context,
+	op *fuseops.SetInodeAttributesOp) (err error) {
+	// Ignore calls to truncate existing files when opening.
 	return
 }
 
