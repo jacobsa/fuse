@@ -55,6 +55,9 @@ func convertName(in []int8) (s string) {
 type StatFSTest struct {
 	samples.SampleTest
 	fs statfs.FS
+
+	// t.Dir, with symlinks resolved and redundant path components removed.
+	canonicalDir string
 }
 
 var _ SetUpInterface = &StatFSTest{}
@@ -63,6 +66,8 @@ var _ TearDownInterface = &StatFSTest{}
 func init() { RegisterTestSuite(&StatFSTest{}) }
 
 func (t *StatFSTest) SetUp(ti *TestInfo) {
+	var err error
+
 	// Writeback caching can ruin our measurement of the write sizes the kernel
 	// decides to give us, since it causes write acking to race against writes
 	// being issued from the client.
@@ -74,6 +79,11 @@ func (t *StatFSTest) SetUp(ti *TestInfo) {
 
 	// Mount it.
 	t.SampleTest.SetUp(ti)
+
+	// Canonicalize the mount point.
+	t.canonicalDir, err = filepath.EvalSymlinks(t.Dir)
+	AssertEq(nil, err)
+	t.canonicalDir = path.Clean(t.canonicalDir)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -83,11 +93,6 @@ func (t *StatFSTest) SetUp(ti *TestInfo) {
 func (t *StatFSTest) Syscall_ZeroValues() {
 	var err error
 	var stat syscall.Statfs_t
-
-	// Compute the canonicalized directory, for use below.
-	canonicalDir, err := filepath.EvalSymlinks(t.Dir)
-	AssertEq(nil, err)
-	canonicalDir = path.Clean(canonicalDir)
 
 	// Call without configuring a canned response, meaning the OS will see the
 	// zero value for each field. The assertions below act as documentation for
@@ -103,7 +108,7 @@ func (t *StatFSTest) Syscall_ZeroValues() {
 	ExpectEq(0, stat.Files)
 	ExpectEq(0, stat.Ffree)
 	ExpectEq("osxfusefs", convertName(stat.Fstypename[:]))
-	ExpectEq(canonicalDir, convertName(stat.Mntonname[:]))
+	ExpectEq(t.canonicalDir, convertName(stat.Mntonname[:]))
 	ExpectThat(
 		convertName(stat.Mntfromname[:]),
 		MatchesRegexp(`mount_osxfusefs@osxfuse\d+`))
@@ -127,11 +132,6 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 
 	t.fs.SetStatFSResponse(canned)
 
-	// Compute the canonicalized directory, for use below.
-	canonicalDir, err := filepath.EvalSymlinks(t.Dir)
-	AssertEq(nil, err)
-	canonicalDir = path.Clean(canonicalDir)
-
 	// Stat.
 	err = syscall.Statfs(t.Dir, &stat)
 	AssertEq(nil, err)
@@ -144,7 +144,7 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 	ExpectEq(canned.Inodes, stat.Files)
 	ExpectEq(canned.InodesFree, stat.Ffree)
 	ExpectEq("osxfusefs", convertName(stat.Fstypename[:]))
-	ExpectEq(canonicalDir, convertName(stat.Mntonname[:]))
+	ExpectEq(t.canonicalDir, convertName(stat.Mntonname[:]))
 	ExpectThat(
 		convertName(stat.Mntfromname[:]),
 		MatchesRegexp(`mount_osxfusefs@osxfuse\d+`))
