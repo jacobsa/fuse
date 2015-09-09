@@ -46,8 +46,9 @@ type StatFSOp struct {
 	// with the block counts below,  by callers of statfs(2) to infer the file
 	// system's capacity and space availability.
 	//
-	// TODO(jacobsa): Document the range of values accepted on OS X and Linux.
-	// Cite sources in Linux if possible.
+	// On Linux this can be any value, which will be faitfully returned to the
+	// caller of statfs(2) (see the code walk above). On OS X it appears it must
+	// be a power of 2 in [2^9, 2^17].
 	//
 	// On OS X this also affects statfs::f_iosize, which is documented as the
 	// "optimal transfer block size". It does not appear to cause osxfuse to

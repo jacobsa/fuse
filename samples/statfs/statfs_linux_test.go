@@ -16,6 +16,7 @@ package statfs_test
 
 import (
 	"fmt"
+	"math"
 	"syscall"
 
 	"github.com/jacobsa/fuse/fuseops"
@@ -36,8 +37,8 @@ func (t *StatFSTest) Syscall_ZeroValues() {
 	err = syscall.Statfs(t.Dir, &stat)
 	AssertEq(nil, err)
 
-	ExpectEq(4096, stat.Bsize)
-	ExpectEq(65536, stat.Frsize)
+	ExpectEq(0, stat.Bsize)
+	ExpectEq(0, stat.Frsize)
 	ExpectEq(0, stat.Blocks)
 	ExpectEq(0, stat.Bfree)
 	ExpectEq(0, stat.Bavail)
@@ -76,38 +77,28 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 	ExpectEq(canned.InodesFree, stat.Ffree)
 }
 
-func (t *StatFSTest) UnsupportedBlockSizes() {
+func (t *StatFSTest) WackyBlockSizes() {
 	var err error
 
-	// Test a bunch of block sizes that the OS doesn't support faithfully,
-	// checking what it transforms them too.
-	testCases := []struct {
-		fsBlockSize    uint32
-		expectedBsize  uint32
-		expectedFrsize uint32
-	}{
-		0:  {0, 4096, 65536},
-		1:  {1, 512, 512},
-		2:  {3, 512, 512},
-		3:  {511, 512, 512},
-		4:  {513, 1024, 1024},
-		5:  {1023, 1024, 1024},
-		6:  {4095, 4096, 4096},
-		7:  {1<<17 - 1, 1 << 17, 131072},
-		8:  {1<<17 + 1, 1 << 17, 1 << 18},
-		9:  {1<<18 + 1, 1 << 17, 1 << 19},
-		10: {1<<19 + 1, 1 << 17, 1 << 20},
-		11: {1<<20 + 1, 1 << 17, 1 << 20},
-		12: {1 << 21, 1 << 17, 1 << 20},
-		13: {1 << 30, 1 << 17, 1 << 20},
+	// Test a bunch of weird block sizes that OS X would be cranky about.
+	blockSizes := []uint32{
+		0,
+		1,
+		3,
+		17,
+		1<<20 - 1,
+		1<<20 + 0,
+		1<<20 + 1,
+		math.MaxInt32,
+		math.MaxUint32,
 	}
 
-	for i, tc := range testCases {
-		desc := fmt.Sprintf("Case %d: block size %d", i, tc.fsBlockSize)
+	for _, bs := range blockSizes {
+		desc := fmt.Sprintf("block size %d", bs)
 
 		// Set up.
 		canned := fuseops.StatFSOp{
-			BlockSize: tc.fsBlockSize,
+			BlockSize: bs,
 			Blocks:    10,
 		}
 
@@ -118,7 +109,7 @@ func (t *StatFSTest) UnsupportedBlockSizes() {
 		err = syscall.Statfs(t.Dir, &stat)
 		AssertEq(nil, err)
 
-		ExpectEq(tc.expectedBsize, stat.Bsize, "%s", desc)
-		ExpectEq(tc.expectedFrsize, stat.Frsize, "%s", desc)
+		ExpectEq(bs, stat.Bsize, "%s", desc)
+		ExpectEq(bs, stat.Frsize, "%s", desc)
 	}
 }

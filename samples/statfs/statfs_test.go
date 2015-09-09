@@ -22,6 +22,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -190,5 +191,14 @@ func (t *StatFSTest) WriteSize() {
 
 	// Despite the small block size, the OS shouldn't have given us pitifully
 	// small chunks of data.
-	ExpectEq(1<<20, t.fs.MostRecentWriteSize())
+	switch runtime.GOOS {
+	case "linux":
+		ExpectEq(1<<17, t.fs.MostRecentWriteSize())
+
+	case "darwin":
+		ExpectEq(1<<20, t.fs.MostRecentWriteSize())
+
+	default:
+		AddFailure("Unhandled OS: %s", runtime.GOOS)
+	}
 }
