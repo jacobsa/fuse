@@ -103,19 +103,14 @@ func (fs *statFS) MostRecentWriteSize() int {
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
-func (fs *statFS) LookUpInode(
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *statFS) StatFS(
 	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
-	// Pretend that every name exists as a child of the root inode, and is a
-	// file.
-	if op.Parent != fuseops.RootInodeID {
-		err = fuse.ENOENT
-		return
-	}
+	op *fuseops.StatFSOp) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 
-	op.Entry.Child = childInodeID
-	op.Entry.Attributes = fileAttrs()
-
+	*op = fs.cannedResponse
 	return
 }
 
