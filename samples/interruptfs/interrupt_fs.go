@@ -100,6 +100,12 @@ func (fs *InterruptFS) EnableFlushBlocking() {
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
+func (fs *InterruptFS) StatFS(
+	ctx context.Context,
+	op *fuseops.StatFSOp) (err error) {
+	return
+}
+
 func (fs *InterruptFS) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {

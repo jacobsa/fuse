@@ -224,6 +224,12 @@ func (fs *fsImpl) findInodeByID(id fuseops.InodeID) (in *inode) {
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
+func (fs *fsImpl) StatFS(
+	ctx context.Context,
+	op *fuseops.StatFSOp) (err error) {
+	return
+}
+
 func (fs *fsImpl) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {

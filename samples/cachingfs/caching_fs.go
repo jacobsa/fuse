@@ -261,6 +261,12 @@ func (fs *cachingFS) SetKeepCache(keep bool) {
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
+func (fs *cachingFS) StatFS(
+	ctx context.Context,
+	op *fuseops.StatFSOp) (err error) {
+	return
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) LookUpInode(
 	ctx context.Context,

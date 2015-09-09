@@ -149,6 +149,12 @@ func (fs *helloFS) patchAttributes(
 	attr.Crtime = now
 }
 
+func (fs *helloFS) StatFS(
+	ctx context.Context,
+	op *fuseops.StatFSOp) (err error) {
+	return
+}
+
 func (fs *helloFS) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
