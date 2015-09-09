@@ -15,15 +15,37 @@
 package statfs_test
 
 import (
+	"path"
+	"path/filepath"
+	"syscall"
 	"testing"
 
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/statfs"
+	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 )
 
 func TestStatFS(t *testing.T) { RunTests(t) }
+
+////////////////////////////////////////////////////////////////////////
+// Helpers
+////////////////////////////////////////////////////////////////////////
+
+func convertName(in []int8) (s string) {
+	var tmp []byte
+	for _, v := range in {
+		if v == 0 {
+			break
+		}
+
+		tmp = append(tmp, byte(v))
+	}
+
+	s = string(tmp)
+	return
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -58,7 +80,32 @@ func (t *StatFSTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *StatFSTest) Syscall_ZeroValues() {
-	AssertTrue(false, "TODO")
+	var err error
+	var stat syscall.Statfs_t
+
+	// Compute the canonicalized directory, for use below.
+	canonicalDir, err := filepath.EvalSymlinks(t.Dir)
+	AssertEq(nil, err)
+	canonicalDir = path.Clean(canonicalDir)
+
+	// Call without configuring a canned response, meaning the OS will see the
+	// zero value for each field. The assertions below act as documentation for
+	// the OS's behavior in this case.
+	err = syscall.Statfs(t.Dir, &stat)
+	AssertEq(nil, err)
+
+	ExpectEq(4096, stat.Bsize)
+	ExpectEq(65536, stat.Iosize)
+	ExpectEq(0, stat.Blocks)
+	ExpectEq(0, stat.Bfree)
+	ExpectEq(0, stat.Bavail)
+	ExpectEq(0, stat.Files)
+	ExpectEq(0, stat.Ffree)
+	ExpectEq("osxfusefs", convertName(stat.Fstypename[:]))
+	ExpectEq(canonicalDir, convertName(stat.Mntonname[:]))
+	ExpectThat(
+		convertName(stat.Mntfromname[:]),
+		MatchesRegexp(`mount_osxfusefs@osxfuse\d+`))
 }
 
 func (t *StatFSTest) Syscall_NonZeroValues() {
