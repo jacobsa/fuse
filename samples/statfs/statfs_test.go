@@ -21,7 +21,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"testing"
@@ -44,13 +43,6 @@ func TestStatFS(t *testing.T) { RunTests(t) }
 // system's. The output is not guaranteed to have resolution greater than 2^10
 // (1 KiB).
 func df(dir string) (capacity, used, available uint64, err error) {
-	// Sample output:
-	//
-	//     Filesystem  1024-blocks Used Available Capacity iused ifree %iused  Mounted on
-	//     fake@bucket          32   16        16    50%       0     0  100%   /Users/jacobsa/tmp/mp
-	//
-	re := regexp.MustCompile(`^\S+\s+(\d+)\s+(\d+)\s+(\d+)\s+\d+%\s+\d+\s+\d+\s+\d+%.*$`)
-
 	// Call df with a block size of 1024 and capture its output.
 	cmd := exec.Command("df", dir)
 	cmd.Env = []string{"BLOCKSIZE=1024"}
@@ -67,7 +59,7 @@ func df(dir string) (capacity, used, available uint64, err error) {
 			continue
 		}
 
-		submatches := re.FindSubmatch(line)
+		submatches := gDfOutputRegexp.FindSubmatch(line)
 		if submatches == nil {
 			err = fmt.Errorf("Unable to parse line: %q", line)
 			return
