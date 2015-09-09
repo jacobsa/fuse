@@ -1614,27 +1614,3 @@ func (t *MemFSTest) RenameNonExistentFile() {
 	err = os.Rename(path.Join(t.Dir, "foo"), path.Join(t.Dir, "bar"))
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
-
-func (t *MemFSTest) Statfs() {
-	var err error
-	var stat syscall.Statfs_t
-
-	// Write a few bytes of file content.
-	const content = "taco"
-
-	err = ioutil.WriteFile(path.Join(t.Dir, "foo"), []byte(content), 0400)
-	AssertEq(nil, err)
-
-	// Stat the file system.
-	err = syscall.Statfs(t.Dir, &stat)
-	AssertEq(nil, err)
-
-	ExpectEq(1, stat.Bsize)
-
-	ExpectEq(memfs.Capacity_Bytes, stat.Blocks)
-	ExpectEq(memfs.Capacity_Bytes-len(content), stat.Bfree)
-	ExpectEq(stat.Bfree, stat.Bavail)
-
-	ExpectEq(memfs.Capacity_Files, stat.Files)
-	ExpectEq(memfs.Capacity_Files-2, stat.Ffree)
-}

@@ -28,12 +28,6 @@ import (
 	"github.com/jacobsa/syncutil"
 )
 
-// The capacities of the file system, as reported to statfs(2).
-const (
-	Capacity_Bytes = 1 << 50
-	Capacity_Files = 1 << 30
-)
-
 type memFS struct {
 	fuseutil.NotImplementedFileSystem
 
@@ -189,34 +183,6 @@ func (fs *memFS) deallocateInode(id fuseops.InodeID) {
 ////////////////////////////////////////////////////////////////////////
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
-
-func (fs *memFS) StatFS(
-	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	// Count free/available bytes and inodes.
-	op.BlockSize = 1
-	op.Blocks = Capacity_Bytes
-	op.BlocksFree = Capacity_Bytes
-	op.BlocksAvailable = Capacity_Bytes
-
-	op.Inodes = Capacity_Files
-	op.InodesFree = Capacity_Files
-
-	for _, in := range fs.inodes {
-		if in == nil {
-			continue
-		}
-
-		op.InodesFree--
-		op.BlocksFree -= in.attrs.Size
-		op.BlocksAvailable -= in.attrs.Size
-	}
-
-	return
-}
 
 func (fs *memFS) LookUpInode(
 	ctx context.Context,
