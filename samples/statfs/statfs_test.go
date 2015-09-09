@@ -17,6 +17,7 @@ package statfs_test
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -238,7 +239,29 @@ func (t *StatFSTest) CapacityAndFreeSpace() {
 }
 
 func (t *StatFSTest) WriteSize() {
-	AssertTrue(false, "TODO")
+	var err error
+
+	// Set up a smallish block size.
+	canned := fuseops.StatFSOp{
+		BlockSize:       8192,
+		Blocks:          1234,
+		BlocksFree:      1234,
+		BlocksAvailable: 1234,
+	}
+
+	t.fs.SetStatFSResponse(canned)
+
+	// Cause a large amount of date to be written.
+	err = ioutil.WriteFile(
+		path.Join(t.Dir, "foo"),
+		bytes.Repeat([]byte{'x'}, 1<<22),
+		0400)
+
+	AssertEq(nil, err)
+
+	// Despite the small block size, the OS shouldn't have given us pitifully
+	// small chunks of data.
+	ExpectEq(1<<20, t.fs.MostRecentWriteSize())
 }
 
 func (t *StatFSTest) UnsupportedBlockSizes() {
