@@ -203,7 +203,7 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 	err = syscall.Statfs(t.Dir, &stat)
 	AssertEq(nil, err)
 
-	ExpectEq(4096, stat.Bsize) // OS X seems to always make this 4096.
+	ExpectEq(canned.BlockSize, stat.Bsize)
 	ExpectEq(canned.BlockSize, stat.Iosize)
 	ExpectEq(canned.Blocks, stat.Blocks)
 	ExpectEq(canned.BlocksFree, stat.Bfree)

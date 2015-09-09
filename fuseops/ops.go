@@ -38,16 +38,31 @@ import (
 //       convert_fuse_statfs to convert the response in a straightforward
 //       manner.
 //
-// Note that this op is particularly important on OS X: if you don't implement
-// it, the file system will not successfully mount. If you don't model a sane
-// amount of free space, the Finder will refuse to copy files into the file
-// system.
+// This op is particularly important on OS X: if you don't implement it, the
+// file system will not successfully mount. If you don't model a sane amount of
+// free space, the Finder will refuse to copy files into the file system.
 type StatFSOp struct {
-	// The size of the file system's blocks, and how many there are in total.
+	// The size of the file system's blocks. This may be used, in combination
+	// with the block counts below,  by callers of statfs(2) to infer the file
+	// system's capacity and space availability.
+	//
+	// TODO(jacobsa): Document the range of values accepted on OS X and Linux.
+	// Cite sources in Linux if possible.
+	//
+	// On OS X this also affects statfs::f_iosize, which is documented as the
+	// "optimal transfer block size". It does not appear to cause osxfuse to
+	// change the size of data in WriteFile ops, though.
+	//
+	// This interface does not distinguish between blocks and block fragments.
 	BlockSize uint32
-	Blocks    uint64
 
-	// The number of blocks free, and how many are available to non-root users.
+	// The total number of blocks in the file system, the number of unused
+	// blocks, and the count of the latter that are available for use by non-root
+	// users.
+	//
+	// For each category, the corresponding number of bytes is derived by
+	// multiplying by BlockSize.
+	Blocks          uint64
 	BlocksFree      uint64
 	BlocksAvailable uint64
 
