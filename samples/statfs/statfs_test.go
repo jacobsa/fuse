@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/statfs"
@@ -109,7 +110,44 @@ func (t *StatFSTest) Syscall_ZeroValues() {
 }
 
 func (t *StatFSTest) Syscall_NonZeroValues() {
-	AssertTrue(false, "TODO")
+	var err error
+	var stat syscall.Statfs_t
+
+	// Set up the canned response.
+	canned := fuseops.StatFSOp{
+		BlockSize: 1 << 15,
+
+		Blocks:          1<<51 + 3,
+		BlocksFree:      1<<43 + 5,
+		BlocksAvailable: 1<<41 + 7,
+
+		Inodes:     1<<59 + 11,
+		InodesFree: 1<<58 + 13,
+	}
+
+	t.fs.SetStatFSResponse(canned)
+
+	// Compute the canonicalized directory, for use below.
+	canonicalDir, err := filepath.EvalSymlinks(t.Dir)
+	AssertEq(nil, err)
+	canonicalDir = path.Clean(canonicalDir)
+
+	// Stat.
+	err = syscall.Statfs(t.Dir, &stat)
+	AssertEq(nil, err)
+
+	ExpectEq(4096, stat.Bsize) // OS X seems to always make this 4096.
+	ExpectEq(canned.BlockSize, stat.Iosize)
+	ExpectEq(canned.Blocks, stat.Blocks)
+	ExpectEq(canned.BlocksFree, stat.Bfree)
+	ExpectEq(canned.BlocksAvailable, stat.Bavail)
+	ExpectEq(canned.Inodes, stat.Files)
+	ExpectEq(canned.InodesFree, stat.Ffree)
+	ExpectEq("osxfusefs", convertName(stat.Fstypename[:]))
+	ExpectEq(canonicalDir, convertName(stat.Mntonname[:]))
+	ExpectThat(
+		convertName(stat.Mntfromname[:]),
+		MatchesRegexp(`mount_osxfusefs@osxfuse\d+`))
 }
 
 func (t *StatFSTest) CapacityAndFreeSpace() {
