@@ -117,6 +117,12 @@ func (fs *flushFS) getAttributes(id fuseops.InodeID) (
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
+func (fs *flushFS) StatFS(
+	ctx context.Context,
+	op *fuseops.StatFSOp) (err error) {
+	return
+}
+
 func (fs *flushFS) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {

@@ -119,6 +119,12 @@ func (fs *errorFS) GetInodeAttributes(
 	return
 }
 
+func (fs *errorFS) StatFS(
+	ctx context.Context,
+	op *fuseops.StatFSOp) (err error) {
+	return
+}
+
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *errorFS) LookUpInode(
 	ctx context.Context,

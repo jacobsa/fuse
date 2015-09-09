@@ -184,6 +184,12 @@ func (fs *memFS) deallocateInode(id fuseops.InodeID) {
 // FileSystem methods
 ////////////////////////////////////////////////////////////////////////
 
+func (fs *memFS) StatFS(
+	ctx context.Context,
+	op *fuseops.StatFSOp) (err error) {
+	return
+}
+
 func (fs *memFS) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) (err error) {
