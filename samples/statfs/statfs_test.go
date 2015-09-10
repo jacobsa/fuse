@@ -146,6 +146,8 @@ func (t *StatFSTest) CapacityAndFreeSpace() {
 		Blocks:          1024,
 		BlocksFree:      896,
 		BlocksAvailable: 768,
+
+		IoSize: 1024, // Shouldn't matter.
 	}
 
 	// Check that df agrees with us about a range of block sizes.
@@ -173,6 +175,7 @@ func (t *StatFSTest) WriteSize() {
 	// Set up a smallish block size.
 	canned := fuseops.StatFSOp{
 		BlockSize:       8192,
+		IoSize:          16384,
 		Blocks:          1234,
 		BlocksFree:      1234,
 		BlocksAvailable: 1234,

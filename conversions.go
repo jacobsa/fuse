@@ -565,8 +565,8 @@ func (c *Connection) kernelResponseForOp(
 		out.St.Files = o.Inodes
 		out.St.Ffree = o.InodesFree
 
-		// The posix spec for sys/statvfs.h defines the following fields, among
-		// others:
+		// The posix spec for sys/statvfs.h (http://goo.gl/LktgrF) defines the
+		// following fields of statvfs, among others:
 		//
 		//     f_bsize    File system block size.
 		//     f_frsize   Fundamental file system block size.
@@ -587,11 +587,10 @@ func (c *Connection) kernelResponseForOp(
 		//     fragments in UNIX file systems first appeared in the early 1980s
 		//     with the 4.2BSD Fast File System.)
 		//
-		// Confusingly, it appears as though osxfuse surfaces f_bsize as f_iosize
-		// (of advisory use only), and f_frsize as f_bsize (which affects free
-		// space display in the Finder). In any case, we don't care to let the user
-		// distinguish, so set both to the same value.
-		out.St.Bsize = o.BlockSize
+		// Confusingly, it appears as though osxfuse surfaces fuse_kstatfs::bsize
+		// as statfs::f_iosize (of advisory use only), and fuse_kstatfs::frsize as
+		// statfs::f_bsize (which affects free space display in the Finder).
+		out.St.Bsize = o.IoSize
 		out.St.Frsize = o.BlockSize
 
 	case *initOp:

@@ -46,13 +46,21 @@ type StatFSOp struct {
 	// with the block counts below,  by callers of statfs(2) to infer the file
 	// system's capacity and space availability.
 	//
-	// On Linux this can be any value, which will be faitfully returned to the
-	// caller of statfs(2) (see the code walk above). On OS X it appears it must
-	// be a power of 2 in [2^9, 2^17].
+	// On Linux this is surfaced as statfs::f_frsize, matching the posix standard
+	// (http://goo.gl/LktgrF), which says that f_blocks and friends are in units
+	// of f_frsize. On OS X this is surfaced as statfs::f_bsize, which plays the
+	// same roll.
 	//
-	// On OS X this also affects statfs::f_iosize, which is documented as the
-	// "optimal transfer block size". It does not appear to cause osxfuse to
-	// change the size of data in WriteFile ops, though.
+	// It appears as though the original intent of statvfs::f_frsize in the posix
+	// standard was to support a smaller addressable unit than statvfs::f_bsize
+	// (cf. The Linux Programming Interface by Michael Kerrisk,
+	// https://goo.gl/5LZMxQ). Therefore users should probably arrange for this
+	// to be no larger than IoSize.
+	//
+	// On Linux this can be any value, and will be faithfully returned to the
+	// caller of statfs(2) (see the code walk above). On OS X it appears that
+	// only powers of 2 in the range [2^9, 2^17] are preserved, and a value of
+	// zero is treated as 4096.
 	//
 	// This interface does not distinguish between blocks and block fragments.
 	BlockSize uint32
@@ -66,6 +74,20 @@ type StatFSOp struct {
 	Blocks          uint64
 	BlocksFree      uint64
 	BlocksAvailable uint64
+
+	// The preferred size of writes to and reads from the file system, in bytes.
+	// This may affect clients that use statfs(2) to size buffers correctly. It
+	// does not appear to influence the size of writes sent from the kernel to
+	// the file system daemon.
+	//
+	// On Linux this is surfaced as statfs::f_bsize, and on OS X as
+	// statfs::f_iosize. Both are documented in `man 2 statfs` as "optimal
+	// transfer block size".
+	//
+	// On Linux this can be any value. On OS X it appears that only powers of 2
+	// in the range [2^12, 2^20] are faithfully preserved, and a value of zero is
+	// treated as 65536.
+	IoSize uint32
 
 	// The total number of inodes in the file system, and how many remain free.
 	Inodes     uint64

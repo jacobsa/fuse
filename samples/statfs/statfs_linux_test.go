@@ -61,6 +61,7 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 	// Set up the canned response.
 	canned := fuseops.StatFSOp{
 		BlockSize: 1 << 15,
+		IoSize:    1 << 16,
 
 		Blocks:          1<<51 + 3,
 		BlocksFree:      1<<43 + 5,
@@ -76,8 +77,8 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 	err = syscall.Statfs(t.Dir, &stat)
 	AssertEq(nil, err)
 
-	ExpectEq(canned.BlockSize, stat.Bsize)
 	ExpectEq(canned.BlockSize, stat.Frsize)
+	ExpectEq(canned.IoSize, stat.Bsize)
 	ExpectEq(canned.Blocks, stat.Blocks)
 	ExpectEq(canned.BlocksFree, stat.Bfree)
 	ExpectEq(canned.BlocksAvailable, stat.Bavail)
@@ -85,7 +86,7 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 	ExpectEq(canned.InodesFree, stat.Ffree)
 }
 
-func (t *StatFSTest) WackyBlockSizes() {
+func (t *StatFSTest) BlockSizes() {
 	var err error
 
 	// Test a bunch of weird block sizes that OS X would be cranky about.
@@ -98,6 +99,7 @@ func (t *StatFSTest) WackyBlockSizes() {
 		1<<20 + 0,
 		1<<20 + 1,
 		math.MaxInt32,
+		math.MaxInt32 + 1,
 		math.MaxUint32,
 	}
 
@@ -117,7 +119,43 @@ func (t *StatFSTest) WackyBlockSizes() {
 		err = syscall.Statfs(t.Dir, &stat)
 		AssertEq(nil, err)
 
-		ExpectEq(bs, stat.Bsize, "%s", desc)
 		ExpectEq(bs, stat.Frsize, "%s", desc)
+	}
+}
+
+func (t *StatFSTest) IoSizes() {
+	var err error
+
+	// Test a bunch of weird IO sizes that OS X would be cranky about.
+	ioSizes := []uint32{
+		0,
+		1,
+		3,
+		17,
+		1<<20 - 1,
+		1<<20 + 0,
+		1<<20 + 1,
+		math.MaxInt32,
+		math.MaxInt32 + 1,
+		math.MaxUint32,
+	}
+
+	for _, bs := range ioSizes {
+		desc := fmt.Sprintf("IO size %d", bs)
+
+		// Set up.
+		canned := fuseops.StatFSOp{
+			IoSize: bs,
+			Blocks: 10,
+		}
+
+		t.fs.SetStatFSResponse(canned)
+
+		// Check.
+		var stat syscall.Statfs_t
+		err = syscall.Statfs(t.Dir, &stat)
+		AssertEq(nil, err)
+
+		ExpectEq(bs, stat.Bsize, "%s", desc)
 	}
 }
