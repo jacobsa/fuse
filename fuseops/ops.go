@@ -69,7 +69,9 @@ type StatFSOp struct {
 	BlocksAvailable uint64
 
 	// The preferred size of writes to and reads from the file system, in bytes.
-	// This may affect clients that use statfs(2) to size buffers correctly.
+	// This may affect clients that use statfs(2) to size buffers correctly. It
+	// does not appear to influence the size of writes sent from the kernel to
+	// the file system daemon.
 	//
 	// On Linux this is surfaced as statfs::f_bsize, and on OS X as
 	// statfs::f_iosize. Both are documented in `man 2 statfs` as "optimal

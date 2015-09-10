@@ -16,6 +16,7 @@ package statfs_test
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"syscall"
 
@@ -81,6 +82,7 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 	// Set up the canned response.
 	canned := fuseops.StatFSOp{
 		BlockSize: 1 << 15,
+		IoSize:    1 << 16,
 
 		Blocks:          1<<51 + 3,
 		BlocksFree:      1<<43 + 5,
@@ -97,7 +99,7 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 	AssertEq(nil, err)
 
 	ExpectEq(canned.BlockSize, stat.Bsize)
-	ExpectEq(canned.BlockSize, stat.Iosize)
+	ExpectEq(canned.IoSize, stat.Iosize)
 	ExpectEq(canned.Blocks, stat.Blocks)
 	ExpectEq(canned.BlocksFree, stat.Bfree)
 	ExpectEq(canned.BlocksAvailable, stat.Bavail)
@@ -108,30 +110,35 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 	ExpectEq(fsName, convertName(stat.Mntfromname[:]))
 }
 
-func (t *StatFSTest) UnsupportedBlockSizes() {
+func (t *StatFSTest) BlockSizes() {
 	var err error
 
-	// Test a bunch of block sizes that the OS doesn't support faithfully,
-	// checking what it transforms them too.
+	// Test a bunch of block sizes that the OS does or doesn't support
+	// faithfully, checking what it transforms them too.
 	testCases := []struct {
-		fsBlockSize    uint32
-		expectedBsize  uint32
-		expectedIosize uint32
+		fsBlockSize   uint32
+		expectedBsize uint32
 	}{
-		0:  {0, 4096, 65536},
-		1:  {1, 512, 512},
-		2:  {3, 512, 512},
-		3:  {511, 512, 512},
-		4:  {513, 1024, 1024},
-		5:  {1023, 1024, 1024},
-		6:  {4095, 4096, 4096},
-		7:  {1<<17 - 1, 1 << 17, 131072},
-		8:  {1<<17 + 1, 1 << 17, 1 << 18},
-		9:  {1<<18 + 1, 1 << 17, 1 << 19},
-		10: {1<<19 + 1, 1 << 17, 1 << 20},
-		11: {1<<20 + 1, 1 << 17, 1 << 20},
-		12: {1 << 21, 1 << 17, 1 << 20},
-		13: {1 << 30, 1 << 17, 1 << 20},
+		0:  {0, 4096},
+		1:  {1, 512},
+		2:  {3, 512},
+		3:  {511, 512},
+		4:  {512, 512},
+		5:  {513, 1024},
+		6:  {1023, 1024},
+		7:  {1024, 1024},
+		8:  {4095, 4096},
+		9:  {1 << 16, 1 << 16},
+		10: {1<<17 - 1, 1 << 17},
+		11: {1 << 17, 1 << 17},
+		12: {1<<17 + 1, 1 << 17},
+		13: {1 << 18, 1 << 17},
+		14: {1 << 20, 1 << 17},
+		15: {math.MaxInt32 - 1, 1 << 17},
+		16: {math.MaxInt32, 1 << 17},
+		17: {math.MaxInt32 + 1, 512},
+		18: {math.MaxInt32 + 1<<15, 1 << 15},
+		19: {math.MaxUint32, 1 << 17},
 	}
 
 	for i, tc := range testCases {
@@ -151,6 +158,57 @@ func (t *StatFSTest) UnsupportedBlockSizes() {
 		AssertEq(nil, err)
 
 		ExpectEq(tc.expectedBsize, stat.Bsize, "%s", desc)
+	}
+}
+
+func (t *StatFSTest) IoSizes() {
+	var err error
+
+	// Test a bunch of io sizes that the OS does or doesn't support faithfully,
+	// checking what it transforms them too.
+	testCases := []struct {
+		fsIoSize       uint32
+		expectedIosize uint32
+	}{
+		0:  {0, 4096},
+		1:  {1, 512},
+		2:  {3, 512},
+		3:  {511, 512},
+		4:  {512, 512},
+		5:  {513, 1024},
+		6:  {1023, 1024},
+		7:  {1024, 1024},
+		8:  {4095, 4096},
+		9:  {1 << 16, 1 << 16},
+		10: {1<<17 - 1, 1 << 17},
+		11: {1 << 17, 1 << 17},
+		12: {1<<17 + 1, 1 << 18},
+		13: {1<<20 - 1, 1 << 20},
+		14: {1 << 20, 1 << 20},
+		15: {1<<20 + 1, 1 << 20},
+		16: {math.MaxInt32 - 1, 1 << 20},
+		17: {math.MaxInt32, 1 << 20},
+		18: {math.MaxInt32 + 1, 512},
+		19: {math.MaxInt32 + 1<<15, 1 << 15},
+		20: {math.MaxUint32, 1 << 20},
+	}
+
+	for i, tc := range testCases {
+		desc := fmt.Sprintf("Case %d: IO size %d", i, tc.fsIoSize)
+
+		// Set up.
+		canned := fuseops.StatFSOp{
+			IoSize: tc.fsIoSize,
+			Blocks: 10,
+		}
+
+		t.fs.SetStatFSResponse(canned)
+
+		// Check.
+		var stat syscall.Statfs_t
+		err = syscall.Statfs(t.Dir, &stat)
+		AssertEq(nil, err)
+
 		ExpectEq(tc.expectedIosize, stat.Iosize, "%s", desc)
 	}
 }
