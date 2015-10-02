@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"syscall"
 	"testing"
 
 	"github.com/jacobsa/fuse/fuseops"
@@ -203,4 +204,25 @@ func (t *StatFSTest) WriteSize() {
 	default:
 		AddFailure("Unhandled OS: %s", runtime.GOOS)
 	}
+}
+
+func (t *StatFSTest) StatBlocks() {
+	var err error
+	var stat syscall.Stat_t
+	const fileName = "foo"
+	const size = 1 << 22
+
+	err = ioutil.WriteFile(
+		path.Join(t.Dir, fileName),
+		bytes.Repeat([]byte{'x'}, size),
+		0400)
+	AssertEq(nil, err)
+
+	t.fs.SetStatResponse(fuseops.InodeAttributes{
+		Size: size,
+	})
+
+	err = syscall.Stat(path.Join(t.Dir, fileName), &stat)
+	AssertEq(nil, err)
+	ExpectEq(size/512, stat.Blocks)
 }

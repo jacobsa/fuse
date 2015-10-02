@@ -40,6 +40,9 @@ type FS interface {
 	// Set the canned response to be used for future statfs ops.
 	SetStatFSResponse(r fuseops.StatFSOp)
 
+	// Set the canned response to be used for future stat ops.
+	SetStatResponse(r fuseops.InodeAttributes)
+
 	// Return the size of the most recent write delivered by the kernel, or -1 if
 	// none.
 	MostRecentWriteSize() int
@@ -47,6 +50,9 @@ type FS interface {
 
 func New() (fs FS) {
 	fs = &statFS{
+		cannedStatResponse: fuseops.InodeAttributes{
+			Mode: 0666,
+		},
 		mostRecentWriteSize: -1,
 	}
 
@@ -59,8 +65,9 @@ type statFS struct {
 	fuseutil.NotImplementedFileSystem
 
 	mu                  sync.Mutex
-	cannedResponse      fuseops.StatFSOp // GUARDED_BY(mu)
-	mostRecentWriteSize int              // GUARDED_BY(mu)
+	cannedResponse      fuseops.StatFSOp        // GUARDED_BY(mu)
+	cannedStatResponse  fuseops.InodeAttributes // GUARDED_BY(mu)
+	mostRecentWriteSize int                     // GUARDED_BY(mu)
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -73,10 +80,8 @@ func dirAttrs() fuseops.InodeAttributes {
 	}
 }
 
-func fileAttrs() fuseops.InodeAttributes {
-	return fuseops.InodeAttributes{
-		Mode: 0666,
-	}
+func (fs *statFS) fileAttrs() fuseops.InodeAttributes {
+	return fs.cannedStatResponse
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -89,6 +94,14 @@ func (fs *statFS) SetStatFSResponse(r fuseops.StatFSOp) {
 	defer fs.mu.Unlock()
 
 	fs.cannedResponse = r
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *statFS) SetStatResponse(r fuseops.InodeAttributes) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	fs.cannedStatResponse = r
 }
 
 // LOCKS_EXCLUDED(fs.mu)
@@ -124,7 +137,7 @@ func (fs *statFS) LookUpInode(
 	}
 
 	op.Entry.Child = childInodeID
-	op.Entry.Attributes = fileAttrs()
+	op.Entry.Attributes = fs.fileAttrs()
 
 	return
 }
@@ -137,7 +150,7 @@ func (fs *statFS) GetInodeAttributes(
 		op.Attributes = dirAttrs()
 
 	case childInodeID:
-		op.Attributes = fileAttrs()
+		op.Attributes = fs.fileAttrs()
 
 	default:
 		err = fuse.ENOENT

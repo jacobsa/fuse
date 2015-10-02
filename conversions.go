@@ -633,6 +633,8 @@ func convertAttributes(
 	out.Nlink = in.Nlink
 	out.Uid = in.Uid
 	out.Gid = in.Gid
+	// round up to the nearest 512 boundary
+	out.Blocks = (in.Size + 512 - 1) / 512
 
 	// Set the mode.
 	out.Mode = uint32(in.Mode) & 0777
