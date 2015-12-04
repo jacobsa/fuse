@@ -420,6 +420,19 @@ func convertInMessage(
 			Flags:        fusekernel.InitFlags(in.Flags),
 		}
 
+	case fusekernel.OpRemovexattr:
+		buf := inMsg.ConsumeBytes(inMsg.Len())
+		n := len(buf)
+		if n == 0 || buf[n-1] != '\x00' {
+			err = errors.New("Corrupt OpRemovexattr")
+			return
+		}
+
+		o = &fuseops.RemoveXattrOp{
+			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
+			Name:  string(buf[:n-1]),
+		}
+
 	default:
 		o = &unknownOp{
 			OpCode: inMsg.Header().Opcode,
@@ -622,6 +635,9 @@ func (c *Connection) kernelResponseForOp(
 		// statfs::f_bsize (which affects free space display in the Finder).
 		out.St.Bsize = o.IoSize
 		out.St.Frsize = o.BlockSize
+
+	case *fuseops.RemoveXattrOp:
+		// Empty response
 
 	case *initOp:
 		out := (*fusekernel.InitOut)(m.Grow(int(unsafe.Sizeof(fusekernel.InitOut{}))))

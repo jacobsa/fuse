@@ -183,5 +183,12 @@ func (fs *NotImplementedFileSystem) ReadSymlink(
 	return
 }
 
+func (fs *NotImplementedFileSystem) RemoveXattr(
+	ctx context.Context,
+	op *fuseops.RemoveXattrOp) (err error) {
+	err = fuse.ENOSYS
+	return
+}
+
 func (fs *NotImplementedFileSystem) Destroy() {
 }

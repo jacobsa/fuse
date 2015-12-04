@@ -57,6 +57,7 @@ type FileSystem interface {
 	FlushFile(context.Context, *fuseops.FlushFileOp) error
 	ReleaseFileHandle(context.Context, *fuseops.ReleaseFileHandleOp) error
 	ReadSymlink(context.Context, *fuseops.ReadSymlinkOp) error
+	RemoveXattr(context.Context, *fuseops.RemoveXattrOp) error
 
 	// Regard all inodes (including the root inode) as having their lookup counts
 	// decremented to zero, and clean up any resources associated with the file
@@ -186,6 +187,9 @@ func (s *fileSystemServer) handleOp(
 
 	case *fuseops.ReadSymlinkOp:
 		err = s.fs.ReadSymlink(ctx, typed)
+
+	case *fuseops.RemoveXattrOp:
+		err = s.fs.RemoveXattr(ctx, typed)
 	}
 
 	c.Reply(ctx, err)

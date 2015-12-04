@@ -767,3 +767,16 @@ type ReadSymlinkOp struct {
 	// Set by the file system: the target of the symlink.
 	Target string
 }
+
+////////////////////////////////////////////////////////////////////////
+// eXtended attributes
+////////////////////////////////////////////////////////////////////////
+
+// Remove an extended attribute
+type RemoveXattrOp struct {
+	// The inode that we are reading
+	Inode InodeID
+
+	// The name of the extended attribute
+	Name string
+}
