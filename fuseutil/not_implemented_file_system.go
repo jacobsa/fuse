@@ -190,5 +190,19 @@ func (fs *NotImplementedFileSystem) RemoveXattr(
 	return
 }
 
+func (fs *NotImplementedFileSystem) GetXattr(
+	ctx context.Context,
+	op *fuseops.GetXattrOp) (err error) {
+	err = fuse.ENOSYS
+	return
+}
+
+func (fs *NotImplementedFileSystem) ListXattr(
+	ctx context.Context,
+	op *fuseops.ListXattrOp) (err error) {
+	err = fuse.ENOSYS
+	return
+}
+
 func (fs *NotImplementedFileSystem) Destroy() {
 }

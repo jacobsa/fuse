@@ -780,3 +780,38 @@ type RemoveXattrOp struct {
 	// The name of the extended attribute
 	Name string
 }
+
+// Get an extended attribute
+type GetXattrOp struct {
+	// The inode that we are reading
+	Inode InodeID
+
+	// The name of the extended attribute
+	Name string
+
+	// The destination buffer.  If the size is too small for the
+	// value, the ERANGE error should be sent.
+	Dst []byte
+
+	// Set by the file system: the number of bytes read into Dst, or
+	// the number of bytes that would have been read into Dst if Dst was
+	// big enough
+	BytesRead int
+}
+
+type ListXattrOp struct {
+	// The inode that we are reading
+	Inode InodeID
+
+	// The destination buffer.  If the size is too small for the
+	// value, the ERANGE error should be sent.
+	//
+	// The output data should consist of a sequence of NUL-terminated strings,
+	// one for each xattr
+	Dst []byte
+
+	// Set by the file system: the number of bytes read into Dst, or
+	// the number of bytes that would have been read into Dst if Dst was
+	// big enough
+	BytesRead int
+}

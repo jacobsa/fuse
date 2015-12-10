@@ -433,6 +433,61 @@ func convertInMessage(
 			Name:  string(buf[:n-1]),
 		}
 
+	case fusekernel.OpGetxattr:
+		type input fusekernel.GetxattrIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			err = errors.New("Corrupt OpGetxattr")
+			return
+		}
+
+		name := inMsg.ConsumeBytes(inMsg.Len())
+		i := bytes.IndexByte(name, '\x00')
+		if i < 0 {
+			err = errors.New("Corrupt OpGetxattr")
+			return
+		}
+		name = name[:i]
+
+		to := &fuseops.GetXattrOp{
+			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
+			Name:  string(name),
+		}
+		o = to
+
+		readSize := int(in.Size)
+		p := outMsg.GrowNoZero(readSize)
+		if p == nil {
+			err = fmt.Errorf("Can't grow for %d-byte read", readSize)
+			return
+		}
+
+		sh := (*reflect.SliceHeader)(unsafe.Pointer(&to.Dst))
+		sh.Data = uintptr(p)
+		sh.Len = readSize
+		sh.Cap = readSize
+
+	case fusekernel.OpListxattr:
+		type input fusekernel.ListxattrIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			err = errors.New("Corrupt OpListxattr")
+			return
+		}
+
+		o = &fuseops.ListXattrOp{
+			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
+		}
+
+		readSize := int(in.Size)
+		if readSize != 0 {
+			p := outMsg.GrowNoZero(readSize)
+			if p == nil {
+				err = fmt.Errorf("Can't grow for %d-byte read", readSize)
+				return
+			}
+		}
+
 	default:
 		o = &unknownOp{
 			OpCode: inMsg.Header().Opcode,
@@ -472,17 +527,32 @@ func (c *Connection) kernelResponse(
 	// If the user returned the error, fill in the error field of the outgoing
 	// message header.
 	if opErr != nil {
-		m.OutHeader().Error = -int32(syscall.EIO)
-		if errno, ok := opErr.(syscall.Errno); ok {
-			m.OutHeader().Error = -int32(errno)
+		handled := false
+
+		if opErr == syscall.ERANGE {
+			switch o := op.(type) {
+			case *fuseops.GetXattrOp:
+				writeXattrSize(m, uint32(o.BytesRead))
+				handled = true
+			case *fuseops.ListXattrOp:
+				writeXattrSize(m, uint32(o.BytesRead))
+				handled = true
+			}
 		}
 
-		// Special case: for some types, convertInMessage grew the message in order
-		// to obtain a destination buffer. Make sure that we shrink back to just
-		// the header, because on OS X the kernel otherwise returns EINVAL when we
-		// attempt to write an error response with a length that extends beyond the
-		// header.
-		m.ShrinkTo(buffer.OutMessageHeaderSize)
+		if !handled {
+			m.OutHeader().Error = -int32(syscall.EIO)
+			if errno, ok := opErr.(syscall.Errno); ok {
+				m.OutHeader().Error = -int32(errno)
+			}
+
+			// Special case: for some types, convertInMessage grew the message in order
+			// to obtain a destination buffer. Make sure that we shrink back to just
+			// the header, because on OS X the kernel otherwise returns EINVAL when we
+			// attempt to write an error response with a length that extends beyond the
+			// header.
+			m.ShrinkTo(buffer.OutMessageHeaderSize)
+		}
 	}
 
 	// Otherwise, fill in the rest of the response.
@@ -639,6 +709,23 @@ func (c *Connection) kernelResponseForOp(
 	case *fuseops.RemoveXattrOp:
 		// Empty response
 
+	case *fuseops.GetXattrOp:
+		// convertInMessage already set up the destination buffer to be at the end
+		// of the out message. We need only shrink to the right size based on how
+		// much the user read.
+		if o.BytesRead == 0 {
+			writeXattrSize(m, uint32(o.BytesRead))
+		} else {
+			m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
+		}
+
+	case *fuseops.ListXattrOp:
+		if o.BytesRead == 0 {
+			writeXattrSize(m, uint32(o.BytesRead))
+		} else {
+			m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
+		}
+
 	case *initOp:
 		out := (*fusekernel.InitOut)(m.Grow(int(unsafe.Sizeof(fusekernel.InitOut{}))))
 
@@ -759,4 +846,9 @@ func convertFileMode(unixMode uint32) os.FileMode {
 		mode |= os.ModeSetgid
 	}
 	return mode
+}
+
+func writeXattrSize(m *buffer.OutMessage, size uint32) {
+	out := (*fusekernel.GetxattrOut)(m.Grow(int(unsafe.Sizeof(fusekernel.GetxattrOut{}))))
+	out.Size = size
 }
