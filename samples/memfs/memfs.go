@@ -305,28 +305,37 @@ func (fs *memFS) MkDir(
 	return
 }
 
-func (fs *memFS) CreateFile(
+func (fs *memFS) MkNode(
 	ctx context.Context,
-	op *fuseops.CreateFileOp) (err error) {
+	op *fuseops.MkNodeOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
+	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode)
+	return
+}
+
+// LOCKS_REQUIRED(fs.mu)
+func (fs *memFS) createFile(
+	parentID fuseops.InodeID,
+	name string,
+	mode os.FileMode) (entry fuseops.ChildInodeEntry, err error) {
 	// Grab the parent, which we will update shortly.
-	parent := fs.getInodeOrDie(op.Parent)
+	parent := fs.getInodeOrDie(parentID)
 
 	// Ensure that the name doesn't already exist, so we don't wind up with a
 	// duplicate.
-	_, _, exists := parent.LookUpChild(op.Name)
+	_, _, exists := parent.LookUpChild(name)
 	if exists {
 		err = fuse.EEXIST
 		return
 	}
 
-	// Set up attributes from the child.
+	// Set up attributes for the child.
 	now := time.Now()
 	childAttrs := fuseops.InodeAttributes{
 		Nlink:  1,
-		Mode:   op.Mode,
+		Mode:   mode,
 		Atime:  now,
 		Mtime:  now,
 		Ctime:  now,
@@ -339,19 +348,27 @@ func (fs *memFS) CreateFile(
 	childID, child := fs.allocateInode(childAttrs)
 
 	// Add an entry in the parent.
-	parent.AddChild(childID, op.Name, fuseutil.DT_File)
+	parent.AddChild(childID, name, fuseutil.DT_File)
 
 	// Fill in the response entry.
-	op.Entry.Child = childID
-	op.Entry.Attributes = child.attrs
+	entry.Child = childID
+	entry.Attributes = child.attrs
 
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
-	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
-	op.Entry.EntryExpiration = op.Entry.EntryExpiration
+	entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
+	entry.EntryExpiration = entry.AttributesExpiration
 
-	// We have nothing interesting to put in the Handle field.
+	return
+}
 
+func (fs *memFS) CreateFile(
+	ctx context.Context,
+	op *fuseops.CreateFileOp) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode)
 	return
 }
 
