@@ -1640,7 +1640,7 @@ func (t *MknodTest) File() {
 	p := path.Join(t.Dir, "foo")
 
 	// Create
-	err = syscall.Mknod(p, syscall.S_IFREG|0642, 0)
+	err = syscall.Mknod(p, syscall.S_IFREG|0641, 0)
 	AssertEq(nil, err)
 
 	// Stat
@@ -1649,7 +1649,7 @@ func (t *MknodTest) File() {
 
 	ExpectEq(path.Base(p), fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(os.FileMode(0642), fi.Mode())
+	ExpectEq(os.FileMode(0641), fi.Mode())
 
 	// Read
 	contents, err := ioutil.ReadFile(p)
