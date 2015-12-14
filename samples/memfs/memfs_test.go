@@ -1637,10 +1637,10 @@ func (t *MknodTest) File() {
 	}
 
 	var err error
-	p := path.Join(t.mfs.Dir(), "foo")
+	p := path.Join(t.Dir, "foo")
 
 	// Create
-	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
+	err = syscall.Mknod(p, syscall.S_IFREG|0642, 0)
 	AssertEq(nil, err)
 
 	// Stat
@@ -1649,7 +1649,7 @@ func (t *MknodTest) File() {
 
 	ExpectEq(path.Base(p), fi.Name())
 	ExpectEq(0, fi.Size())
-	ExpectEq(filePerms, fi.Mode())
+	ExpectEq(os.FileMode(0642), fi.Mode())
 
 	// Read
 	contents, err := ioutil.ReadFile(p)
@@ -1664,7 +1664,7 @@ func (t *MknodTest) Directory() {
 	}
 
 	var err error
-	p := path.Join(t.mfs.Dir(), "foo")
+	p := path.Join(t.Dir, "foo")
 
 	// Quoth `man 2 mknod`: "Under Linux, this call cannot be used to create
 	// directories."
@@ -1679,7 +1679,7 @@ func (t *MknodTest) AlreadyExists() {
 	}
 
 	var err error
-	p := path.Join(t.mfs.Dir(), "foo")
+	p := path.Join(t.Dir, "foo")
 
 	// Create (first)
 	err = ioutil.WriteFile(p, []byte("taco"), 0600)
@@ -1702,7 +1702,7 @@ func (t *MknodTest) NonExistentParent() {
 	}
 
 	var err error
-	p := path.Join(t.mfs.Dir(), "foo/bar")
+	p := path.Join(t.Dir, "foo/bar")
 
 	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
 	ExpectEq(syscall.ENOENT, err)
