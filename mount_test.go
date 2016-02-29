@@ -3,6 +3,8 @@ package fuse_test
 import (
 	"io/ioutil"
 	"os"
+	"path"
+	"strings"
 	"testing"
 
 	"golang.org/x/net/context"
@@ -57,5 +59,29 @@ func TestSuccessfulMount(t *testing.T) {
 }
 
 func TestNonEmptyMountPoint(t *testing.T) {
-	t.Fatal("TODO")
+	// Set up a temporary directory.
+	dir, err := ioutil.TempDir("", "mount_test")
+	if err != nil {
+		t.Fatal("ioutil.TempDir: %v", err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	// Add a file within it.
+	err = ioutil.WriteFile(path.Join(dir, "foo"), []byte{}, 0600)
+	if err != nil {
+		t.Fatalf("ioutil.WriteFile: %v", err)
+	}
+
+	// Attempt to mount.
+	fs := &minimalFS{}
+	_, err = fuse.Mount(
+		dir,
+		fuseutil.NewFileSystemServer(fs),
+		&fuse.MountConfig{})
+
+	const want = "not empty"
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("Unexpected error: %v", err)
+	}
 }
