@@ -65,7 +65,7 @@ func TestSuccessfulMount(t *testing.T) {
 	defer fuse.Unmount(mfs.Dir())
 }
 
-func TestNonEmptyMountPoint(t *testing.T) {
+func TestNonexistentMountPoint(t *testing.T) {
 	ctx := context.Background()
 
 	// Set up a temporary directory.
@@ -76,16 +76,10 @@ func TestNonEmptyMountPoint(t *testing.T) {
 
 	defer os.RemoveAll(dir)
 
-	// Add a file within it.
-	err = ioutil.WriteFile(path.Join(dir, "foo"), []byte{}, 0600)
-	if err != nil {
-		t.Fatalf("ioutil.WriteFile: %v", err)
-	}
-
-	// Attempt to mount.
+	// Attempt to mount into a sub-directory that doesn't exist.
 	fs := &minimalFS{}
 	mfs, err := fuse.Mount(
-		dir,
+		path.Join(dir, "foo"),
 		fuseutil.NewFileSystemServer(fs),
 		&fuse.MountConfig{})
 
@@ -95,7 +89,7 @@ func TestNonEmptyMountPoint(t *testing.T) {
 		t.Fatal("fuse.Mount returned nil")
 	}
 
-	const want = "not empty"
+	const want = "no such file"
 	if got := err.Error(); !strings.Contains(got, want) {
 		t.Errorf("Unexpected error: %v", got)
 	}
