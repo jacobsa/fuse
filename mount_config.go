@@ -135,14 +135,6 @@ type MountConfig struct {
 	// default name involving the string 'osxfuse' is used.
 	VolumeName string
 
-	// OS X only.
-	//
-	// OSXFUSELocations sets where to look for OSXFUSE files. The arguments are
-	// all the possible locations. The previous locations are replaced.
-	//
-	// Without this option, OSXFUSELocationV3 and OSXFUSELocationV2 are used.
-	OSXFUSELocations []OSXFUSEPaths
-
 	// Additional key=value options to pass unadulterated to the underlying mount
 	// command. See `man 8 mount`, the fuse documentation, etc. for
 	// system-specific information.
@@ -238,38 +230,3 @@ func (c *MountConfig) toOptionsString() string {
 
 	return strings.Join(components, ",")
 }
-
-// OSXFUSEPaths describes the paths used by an installed OSXFUSE version.
-// See OSXFUSELocationV3 for typical values.
-type OSXFUSEPaths struct {
-	// Prefix for the device file. At mount time, an incrementing number is
-	// suffixed until a free FUSE device is found.
-	DevicePrefix string
-
-	// Path of the load helper, used to load the kernel extension if no device
-	// files are found.
-	Load string
-
-	// Path of the mount helper, used for the actual mount operation.
-	Mount string
-
-	// Environment variable used to pass the path to the executable calling the
-	// mount helper.
-	DaemonVar string
-}
-
-// Default paths for OSXFUSE. See OSXFUSELocations.
-var (
-	OSXFUSELocationV3 = OSXFUSEPaths{
-		DevicePrefix: "/dev/osxfuse",
-		Load:         "/Library/Filesystems/osxfuse.fs/Contents/Resources/load_osxfuse",
-		Mount:        "/Library/Filesystems/osxfuse.fs/Contents/Resources/mount_osxfuse",
-		DaemonVar:    "MOUNT_OSXFUSE_DAEMON_PATH",
-	}
-	OSXFUSELocationV2 = OSXFUSEPaths{
-		DevicePrefix: "/dev/osxfuse",
-		Load:         "/Library/Filesystems/osxfusefs.fs/Support/load_osxfusefs",
-		Mount:        "/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs",
-		DaemonVar:    "MOUNT_FUSEFS_DAEMON_PATH",
-	}
-)
