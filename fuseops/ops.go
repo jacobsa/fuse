@@ -696,9 +696,10 @@ type SyncFileOp struct {
 //  *  On OS X, if a user modifies a mapped file via the mapping before
 //     closing the file with close(2), the WriteFileOps for the modifications
 //     may not be received before the FlushFileOp for the close(2) (cf.
-//     http://goo.gl/kVmNcx).
+//     https://github.com/osxfuse/osxfuse/issues/202). It appears that this may
+//     be fixed in osxfuse 3 (cf. https://goo.gl/rtvbko).
 //
-//  *  However, even on OS X you can arrange for writes via a mapping to be
+//  *  However, you safely can arrange for writes via a mapping to be
 //     flushed by calling msync(2) followed by close(2). On OS X msync(2)
 //     will cause a WriteFileOps to go through and close(2) will cause a
 //     FlushFile as usual (cf. http://goo.gl/kVmNcx). On Linux, msync(2) does
