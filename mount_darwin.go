@@ -20,9 +20,9 @@ var errNotLoaded = errors.New("osxfuse is not loaded")
 // not detected. Make sure OSXFUSE is installed.
 var errOSXFUSENotFound = errors.New("cannot locate OSXFUSE")
 
-// OSXFUSEPaths describes the paths used by an installed OSXFUSE version.
-// See OSXFUSELocationV3 for typical values.
-type OSXFUSEPaths struct {
+// osxfuseInstallation describes the paths used by an installed OSXFUSE
+// version.
+type osxfuseInstallation struct {
 	// Prefix for the device file. At mount time, an incrementing number is
 	// suffixed until a free FUSE device is found.
 	DevicePrefix string
@@ -40,7 +40,7 @@ type OSXFUSEPaths struct {
 }
 
 var (
-	osxfuseLocations = []OSXFUSEPaths{
+	osxfuseInstallations = []osxfuseInstallation{
 		// v3
 		{
 			DevicePrefix: "/dev/osxfuse",
@@ -174,7 +174,7 @@ func mount(
 	cfg *MountConfig,
 	ready chan<- error) (dev *os.File, err error) {
 	// Find the version of osxfuse installed on this machine.
-	for _, loc := range osxfuseLocations {
+	for _, loc := range osxfuseInstallations {
 		if _, err := os.Stat(loc.Mount); os.IsNotExist(err) {
 			// try the other locations
 			continue
