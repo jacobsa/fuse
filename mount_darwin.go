@@ -20,6 +20,45 @@ var errNotLoaded = errors.New("osxfuse is not loaded")
 // not detected. Make sure OSXFUSE is installed.
 var errOSXFUSENotFound = errors.New("cannot locate OSXFUSE")
 
+// OSXFUSEPaths describes the paths used by an installed OSXFUSE version.
+// See OSXFUSELocationV3 for typical values.
+type OSXFUSEPaths struct {
+	// Prefix for the device file. At mount time, an incrementing number is
+	// suffixed until a free FUSE device is found.
+	DevicePrefix string
+
+	// Path of the load helper, used to load the kernel extension if no device
+	// files are found.
+	Load string
+
+	// Path of the mount helper, used for the actual mount operation.
+	Mount string
+
+	// Environment variable used to pass the path to the executable calling the
+	// mount helper.
+	DaemonVar string
+}
+
+var (
+	osxfuseLocations = []OSXFUSEPaths{
+		// v3
+		{
+			DevicePrefix: "/dev/osxfuse",
+			Load:         "/Library/Filesystems/osxfuse.fs/Contents/Resources/load_osxfuse",
+			Mount:        "/Library/Filesystems/osxfuse.fs/Contents/Resources/mount_osxfuse",
+			DaemonVar:    "MOUNT_OSXFUSE_DAEMON_PATH",
+		},
+
+		// v2
+		{
+			DevicePrefix: "/dev/osxfuse",
+			Load:         "/Library/Filesystems/osxfusefs.fs/Support/load_osxfusefs",
+			Mount:        "/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs",
+			DaemonVar:    "MOUNT_FUSEFS_DAEMON_PATH",
+		},
+	}
+)
+
 func loadOSXFUSE(bin string) error {
 	cmd := exec.Command(bin)
 	cmd.Dir = "/"
