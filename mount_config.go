@@ -135,14 +135,6 @@ type MountConfig struct {
 	// default name involving the string 'osxfuse' is used.
 	VolumeName string
 
-	// OS X only.
-	//
-	// OSXFUSELocations sets where to look for OSXFUSE files. The arguments are
-	// all the possible locations. The previous locations are replaced.
-	//
-	// Without this option, OSXFUSELocationV3 and OSXFUSELocationV2 are used.
-	OSXFUSELocations []OSXFUSEPaths
-
 	// Additional key=value options to pass unadulterated to the underlying mount
 	// command. See `man 8 mount`, the fuse documentation, etc. for
 	// system-specific information.
@@ -258,18 +250,22 @@ type OSXFUSEPaths struct {
 	DaemonVar string
 }
 
-// Default paths for OSXFUSE. See OSXFUSELocations.
 var (
-	OSXFUSELocationV3 = OSXFUSEPaths{
-		DevicePrefix: "/dev/osxfuse",
-		Load:         "/Library/Filesystems/osxfuse.fs/Contents/Resources/load_osxfuse",
-		Mount:        "/Library/Filesystems/osxfuse.fs/Contents/Resources/mount_osxfuse",
-		DaemonVar:    "MOUNT_OSXFUSE_DAEMON_PATH",
-	}
-	OSXFUSELocationV2 = OSXFUSEPaths{
-		DevicePrefix: "/dev/osxfuse",
-		Load:         "/Library/Filesystems/osxfusefs.fs/Support/load_osxfusefs",
-		Mount:        "/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs",
-		DaemonVar:    "MOUNT_FUSEFS_DAEMON_PATH",
+	osxfuseLocations = []OSXFUSEPaths{
+		// v3
+		{
+			DevicePrefix: "/dev/osxfuse",
+			Load:         "/Library/Filesystems/osxfuse.fs/Contents/Resources/load_osxfuse",
+			Mount:        "/Library/Filesystems/osxfuse.fs/Contents/Resources/mount_osxfuse",
+			DaemonVar:    "MOUNT_OSXFUSE_DAEMON_PATH",
+		},
+
+		// v2
+		{
+			DevicePrefix: "/dev/osxfuse",
+			Load:         "/Library/Filesystems/osxfusefs.fs/Support/load_osxfusefs",
+			Mount:        "/Library/Filesystems/osxfusefs.fs/Support/mount_osxfusefs",
+			DaemonVar:    "MOUNT_FUSEFS_DAEMON_PATH",
+		},
 	}
 )

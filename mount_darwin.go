@@ -17,9 +17,7 @@ var errNoAvail = errors.New("no available fuse devices")
 var errNotLoaded = errors.New("osxfuse is not loaded")
 
 // errOSXFUSENotFound is returned from Mount when the OSXFUSE installation is
-// not detected.
-//
-// Make sure OSXFUSE is installed, or see OSXFUSELocations for customization.
+// not detected. Make sure OSXFUSE is installed.
 var errOSXFUSENotFound = errors.New("cannot locate OSXFUSE")
 
 func loadOSXFUSE(bin string) error {
@@ -136,16 +134,8 @@ func mount(
 	dir string,
 	cfg *MountConfig,
 	ready chan<- error) (dev *os.File, err error) {
-	// get OSXFUSE locations
-	locations := cfg.OSXFUSELocations
-	if locations == nil {
-		locations = []OSXFUSEPaths{
-			OSXFUSELocationV3,
-			OSXFUSELocationV2,
-		}
-	}
-
-	for _, loc := range locations {
+	// Find the version of osxfuse installed on this machine.
+	for _, loc := range osxfuseLocations {
 		if _, err := os.Stat(loc.Mount); os.IsNotExist(err) {
 			// try the other locations
 			continue
