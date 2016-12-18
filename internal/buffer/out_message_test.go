@@ -60,18 +60,16 @@ func TestMemclr(t *testing.T) {
 func BenchmarkOutMessageReset(b *testing.B) {
 	// A single buffer, which should fit in some level of CPU cache.
 	b.Run("Single buffer", func(b *testing.B) {
-		b.SetBytes(int64(unsafe.Sizeof(OutMessage{})))
-
 		var om OutMessage
 		for i := 0; i < b.N; i++ {
 			om.Reset()
 		}
+
+		b.SetBytes(int64(om.offset))
 	})
 
 	// Many megabytes worth of buffers, which should defeat the CPU cache.
 	b.Run("Many buffers", func(b *testing.B) {
-		b.SetBytes(int64(unsafe.Sizeof(OutMessage{})))
-
 		// The number of messages; intentionally a power of two.
 		const numMessages = 128
 
@@ -83,5 +81,7 @@ func BenchmarkOutMessageReset(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			oms[i%numMessages].Reset()
 		}
+
+		b.SetBytes(int64(oms[0].offset))
 	})
 }
