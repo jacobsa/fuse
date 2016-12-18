@@ -4,14 +4,45 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"reflect"
 	"testing"
 	"unsafe"
 )
+
+func toByteSlice(p unsafe.Pointer, n int) []byte {
+	sh := reflect.SliceHeader{
+		Data: uintptr(p),
+		Len:  n,
+		Cap:  n,
+	}
+
+	return *(*[]byte)(unsafe.Pointer(&sh))
+}
+
+// fillWithGarbage writes random data to [p, p+n).
+func fillWithGarbage(p unsafe.Pointer, n int) (err error) {
+	b := toByteSlice(p, n)
+	_, err = io.ReadFull(rand.Reader, b)
+	return
+}
 
 func randBytes(n int) (b []byte, err error) {
 	b = make([]byte, n)
 	_, err = io.ReadFull(rand.Reader, b)
 	return
+}
+
+// findNonZero finds the offset of the first non-zero byte in [p, p+n). If
+// none, it returns n.
+func findNonZero(p unsafe.Pointer, n int) int {
+	b := toByteSlice(p, n)
+	for i, x := range b {
+		if x != 0 {
+			return i
+		}
+	}
+
+	return n
 }
 
 func TestMemclr(t *testing.T) {
@@ -48,12 +79,33 @@ func TestMemclr(t *testing.T) {
 			memclr(p, uintptr(len(b)))
 
 			// Check
-			for i, x := range b {
-				if x != 0 {
-					t.Fatalf("non-zero byte %d at offset %d", x, i)
-				}
+			if i := findNonZero(p, len(b)); i != len(b) {
+				t.Fatalf("non-zero byte at offset %d", i)
 			}
 		})
+	}
+}
+
+func TestOutMessageReset(t *testing.T) {
+	var om OutMessage
+	h := om.OutHeader()
+
+	const trials = 100
+	for i := 0; i < trials; i++ {
+		fillWithGarbage(unsafe.Pointer(h), int(unsafe.Sizeof(*h)))
+
+		om.Reset()
+		if h.Len != 0 {
+			t.Fatalf("non-zero Len %v", h.Len)
+		}
+
+		if h.Error != 0 {
+			t.Fatalf("non-zero Error %v", h.Error)
+		}
+
+		if h.Unique != 0 {
+			t.Fatalf("non-zero Unique %v", h.Unique)
+		}
 	}
 }
 
