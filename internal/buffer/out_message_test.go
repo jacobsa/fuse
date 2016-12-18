@@ -92,7 +92,10 @@ func TestOutMessageReset(t *testing.T) {
 
 	const trials = 100
 	for i := 0; i < trials; i++ {
-		fillWithGarbage(unsafe.Pointer(h), int(unsafe.Sizeof(*h)))
+		err := fillWithGarbage(unsafe.Pointer(h), int(unsafe.Sizeof(*h)))
+		if err != nil {
+			t.Fatalf("fillWithGarbage: %v", err)
+		}
 
 		om.Reset()
 		if h.Len != 0 {
@@ -105,6 +108,32 @@ func TestOutMessageReset(t *testing.T) {
 
 		if h.Unique != 0 {
 			t.Fatalf("non-zero Unique %v", h.Unique)
+		}
+	}
+}
+
+func TestOutMessageGrow(t *testing.T) {
+	var om OutMessage
+
+	// Overwrite with garbage.
+	err := fillWithGarbage(unsafe.Pointer(&om), int(unsafe.Sizeof(om)))
+	if err != nil {
+		t.Fatalf("fillWithGarbage: %v", err)
+	}
+
+	// Zero the header.
+	om.Reset()
+
+	// Grow to the max size. This should zero the message.
+	if p := om.Grow(MaxReadSize); p == nil {
+		t.Fatal("Grow returned nil")
+	}
+
+	// Check that everything has been zeroed.
+	b := om.Bytes()
+	for i, x := range b {
+		if x != 0 {
+			t.Fatalf("non-zero byte 0x%02x at offset %d", x, i)
 		}
 	}
 }
