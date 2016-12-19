@@ -33,16 +33,34 @@ const OutMessageHeaderSize = unsafe.Sizeof(fusekernel.OutHeader{})
 //
 // Must be initialized with Reset.
 type OutMessage struct {
+	// The offset into payload to which we're currently writing.
+	payloadOffset int
+
+	header  [OutMessageHeaderSize]byte
+	payload [MaxReadSize]byte
 }
 
-// Make sure alignment works out correctly, at least for the header.
+// Make sure that the header field is aligned correctly for
+// fusekernel.OutHeader type punning.
 func init() {
 	a := unsafe.Alignof(OutMessage{})
-	o := unsafe.Offsetof(OutMessage{}.storage)
+	o := unsafe.Offsetof(OutMessage{}.header)
 	e := unsafe.Alignof(fusekernel.OutHeader{})
 
 	if a%e != 0 || o%e != 0 {
 		log.Panicf("Bad alignment or offset: %d, %d, need %d", a, o, e)
+	}
+}
+
+// Make sure that the header and payload are contiguous.
+func init() {
+	a := unsafe.Offsetof(OutMessage{}.header) + OutMessageHeaderSize
+	b := unsafe.Offsetof(OutMessage{}.payload)
+
+	if a != b {
+		log.Panicf(
+			"header ends at offset %d, but payload starts at offset %d",
+			a, b)
 	}
 }
 
