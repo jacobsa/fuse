@@ -149,7 +149,34 @@ func TestOutMessageAppendString(t *testing.T) {
 }
 
 func TestOutMessageShrinkTo(t *testing.T) {
-	t.Fatal("TODO")
+	// Set up a buffer with some payload.
+	var om OutMessage
+	om.Reset()
+	om.AppendString("taco")
+	om.AppendString("burrito")
+
+	// Shrink it.
+	om.ShrinkTo(OutMessageInitialSize + uintptr(len("taco")))
+
+	// The result should be a zeroed header followed by "taco".
+	const wantLen = int(OutMessageInitialSize) + len("taco")
+
+	if got, want := om.Len(), wantLen; got != want {
+		t.Errorf("om.Len() = %d, want %d", got, want)
+	}
+
+	b := om.Bytes()
+	if got, want := len(b), wantLen; got != want {
+		t.Fatalf("len(om.Bytes()) = %d, want %d", got, want)
+	}
+
+	want := append(
+		make([]byte, OutMessageInitialSize),
+		"taco"...)
+
+	if !bytes.Equal(b, want) {
+		t.Error("messages differ")
+	}
 }
 
 func TestOutMessageHeader(t *testing.T) {
