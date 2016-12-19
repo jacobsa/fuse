@@ -1,6 +1,7 @@
 package buffer
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"io"
@@ -87,7 +88,34 @@ func TestMemclr(t *testing.T) {
 }
 
 func TestOutMessageAppend(t *testing.T) {
-	t.Fatal("TODO")
+	var om OutMessage
+	om.Reset()
+
+	// Append some payload.
+	const wantPayloadStr = "tacoburrito"
+	wantPayload := []byte(wantPayloadStr)
+	om.Append(wantPayload[:4])
+	om.Append(wantPayload[4:])
+
+	// The result should be a zeroed header followed by the desired payload.
+	const wantLen = int(OutMessageInitialSize) + len(wantPayloadStr)
+
+	if got, want := om.Len(), wantLen; got != want {
+		t.Errorf("om.Len() = %d, want %d", got, want)
+	}
+
+	b := om.Bytes()
+	if got, want := len(b), wantLen; got != want {
+		t.Fatalf("len(om.Bytes()) = %d, want %d", got, want)
+	}
+
+	want := append(
+		make([]byte, OutMessageInitialSize),
+		wantPayload...)
+
+	if !bytes.Equal(b, want) {
+		t.Error("messages differ")
+	}
 }
 
 func TestOutMessageAppendString(t *testing.T) {
