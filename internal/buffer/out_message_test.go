@@ -144,26 +144,44 @@ func TestOutMessageReset(t *testing.T) {
 
 func TestOutMessageGrow(t *testing.T) {
 	var om OutMessage
-
-	// Overwrite with garbage.
-	err := fillWithGarbage(unsafe.Pointer(&om), int(unsafe.Sizeof(om)))
-	if err != nil {
-		t.Fatalf("fillWithGarbage: %v", err)
-	}
-
-	// Zero the header.
 	om.Reset()
 
-	// Grow to the max size. This should zero the message.
-	if p := om.Grow(MaxReadSize); p == nil {
-		t.Fatal("Grow returned nil")
+	// Set up garbage where the payload will soon be.
+	const payloadSize = 1234
+	{
+		p := om.GrowNoZero(payloadSize)
+		if p == nil {
+			t.Fatal("GrowNoZero failed")
+		}
+
+		err := fillWithGarbage(p, payloadSize)
+		if err != nil {
+			t.Fatalf("fillWithGarbage: %v", err)
+		}
+
+		om.ShrinkTo(OutMessageInitialSize)
 	}
 
-	// Check that everything has been zeroed.
+	// Call Grow.
+	if p := om.Grow(payloadSize); p == nil {
+		t.Fatal("Grow failed")
+	}
+
+	// Check the resulting length in two ways.
+	const wantLen = int(payloadSize + OutMessageInitialSize)
+	if got, want := om.Len(), wantLen; got != want {
+		t.Errorf("om.Len() = %d, want %d", got)
+	}
+
 	b := om.Bytes()
-	for i, x := range b {
+	if got, want := len(b), wantLen; got != want {
+		t.Fatalf("len(om.Len()) = %d, want %d", got)
+	}
+
+	// Check that the payload was zeroed.
+	for i, x := range b[OutMessageInitialSize:] {
 		if x != 0 {
-			t.Fatalf("non-zero byte 0x%02x at offset %d", x, i)
+			t.Fatalf("non-zero byte 0x%02x at payload offset %d", x, i)
 		}
 	}
 }
