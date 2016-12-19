@@ -101,7 +101,7 @@ func TestOutMessageAppend(t *testing.T) {
 	om.Append(wantPayload[4:])
 
 	// The result should be a zeroed header followed by the desired payload.
-	const wantLen = int(OutMessageInitialSize) + len(wantPayloadStr)
+	const wantLen = OutMessageHeaderSize + len(wantPayloadStr)
 
 	if got, want := om.Len(), wantLen; got != want {
 		t.Errorf("om.Len() = %d, want %d", got, want)
@@ -113,7 +113,7 @@ func TestOutMessageAppend(t *testing.T) {
 	}
 
 	want := append(
-		make([]byte, OutMessageInitialSize),
+		make([]byte, OutMessageHeaderSize),
 		wantPayload...)
 
 	if !bytes.Equal(b, want) {
@@ -131,7 +131,7 @@ func TestOutMessageAppendString(t *testing.T) {
 	om.AppendString(wantPayload[4:])
 
 	// The result should be a zeroed header followed by the desired payload.
-	const wantLen = int(OutMessageInitialSize) + len(wantPayload)
+	const wantLen = OutMessageHeaderSize + len(wantPayload)
 
 	if got, want := om.Len(), wantLen; got != want {
 		t.Errorf("om.Len() = %d, want %d", got, want)
@@ -143,7 +143,7 @@ func TestOutMessageAppendString(t *testing.T) {
 	}
 
 	want := append(
-		make([]byte, OutMessageInitialSize),
+		make([]byte, OutMessageHeaderSize),
 		wantPayload...)
 
 	if !bytes.Equal(b, want) {
@@ -159,10 +159,10 @@ func TestOutMessageShrinkTo(t *testing.T) {
 	om.AppendString("burrito")
 
 	// Shrink it.
-	om.ShrinkTo(OutMessageInitialSize + uintptr(len("taco")))
+	om.ShrinkTo(OutMessageHeaderSize + len("taco"))
 
 	// The result should be a zeroed header followed by "taco".
-	const wantLen = int(OutMessageInitialSize) + len("taco")
+	const wantLen = OutMessageHeaderSize + len("taco")
 
 	if got, want := om.Len(), wantLen; got != want {
 		t.Errorf("om.Len() = %d, want %d", got, want)
@@ -174,7 +174,7 @@ func TestOutMessageShrinkTo(t *testing.T) {
 	}
 
 	want := append(
-		make([]byte, OutMessageInitialSize),
+		make([]byte, OutMessageHeaderSize),
 		"taco"...)
 
 	if !bytes.Equal(b, want) {
@@ -233,7 +233,7 @@ func TestOutMessageReset(t *testing.T) {
 		om.Reset()
 
 		// Check that the length was updated.
-		if got, want := int(om.Len()), int(OutMessageInitialSize); got != want {
+		if got, want := om.Len(), OutMessageHeaderSize; got != want {
 			t.Fatalf("om.Len() = %d, want %d", got, want)
 		}
 
@@ -269,7 +269,7 @@ func TestOutMessageGrow(t *testing.T) {
 			t.Fatalf("fillWithGarbage: %v", err)
 		}
 
-		om.ShrinkTo(OutMessageInitialSize)
+		om.ShrinkTo(OutMessageHeaderSize)
 	}
 
 	// Call Grow.
@@ -278,7 +278,7 @@ func TestOutMessageGrow(t *testing.T) {
 	}
 
 	// Check the resulting length in two ways.
-	const wantLen = int(payloadSize + OutMessageInitialSize)
+	const wantLen = payloadSize + OutMessageHeaderSize
 	if got, want := om.Len(), wantLen; got != want {
 		t.Errorf("om.Len() = %d, want %d", got)
 	}
@@ -289,7 +289,7 @@ func TestOutMessageGrow(t *testing.T) {
 	}
 
 	// Check that the payload was zeroed.
-	for i, x := range b[OutMessageInitialSize:] {
+	for i, x := range b[OutMessageHeaderSize:] {
 		if x != 0 {
 			t.Fatalf("non-zero byte 0x%02x at payload offset %d", x, i)
 		}
@@ -331,7 +331,7 @@ func BenchmarkOutMessageGrowShrink(b *testing.B) {
 		var om OutMessage
 		for i := 0; i < b.N; i++ {
 			om.Grow(MaxReadSize)
-			om.ShrinkTo(OutMessageInitialSize)
+			om.ShrinkTo(OutMessageHeaderSize)
 		}
 
 		b.SetBytes(int64(MaxReadSize))
@@ -349,7 +349,7 @@ func BenchmarkOutMessageGrowShrink(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			oms[i%numMessages].Grow(MaxReadSize)
-			oms[i%numMessages].ShrinkTo(OutMessageInitialSize)
+			oms[i%numMessages].ShrinkTo(OutMessageHeaderSize)
 		}
 
 		b.SetBytes(int64(MaxReadSize))
