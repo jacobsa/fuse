@@ -86,6 +86,22 @@ func TestMemclr(t *testing.T) {
 	}
 }
 
+func TestOutMessageAppend(t *testing.T) {
+	t.Fatal("TODO")
+}
+
+func TestOutMessageAppendString(t *testing.T) {
+	t.Fatal("TODO")
+}
+
+func TestOutMessageShrinkTo(t *testing.T) {
+	t.Fatal("TODO")
+}
+
+func TestOutMessageHeader(t *testing.T) {
+	t.Fatal("TODO")
+}
+
 func TestOutMessageReset(t *testing.T) {
 	var om OutMessage
 	h := om.OutHeader()
