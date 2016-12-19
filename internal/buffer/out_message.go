@@ -77,20 +77,20 @@ func (m *OutMessage) OutHeader() (h *fusekernel.OutHeader)
 // Grow grows m's buffer by the given number of bytes, returning a pointer to
 // the start of the new segment, which is guaranteed to be zeroed. If there is
 // insufficient space, it returns nil.
-func (b *OutMessage) Grow(n int) (p unsafe.Pointer)
+func (m *OutMessage) Grow(n int) (p unsafe.Pointer)
 
 // GrowNoZero is equivalent to Grow, except the new segment is not zeroed. Use
 // with caution!
-func (b *OutMessage) GrowNoZero(n int) (p unsafe.Pointer)
+func (m *OutMessage) GrowNoZero(n int) (p unsafe.Pointer)
 
 // ShrinkTo shrinks m to the given size. It panics if the size is greater than
 // Len() or less than OutMessageHeaderSize.
-func (b *OutMessage) ShrinkTo(n int)
+func (m *OutMessage) ShrinkTo(n int)
 
 // Append is equivalent to growing by len(src), then copying src over the new
 // segment. Int panics if there is not enough room available.
-func (b *OutMessage) Append(src []byte) {
-	p := b.GrowNoZero(len(src))
+func (m *OutMessage) Append(src []byte) {
+	p := m.GrowNoZero(len(src))
 	if p == nil {
 		panic(fmt.Sprintf("Can't grow %d bytes", len(src)))
 	}
@@ -102,8 +102,8 @@ func (b *OutMessage) Append(src []byte) {
 }
 
 // AppendString is like Append, but accepts string input.
-func (b *OutMessage) AppendString(src string) {
-	p := b.GrowNoZero(len(src))
+func (m *OutMessage) AppendString(src string) {
+	p := m.GrowNoZero(len(src))
 	if p == nil {
 		panic(fmt.Sprintf("Can't grow %d bytes", len(src)))
 	}
@@ -115,12 +115,12 @@ func (b *OutMessage) AppendString(src string) {
 }
 
 // Len returns the current size of the message, including the leading header.
-func (b *OutMessage) Len() int {
-	return int(b.offset)
+func (m *OutMessage) Len() int {
+	return OutMessageHeaderSize + m.payloadOffset
 }
 
 // Bytes returns a reference to the current contents of the buffer, including
 // the leading header.
-func (b *OutMessage) Bytes() []byte {
-	return b.storage[:int(b.offset)]
+func (m *OutMessage) Bytes() []byte {
+	return int(m.offset)
 }
