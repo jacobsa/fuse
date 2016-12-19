@@ -8,6 +8,9 @@ import (
 	"reflect"
 	"testing"
 	"unsafe"
+
+	"github.com/jacobsa/fuse/internal/fusekernel"
+	"github.com/kylelemons/godebug/pretty"
 )
 
 func toByteSlice(p unsafe.Pointer, n int) []byte {
@@ -180,7 +183,33 @@ func TestOutMessageShrinkTo(t *testing.T) {
 }
 
 func TestOutMessageHeader(t *testing.T) {
-	t.Fatal("TODO")
+	var om OutMessage
+	om.Reset()
+
+	// Fill in the header.
+	want := fusekernel.OutHeader{
+		Len:    0xdeadbeef,
+		Error:  -31231917,
+		Unique: 0xcafebabeba5eba11,
+	}
+
+	h := om.OutHeader()
+	if h == nil {
+		t.Fatal("OutHeader returned nil")
+	}
+
+	*h = want
+
+	// Check that the result is as expected.
+	b := om.Bytes()
+	if len(b) != int(unsafe.Sizeof(want)) {
+		t.Fatalf("unexpected length %d; want %d", len(b), unsafe.Sizeof(want))
+	}
+
+	got := *(*fusekernel.OutHeader)(unsafe.Pointer(&b[0]))
+	if diff := pretty.Compare(got, want); diff != "" {
+		t.Errorf("diff -got +want:\n%s", diff)
+	}
 }
 
 func TestOutMessageReset(t *testing.T) {
