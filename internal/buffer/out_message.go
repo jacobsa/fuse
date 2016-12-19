@@ -103,7 +103,16 @@ func (m *OutMessage) GrowNoZero(n int) (p unsafe.Pointer) {
 
 // ShrinkTo shrinks m to the given size. It panics if the size is greater than
 // Len() or less than OutMessageHeaderSize.
-func (m *OutMessage) ShrinkTo(n int)
+func (m *OutMessage) ShrinkTo(n int) {
+	if n < OutMessageHeaderSize || n > m.Len() {
+		panic(fmt.Sprintf(
+			"ShrinkTo(%d) out of range (current Len: %d)",
+			n,
+			m.Len()))
+	}
+
+	m.payloadOffset = n - OutMessageHeaderSize
+}
 
 // Append is equivalent to growing by len(src), then copying src over the new
 // segment. Int panics if there is not enough room available.
