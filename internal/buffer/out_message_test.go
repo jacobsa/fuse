@@ -106,14 +106,28 @@ func TestOutMessageReset(t *testing.T) {
 	var om OutMessage
 	h := om.OutHeader()
 
-	const trials = 100
+	const trials = 10
 	for i := 0; i < trials; i++ {
+		// Fill the header with garbage.
 		err := fillWithGarbage(unsafe.Pointer(h), int(unsafe.Sizeof(*h)))
 		if err != nil {
 			t.Fatalf("fillWithGarbage: %v", err)
 		}
 
+		// Ensure a non-zero payload length.
+		if p := om.GrowNoZero(128); p == nil {
+			t.Fatal("GrowNoZero failed")
+		}
+
+		// Reset.
 		om.Reset()
+
+		// Check that the length was updated.
+		if got, want := int(om.Len()), int(OutMessageInitialSize); got != want {
+			t.Fatalf("om.Len() = %d, want %d", got, want)
+		}
+
+		// Check that the header was zeroed.
 		if h.Len != 0 {
 			t.Fatalf("non-zero Len %v", h.Len)
 		}
