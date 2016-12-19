@@ -81,7 +81,18 @@ func (m *OutMessage) Grow(n int) (p unsafe.Pointer)
 
 // GrowNoZero is equivalent to Grow, except the new segment is not zeroed. Use
 // with caution!
-func (m *OutMessage) GrowNoZero(n int) (p unsafe.Pointer)
+func (m *OutMessage) GrowNoZero(n int) (p unsafe.Pointer) {
+	// Will we overflow the buffer?
+	o := m.payloadOffset
+	if len(m.payload)-o < n {
+		return
+	}
+
+	p = unsafe.Pointer(uintptr(unsafe.Pointer(&m.payload)) + uintptr(o))
+	m.payloadOffset = o + n
+
+	return
+}
 
 // ShrinkTo shrinks m to the given size. It panics if the size is greater than
 // Len() or less than OutMessageHeaderSize.
