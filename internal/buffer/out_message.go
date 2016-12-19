@@ -25,7 +25,7 @@ import (
 
 // OutMessageHeaderSize is the size of the leading header in every
 // properly-constructed OutMessage. Reset brings the message back to this size.
-const OutMessageHeaderSize = unsafe.Sizeof(fusekernel.OutHeader{})
+const OutMessageHeaderSize = int(unsafe.Sizeof(fusekernel.OutHeader{}))
 
 // OutMessage provides a mechanism for constructing a single contiguous fuse
 // message from multiple segments, where the first segment is always a
@@ -54,7 +54,7 @@ func init() {
 
 // Make sure that the header and payload are contiguous.
 func init() {
-	a := unsafe.Offsetof(OutMessage{}.header) + OutMessageHeaderSize
+	a := unsafe.Offsetof(OutMessage{}.header) + uintptr(OutMessageHeaderSize)
 	b := unsafe.Offsetof(OutMessage{}.payload)
 
 	if a != b {
@@ -68,7 +68,7 @@ func init() {
 // are solely a zeroed fusekernel.OutHeader struct.
 func (m *OutMessage) Reset() {
 	m.payloadOffset = 0
-	memclr(unsafe.Pointer(&m.header), OutMessageHeaderSize)
+	memclr(unsafe.Pointer(&m.header), uintptr(OutMessageHeaderSize))
 }
 
 // OutHeader returns a pointer to the header at the start of the message.
@@ -122,5 +122,12 @@ func (m *OutMessage) Len() int {
 // Bytes returns a reference to the current contents of the buffer, including
 // the leading header.
 func (m *OutMessage) Bytes() []byte {
-	return int(m.offset)
+	l := m.Len()
+	sh := reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(&m.header)),
+		Len:  l,
+		Cap:  l,
+	}
+
+	return *(*[]byte)(unsafe.Pointer(&sh))
 }
