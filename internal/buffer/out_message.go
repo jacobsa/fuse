@@ -72,7 +72,9 @@ func (m *OutMessage) Reset() {
 }
 
 // OutHeader returns a pointer to the header at the start of the message.
-func (m *OutMessage) OutHeader() (h *fusekernel.OutHeader)
+func (m *OutMessage) OutHeader() *fusekernel.OutHeader {
+	return (*fusekernel.OutHeader)(unsafe.Pointer(&m.header))
+}
 
 // Grow grows m's buffer by the given number of bytes, returning a pointer to
 // the start of the new segment, which is guaranteed to be zeroed. If there is
