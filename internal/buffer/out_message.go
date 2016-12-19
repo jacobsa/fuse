@@ -77,7 +77,14 @@ func (m *OutMessage) OutHeader() (h *fusekernel.OutHeader)
 // Grow grows m's buffer by the given number of bytes, returning a pointer to
 // the start of the new segment, which is guaranteed to be zeroed. If there is
 // insufficient space, it returns nil.
-func (m *OutMessage) Grow(n int) (p unsafe.Pointer)
+func (m *OutMessage) Grow(n int) (p unsafe.Pointer) {
+	p = m.GrowNoZero(n)
+	if p != nil {
+		memclr(p, uintptr(n))
+	}
+
+	return
+}
 
 // GrowNoZero is equivalent to Grow, except the new segment is not zeroed. Use
 // with caution!
