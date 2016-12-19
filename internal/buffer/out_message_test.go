@@ -304,7 +304,7 @@ func BenchmarkOutMessageReset(b *testing.B) {
 			om.Reset()
 		}
 
-		b.SetBytes(int64(unsafe.Offsetof(om.storage)) + int64(om.offset))
+		b.SetBytes(int64(unsafe.Offsetof(om.payload)))
 	})
 
 	// Many megabytes worth of buffers, which should defeat the CPU cache.
@@ -321,7 +321,7 @@ func BenchmarkOutMessageReset(b *testing.B) {
 			oms[i%numMessages].Reset()
 		}
 
-		b.SetBytes(int64(unsafe.Offsetof(oms[0].storage)) + int64(oms[0].offset))
+		b.SetBytes(int64(unsafe.Offsetof(oms[0].payload)))
 	})
 }
 
