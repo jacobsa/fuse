@@ -56,7 +56,7 @@ func init() {
 // are solely a zeroed fusekernel.OutHeader struct.
 func (m *OutMessage) Reset() {
 	m.payloadOffset = 0
-	memclr(unsafe.Pointer(&m.header), uintptr(OutMessageHeaderSize))
+	m.header = fusekernel.OutHeader{}
 }
 
 // OutHeader returns a pointer to the header at the start of the message.
