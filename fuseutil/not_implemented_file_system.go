@@ -204,5 +204,12 @@ func (fs *NotImplementedFileSystem) ListXattr(
 	return
 }
 
+func (fs *NotImplementedFileSystem) SetXattr(
+	ctx context.Context,
+	op *fuseops.SetXattrOp) (err error) {
+	err = fuse.ENOSYS
+	return
+}
+
 func (fs *NotImplementedFileSystem) Destroy() {
 }

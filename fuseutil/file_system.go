@@ -60,6 +60,7 @@ type FileSystem interface {
 	RemoveXattr(context.Context, *fuseops.RemoveXattrOp) error
 	GetXattr(context.Context, *fuseops.GetXattrOp) error
 	ListXattr(context.Context, *fuseops.ListXattrOp) error
+	SetXattr(context.Context, *fuseops.SetXattrOp) error
 
 	// Regard all inodes (including the root inode) as having their lookup counts
 	// decremented to zero, and clean up any resources associated with the file
@@ -198,6 +199,9 @@ func (s *fileSystemServer) handleOp(
 
 	case *fuseops.ListXattrOp:
 		err = s.fs.ListXattr(ctx, typed)
+
+	case *fuseops.SetXattrOp:
+		err = s.fs.SetXattr(ctx, typed)
 	}
 
 	c.Reply(ctx, err)

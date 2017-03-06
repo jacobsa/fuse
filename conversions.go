@@ -487,6 +487,35 @@ func convertInMessage(
 				return
 			}
 		}
+	case fusekernel.OpSetxattr:
+		type input fusekernel.SetxattrIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			err = errors.New("Corrupt OpSetxattr")
+			return
+		}
+
+		payload := inMsg.ConsumeBytes(inMsg.Len())
+		// payload should be "name\x00value"
+		if len(payload) < 3 {
+			err = errors.New("Corrupt OpSetxattr")
+			return
+		}
+		i := bytes.IndexByte(payload, '\x00')
+		if i < 0 {
+			err = errors.New("Corrupt OpSetxattr")
+			return
+		}
+
+		name, value := payload[:i], payload[i+1:len(payload)]
+		fmt.Printf("Setting %v to %v\n", name, value)
+
+		o = &fuseops.SetXattrOp{
+			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
+			Name:  string(name),
+			Data:  value,
+			Flags: in.Flags,
+		}
 
 	default:
 		o = &unknownOp{
@@ -725,6 +754,9 @@ func (c *Connection) kernelResponseForOp(
 		} else {
 			m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
 		}
+
+	case *fuseops.SetXattrOp:
+		// Empty response
 
 	case *initOp:
 		out := (*fusekernel.InitOut)(m.Grow(int(unsafe.Sizeof(fusekernel.InitOut{}))))

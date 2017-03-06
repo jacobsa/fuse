@@ -815,3 +815,18 @@ type ListXattrOp struct {
 	// big enough
 	BytesRead int
 }
+
+type SetXattrOp struct {
+	// The inode that we are changing
+	Inode InodeID
+
+	// The name of the extended attribute
+	Name string
+
+	// The data to for the extened attribute.
+	Data []byte
+
+	// If Flags is 0x1, and the attribute exists already, EEXIST should be returned.
+	// If Flags is 0x2, and the attribute does not exist, ENOATTR should be returned.
+	Flags uint32
+}
