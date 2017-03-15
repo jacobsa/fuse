@@ -1613,26 +1613,28 @@ func (t *MemFSTest) RenameNonExistentFile() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
-func (t *MemFSTest) GetListNoXAttr() {
+func (t *MemFSTest) NoXattrs() {
 	var err error
 
-	// Create a file
+	// Create a file.
 	filePath := path.Join(t.Dir, "foo")
 	err = ioutil.WriteFile(filePath, []byte("taco"), 0400)
 	AssertEq(nil, err)
 
+	// List xattr names.
 	names, err := xattr.List(filePath)
 	AssertEq(nil, err)
-	AssertEq(0, len(names))
+	ExpectThat(names, ElementsAre())
 
+	// Attempt to read a non-existent xattr.
 	_, err = xattr.Getxattr(filePath, "foo", nil)
-	AssertEq(fuse.ENOATTR, err)
+	ExpectEq(fuse.ENOATTR, err)
 }
 
 func (t *MemFSTest) SetXAttr() {
 	var err error
 
-	// Create a file
+	// Create a file.
 	filePath := path.Join(t.Dir, "foo")
 	err = ioutil.WriteFile(filePath, []byte("taco"), 0600)
 	AssertEq(nil, err)
