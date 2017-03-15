@@ -475,9 +475,10 @@ func convertInMessage(
 			return
 		}
 
-		o = &fuseops.ListXattrOp{
+		to := &fuseops.ListXattrOp{
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
 		}
+		o = to
 
 		readSize := int(in.Size)
 		if readSize != 0 {
@@ -486,6 +487,10 @@ func convertInMessage(
 				err = fmt.Errorf("Can't grow for %d-byte read", readSize)
 				return
 			}
+			sh := (*reflect.SliceHeader)(unsafe.Pointer(&to.Dst))
+			sh.Data = uintptr(p)
+			sh.Len = readSize
+			sh.Cap = readSize
 		}
 	case fusekernel.OpSetxattr:
 		type input fusekernel.SetxattrIn
@@ -508,12 +513,11 @@ func convertInMessage(
 		}
 
 		name, value := payload[:i], payload[i+1:len(payload)]
-		fmt.Printf("Setting %v to %v\n", name, value)
 
 		o = &fuseops.SetXattrOp{
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:  string(name),
-			Data:  value,
+			Value: value,
 			Flags: in.Flags,
 		}
 

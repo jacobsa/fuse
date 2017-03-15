@@ -27,6 +27,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ivaxer/go-xattr"
+	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/memfs"
@@ -1609,6 +1611,83 @@ func (t *MemFSTest) RenameNonExistentFile() {
 
 	err = os.Rename(path.Join(t.Dir, "foo"), path.Join(t.Dir, "bar"))
 	ExpectThat(err, Error(HasSubstr("no such file")))
+}
+
+func (t *MemFSTest) GetListNoXAttr() {
+	var err error
+
+	// Create a file
+	filePath := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(filePath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	names, err := xattr.List(filePath)
+	AssertEq(nil, err)
+	AssertEq(0, len(names))
+
+	_, err = xattr.Getxattr(filePath, "foo", nil)
+	AssertEq(fuse.ENOATTR, err)
+}
+
+func (t *MemFSTest) SetXAttr() {
+	var err error
+
+	// Create a file
+	filePath := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(filePath, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	err = xattr.Setxattr(filePath, "foo", []byte("bar"), 0x2)
+	AssertEq(fuse.ENOATTR, err)
+
+	err = xattr.Setxattr(filePath, "foo", []byte("bar"), 0x1)
+	AssertEq(nil, err)
+
+	value, err := xattr.Get(filePath, "foo")
+	AssertEq(nil, err)
+	AssertEq("bar", string(value))
+
+	err = xattr.Setxattr(filePath, "foo", []byte("hello world"), 0x2)
+	AssertEq(nil, err)
+
+	value, err = xattr.Get(filePath, "foo")
+	AssertEq(nil, err)
+	AssertEq("hello world", string(value))
+
+	names, err := xattr.List(filePath)
+	AssertEq(nil, err)
+	AssertEq(1, len(names))
+	AssertEq("foo", names[0])
+
+	err = xattr.Setxattr(filePath, "bar", []byte("hello world"), 0x0)
+	AssertEq(nil, err)
+
+	names, err = xattr.List(filePath)
+	AssertEq(nil, err)
+	AssertEq(2, len(names))
+	ExpectThat(names, Contains("foo"))
+	ExpectThat(names, Contains("bar"))
+}
+
+func (t *MemFSTest) RemoveXAttr() {
+	var err error
+
+	// Create a file
+	filePath := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(filePath, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	err = xattr.Removexattr(filePath, "foo")
+	AssertEq(fuse.ENOATTR, err)
+
+	err = xattr.Setxattr(filePath, "foo", []byte("bar"), 0x1)
+	AssertEq(nil, err)
+
+	err = xattr.Removexattr(filePath, "foo")
+	AssertEq(nil, err)
+
+	_, err = xattr.Getxattr(filePath, "foo", nil)
+	AssertEq(fuse.ENOATTR, err)
 }
 
 ////////////////////////////////////////////////////////////////////////
