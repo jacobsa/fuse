@@ -27,13 +27,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ivaxer/go-xattr"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/memfs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"github.com/kahing/go-xattr"
 )
 
 func TestMemFS(t *testing.T) { RunTests(t) }
@@ -1637,17 +1637,17 @@ func (t *MemFSTest) SetXAttr() {
 	err = ioutil.WriteFile(filePath, []byte("taco"), 0600)
 	AssertEq(nil, err)
 
-	err = xattr.Setxattr(filePath, "foo", []byte("bar"), 0x2)
+	err = xattr.Setxattr(filePath, "foo", []byte("bar"), xattr.REPLACE)
 	AssertEq(fuse.ENOATTR, err)
 
-	err = xattr.Setxattr(filePath, "foo", []byte("bar"), 0x1)
+	err = xattr.Setxattr(filePath, "foo", []byte("bar"), xattr.CREATE)
 	AssertEq(nil, err)
 
 	value, err := xattr.Get(filePath, "foo")
 	AssertEq(nil, err)
 	AssertEq("bar", string(value))
 
-	err = xattr.Setxattr(filePath, "foo", []byte("hello world"), 0x2)
+	err = xattr.Setxattr(filePath, "foo", []byte("hello world"), xattr.REPLACE)
 	AssertEq(nil, err)
 
 	value, err = xattr.Get(filePath, "foo")
@@ -1680,7 +1680,7 @@ func (t *MemFSTest) RemoveXAttr() {
 	err = xattr.Removexattr(filePath, "foo")
 	AssertEq(fuse.ENOATTR, err)
 
-	err = xattr.Setxattr(filePath, "foo", []byte("bar"), 0x1)
+	err = xattr.Setxattr(filePath, "foo", []byte("bar"), xattr.CREATE)
 	AssertEq(nil, err)
 
 	err = xattr.Removexattr(filePath, "foo")
