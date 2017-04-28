@@ -564,6 +564,15 @@ type OpenFileOp struct {
 	// is set to true, regardless of its value, at least for files opened in the
 	// same mode. (Cf. https://github.com/osxfuse/osxfuse/issues/223)
 	KeepPageCache bool
+
+	// Whether to use direct IO for this file handle. By default, the kernel
+	// suppresses what it sees as redundant operations (including reads beyond
+	// the precomputed EOF).
+	//
+	// Enabling direct IO ensures that all client operations reach the fuse
+	// layer. This allows for filesystems whose file sizes are not known in
+	// advance, for example, because contents are generated on the fly.
+	UseDirectIO bool
 }
 
 // Read data from a file previously opened with CreateFile or OpenFile.
