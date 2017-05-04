@@ -601,8 +601,7 @@ type ReadFileOp struct {
 	// where EOF is by checking the inode size (http://goo.gl/0BkqKD), returned
 	// by a previous call to LookUpInode, GetInodeAttributes, etc.
 	//
-	// If direct io is enabled, semantics should match those of read (man 2
-	// read).
+	// If direct IO is enabled, semantics should match those of read(2).
 	BytesRead int
 }
 
