@@ -17,20 +17,23 @@ import (
 	"github.com/jacobsa/timeutil"
 )
 
-// Create a file system that contains 2 files (`age` and `weekday`) and no directories. Every time
-// the `age` file is opened, its contents are refreshed to show the number of seconds elapsed since
-// the file system was created (as opposed to mounted). Every time the `weekday` file is opened, its
-// contents are refreshed to reflect the current weekday.
+// Create a file system that contains 2 files (`age` and `weekday`) and no
+// directories. Every time the `age` file is opened, its contents are refreshed
+// to show the number of seconds elapsed since the file system was created (as
+// opposed to mounted). Every time the `weekday` file is opened, its contents
+// are refreshed to reflect the current weekday.
 //
-// The contents of both of these files is updated within the filesystem itself, i.e., these changes
-// do not go through the kernel. Additionally, file access times are not updated and file size is
-// not known in advance and is set to 0. This simulates a filesystem that is backed by a dynamic
-// data source where file metadata is not necessarily known before the file is read. For example,
-// a filesystem backed by an expensive RPC or by a stream that's generated on the fly might not
-// know data size ahead of time.
+// The contents of both of these files is updated within the filesystem itself,
+// i.e., these changes do not go through the kernel. Additionally, file access
+// times are not updated and file size is not known in advance and is set to 0.
+// This simulates a filesystem that is backed by a dynamic data source where
+// file metadata is not necessarily known before the file is read. For example,
+// a filesystem backed by an expensive RPC or by a stream that's generated on
+// the fly might not know data size ahead of time.
 //
-// This implementation depends on direct IO in fuse. Without it, all read operations are suppressed
-// because the kernel detects that they read beyond the end of the files.
+// This implementation depends on direct IO in fuse. Without it, all read
+// operations are suppressed because the kernel detects that they read beyond
+// the end of the files.
 func NewDynamicFS(clock timeutil.Clock) (server fuse.Server, err error) {
 	createTime := clock.Now()
 	fs := &dynamicFS{
