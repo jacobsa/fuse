@@ -3,19 +3,20 @@ package dynamicfs_test
 import (
 	"testing"
 
+	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/dynamicfs"
-	"github.com/jacobsa/fuse/fusetesting"
 
-	. "github.com/jacobsa/ogletest"
-	. "github.com/jacobsa/oglematchers"
+	"bytes"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"syscall"
-	"io/ioutil"
-	"fmt"
 	"time"
-	"bytes"
+
+	. "github.com/jacobsa/oglematchers"
+	. "github.com/jacobsa/ogletest"
 )
 
 func TestDynamicFS(t *testing.T) { RunTests(t) }
@@ -135,8 +136,9 @@ func (t *DynamicFSTest) ReadFile_AgeUnchangedForHandle() {
 	file, err = os.Open(path.Join(t.Dir, "age"))
 	AssertEq(nil, err)
 
-	// Ensure that all reads from the same handle return the contents created at file open time.
-	func (file *os.File) {
+	// Ensure that all reads from the same handle return the contents created at
+	// file open time.
+	func(file *os.File) {
 		defer file.Close()
 
 		var expectedContents string
@@ -150,8 +152,8 @@ func (t *DynamicFSTest) ReadFile_AgeUnchangedForHandle() {
 		ExpectEq(expectedContents, buffer.String())
 
 		t.Clock.SetTime(gCreateTime.Add(1000 * time.Second))
-		// Seek back to the beginning of the file. The contents should be unchanged for the life of the
-		// file handle.
+		// Seek back to the beginning of the file. The contents should be unchanged
+		// for the life of the file handle.
 		_, err = file.Seek(0, 0)
 		AssertEq(nil, err)
 
@@ -162,11 +164,11 @@ func (t *DynamicFSTest) ReadFile_AgeUnchangedForHandle() {
 		ExpectEq(expectedContents, buffer.String())
 	}(file)
 
-	// The clock was advanced while the old handle was open. The content change should be reflected
-	// by the new handle.
+	// The clock was advanced while the old handle was open. The content change
+	// should be reflected by the new handle.
 	file, err = os.Open(path.Join(t.Dir, "age"))
 	AssertEq(nil, err)
-	func (file *os.File) {
+	func(file *os.File) {
 		defer file.Close()
 
 		expectedContents := "This filesystem is 1000 seconds old."
