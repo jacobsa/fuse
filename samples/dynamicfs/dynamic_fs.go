@@ -1,20 +1,20 @@
 package dynamicfs
 
 import (
-	"strings"
+	"fmt"
 	"io"
+	"log"
+	"os"
+	"strings"
+	"sync"
+	"time"
 
 	"golang.org/x/net/context"
 
-	"github.com/jacobsa/timeutil"
 	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/fuse/fuseops"
-	"os"
-	"fmt"
-	"log"
-	"sync"
-	"time"
+	"github.com/jacobsa/fuse/fuseutil"
+	"github.com/jacobsa/timeutil"
 )
 
 // Create a file system that contains 2 files (`age` and `weekday`) and no directories. Every time
@@ -34,8 +34,8 @@ import (
 func NewDynamicFS(clock timeutil.Clock) (server fuse.Server, err error) {
 	createTime := clock.Now()
 	fs := &dynamicFS{
-		clock: clock,
-		createTime: createTime,
+		clock:       clock,
+		createTime:  createTime,
 		fileHandles: make(map[fuseops.HandleID]string),
 	}
 	server = fuseutil.NewFileSystemServer(fs)
@@ -44,10 +44,10 @@ func NewDynamicFS(clock timeutil.Clock) (server fuse.Server, err error) {
 
 type dynamicFS struct {
 	fuseutil.NotImplementedFileSystem
-	mu sync.Mutex
-	clock timeutil.Clock
-	createTime time.Time
-	nextHandle fuseops.HandleID
+	mu          sync.Mutex
+	clock       timeutil.Clock
+	createTime  time.Time
+	nextHandle  fuseops.HandleID
 	fileHandles map[fuseops.HandleID]string
 }
 
@@ -79,9 +79,9 @@ var gInodeInfo = map[fuseops.InodeID]inodeInfo{
 		children: []fuseutil.Dirent{
 			{
 				Offset: 1,
-				Inode: ageInode,
-				Name: "age",
-				Type: fuseutil.DT_File,
+				Inode:  ageInode,
+				Name:   "age",
+				Type:   fuseutil.DT_File,
 			},
 			{
 				Offset: 2,
@@ -96,7 +96,7 @@ var gInodeInfo = map[fuseops.InodeID]inodeInfo{
 	ageInode: {
 		attributes: fuseops.InodeAttributes{
 			Nlink: 1,
-			Mode: 0444,
+			Mode:  0444,
 		},
 	},
 
@@ -104,15 +104,15 @@ var gInodeInfo = map[fuseops.InodeID]inodeInfo{
 	weekdayInode: {
 		attributes: fuseops.InodeAttributes{
 			Nlink: 1,
-			Mode: 0444,
+			Mode:  0444,
 			// Size left at 0.
 		},
 	},
 }
 
 func findChildInode(
-name string,
-children []fuseutil.Dirent) (inode fuseops.InodeID, err error) {
+	name string,
+	children []fuseutil.Dirent) (inode fuseops.InodeID, err error) {
 	for _, e := range children {
 		if e.Name == name {
 			inode = e.Inode
@@ -131,13 +131,12 @@ func (fs *dynamicFS) findUnusedHandle() fuseops.HandleID {
 		handle++
 	}
 	fs.nextHandle = handle + 1
-	log.Printf("Minting new handle: %d", handle)
 	return handle
 }
 
 func (fs *dynamicFS) GetInodeAttributes(
-ctx context.Context,
-op *fuseops.GetInodeAttributesOp) (err error) {
+	ctx context.Context,
+	op *fuseops.GetInodeAttributesOp) (err error) {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
 	if !ok {
@@ -150,8 +149,8 @@ op *fuseops.GetInodeAttributesOp) (err error) {
 }
 
 func (fs *dynamicFS) LookUpInode(
-ctx context.Context,
-op *fuseops.LookUpInodeOp) (err error) {
+	ctx context.Context,
+	op *fuseops.LookUpInodeOp) (err error) {
 	// Find the info for the parent.
 	parentInfo, ok := gInodeInfo[op.Parent]
 	if !ok {
@@ -173,15 +172,15 @@ op *fuseops.LookUpInodeOp) (err error) {
 }
 
 func (fs *dynamicFS) OpenDir(
-ctx context.Context,
-op *fuseops.OpenDirOp) (err error) {
+	ctx context.Context,
+	op *fuseops.OpenDirOp) (err error) {
 	// Allow opening directory.
 	return
 }
 
 func (fs *dynamicFS) ReadDir(
-ctx context.Context,
-op *fuseops.ReadDirOp) (err error) {
+	ctx context.Context,
+	op *fuseops.ReadDirOp) (err error) {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
 	if !ok {
@@ -218,8 +217,8 @@ op *fuseops.ReadDirOp) (err error) {
 }
 
 func (fs *dynamicFS) OpenFile(
-ctx context.Context,
-op *fuseops.OpenFileOp) (err error) {
+	ctx context.Context,
+	op *fuseops.OpenFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	var contents string
@@ -243,8 +242,8 @@ op *fuseops.OpenFileOp) (err error) {
 }
 
 func (fs *dynamicFS) ReadFile(
-ctx context.Context,
-op *fuseops.ReadFileOp) (err error) {
+	ctx context.Context,
+	op *fuseops.ReadFileOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	contents, ok := fs.fileHandles[op.Handle]
@@ -262,8 +261,8 @@ op *fuseops.ReadFileOp) (err error) {
 }
 
 func (fs *dynamicFS) ReleaseFileHandle(
-    ctx context.Context,
-    op *fuseops.ReleaseFileHandleOp) (err error) {
+	ctx context.Context,
+	op *fuseops.ReleaseFileHandleOp) (err error) {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	_, ok := fs.fileHandles[op.Handle]
@@ -273,5 +272,10 @@ func (fs *dynamicFS) ReleaseFileHandle(
 		return
 	}
 	delete(fs.fileHandles, op.Handle)
+	return
+}
+
+func (fs *dynamicFS) StatFS(ctx context.Context,
+	op *fuseops.StatFSOp) (err error) {
 	return
 }
