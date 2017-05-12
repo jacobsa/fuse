@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"syscall"
 	"time"
 
 	"golang.org/x/net/context"
@@ -625,6 +626,91 @@ func (fs *memFS) ReadSymlink(
 
 	// Serve the request.
 	op.Target = inode.target
+
+	return
+}
+
+func (fs *memFS) GetXattr(ctx context.Context,
+	op *fuseops.GetXattrOp) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	inode := fs.getInodeOrDie(op.Inode)
+	if value, ok := inode.xattrs[op.Name]; ok {
+		op.BytesRead = len(value)
+		if len(op.Dst) >= len(value) {
+			copy(op.Dst, value)
+		} else {
+			err = syscall.ERANGE
+		}
+	} else {
+		err = fuse.ENOATTR
+	}
+
+	return
+}
+
+func (fs *memFS) ListXattr(ctx context.Context,
+	op *fuseops.ListXattrOp) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	inode := fs.getInodeOrDie(op.Inode)
+
+	dst := op.Dst[:]
+	for key := range inode.xattrs {
+		keyLen := len(key) + 1
+
+		if err == nil && len(dst) >= keyLen {
+			copy(dst, key)
+			dst = dst[keyLen:]
+		} else {
+			err = syscall.ERANGE
+		}
+		op.BytesRead += keyLen
+	}
+
+	return
+}
+
+func (fs *memFS) RemoveXattr(ctx context.Context,
+	op *fuseops.RemoveXattrOp) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	inode := fs.getInodeOrDie(op.Inode)
+
+	if _, ok := inode.xattrs[op.Name]; ok {
+		delete(inode.xattrs, op.Name)
+	} else {
+		err = fuse.ENOATTR
+	}
+	return
+}
+
+func (fs *memFS) SetXattr(ctx context.Context,
+	op *fuseops.SetXattrOp) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	inode := fs.getInodeOrDie(op.Inode)
+
+	_, ok := inode.xattrs[op.Name]
+
+	switch op.Flags {
+	case 0x1:
+		if ok {
+			err = fuse.EEXIST
+		}
+	case 0x2:
+		if !ok {
+			err = fuse.ENOATTR
+		}
+	}
+
+	if err == nil {
+		value := make([]byte, len(op.Value))
+		copy(value, op.Value)
+		inode.xattrs[op.Name] = value
+	}
 
 	return
 }

@@ -27,11 +27,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/memfs"
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
+	"github.com/kahing/go-xattr"
 )
 
 func TestMemFS(t *testing.T) { RunTests(t) }
@@ -1609,6 +1611,85 @@ func (t *MemFSTest) RenameNonExistentFile() {
 
 	err = os.Rename(path.Join(t.Dir, "foo"), path.Join(t.Dir, "bar"))
 	ExpectThat(err, Error(HasSubstr("no such file")))
+}
+
+func (t *MemFSTest) NoXattrs() {
+	var err error
+
+	// Create a file.
+	filePath := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(filePath, []byte("taco"), 0400)
+	AssertEq(nil, err)
+
+	// List xattr names.
+	names, err := xattr.List(filePath)
+	AssertEq(nil, err)
+	ExpectThat(names, ElementsAre())
+
+	// Attempt to read a non-existent xattr.
+	_, err = xattr.Getxattr(filePath, "foo", nil)
+	ExpectEq(fuse.ENOATTR, err)
+}
+
+func (t *MemFSTest) SetXAttr() {
+	var err error
+
+	// Create a file.
+	filePath := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(filePath, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	err = xattr.Setxattr(filePath, "foo", []byte("bar"), xattr.REPLACE)
+	AssertEq(fuse.ENOATTR, err)
+
+	err = xattr.Setxattr(filePath, "foo", []byte("bar"), xattr.CREATE)
+	AssertEq(nil, err)
+
+	value, err := xattr.Get(filePath, "foo")
+	AssertEq(nil, err)
+	AssertEq("bar", string(value))
+
+	err = xattr.Setxattr(filePath, "foo", []byte("hello world"), xattr.REPLACE)
+	AssertEq(nil, err)
+
+	value, err = xattr.Get(filePath, "foo")
+	AssertEq(nil, err)
+	AssertEq("hello world", string(value))
+
+	names, err := xattr.List(filePath)
+	AssertEq(nil, err)
+	AssertEq(1, len(names))
+	AssertEq("foo", names[0])
+
+	err = xattr.Setxattr(filePath, "bar", []byte("hello world"), 0x0)
+	AssertEq(nil, err)
+
+	names, err = xattr.List(filePath)
+	AssertEq(nil, err)
+	AssertEq(2, len(names))
+	ExpectThat(names, Contains("foo"))
+	ExpectThat(names, Contains("bar"))
+}
+
+func (t *MemFSTest) RemoveXAttr() {
+	var err error
+
+	// Create a file
+	filePath := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(filePath, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	err = xattr.Removexattr(filePath, "foo")
+	AssertEq(fuse.ENOATTR, err)
+
+	err = xattr.Setxattr(filePath, "foo", []byte("bar"), xattr.CREATE)
+	AssertEq(nil, err)
+
+	err = xattr.Removexattr(filePath, "foo")
+	AssertEq(nil, err)
+
+	_, err = xattr.Getxattr(filePath, "foo", nil)
+	AssertEq(fuse.ENOATTR, err)
 }
 
 ////////////////////////////////////////////////////////////////////////

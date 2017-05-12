@@ -767,3 +767,81 @@ type ReadSymlinkOp struct {
 	// Set by the file system: the target of the symlink.
 	Target string
 }
+
+////////////////////////////////////////////////////////////////////////
+// eXtended attributes
+////////////////////////////////////////////////////////////////////////
+
+// Remove an extended attribute.
+//
+// This is sent in response to removexattr(2). Return ENOATTR if the
+// extended attribute does not exist.
+type RemoveXattrOp struct {
+	// The inode that we are removing an extended attribute from.
+	Inode InodeID
+
+	// The name of the extended attribute.
+	Name string
+}
+
+// Get an extended attribute.
+//
+// This is sent in response to getxattr(2). Return ENOATTR if the
+// extended attribute does not exist.
+type GetXattrOp struct {
+	// The inode whose extended attribute we are reading.
+	Inode InodeID
+
+	// The name of the extended attribute.
+	Name string
+
+	// The destination buffer.  If the size is too small for the
+	// value, the ERANGE error should be sent.
+	Dst []byte
+
+	// Set by the file system: the number of bytes read into Dst, or
+	// the number of bytes that would have been read into Dst if Dst was
+	// big enough (return ERANGE in this case).
+	BytesRead int
+}
+
+// List all the extended attributes for a file.
+//
+// This is sent in response to listxattr(2).
+type ListXattrOp struct {
+	// The inode whose extended attributes we are listing.
+	Inode InodeID
+
+	// The destination buffer.  If the size is too small for the
+	// value, the ERANGE error should be sent.
+	//
+	// The output data should consist of a sequence of NUL-terminated strings,
+	// one for each xattr.
+	Dst []byte
+
+	// Set by the file system: the number of bytes read into Dst, or
+	// the number of bytes that would have been read into Dst if Dst was
+	// big enough (return ERANGE in this case).
+	BytesRead int
+}
+
+// Set an extended attribute.
+//
+// This is sent in response to setxattr(2). Return ENOSPC if there is
+// insufficient space remaining to store the extended attribute.
+type SetXattrOp struct {
+	// The inode whose extended attribute we are setting.
+	Inode InodeID
+
+	// The name of the extended attribute
+	Name string
+
+	// The value to for the extened attribute.
+	Value []byte
+
+	// If Flags is 0x1, and the attribute exists already, EEXIST should be returned.
+	// If Flags is 0x2, and the attribute does not exist, ENOATTR should be returned.
+	// If Flags is 0x0, the extended attribute will be created if need be, or will
+	// simply replace the value if the attribute exists.
+	Flags uint32
+}

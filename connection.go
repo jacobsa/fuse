@@ -434,6 +434,10 @@ func (c *Connection) shouldLogError(
 			return false
 		}
 
+	case *fuseops.GetXattrOp:
+		if err == syscall.ENODATA || err == syscall.ERANGE {
+			return false
+		}
 	case *unknownOp:
 		// Don't bother the user with methods we intentionally don't support.
 		if err == syscall.ENOSYS {
@@ -489,7 +493,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	if !noResponse {
 		err := c.writeMessage(outMsg.Bytes())
 		if err != nil && c.errorLogger != nil {
-			c.errorLogger.Printf("writeMessage: %v", err)
+			c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.Bytes())
 		}
 	}
 }

@@ -61,6 +61,9 @@ type inode struct {
 	//
 	// INVARIANT: If !isSymlink(), len(target) == 0
 	target string
+
+	// extended attributes and values
+	xattrs map[string][]byte
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -78,7 +81,8 @@ func newInode(
 
 	// Create the object.
 	in = &inode{
-		attrs: attrs,
+		attrs:  attrs,
+		xattrs: make(map[string][]byte),
 	}
 
 	return
