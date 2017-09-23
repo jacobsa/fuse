@@ -845,3 +845,24 @@ type SetXattrOp struct {
 	// simply replace the value if the attribute exists.
 	Flags uint32
 }
+type NotifyPollOp struct {
+}
+
+type NotifyInvalInodeOp struct {
+	Ino InodeID
+	Off int64
+	Len int64
+}
+type NotifyInvalEntryOp struct {
+	Parent InodeID
+	Name   string
+}
+type NotifyStoreOp struct {
+}
+type NotifyRetrieveOp struct {
+}
+type NotifyDeleteOp struct {
+	Parent InodeID
+	Child  InodeID
+	Name   string
+}

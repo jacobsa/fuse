@@ -597,6 +597,59 @@ func (c *Connection) kernelResponse(
 	return
 }
 
+func (c *Connection) buildNotify(
+	m *buffer.OutMessage,
+	op interface{}) error {
+
+	h := m.OutHeader()
+	h.Unique = 0
+	// Create the appropriate output message
+	switch o := op.(type) {
+	case *fuseops.NotifyInvalInodeOp:
+		h.Error = fusekernel.NotifyCodeInvalInode
+		size := fusekernel.NotifyInvalInodeOutSize
+		out := (*fusekernel.NotifyInvalInodeOut)(m.Grow(size))
+		out.Ino = uint64(o.Ino)
+		out.Off = int64(o.Off)
+		out.Len = int64(o.Len)
+
+	case *fuseops.NotifyInvalEntryOp:
+		err := checkName(o.Name)
+		if err != nil {
+			return err
+		}
+		h.Error = fusekernel.NotifyCodeInvalEntry
+		size := fusekernel.NotifyInvalEntryOutSize
+		out := (*fusekernel.NotifyInvalEntryOut)(m.Grow(size))
+		out.Parent = uint64(o.Parent)
+		out.Namelen = uint32(len(o.Name))
+		m.Append([]byte(o.Name))
+		b := []byte{'\x00'}
+		m.Append(b)
+
+	case *fuseops.NotifyDeleteOp:
+		err := checkName(o.Name)
+		if err != nil {
+			return err
+		}
+		h.Error = fusekernel.NotifyCodeDelete
+		size := fusekernel.NotifyDeleteOutSize
+		out := (*fusekernel.NotifyDeleteOut)(m.Grow(size))
+		out.Parent = uint64(o.Parent)
+		out.Child = uint64(o.Child)
+		out.Namelen = uint32(len(o.Name))
+		m.Append([]byte(o.Name))
+		b := []byte{'\x00'}
+		m.Append(b)
+
+	default:
+		return errors.New("unexpectedop")
+	}
+	h.Len = uint32(m.Len())
+
+	return nil
+}
+
 // Like kernelResponse, but assumes the user replied with a nil error to the
 // op.
 func (c *Connection) kernelResponseForOp(
@@ -887,4 +940,12 @@ func convertFileMode(unixMode uint32) os.FileMode {
 func writeXattrSize(m *buffer.OutMessage, size uint32) {
 	out := (*fusekernel.GetxattrOut)(m.Grow(int(unsafe.Sizeof(fusekernel.GetxattrOut{}))))
 	out.Size = size
+}
+func checkName(name string) error {
+	const maxUint32 = ^uint32(0)
+	if uint64(len(name)) > uint64(maxUint32) {
+		// very unlikely, but we don't want to silently truncate
+		return syscall.ENAMETOOLONG
+	}
+	return nil
 }

@@ -99,6 +99,23 @@ type ForgetFS struct {
 func (fs *ForgetFS) ServeOps(c *fuse.Connection) {
 	fs.server.ServeOps(c)
 }
+func (fs *ForgetFS) SetMfs(mfs *fuse.MountedFileSystem) {
+	fs.server.SetMfs(mfs)
+}
+func (fs *ForgetFS) GetMfs() *fuse.MountedFileSystem {
+	return fs.server.GetMfs()
+}
+func (fs *ForgetFS) InvalidateEntry(nodeid fuseops.InodeID, name string) error {
+	return nil
+}
+
+func (fs *ForgetFS) InvalidateInode(nodeid fuseops.InodeID, parent int64, nlookup int64) error {
+	return nil
+}
+
+func (fs *ForgetFS) NotifyDelete(nodeid fuseops.InodeID, parent fuseops.InodeID, name string) error {
+	return nil
+}
 
 // Panic if there are any inodes that have a non-zero reference count. For use
 // after unmounting.

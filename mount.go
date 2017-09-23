@@ -1,5 +1,3 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,6 +16,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/jacobsa/fuse/fuseops"
 	"golang.org/x/net/context"
 )
 
@@ -28,6 +27,11 @@ type Server interface {
 	// until all operations have been responded to. Must not be called more than
 	// once.
 	ServeOps(*Connection)
+	InvalidateEntry(fuseops.InodeID, string) error
+	InvalidateInode(fuseops.InodeID, int64, int64) error
+	NotifyDelete(fuseops.InodeID, fuseops.InodeID, string) error
+	SetMfs(*MountedFileSystem)
+	GetMfs() *MountedFileSystem
 }
 
 // Mount attempts to mount a file system on the given directory, using the
@@ -85,7 +89,8 @@ func Mount(
 		return
 	}
 
-	// Serve the connection in the background. When done, set the join status.
+	mfs.Conn = connection
+	server.SetMfs(mfs)
 	go func() {
 		server.ServeOps(connection)
 		mfs.joinStatus = connection.close()

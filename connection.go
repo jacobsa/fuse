@@ -241,7 +241,7 @@ func (c *Connection) beginOp(
 	// should not record any state keyed on their ID.
 	//
 	// Cf. https://github.com/osxfuse/osxfuse/issues/208
-	if opCode != fusekernel.OpForget {
+	if opCode != fusekernel.OpForget && opCode < 100 {
 		var cancel func()
 		ctx, cancel = context.WithCancel(ctx)
 		c.recordCancelFunc(fuseID, cancel)
@@ -411,6 +411,36 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 	}
 }
 
+func (c *Connection) SetNotifyContext(op interface{}) (context.Context, error) {
+
+	outMsg := c.getOutMessage()
+
+	err := c.buildNotify(outMsg, op)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := context.Background()
+
+	switch op.(type) {
+	case *fuseops.NotifyInvalInodeOp:
+		ctx = c.beginOp(100+uint32(fusekernel.NotifyCodeInvalInode), 0)
+
+	case *fuseops.NotifyInvalEntryOp:
+		ctx = c.beginOp(100+uint32(fusekernel.NotifyCodeInvalEntry), 0)
+
+	case *fuseops.NotifyDeleteOp:
+		ctx = c.beginOp(100+uint32(fusekernel.NotifyCodeDelete), 0)
+
+	default:
+		panic(fmt.Sprintf("Unexpected op: %#v", op))
+	}
+
+	ctx = context.WithValue(ctx, contextKey, opState{nil, outMsg, op})
+	return ctx, nil
+
+}
+
 // Skip errors that happen as a matter of course, since they spook users.
 func (c *Connection) shouldLogError(
 	op interface{},
@@ -496,6 +526,29 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 			c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.Bytes())
 		}
 	}
+}
+
+func (c *Connection) NotifyKernel(ctx context.Context) {
+
+	// we should get outmsg from context
+	var key interface{} = contextKey
+	foo := ctx.Value(key)
+	state, ok := foo.(opState)
+	if !ok {
+		panic(fmt.Sprintf("Reply called with invalid context: %#v", ctx))
+	}
+
+	outMsg := state.outMsg
+	defer c.putOutMessage(outMsg)
+
+	c.debugLogger.Println("dev fd is:unique:notifycode ", c.dev.Fd(), outMsg.OutHeader().Unique, outMsg.OutHeader().Error)
+	err := c.writeMessage(outMsg.Bytes())
+	if err != nil && c.errorLogger != nil {
+		c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.Bytes())
+		//	c.debugLogger.Println("%#v %v %v", ctx, err, outMsg.Bytes())
+		//		panic(fmt.Sprintf(" %#v %v %v", ctx, err, outMsg.Bytes()))
+	}
+
 }
 
 // Close the connection. Must not be called until operations that were read
