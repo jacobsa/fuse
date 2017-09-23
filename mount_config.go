@@ -134,6 +134,7 @@ type MountConfig struct {
 	// The name of the mounted volume, as displayed in the Finder. If empty, a
 	// default name involving the string 'osxfuse' is used.
 	VolumeName string
+	SubType    string
 
 	// Additional key=value options to pass unadulterated to the underlying mount
 	// command. See `man 8 mount`, the fuse documentation, etc. for
@@ -173,6 +174,10 @@ func (c *MountConfig) toMap() (opts map[string]string) {
 		opts["fsname"] = fsname
 	}
 
+	subtype := c.SubType
+	if subtype != "" {
+		opts["subtype"] = subtype
+	}
 	// Read only?
 	if c.ReadOnly {
 		opts["ro"] = ""
