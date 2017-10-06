@@ -72,8 +72,10 @@ type FileSystem interface {
 // method.Respond with the resulting error. Unsupported ops are responded to
 // directly with ENOSYS.
 //
-// Each call to a FileSystem method is made on its own goroutine, and is free
-// to block.
+// Each call to a FileSystem method (except ForgetInode) is made on
+// its own goroutine, and is free to block. ForgetInode may be called
+// synchronously, and should not depend on calls to other methods
+// being received concurrently.
 //
 // (It is safe to naively process ops concurrently because the kernel
 // guarantees to serialize operations that the user expects to happen in order,
@@ -109,7 +111,15 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 		}
 
 		s.opsInFlight.Add(1)
-		go s.handleOp(c, ctx, op)
+		if _, ok := op.(*fuseops.ForgetInodeOp); ok {
+			// Special case: call in this goroutine for
+			// forget inode ops, which may come in a
+			// flurry from the kernel and are generally
+			// cheap for the file system to handle
+			s.handleOp(c, ctx, op)
+		} else {
+			go s.handleOp(c, ctx, op)
+		}
 	}
 }
 
