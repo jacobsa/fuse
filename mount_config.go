@@ -142,6 +142,8 @@ type MountConfig struct {
 	// For expert use only! May invalidate other guarantees made in the
 	// documentation for this package.
 	Options map[string]string
+
+	SubType string
 }
 
 // Create a map containing all of the key=value mount options to be given to
@@ -171,6 +173,11 @@ func (c *MountConfig) toMap() (opts map[string]string) {
 	// Special file system name?
 	if fsname != "" {
 		opts["fsname"] = fsname
+	}
+
+	subtype := c.SubType
+	if subtype != "" {
+		opts["subtype"] = subtype
 	}
 
 	// Read only?
