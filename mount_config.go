@@ -143,7 +143,10 @@ type MountConfig struct {
 	// documentation for this package.
 	Options map[string]string
 
-	SubType string
+	// Sets the filesystem type (third field in /etc/mtab). /etc/mtab and
+	// /proc/mounts will show the filesystem type as fuse.<Subtype>.
+	// If not set, /proc/mounts will show the filesystem type as fuse/fuseblk.
+	Subtype string
 }
 
 // Create a map containing all of the key=value mount options to be given to
@@ -175,7 +178,7 @@ func (c *MountConfig) toMap() (opts map[string]string) {
 		opts["fsname"] = fsname
 	}
 
-	subtype := c.SubType
+	subtype := c.Subtype
 	if subtype != "" {
 		opts["subtype"] = subtype
 	}
