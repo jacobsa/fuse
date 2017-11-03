@@ -240,7 +240,19 @@ func (c *Connection) beginOp(
 	// should not record any state keyed on their ID.
 	//
 	// Cf. https://github.com/osxfuse/osxfuse/issues/208
-	if opCode != fusekernel.OpForget {
+
+	// Special case: For notify ops ,it is issued by the userspace filesystem to
+	// fuse kernel. The ops's kernel opCode is 0 in kernel' viewpoint or kernel not
+	// care whether what the iopcode is .But the ops have the notifycode  from 1
+	// to 6 now. For adapt the notfiy ops to the BeginOP ,we fake an opcode as
+	// notfiycode + 100. Now opcode range of ops from kernel including origin
+	// from userspace and just from kernel is < 100. The notify ops's opcode
+	// range is [101-106].
+	// Then we can process all ops consistently.
+	// Cf. func (c *Connection) SetNotifyContext(op interface{})
+	//                (context.Context, error) {
+
+	if opCode != fusekernel.OpForget && opCode < 100 {
 		var cancel func()
 		ctx, cancel = context.WithCancel(ctx)
 		c.recordCancelFunc(fuseID, cancel)
@@ -410,6 +422,38 @@ func (c *Connection) ReadOp() (ctx context.Context, op interface{}, err error) {
 	}
 }
 
+// The SetNotifyContext set context according with value of the notify op's
+// fuseops.Notify*Op.
+func (c *Connection) SetNotifyContext(op interface{}) (context.Context, error) {
+
+	outMsg := c.getOutMessage()
+
+	err := c.buildNotify(outMsg, op)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx := context.Background()
+
+	switch op.(type) {
+	case *fuseops.NotifyInvalInodeOp:
+		ctx = c.beginOp(100+uint32(fusekernel.NotifyCodeInvalInode), 0)
+
+	case *fuseops.NotifyInvalEntryOp:
+		ctx = c.beginOp(100+uint32(fusekernel.NotifyCodeInvalEntry), 0)
+
+	case *fuseops.NotifyDeleteOp:
+		ctx = c.beginOp(100+uint32(fusekernel.NotifyCodeDelete), 0)
+
+	default:
+		panic(fmt.Sprintf("Unexpected op: %#v", op))
+	}
+
+	ctx = context.WithValue(ctx, contextKey, opState{nil, outMsg, op})
+	return ctx, nil
+
+}
+
 // Skip errors that happen as a matter of course, since they spook users.
 func (c *Connection) shouldLogError(
 	op interface{},
@@ -495,6 +539,29 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 			c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.Bytes())
 		}
 	}
+}
+
+// The NotifyKernel is same as Reply func of Connection.But the diff is
+// that the func only send to kernel.
+func (c *Connection) NotifyKernel(ctx context.Context) {
+
+	// we should get outmsg from context
+	var key interface{} = contextKey
+	foo := ctx.Value(key)
+	state, ok := foo.(opState)
+	if !ok {
+		panic(fmt.Sprintf("Reply called with invalid context: %#v", ctx))
+	}
+
+	outMsg := state.outMsg
+	defer c.putOutMessage(outMsg)
+
+	c.debugLogger.Println("dev fd is:unique:notifycode ", c.dev.Fd(), outMsg.OutHeader().Unique, outMsg.OutHeader().Error)
+	err := c.writeMessage(outMsg.Bytes())
+	if err != nil && c.errorLogger != nil {
+		c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.Bytes())
+	}
+
 }
 
 // Close the connection. Must not be called until operations that were read

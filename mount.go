@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"github.com/jacobsa/fuse/fuseops"
 )
 
 // Server is an interface for any type that knows how to serve ops read from a
@@ -27,6 +28,11 @@ type Server interface {
 	// until all operations have been responded to. Must not be called more than
 	// once.
 	ServeOps(*Connection)
+	InvalidateEntry(fuseops.InodeID, string) error
+	InvalidateInode(fuseops.InodeID, int64, int64) error
+	NotifyDelete(fuseops.InodeID, fuseops.InodeID, string) error
+	SetMfs(*MountedFileSystem)
+	GetMfs() *MountedFileSystem
 }
 
 // Mount attempts to mount a file system on the given directory, using the
@@ -84,7 +90,10 @@ func Mount(
 		return
 	}
 
-	// Serve the connection in the background. When done, set the join status.
+	mfs.Conn = connection
+	server.SetMfs(mfs)
+
+	// Serve the connection in the background. When done, set the join status
 	go func() {
 		server.ServeOps(connection)
 		mfs.joinStatus = connection.close()
