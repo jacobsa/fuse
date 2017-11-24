@@ -43,6 +43,7 @@ type FileSystem interface {
 	MkDir(context.Context, *fuseops.MkDirOp) error
 	MkNode(context.Context, *fuseops.MkNodeOp) error
 	CreateFile(context.Context, *fuseops.CreateFileOp) error
+	CreateLink(context.Context, *fuseops.CreateLinkOp) error
 	CreateSymlink(context.Context, *fuseops.CreateSymlinkOp) error
 	Rename(context.Context, *fuseops.RenameOp) error
 	RmDir(context.Context, *fuseops.RmDirOp) error
@@ -158,6 +159,9 @@ func (s *fileSystemServer) handleOp(
 
 	case *fuseops.CreateFileOp:
 		err = s.fs.CreateFile(ctx, typed)
+
+	case *fuseops.CreateLinkOp:
+		err = s.fs.CreateLink(ctx, typed)
 
 	case *fuseops.CreateSymlinkOp:
 		err = s.fs.CreateSymlink(ctx, typed)

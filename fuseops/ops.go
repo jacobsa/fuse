@@ -317,6 +317,26 @@ type CreateSymlinkOp struct {
 	Entry ChildInodeEntry
 }
 
+// Create a hard link to an inode. If the name already exists, the file system
+// should return EEXIST (cf. the notes on CreateFileOp and MkDirOp).
+type CreateLinkOp struct {
+	// The ID of parent directory inode within which to create the child hard
+	// link.
+	Parent InodeID
+
+	// The name of the new inode.
+	Name string
+
+	// The ID of the target inode.
+	Target InodeID
+
+	// Set by the file system: information about the inode that was created.
+	//
+	// The lookup count for the inode is implicitly incremented. See notes on
+	// ForgetInodeOp for more information.
+	Entry ChildInodeEntry
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Unlinking
 ////////////////////////////////////////////////////////////////////////

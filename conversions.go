@@ -420,6 +420,32 @@ func convertInMessage(
 			Flags:        fusekernel.InitFlags(in.Flags),
 		}
 
+	case fusekernel.OpLink:
+		type input fusekernel.LinkIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			err = errors.New("Corrupt OpLink")
+			return
+		}
+
+		name := inMsg.ConsumeBytes(inMsg.Len())
+		i := bytes.IndexByte(name, '\x00')
+		if i < 0 {
+			err = errors.New("Corrupt OpLink")
+			return
+		}
+		name = name[:i]
+		if len(name) == 0 {
+			err = errors.New("Corrupt OpLink (Name not read)")
+			return
+		}
+
+		o = &fuseops.CreateLinkOp{
+			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
+			Name:   string(name),
+			Target: fuseops.InodeID(in.Oldnodeid),
+		}
+
 	case fusekernel.OpRemovexattr:
 		buf := inMsg.ConsumeBytes(inMsg.Len())
 		n := len(buf)
@@ -643,6 +669,11 @@ func (c *Connection) kernelResponseForOp(
 		oo.Fh = uint64(o.Handle)
 
 	case *fuseops.CreateSymlinkOp:
+		size := int(fusekernel.EntryOutSize(c.protocol))
+		out := (*fusekernel.EntryOut)(m.Grow(size))
+		convertChildInodeEntry(&o.Entry, out)
+
+	case *fuseops.CreateLinkOp:
 		size := int(fusekernel.EntryOutSize(c.protocol))
 		out := (*fusekernel.EntryOut)(m.Grow(size))
 		convertChildInodeEntry(&o.Entry, out)
