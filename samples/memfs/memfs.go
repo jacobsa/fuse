@@ -424,6 +424,46 @@ func (fs *memFS) CreateSymlink(
 	return
 }
 
+func (fs *memFS) CreateLink(
+	ctx context.Context,
+	op *fuseops.CreateLinkOp) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	// Grab the parent, which we will update shortly.
+	parent := fs.getInodeOrDie(op.Parent)
+
+	// Ensure that the name doesn't already exist, so we don't wind up with a
+	// duplicate.
+	_, _, exists := parent.LookUpChild(op.Name)
+	if exists {
+		err = fuse.EEXIST
+		return
+	}
+
+	// Get the target inode to be linked
+	target := fs.getInodeOrDie(op.Target)
+
+	// Update the attributes
+	now := time.Now()
+	target.attrs.Nlink++
+	target.attrs.Ctime = now
+
+	// Add an entry in the parent.
+	parent.AddChild(op.Target, op.Name, fuseutil.DT_File)
+
+	// Return the response.
+	op.Entry.Child = op.Target
+	op.Entry.Attributes = target.attrs
+
+	// We don't spontaneously mutate, so the kernel can cache as long as it wants
+	// (since it also handles invalidation).
+	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
+	op.Entry.EntryExpiration = op.Entry.EntryExpiration
+
+	return
+}
+
 func (fs *memFS) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {

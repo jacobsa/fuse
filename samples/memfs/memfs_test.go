@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"reflect"
 	"runtime"
 	"strconv"
 	"syscall"
@@ -1088,26 +1089,6 @@ func (t *MemFSTest) ReadDirWhileModifying() {
 	ExpectTrue(namesSeen["qux"])
 }
 
-func (t *MemFSTest) HardLinks() {
-	var err error
-
-	// Create a file and a directory.
-	fileName := path.Join(t.Dir, "foo")
-	err = ioutil.WriteFile(fileName, []byte{}, 0400)
-	AssertEq(nil, err)
-
-	dirName := path.Join(t.Dir, "bar")
-	err = os.Mkdir(dirName, 0700)
-	AssertEq(nil, err)
-
-	// Attempt to link each. Neither should work, but for different reasons.
-	err = os.Link(fileName, path.Join(t.Dir, "baz"))
-	ExpectThat(err, Error(HasSubstr("not implemented")))
-
-	err = os.Link(dirName, path.Join(t.Dir, "baz"))
-	ExpectThat(err, Error(HasSubstr("not permitted")))
-}
-
 func (t *MemFSTest) CreateSymlink() {
 	var fi os.FileInfo
 	var err error
@@ -1225,6 +1206,202 @@ func (t *MemFSTest) DeleteSymlink() {
 	ExpectThat(entries, ElementsAre())
 }
 
+func (t *MemFSTest) CreateHardlink() {
+	var fi os.FileInfo
+	var err error
+
+	// Create a file.
+	fileName := path.Join(t.Dir, "regular_file")
+	const contents = "Hello\x00world"
+
+	err = ioutil.WriteFile(fileName, []byte(contents), 0444)
+	AssertEq(nil, err)
+
+	// Clean up the file at the end.
+	defer func() {
+		err := os.Remove(fileName)
+		AssertEq(nil, err)
+	}()
+
+	// Create a link to the file.
+	linkName := path.Join(t.Dir, "foo")
+	err = os.Link(fileName, linkName)
+	AssertEq(nil, err)
+
+	// Clean up the file at the end.
+	defer func() {
+		err := os.Remove(linkName)
+		AssertEq(nil, err)
+	}()
+
+	// Stat the link.
+	fi, err = os.Lstat(linkName)
+	AssertEq(nil, err)
+
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0444, fi.Mode())
+
+	// Read the parent directory.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(2, len(entries))
+
+	fi = entries[0]
+	ExpectEq("foo", fi.Name())
+	ExpectEq(0444, fi.Mode())
+
+	fi = entries[1]
+	ExpectEq("regular_file", fi.Name())
+	ExpectEq(0444, fi.Mode())
+}
+
+func (t *MemFSTest) CreateHardlink_AlreadyExists() {
+	var err error
+
+	// Create a file and a directory.
+	fileName := path.Join(t.Dir, "foo")
+	err = ioutil.WriteFile(fileName, []byte{}, 0400)
+	AssertEq(nil, err)
+
+	dirName := path.Join(t.Dir, "bar")
+	err = os.Mkdir(dirName, 0700)
+	AssertEq(nil, err)
+
+	// Create an existing symlink.
+	symlinkName := path.Join(t.Dir, "baz")
+	err = os.Symlink("blah", symlinkName)
+	AssertEq(nil, err)
+
+	// Create another link to the file.
+	hardlinkName := path.Join(t.Dir, "qux")
+	err = os.Link(fileName, hardlinkName)
+	AssertEq(nil, err)
+
+	// Symlinking on top of any of them should fail.
+	names := []string{
+		fileName,
+		dirName,
+		symlinkName,
+		hardlinkName,
+	}
+
+	for _, n := range names {
+		err = os.Link(fileName, n)
+		ExpectThat(err, Error(HasSubstr("exists")))
+	}
+}
+
+func (t *MemFSTest) DeleteHardlink() {
+	var fi os.FileInfo
+	var err error
+
+	// Create a file.
+	fileName := path.Join(t.Dir, "regular_file")
+	const contents = "Hello\x00world"
+
+	err = ioutil.WriteFile(fileName, []byte(contents), 0444)
+	AssertEq(nil, err)
+
+	// Step #1: We will create and remove a link and verify that
+	// after removal everything is as expected.
+
+	// Create a link to the file.
+	linkName := path.Join(t.Dir, "foo")
+	err = os.Link(fileName, linkName)
+	AssertEq(nil, err)
+
+	// Remove the link.
+	err = os.Remove(linkName)
+	AssertEq(nil, err)
+
+	// Stat the link.
+	fi, err = os.Lstat(linkName)
+	AssertEq(nil, fi)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+
+	// Read the parent directory.
+	entries, err := fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("regular_file", fi.Name())
+	ExpectEq(0444, fi.Mode())
+
+	// Step #2: We will create a link and remove the original file subsequently
+	// and verify that after removal everything is as expected.
+
+	// Create a link to the file.
+	linkName = path.Join(t.Dir, "bar")
+	err = os.Link(fileName, linkName)
+	AssertEq(nil, err)
+
+	// Remove the original file.
+	err = os.Remove(fileName)
+	AssertEq(nil, err)
+
+	// Stat the link.
+	fi, err = os.Lstat(linkName)
+	AssertEq(nil, err)
+	ExpectEq("bar", fi.Name())
+	ExpectEq(0444, fi.Mode())
+
+	// Stat the original file.
+	fi, err = os.Lstat(fileName)
+	AssertEq(nil, fi)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+
+	// Read the parent directory.
+	entries, err = fusetesting.ReadDirPicky(t.Dir)
+	AssertEq(nil, err)
+	AssertEq(1, len(entries))
+
+	fi = entries[0]
+	ExpectEq("bar", fi.Name())
+	ExpectEq(0444, fi.Mode())
+
+	// Cleanup.
+	err = os.Remove(linkName)
+	AssertEq(nil, err)
+}
+
+func (t *MemFSTest) ReadHardlink() {
+	var err error
+
+	// Create a file.
+	fileName := path.Join(t.Dir, "regular_file")
+	const contents = "Hello\x00world"
+
+	err = ioutil.WriteFile(fileName, []byte(contents), 0444)
+	AssertEq(nil, err)
+
+	// Clean up the file at the end.
+	defer func() {
+		err := os.Remove(fileName)
+		AssertEq(nil, err)
+	}()
+
+	// Create a link to the file.
+	linkName := path.Join(t.Dir, "foo")
+	err = os.Link(fileName, linkName)
+	AssertEq(nil, err)
+
+	// Clean up the file at the end.
+	defer func() {
+		err := os.Remove(linkName)
+		AssertEq(nil, err)
+	}()
+
+	// Read files.
+	original, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	linked, err := ioutil.ReadFile(linkName)
+	AssertEq(nil, err)
+
+	// Check if the bytes are the same.
+	AssertEq(true, reflect.DeepEqual(original, linked))
+}
+
 func (t *MemFSTest) CreateInParallel_NoTruncate() {
 	fusetesting.RunCreateInParallelTest_NoTruncate(t.Ctx, t.Dir)
 }
@@ -1243,6 +1420,10 @@ func (t *MemFSTest) MkdirInParallel() {
 
 func (t *MemFSTest) SymlinkInParallel() {
 	fusetesting.RunSymlinkInParallelTest(t.Ctx, t.Dir)
+}
+
+func (t *MemFSTest) HardlinkInParallel() {
+	fusetesting.RunHardlinkInParallelTest(t.Ctx, t.Dir)
 }
 
 func (t *MemFSTest) RenameWithinDir_File() {

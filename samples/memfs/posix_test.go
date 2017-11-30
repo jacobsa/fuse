@@ -445,3 +445,7 @@ func (t *PosixTest) MkdirInParallel() {
 func (t *PosixTest) SymlinkInParallel() {
 	fusetesting.RunSymlinkInParallelTest(t.ctx, t.dir)
 }
+
+func (t *PosixTest) HardlinkInParallel() {
+	fusetesting.RunHardlinkInParallelTest(t.ctx, t.dir)
+}
