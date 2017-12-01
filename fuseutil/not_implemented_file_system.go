@@ -92,6 +92,13 @@ func (fs *NotImplementedFileSystem) CreateSymlink(
 	return
 }
 
+func (fs *NotImplementedFileSystem) CreateLink(
+	ctx context.Context,
+	op *fuseops.CreateLinkOp) (err error) {
+	err = fuse.ENOSYS
+	return
+}
+
 func (fs *NotImplementedFileSystem) Rename(
 	ctx context.Context,
 	op *fuseops.RenameOp) (err error) {
