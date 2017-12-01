@@ -83,15 +83,59 @@ type FileSystem interface {
 // cf. http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
 // requests").
 func NewFileSystemServer(fs FileSystem) fuse.Server {
-	return &fileSystemServer{
-		fs: fs,
+	return NewFileSystemServerWithRecover(fs, nil)
+}
+
+// Create a fuse.Server that handles ops by calling the associated FileSystem
+// method.Respond with the resulting error. Unsupported ops are responded to
+// directly with ENOSYS.
+//
+// If panic occurs in filesystem server, panicHandler will be called with it's
+// argument set to whatever 'recover' returns.
+// The recommended behavior for this function is to handle the exception and
+// to re-panic or stop the execution gracefully.
+// If panicHandler is nil, it will be ignored.
+//
+// Each call to a FileSystem method (except ForgetInode) is made on
+// its own goroutine, and is free to block. ForgetInode may be called
+// synchronously, and should not depend on calls to other methods
+// being received concurrently.
+//
+// (It is safe to naively process ops concurrently because the kernel
+// guarantees to serialize operations that the user expects to happen in order,
+// cf. http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
+// requests").
+func NewFileSystemServerWithRecover(fs FileSystem, panicHandler func(interface{})) fuse.Server {
+	fss := &fileSystemServer{
+		fs:                fs,
+		handleOpFunc:      defaultHandleOpFunc,
+		filesystemRecover: panicHandler,
 	}
+	if panicHandler != nil {
+		fss.handleOpFunc = recoverHandleOpFunc
+	}
+	return fss
 }
 
 type fileSystemServer struct {
-	fs          FileSystem
-	opsInFlight sync.WaitGroup
+	fs                FileSystem
+	opsInFlight       sync.WaitGroup
+	handleOpFunc      func(*fileSystemServer)
+	filesystemRecover func(interface{})
 }
+
+var (
+	defaultHandleOpFunc = func(s *fileSystemServer) {
+		s.opsInFlight.Done()
+	}
+	recoverHandleOpFunc = func(s *fileSystemServer) {
+		s.opsInFlight.Done()
+		r := recover()
+		if r != nil {
+			s.filesystemRecover(r)
+		}
+	}
+)
 
 func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	// When we are done, we clean up by waiting for all in-flight ops then
@@ -128,7 +172,7 @@ func (s *fileSystemServer) handleOp(
 	c *fuse.Connection,
 	ctx context.Context,
 	op interface{}) {
-	defer s.opsInFlight.Done()
+	defer s.handleOpFunc(s)
 
 	// Dispatch to the appropriate method.
 	var err error
