@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build amd64 arm64 ppc64 ppc64le
+// +build amd64 arm arm64 ppc64 ppc64le
 // +build !go1.8
 
 // Assembly code isn't subject to visibility restrictions, so we can jump
