@@ -15,6 +15,7 @@
 package fusetesting
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,7 +26,6 @@ import (
 
 	. "github.com/jacobsa/ogletest"
 	"github.com/jacobsa/syncutil"
-	"golang.org/x/net/context"
 )
 
 // Run an ogletest test that checks expectations for parallel calls to open(2)

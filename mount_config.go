@@ -15,12 +15,11 @@
 package fuse
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"runtime"
 	"strings"
-
-	"golang.org/x/net/context"
 )
 
 // Optional configuration accepted by Mount.

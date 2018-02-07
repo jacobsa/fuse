@@ -5,7 +5,7 @@ matrix:
   include:
     - os: linux
       language: go
-      go: 1.8.1
+      go: 1.9.3
       # Use the virtualized Trusty beta Travis is running in order to get
       # support for installing fuse.
       #
@@ -14,7 +14,7 @@ matrix:
       sudo: required
     - os: osx
       language: go
-      go: 1.8.1
+      go: 1.9.3
 
 # Install fuse before installing our code.
 before_install:

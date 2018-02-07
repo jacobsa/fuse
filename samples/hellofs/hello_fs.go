@@ -15,11 +15,10 @@
 package hellofs
 
 import (
+	"context"
 	"io"
 	"os"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
