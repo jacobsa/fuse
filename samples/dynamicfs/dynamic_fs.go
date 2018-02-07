@@ -1,6 +1,7 @@
 package dynamicfs
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -8,8 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"

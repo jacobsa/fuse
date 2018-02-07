@@ -15,6 +15,7 @@
 package samples
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -25,7 +26,6 @@ import (
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/ogletest"
 	"github.com/jacobsa/timeutil"
-	"golang.org/x/net/context"
 )
 
 // A struct that implements common behavior needed by tests in the samples/

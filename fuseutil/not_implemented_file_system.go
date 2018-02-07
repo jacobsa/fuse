@@ -15,9 +15,10 @@
 package fuseutil
 
 import (
+	"context"
+
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
-	"golang.org/x/net/context"
 )
 
 // A FileSystem that responds to all ops with fuse.ENOSYS. Embed this in your

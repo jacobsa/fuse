@@ -15,10 +15,9 @@
 package statfs
 
 import (
+	"context"
 	"os"
 	"sync"
-
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"

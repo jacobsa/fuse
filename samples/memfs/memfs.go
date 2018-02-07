@@ -15,13 +15,12 @@
 package memfs
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"syscall"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"

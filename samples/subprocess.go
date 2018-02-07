@@ -16,6 +16,7 @@ package samples
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -27,7 +28,6 @@ import (
 	"sync"
 
 	"github.com/jacobsa/ogletest"
-	"golang.org/x/net/context"
 )
 
 var fToolPath = flag.String(

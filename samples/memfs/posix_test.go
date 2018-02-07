@@ -18,14 +18,13 @@
 package memfs_test
 
 import (
+	"context"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
 	"testing"
-
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse/fusetesting"
 	. "github.com/jacobsa/oglematchers"

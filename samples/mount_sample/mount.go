@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -27,7 +28,6 @@ import (
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/samples/flushfs"
-	"golang.org/x/net/context"
 )
 
 var fType = flag.String("type", "", "The name of the samples/ sub-dir.")

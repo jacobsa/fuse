@@ -15,13 +15,12 @@
 package cachingfs
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"io"
 	"os"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"

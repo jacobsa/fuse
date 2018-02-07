@@ -15,13 +15,12 @@
 package errorfs
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"reflect"
 	"sync"
 	"syscall"
-
-	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
