@@ -41,7 +41,9 @@ func convertInMessage(
 	inMsg *buffer.InMessage,
 	outMsg *buffer.OutMessage,
 	protocol fusekernel.Protocol) (o interface{}, err error) {
-	switch inMsg.Header().Opcode {
+	header := inMsg.Header()
+
+	switch header.Opcode {
 	case fusekernel.OpLookup:
 		buf := inMsg.ConsumeBytes(inMsg.Len())
 		n := len(buf)
@@ -93,6 +95,14 @@ func convertInMessage(
 			to.Mtime = &t
 		}
 
+		if valid&fusekernel.SetattrUid != 0 {
+			to.Uid = &in.Uid
+		}
+
+		if valid&fusekernel.SetattrGid != 0 {
+			to.Gid = &in.Gid
+		}
+
 	case fusekernel.OpForget:
 		type input fusekernel.ForgetIn
 		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
@@ -132,6 +142,8 @@ func convertInMessage(
 			// opcode is mkdir. But we want the correct mode to go through, so ensure
 			// that os.ModeDir is set.
 			Mode: convertFileMode(in.Mode) | os.ModeDir,
+			Uid:  header.Uid,
+			Gid:  header.Gid,
 		}
 
 	case fusekernel.OpMknod:
@@ -153,6 +165,8 @@ func convertInMessage(
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(name),
 			Mode:   convertFileMode(in.Mode),
+			Uid:    header.Uid,
+			Gid:    header.Gid,
 		}
 
 	case fusekernel.OpCreate:
@@ -174,6 +188,8 @@ func convertInMessage(
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(name),
 			Mode:   convertFileMode(in.Mode),
+			Uid:    header.Uid,
+			Gid:    header.Gid,
 		}
 
 	case fusekernel.OpSymlink:
@@ -194,6 +210,8 @@ func convertInMessage(
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(newName),
 			Target: string(target),
+			Uid:    header.Uid,
+			Gid:    header.Gid,
 		}
 
 	case fusekernel.OpRename:

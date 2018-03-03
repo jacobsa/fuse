@@ -352,7 +352,9 @@ func (in *inode) WriteAt(p []byte, off int64) (n int, err error) {
 func (in *inode) SetAttributes(
 	size *uint64,
 	mode *os.FileMode,
-	mtime *time.Time) {
+	mtime *time.Time,
+	uid *uint32,
+	gid *uint32) {
 	// Update the modification time.
 	in.attrs.Mtime = time.Now()
 
@@ -380,5 +382,15 @@ func (in *inode) SetAttributes(
 	// Change mtime?
 	if mtime != nil {
 		in.attrs.Mtime = *mtime
+	}
+
+	// Change uid?
+	if uid != nil {
+		in.attrs.Uid = *uid
+	}
+
+	// Change gid?
+	if gid != nil {
+		in.attrs.Gid = *gid
 	}
 }
