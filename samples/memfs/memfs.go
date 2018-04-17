@@ -216,7 +216,7 @@ func (fs *memFS) LookUpInode(
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
 	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
-	op.Entry.EntryExpiration = op.Entry.EntryExpiration
+	op.Entry.EntryExpiration = op.Entry.AttributesExpiration
 
 	return
 }
@@ -300,7 +300,7 @@ func (fs *memFS) MkDir(
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
 	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
-	op.Entry.EntryExpiration = op.Entry.EntryExpiration
+	op.Entry.EntryExpiration = op.Entry.AttributesExpiration
 
 	return
 }
@@ -418,7 +418,7 @@ func (fs *memFS) CreateSymlink(
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
 	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
-	op.Entry.EntryExpiration = op.Entry.EntryExpiration
+	op.Entry.EntryExpiration = op.Entry.AttributesExpiration
 
 	return
 }
@@ -458,7 +458,7 @@ func (fs *memFS) CreateLink(
 	// We don't spontaneously mutate, so the kernel can cache as long as it wants
 	// (since it also handles invalidation).
 	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
-	op.Entry.EntryExpiration = op.Entry.EntryExpiration
+	op.Entry.EntryExpiration = op.Entry.AttributesExpiration
 
 	return
 }
