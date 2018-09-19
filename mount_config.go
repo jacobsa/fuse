@@ -22,6 +22,11 @@ import (
 	"strings"
 )
 
+// Error and debug loggers, configured via MountConfig.
+type Logger interface {
+	Printf(format string, v ...interface{})
+}
+
 // Optional configuration accepted by Mount.
 type MountConfig struct {
 	// The context from which every op read from the connetion by the sever
@@ -39,12 +44,18 @@ type MountConfig struct {
 	ReadOnly bool
 
 	// A logger to use for logging errors. All errors are logged, with the
-	// exception of a few blacklisted errors that are expected. If nil, no error
-	// logging is performed.
+	// exception of a few blacklisted errors that are expected. If both ErrorLog
+	// and ErrorLogger are nil, no error logging is performed.
+	ErrorLog Logger
+
+	// A logger to use for logging debug information. If both DebugLog and
+	// DebugLogger are nil, no debug logging is performed.
+	DebugLog Logger
+
+	// Used if ErrorLog is nil.  (For backward-compatibility.)
 	ErrorLogger *log.Logger
 
-	// A logger to use for logging debug information. If nil, no debug logging is
-	// performed.
+	// Used if DebugLog is nil.  (For backward-compatibility.)
 	DebugLogger *log.Logger
 
 	// Linux only. OS X always behaves as if writeback caching is disabled.

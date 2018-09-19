@@ -62,7 +62,7 @@ type SampleTest struct {
 func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
 	cfg := t.MountConfig
 	if *fDebug {
-		cfg.DebugLogger = log.New(os.Stderr, "fuse: ", 0)
+		cfg.DebugLog = log.New(os.Stderr, "fuse: ", 0)
 	}
 
 	err := t.initialize(ti.Ctx, t.Server, &cfg)
