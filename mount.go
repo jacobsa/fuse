@@ -72,11 +72,19 @@ func Mount(
 		cfgCopy.OpContext = context.Background()
 	}
 
+	// Fall back to log.Logger if no custom Logger implementation.
+	if cfgCopy.DebugLog == nil && cfgCopy.DebugLogger != nil {
+		cfgCopy.DebugLog = cfgCopy.DebugLogger
+	}
+	if cfgCopy.ErrorLog == nil && cfgCopy.ErrorLogger != nil {
+		cfgCopy.ErrorLog = cfgCopy.ErrorLogger
+	}
+
 	// Create a Connection object wrapping the device.
 	connection, err := newConnection(
 		cfgCopy,
-		config.DebugLogger,
-		config.ErrorLogger,
+		cfgCopy.DebugLog,
+		cfgCopy.ErrorLog,
 		dev)
 
 	if err != nil {

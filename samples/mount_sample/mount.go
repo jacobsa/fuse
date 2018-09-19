@@ -142,7 +142,7 @@ func main() {
 	}
 
 	if *fDebug {
-		cfg.DebugLogger = log.New(os.Stderr, "fuse: ", 0)
+		cfg.DebugLog = log.New(os.Stderr, "fuse: ", 0)
 	}
 
 	mfs, err := fuse.Mount(*fMountPoint, server, cfg)
