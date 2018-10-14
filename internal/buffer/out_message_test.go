@@ -280,12 +280,12 @@ func TestOutMessageGrow(t *testing.T) {
 	// Check the resulting length in two ways.
 	const wantLen = payloadSize + OutMessageHeaderSize
 	if got, want := om.Len(), wantLen; got != want {
-		t.Errorf("om.Len() = %d, want %d", got)
+		t.Errorf("om.Len() = %d, want %d", got, want)
 	}
 
 	b := om.Bytes()
 	if got, want := len(b), wantLen; got != want {
-		t.Fatalf("len(om.Len()) = %d, want %d", got)
+		t.Fatalf("len(om.Len()) = %d, want %d", got, want)
 	}
 
 	// Check that the payload was zeroed.
