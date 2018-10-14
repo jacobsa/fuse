@@ -29,41 +29,18 @@ type Server interface {
 	ServeOps(*Connection)
 }
 
-// Mount attempts to mount a file system on the given directory, using the
-// supplied Server to serve connection requests. It blocks until the file
-// system is successfully mounted.
-func Mount(
-	dir string,
+// FuseServe attempts to start the supplied fuse server with the file discriptor
+// to poll against. It blocks until the file system is successfully mounted.
+func FuseServe(
 	server Server,
-	config *MountConfig) (mfs *MountedFileSystem, err error) {
-	// Sanity check: make sure the mount point exists and is a directory. This
-	// saves us from some confusing errors later on OS X.
-	fi, err := os.Stat(dir)
-	switch {
-	case os.IsNotExist(err):
-		return
-
-	case err != nil:
-		err = fmt.Errorf("Statting mount point: %v", err)
-		return
-
-	case !fi.IsDir():
-		err = fmt.Errorf("Mount point %s is not a directory", dir)
-		return
-	}
-
+	dir string,
+	devFd uintptr,
+	config *MountConfig,
+	ready chan error) (mfs *MountedFileSystem, err error) {
 	// Initialize the struct.
 	mfs = &MountedFileSystem{
 		dir:                 dir,
 		joinStatusAvailable: make(chan struct{}),
-	}
-
-	// Begin the mounting process, which will continue in the background.
-	ready := make(chan error, 1)
-	dev, err := mount(dir, config, ready)
-	if err != nil {
-		err = fmt.Errorf("mount: %v", err)
-		return
 	}
 
 	// Choose a parent context for ops.
@@ -71,6 +48,9 @@ func Mount(
 	if cfgCopy.OpContext == nil {
 		cfgCopy.OpContext = context.Background()
 	}
+
+	// Turn the FD into an os.File.
+	dev := os.NewFile(uintptr(devFd), "/dev/fuse")
 
 	// Create a Connection object wrapping the device.
 	connection, err := newConnection(
@@ -96,6 +76,68 @@ func Mount(
 		err = fmt.Errorf("mount (background): %v", err)
 		return
 	}
+	return
+}
 
+// FuseMount attempts to mount a file system on the given directory. It can block
+// fuse server setup completion using supplied ready channel.
+func FuseMount(
+	dir string,
+	config *MountConfig,
+	ready chan error) (dev uintptr, err error) {
+	// Sanity check: make sure the mount point exists and is a directory. This
+	// saves us from some confusing errors later on OS X.
+	fi, err := os.Stat(dir)
+	switch {
+	case os.IsNotExist(err):
+		return
+
+	case err != nil:
+		err = fmt.Errorf("Statting mount point: %v", err)
+		return
+
+	case !fi.IsDir():
+		err = fmt.Errorf("Mount point %s is not a directory", dir)
+		return
+	}
+
+	// Begin the mounting process, which will continue in the background.
+	dev, err = mount(dir, config, ready)
+	if err != nil {
+		err = fmt.Errorf("mount: %v", err)
+		return
+	}
+	return
+}
+
+func IsMounted(
+	dir string) (mounted bool, err error) {
+	mounted, err = isMounted(dir)
+	if err != nil {
+		err = fmt.Errorf("Checking if mounted: %v", err)
+	}
+	return
+}
+
+// Mount attempts to mount a file system on the given directory, using the
+// supplied Server to serve connection requests. It blocks until the file
+// system is successfully mounted. This func is useful when the caller does
+// not need daemonizing.
+func Mount(
+	dir string,
+	server Server,
+	config *MountConfig) (mfs *MountedFileSystem, err error) {
+
+	ready := make(chan error, 1)
+
+	// do fuse mount
+	dev, err := FuseMount(dir, config, ready)
+	if err != nil {
+		err = fmt.Errorf("mount: %v", err)
+		return
+	}
+
+	// start fuse server
+	mfs, err = FuseServe(server, dir, dev, config, ready)
 	return
 }

@@ -9,6 +9,33 @@ import (
 	"syscall"
 )
 
+// Check if the given directory is already fuse mounted.
+func isMounted(
+	dir string) (mounted bool, err error) {
+	var stderr bytes.Buffer
+
+	cmd := exec.Command(
+		"grep",
+		fmt.Sprintf(" %s .* fuse ", dir),
+		"/proc/self/mountinfo",
+	)
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+	if err != nil {
+		mounted = false
+		switch err.(type) {
+		case *exec.ExitError:
+			err = fmt.Errorf("checking /proc/self/mountinfo : %v\n\nstderr:\n%s", err, stderr.Bytes())
+		default:
+			err = nil
+		}
+	} else {
+		mounted = true
+	}
+	return
+}
+
 // Begin the process of mounting at the given directory, returning a connection
 // to the kernel. Mounting continues in the background, and is complete when an
 // error is written to the supplied channel. The file system may need to
@@ -16,7 +43,7 @@ import (
 func mount(
 	dir string,
 	cfg *MountConfig,
-	ready chan<- error) (dev *os.File, err error) {
+	ready chan<- error) (dev uintptr, err error) {
 	// On linux, mounting is never delayed.
 	ready <- nil
 
@@ -106,8 +133,9 @@ func mount(
 		return
 	}
 
-	// Turn the FD into an os.File.
-	dev = os.NewFile(uintptr(gotFds[0]), "/dev/fuse")
+	// Due to the possible closing via finalizer and likeliness that we want
+	// automount to work well, we do not do os.NewFile here.
+	dev = uintptr(gotFds[0])
 
 	return
 }

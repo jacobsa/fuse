@@ -165,6 +165,33 @@ func callMount(
 	return
 }
 
+// Check if the given directory is already fuse mounted.
+func isMounted(
+	dir string) (mounted bool, err error) {
+	var stderr bytes.Buffer
+
+	cmd := exec.Command(
+		"mount", "|",
+		"grep",
+		fmt.Sprintf(" %s .* osxfuse ", dir),
+	)
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+	if err != nil {
+		mounted = false
+		switch err.(type) {
+		case *exec.ExitError:
+			err = fmt.Errorf("checking if already mounted (osxfuse) : %v\n\nstderr:\n%s", err, stderr.Bytes())
+		default:
+			err = nil
+		}
+	} else {
+		mounted = true
+	}
+	return
+}
+
 // Begin the process of mounting at the given directory, returning a connection
 // to the kernel. Mounting continues in the background, and is complete when an
 // error is written to the supplied channel. The file system may need to
