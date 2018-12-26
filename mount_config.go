@@ -223,10 +223,9 @@ func escapeOptionsKey(s string) (res string) {
 	return
 }
 
-// Create an options string suitable for passing to the mount helper.
-func (c *MountConfig) toOptionsString() string {
+func mapToOptionsString(opts map[string]string) string {
 	var components []string
-	for k, v := range c.toMap() {
+	for k, v := range opts {
 		k = escapeOptionsKey(k)
 
 		component := k
@@ -238,4 +237,9 @@ func (c *MountConfig) toOptionsString() string {
 	}
 
 	return strings.Join(components, ",")
+}
+
+// Create an options string suitable for passing to the mount helper.
+func (c *MountConfig) toOptionsString() string {
+	return mapToOptionsString(c.toMap())
 }
