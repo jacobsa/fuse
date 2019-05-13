@@ -35,6 +35,7 @@ import (
 	. "github.com/jacobsa/oglematchers"
 	. "github.com/jacobsa/ogletest"
 	"github.com/kahing/go-xattr"
+	"golang.org/x/sys/unix"
 )
 
 func TestMemFS(t *testing.T) { RunTests(t) }
@@ -1704,6 +1705,30 @@ func (t *MemFSTest) RenameIntoFileSystem() {
 	// Attempt to move it into the file system.
 	err = os.Rename(oldPath, path.Join(t.Dir, "bar"))
 	ExpectThat(err, Error(HasSubstr("cross-device")))
+}
+
+func (t *MemFSTest) TestPermissions() {
+	var e = unix.EACCES
+	var test = []struct {
+		name string
+		mode int
+		res  [4]error
+	}{
+		{name: "ro", mode: 0400, res: [4]error{nil, e, e, e}},
+		{name: "wo", mode: 0200, res: [4]error{e, nil, e, e}},
+		{name: "rw", mode: 0600, res: [4]error{nil, nil, nil, nil}},
+	}
+
+	for _, tt := range test {
+		n := path.Join(t.Dir, tt.name)
+		err := ioutil.WriteFile(n, []byte(""), os.FileMode(tt.mode))
+		AssertEq(nil, err)
+		for f, r := range tt.res {
+			fd, err := unix.Open(n, f, 0)
+			unix.Close(fd)
+			AssertEq(r, err)
+		}
+	}
 }
 
 func (t *MemFSTest) RenameOverExistingFile() {

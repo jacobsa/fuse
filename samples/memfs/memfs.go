@@ -26,6 +26,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/syncutil"
+	"golang.org/x/sys/unix"
 )
 
 type memFS struct {
@@ -614,6 +615,23 @@ func (fs *memFS) OpenFile(
 
 	if !inode.isFile() {
 		panic("Found non-file.")
+	}
+	// The flags are not a bitmask, they are a 2-bit field
+	// with, technically, only 3 legal values. But testing shows
+	// that there are 4 legal values, so we accomodate that.
+	var perm int
+	switch op.Flag & unix.O_ACCMODE {
+	case unix.O_RDONLY:
+		perm = 0400
+	case unix.O_WRONLY:
+		perm = 0200
+	case unix.O_RDWR, unix.O_ACCMODE:
+		perm = 0600
+	}
+
+	// We only check user permissions, since this is a sample FS
+	if int(inode.attrs.Mode.Perm())&perm != perm {
+		err = unix.EACCES
 	}
 
 	return
