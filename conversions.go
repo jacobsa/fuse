@@ -546,6 +546,21 @@ func convertInMessage(
 			Value: value,
 			Flags: in.Flags,
 		}
+	case fusekernel.OpFallocate:
+		type input fusekernel.FallocateIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			err = errors.New("Corrupt OpFallocate")
+			return
+		}
+
+		o = &fuseops.FallocateOp{
+			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
+			Offset: in.Offset,
+			Length: in.Length,
+			Mode:   in.Mode,
+		}
 
 	default:
 		o = &unknownOp{
@@ -791,6 +806,9 @@ func (c *Connection) kernelResponseForOp(
 		}
 
 	case *fuseops.SetXattrOp:
+		// Empty response
+
+	case *fuseops.FallocateOp:
 		// Empty response
 
 	case *initOp:

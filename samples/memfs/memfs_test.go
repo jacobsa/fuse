@@ -1955,3 +1955,31 @@ func (t *MknodTest) NonExistentParent() {
 	err = syscall.Mknod(p, syscall.S_IFREG|0600, 0)
 	ExpectEq(syscall.ENOENT, err)
 }
+
+func (t *MknodTest) Fallocate_Larger() {
+	var err error
+	fileName := path.Join(t.Dir, "foo")
+
+	// Create a file.
+	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
+	AssertEq(nil, err)
+
+	// Open it for modification.
+	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
+	t.ToClose = append(t.ToClose, f)
+	AssertEq(nil, err)
+
+	// Truncate it.
+	err = syscall.Fallocate(int(f.Fd()), 0, 5, 1)
+	AssertEq(nil, err)
+
+	// Stat it.
+	fi, err := f.Stat()
+	AssertEq(nil, err)
+	ExpectEq(6, fi.Size())
+
+	// Read the contents.
+	contents, err := ioutil.ReadFile(fileName)
+	AssertEq(nil, err)
+	ExpectEq("taco\x00\x00", string(contents))
+}
