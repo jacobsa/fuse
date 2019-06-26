@@ -246,6 +246,12 @@ func (fs *memFS) SetInodeAttributes(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
+	if op.Size != nil && op.Handle == nil && *op.Size != 0 {
+		// require that truncate to non-zero has to be ftruncate()
+		// but allow open(O_TRUNC)
+		err = syscall.EBADF
+	}
+
 	// Grab the inode.
 	inode := fs.getInodeOrDie(op.Inode)
 
