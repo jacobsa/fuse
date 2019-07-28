@@ -126,10 +126,14 @@ var mountflagopts = map[string]func(uintptr) uintptr{
 var errFallback = errors.New("sentinel: fallback to fusermount(1)")
 
 func directmount(dir string, cfg *MountConfig) (*os.File, error) {
-	dev, err := os.OpenFile("/dev/fuse", os.O_RDWR, 0644)
+	// We use syscall.Open + os.NewFile instead of os.OpenFile so that the file
+	// is opened in blocking mode. When opened in non-blocking mode, the Go
+	// runtime tries to use poll(2), which does not work with /dev/fuse.
+	fd, err := syscall.Open("/dev/fuse", syscall.O_RDWR, 0644)
 	if err != nil {
 		return nil, errFallback
 	}
+	dev := os.NewFile(uintptr(fd), "/dev/fuse")
 	// As per libfuse/fusermount.c:847: https://bit.ly/2SgtWYM#L847
 	data := fmt.Sprintf("fd=%d,rootmode=40000,user_id=%d,group_id=%d",
 		dev.Fd(), os.Getuid(), os.Getgid())
