@@ -919,6 +919,12 @@ func convertAttributes(
 	if in.Mode&os.ModeSetuid != 0 {
 		out.Mode |= syscall.S_ISUID
 	}
+	if in.Mode&os.ModeSetgid != 0 {
+		out.Mode |= syscall.S_ISGID
+	}
+	if in.Mode&os.ModeSticky != 0 {
+		out.Mode |= syscall.S_ISVTX
+	}
 }
 
 // Convert an absolute cache expiration time to a relative time from now for
@@ -974,6 +980,9 @@ func convertFileMode(unixMode uint32) os.FileMode {
 	}
 	if unixMode&syscall.S_ISGID != 0 {
 		mode |= os.ModeSetgid
+	}
+	if unixMode&syscall.S_ISVTX != 0 {
+		mode |= os.ModeSticky
 	}
 	return mode
 }
