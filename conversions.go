@@ -76,6 +76,14 @@ func convertInMessage(
 		o = to
 
 		valid := fusekernel.SetattrValid(in.Valid)
+		if valid&fusekernel.SetattrUid != 0 {
+			to.Uid = &in.Uid
+		}
+
+		if valid&fusekernel.SetattrGid != 0 {
+			to.Gid = &in.Gid
+		}
+
 		if valid&fusekernel.SetattrSize != 0 {
 			to.Size = &in.Size
 		}
