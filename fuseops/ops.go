@@ -23,6 +23,12 @@ import (
 // File system
 ////////////////////////////////////////////////////////////////////////
 
+// OpMetadata contains metadata about the file system operation.
+type OpMetadata struct {
+	// PID of the process that is invoking the operation.
+	Pid uint32
+}
+
 // Return statistics about the file system's capacity and available resources.
 //
 // Called by statfs(2) and friends:
@@ -276,6 +282,9 @@ type MkNodeOp struct {
 //
 // Therefore the file system should return EEXIST if the name already exists.
 type CreateFileOp struct {
+	// Metadata
+	Metadata OpMetadata
+
 	// The ID of parent directory inode within which to create the child file.
 	Parent InodeID
 
@@ -560,6 +569,9 @@ type ReleaseDirHandleOp struct {
 // process. On OS X it may not be sent for every open(2)
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
 type OpenFileOp struct {
+	// Metadata
+	Metadata OpMetadata
+
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -758,6 +770,9 @@ type SyncFileOp struct {
 // to at least schedule a real flush, and maybe do it immediately in order to
 // return any errors that occur.
 type FlushFileOp struct {
+	// Metadata
+	Metadata OpMetadata
+
 	// The file and handle being flushed.
 	Inode  InodeID
 	Handle HandleID
