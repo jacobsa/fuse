@@ -40,7 +40,7 @@ func TestSuccessfulMount(t *testing.T) {
 	// Set up a temporary directory.
 	dir, err := ioutil.TempDir("", "mount_test")
 	if err != nil {
-		t.Fatal("ioutil.TempDir: %v", err)
+		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 
 	defer os.RemoveAll(dir)
@@ -80,7 +80,7 @@ func TestNonEmptyMountPoint(t *testing.T) {
 	// Set up a temporary directory.
 	dir, err := ioutil.TempDir("", "mount_test")
 	if err != nil {
-		t.Fatal("ioutil.TempDir: %v", err)
+		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 
 	defer os.RemoveAll(dir)
@@ -116,7 +116,7 @@ func TestNonexistentMountPoint(t *testing.T) {
 	// Set up a temporary directory.
 	dir, err := ioutil.TempDir("", "mount_test")
 	if err != nil {
-		t.Fatal("ioutil.TempDir: %v", err)
+		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 
 	defer os.RemoveAll(dir)

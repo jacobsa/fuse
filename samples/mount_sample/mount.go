@@ -123,7 +123,7 @@ func main() {
 	// Grab the file to signal when ready.
 	readyFile, err := getReadyFile()
 	if err != nil {
-		log.Fatalf("getReadyFile:", err)
+		log.Fatalf("getReadyFile: %v", err)
 	}
 
 	// Create an appropriate file system.
