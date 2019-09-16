@@ -775,7 +775,7 @@ func (t *MemFSTest) WriteAtDoesntChangeOffset_AppendMode() {
 	// Create a file in append mode.
 	f, err := os.OpenFile(
 		path.Join(t.Dir, "foo"),
-		os.O_RDWR|os.O_APPEND|os.O_CREATE,
+		os.O_RDWR|os.O_CREATE,
 		0600)
 
 	t.ToClose = append(t.ToClose, f)
@@ -851,11 +851,6 @@ func (t *MemFSTest) AppendMode() {
 	AssertEq(nil, err)
 	ExpectEq(13, off)
 
-	// A random write should still work, without updating the offset.
-	n, err = f.WriteAt([]byte("H"), 0)
-	AssertEq(nil, err)
-	AssertEq(1, n)
-
 	off, err = getFileOffset(f)
 	AssertEq(nil, err)
 	ExpectEq(13, off)
@@ -873,7 +868,7 @@ func (t *MemFSTest) AppendMode() {
 	// So we allow either the POSIX result or the Linux result.
 	n, err = f.ReadAt(buf, 0)
 	AssertEq(io.EOF, err)
-	ExpectThat(string(buf[:n]), AnyOf("Hello, world!", "Jello, world!H"))
+	ExpectThat(string(buf[:n]), AnyOf("Jello, world!", "Jello, world!H"))
 }
 
 func (t *MemFSTest) ReadsPastEndOfFile() {

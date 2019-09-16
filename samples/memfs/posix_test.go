@@ -167,6 +167,7 @@ func (t *PosixTest) WriteStartsPastEndOfFile() {
 }
 
 func (t *PosixTest) WriteStartsPastEndOfFile_AppendMode() {
+	return // WriteAt on O_APPEND files returns an error starting with Go 1.13
 	var err error
 	var n int
 
@@ -237,6 +238,7 @@ func (t *PosixTest) WriteAtDoesntChangeOffset_NotAppendMode() {
 }
 
 func (t *PosixTest) WriteAtDoesntChangeOffset_AppendMode() {
+	return // WriteAt on O_APPEND files returns an error starting with Go 1.13
 	var err error
 	var n int
 
@@ -269,6 +271,7 @@ func (t *PosixTest) WriteAtDoesntChangeOffset_AppendMode() {
 }
 
 func (t *PosixTest) AppendMode() {
+	return // WriteAt on O_APPEND files returns an error starting with Go 1.13
 	var err error
 	var n int
 	var off int64
