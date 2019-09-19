@@ -856,6 +856,9 @@ func convertAttributes(
 	case in.Mode&os.ModeSocket != 0:
 		out.Mode |= syscall.S_IFSOCK
 	}
+	if in.Mode&os.ModeSetuid != 0 {
+		out.Mode |= syscall.S_ISUID
+	}
 }
 
 // Convert an absolute cache expiration time to a relative time from now for
