@@ -133,11 +133,17 @@ func (s *fileSystemServer) InvalidateEntry(parent fuseops.InodeID, name string) 
 		Name:   string(name),
 	}
 	ctx, _ := c.SetNotifyContext(op)
+	var key interface{} = contextKey
+        foo := ctx.Value(key)
+        opstate, ok := foo.(opState)
+        if !ok {
+               panic(fmt.Sprintf("notify op have  invalid context: %#v", ctx))
+	}
 	s.opsInFlight.Add(1)
-	go func(ctx context.Context) {
+	go func(opstate opState) {
 		defer s.opsInFlight.Done()
-		c.NotifyKernel(ctx)
-	}(ctx)
+		c.NotifyKernel(opstate)
+	}(opstate)
 	return nil
 }
 func (s *fileSystemServer) NotifyDelete(
@@ -151,11 +157,17 @@ func (s *fileSystemServer) NotifyDelete(
 		Name:   string(name),
 	}
 	ctx, _ := c.SetNotifyContext(op)
+	var key interface{} = contextKey
+        foo := ctx.Value(key)
+        opstate, ok := foo.(opState)
+        if !ok {
+               panic(fmt.Sprintf("notify op have  invalid context: %#v", ctx))
+	}
 	s.opsInFlight.Add(1)
-	go func(ctx context.Context) {
+	go func(opstate opState) {
 		defer s.opsInFlight.Done()
-		c.NotifyKernel(ctx)
-	}(ctx)
+		c.NotifyKernel(opstate)
+	}(opstate)
 	return nil
 
 }
@@ -170,11 +182,17 @@ func (s *fileSystemServer) InvalidateInode(
 		Len: len,
 	}
 	ctx, _ := c.SetNotifyContext(op)
+	var key interface{} = contextKey
+        foo := ctx.Value(key)
+        opstate, ok := foo.(opState)
+        if !ok {
+               panic(fmt.Sprintf("notify op have  invalid context: %#v", ctx))
+	}
 	s.opsInFlight.Add(1)
-	go func(ctx context.Context) {
+	go func(opstate opState) {
 		defer s.opsInFlight.Done()
-		c.NotifyKernel(ctx)
-	}(ctx)
+		c.NotifyKernel(opstate)
+	}(opstate)
 	return nil
 
 }

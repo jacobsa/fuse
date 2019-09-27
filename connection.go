@@ -433,7 +433,7 @@ func (c *Connection) SetNotifyContext(op interface{}) (context.Context, error) {
 		return nil, err
 	}
 
-	ctx := context.Background()
+	var ctx context.Context
 
 	switch op.(type) {
 	case *fuseops.NotifyInvalInodeOp:
@@ -543,17 +543,13 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 
 // The NotifyKernel is same as Reply func of Connection.But the diff is
 // that the func only send to kernel.
-func (c *Connection) NotifyKernel(ctx context.Context) {
+func (c *Connection) NotifyKernel(opstate opState) {
 
-	// we should get outmsg from context
-	var key interface{} = contextKey
-	foo := ctx.Value(key)
-	state, ok := foo.(opState)
-	if !ok {
-		panic(fmt.Sprintf("Reply called with invalid context: %#v", ctx))
+	if opstate == nil {
+		panic(fmt.Sprintf("must init notify op"))
 	}
 
-	outMsg := state.outMsg
+	outMsg := opstate.outMsg
 	defer c.putOutMessage(outMsg)
 
 	c.debugLogger.Println("dev fd is:unique:notifycode ", c.dev.Fd(), outMsg.OutHeader().Unique, outMsg.OutHeader().Error)
