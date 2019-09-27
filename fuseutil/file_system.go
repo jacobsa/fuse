@@ -140,7 +140,7 @@ func (s *fileSystemServer) InvalidateEntry(parent fuseops.InodeID, name string) 
                panic(fmt.Sprintf("notify op have  invalid context: %#v", ctx))
 	}
 	s.opsInFlight.Add(1)
-	go func(opstate opState) {
+	go func(opstate *opState) {
 		defer s.opsInFlight.Done()
 		c.NotifyKernel(opstate)
 	}(opstate)
@@ -164,7 +164,7 @@ func (s *fileSystemServer) NotifyDelete(
                panic(fmt.Sprintf("notify op have  invalid context: %#v", ctx))
 	}
 	s.opsInFlight.Add(1)
-	go func(opstate opState) {
+	go func(opstate *opState) {
 		defer s.opsInFlight.Done()
 		c.NotifyKernel(opstate)
 	}(opstate)
@@ -189,7 +189,7 @@ func (s *fileSystemServer) InvalidateInode(
                panic(fmt.Sprintf("notify op have  invalid context: %#v", ctx))
 	}
 	s.opsInFlight.Add(1)
-	go func(opstate opState) {
+	go func(opstate *opState) {
 		defer s.opsInFlight.Done()
 		c.NotifyKernel(opstate)
 	}(opstate)

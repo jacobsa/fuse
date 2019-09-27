@@ -433,8 +433,12 @@ func (c *Connection) SetNotifyContext(op interface{}) (context.Context, error) {
 		return nil, err
 	}
 
-	var ctx context.Context
+//	var ctx context.Context
+	
+	ctx := context.Background()
 
+	// maybe no need this switch 
+	// why ctx is nil from beginOp?
 	switch op.(type) {
 	case *fuseops.NotifyInvalInodeOp:
 		ctx = c.beginOp(100+uint32(fusekernel.NotifyCodeInvalInode), 0)
@@ -543,7 +547,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 
 // The NotifyKernel is same as Reply func of Connection.But the diff is
 // that the func only send to kernel.
-func (c *Connection) NotifyKernel(opstate opState) {
+func (c *Connection) NotifyKernel(opstate *opState) {
 
 	if opstate == nil {
 		panic(fmt.Sprintf("must init notify op"))
