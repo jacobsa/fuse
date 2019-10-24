@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	fallocate "github.com/detailyang/go-fallocate"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
 	"github.com/jacobsa/fuse/samples"
@@ -1970,7 +1971,7 @@ func (t *MknodTest) Fallocate_Larger() {
 	AssertEq(nil, err)
 
 	// Truncate it.
-	err = syscall.Fallocate(int(f.Fd()), 0, 5, 1)
+	err = fallocate.Fallocate(f, 5, 1)
 	AssertEq(nil, err)
 
 	// Stat it.
