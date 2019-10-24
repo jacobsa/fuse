@@ -432,7 +432,10 @@ func (c *Connection) shouldLogError(
 		if err == syscall.ENOENT {
 			return false
 		}
-
+	case *fuseops.ListXattrOp:
+		if err == syscall.ENODATA || err == syscall.ERANGE {
+			return false
+		}
 	case *fuseops.GetXattrOp:
 		if err == syscall.ENODATA || err == syscall.ERANGE {
 			return false
