@@ -20,6 +20,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 )
@@ -381,4 +382,19 @@ func (in *inode) SetAttributes(
 	if mtime != nil {
 		in.attrs.Mtime = *mtime
 	}
+}
+
+func (in *inode) Fallocate(mode uint32, offset uint64, length uint64) (
+	err error) {
+	if mode == 0 {
+		newSize := int(offset + length)
+		if newSize > len(in.contents) {
+			padding := make([]byte, newSize-len(in.contents))
+			in.contents = append(in.contents, padding...)
+			in.attrs.Size = offset + length
+		}
+	} else {
+		err = fuse.ENOSYS
+	}
+	return
 }

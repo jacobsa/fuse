@@ -219,5 +219,12 @@ func (fs *NotImplementedFileSystem) SetXattr(
 	return
 }
 
+func (fs *NotImplementedFileSystem) Fallocate(
+	ctx context.Context,
+	op *fuseops.FallocateOp) (err error) {
+	err = fuse.ENOSYS
+	return
+}
+
 func (fs *NotImplementedFileSystem) Destroy() {
 }

@@ -865,3 +865,22 @@ type SetXattrOp struct {
 	// simply replace the value if the attribute exists.
 	Flags uint32
 }
+
+type FallocateOp struct {
+	// The inode and handle we are fallocating
+	Inode  InodeID
+	Handle HandleID
+
+	// Start of the byte range
+	Offset uint64
+
+	// Length of the byte range
+	Length uint64
+
+	// If Mode is 0x0, allocate disk space within the range specified
+	// If Mode has 0x1, allocate the space but don't increase the file size
+	// If Mode has 0x2, deallocate space within the range specified
+	// If Mode has 0x2, it sbould also have 0x1 (deallocate should not increase
+	// file size)
+	Mode uint32
+}

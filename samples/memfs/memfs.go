@@ -753,3 +753,12 @@ func (fs *memFS) SetXattr(ctx context.Context,
 
 	return
 }
+
+func (fs *memFS) Fallocate(ctx context.Context,
+	op *fuseops.FallocateOp) (err error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	inode := fs.getInodeOrDie(op.Inode)
+	inode.Fallocate(op.Mode, op.Length, op.Length)
+	return
+}
