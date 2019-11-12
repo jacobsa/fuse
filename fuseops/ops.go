@@ -593,6 +593,9 @@ type OpenFileOp struct {
 	// layer. This allows for filesystems whose file sizes are not known in
 	// advance, for example, because contents are generated on the fly.
 	UseDirectIO bool
+
+	// User-provided flags to open(2). See http://go/godoc/os/#OpenFile.
+	Flag int
 }
 
 // Read data from a file previously opened with CreateFile or OpenFile.
