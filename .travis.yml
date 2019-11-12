@@ -28,6 +28,7 @@ before_install:
   # For linux: install fuse.
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
       sudo apt-get install -qq fuse;
+      sudo echo user_allow_other > /etc/fuse.conf;
     fi
 
   # For macOS: update homebrew and then install osxfuse.

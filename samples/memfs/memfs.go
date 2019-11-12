@@ -31,10 +31,6 @@ import (
 type memFS struct {
 	fuseutil.NotImplementedFileSystem
 
-	// The UID and GID that every inode receives.
-	uid uint32
-	gid uint32
-
 	/////////////////////////
 	// Mutable state
 	/////////////////////////
@@ -73,8 +69,6 @@ func NewMemFS(
 	// Set up the basic struct.
 	fs := &memFS{
 		inodes: make([]*inode, fuseops.RootInodeID+1),
-		uid:    uid,
-		gid:    gid,
 	}
 
 	// Set up the root inode.
@@ -250,7 +244,7 @@ func (fs *memFS) SetInodeAttributes(
 	inode := fs.getInodeOrDie(op.Inode)
 
 	// Handle the request.
-	inode.SetAttributes(op.Size, op.Mode, op.Mtime)
+	inode.SetAttributes(op.Size, op.Mode, op.Mtime, op.Uid, op.Gid)
 
 	// Fill in the response.
 	op.Attributes = inode.attrs
@@ -283,8 +277,8 @@ func (fs *memFS) MkDir(
 	childAttrs := fuseops.InodeAttributes{
 		Nlink: 1,
 		Mode:  op.Mode,
-		Uid:   fs.uid,
-		Gid:   fs.gid,
+		Uid:   op.Uid,
+		Gid:   op.Gid,
 	}
 
 	// Allocate a child.
@@ -311,7 +305,7 @@ func (fs *memFS) MkNode(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode)
+	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode, op.Uid, op.Gid)
 	return
 }
 
@@ -319,7 +313,9 @@ func (fs *memFS) MkNode(
 func (fs *memFS) createFile(
 	parentID fuseops.InodeID,
 	name string,
-	mode os.FileMode) (entry fuseops.ChildInodeEntry, err error) {
+	mode os.FileMode,
+	uid uint32,
+	gid uint32) (entry fuseops.ChildInodeEntry, err error) {
 	// Grab the parent, which we will update shortly.
 	parent := fs.getInodeOrDie(parentID)
 
@@ -340,8 +336,8 @@ func (fs *memFS) createFile(
 		Mtime:  now,
 		Ctime:  now,
 		Crtime: now,
-		Uid:    fs.uid,
-		Gid:    fs.gid,
+		Uid:    uid,
+		Gid:    gid,
 	}
 
 	// Allocate a child.
@@ -368,7 +364,7 @@ func (fs *memFS) CreateFile(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode)
+	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode, op.Uid, op.Gid)
 	return
 }
 
@@ -398,8 +394,8 @@ func (fs *memFS) CreateSymlink(
 		Mtime:  now,
 		Ctime:  now,
 		Crtime: now,
-		Uid:    fs.uid,
-		Gid:    fs.gid,
+		Uid:    op.Uid,
+		Gid:    op.Gid,
 	}
 
 	// Allocate a child.
