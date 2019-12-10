@@ -679,7 +679,7 @@ func (fs *memFS) GetXattr(ctx context.Context,
 		op.BytesRead = len(value)
 		if len(op.Dst) >= len(value) {
 			copy(op.Dst, value)
-		} else {
+		} else if len(op.Dst) != 0 {
 			err = syscall.ERANGE
 		}
 	} else {
@@ -703,8 +703,8 @@ func (fs *memFS) ListXattr(ctx context.Context,
 		if err == nil && len(dst) >= keyLen {
 			copy(dst, key)
 			dst = dst[keyLen:]
-		} else {
-			err = syscall.ERANGE
+		} else if len(op.Dst) != 0 {
+			return syscall.ERANGE
 		}
 		op.BytesRead += keyLen
 	}

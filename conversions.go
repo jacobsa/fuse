@@ -603,17 +603,6 @@ func (c *Connection) kernelResponse(
 	if opErr != nil {
 		handled := false
 
-		if opErr == syscall.ERANGE {
-			switch o := op.(type) {
-			case *fuseops.GetXattrOp:
-				writeXattrSize(m, uint32(o.BytesRead))
-				handled = true
-			case *fuseops.ListXattrOp:
-				writeXattrSize(m, uint32(o.BytesRead))
-				handled = true
-			}
-		}
-
 		if !handled {
 			m.OutHeader().Error = -int32(syscall.EIO)
 			if errno, ok := opErr.(syscall.Errno); ok {
@@ -792,14 +781,14 @@ func (c *Connection) kernelResponseForOp(
 		// convertInMessage already set up the destination buffer to be at the end
 		// of the out message. We need only shrink to the right size based on how
 		// much the user read.
-		if o.BytesRead == 0 {
+		if len(o.Dst) == 0 {
 			writeXattrSize(m, uint32(o.BytesRead))
 		} else {
 			m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
 		}
 
 	case *fuseops.ListXattrOp:
-		if o.BytesRead == 0 {
+		if len(o.Dst) == 0 {
 			writeXattrSize(m, uint32(o.BytesRead))
 		} else {
 			m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
