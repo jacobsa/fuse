@@ -26,6 +26,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/syncutil"
+	"golang.org/x/sys/unix"
 )
 
 type memFS struct {
@@ -735,11 +736,11 @@ func (fs *memFS) SetXattr(ctx context.Context,
 	_, ok := inode.xattrs[op.Name]
 
 	switch op.Flags {
-	case 0x1:
+	case unix.XATTR_CREATE:
 		if ok {
 			err = fuse.EEXIST
 		}
-	case 0x2:
+	case unix.XATTR_REPLACE:
 		if !ok {
 			err = fuse.ENOATTR
 		}
