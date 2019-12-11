@@ -145,6 +145,9 @@ type SetInodeAttributesOp struct {
 	// The inode of interest.
 	Inode InodeID
 
+	// If set, this is ftruncate(2), otherwise it's truncate(2)
+	Handle *HandleID
+
 	// The attributes to modify, or nil for attributes that don't need a change.
 	Size  *uint64
 	Mode  *os.FileMode

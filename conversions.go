@@ -93,6 +93,11 @@ func convertInMessage(
 			to.Mtime = &t
 		}
 
+		if valid.Handle() {
+			t := fuseops.HandleID(in.Fh)
+			to.Handle = &t
+		}
+
 	case fusekernel.OpForget:
 		type input fusekernel.ForgetIn
 		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
