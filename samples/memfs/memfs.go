@@ -26,6 +26,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/syncutil"
+	"golang.org/x/sys/unix"
 )
 
 type memFS struct {
@@ -679,7 +680,7 @@ func (fs *memFS) GetXattr(ctx context.Context,
 		op.BytesRead = len(value)
 		if len(op.Dst) >= len(value) {
 			copy(op.Dst, value)
-		} else {
+		} else if len(op.Dst) != 0 {
 			err = syscall.ERANGE
 		}
 	} else {
@@ -703,8 +704,8 @@ func (fs *memFS) ListXattr(ctx context.Context,
 		if err == nil && len(dst) >= keyLen {
 			copy(dst, key)
 			dst = dst[keyLen:]
-		} else {
-			err = syscall.ERANGE
+		} else if len(op.Dst) != 0 {
+			return syscall.ERANGE
 		}
 		op.BytesRead += keyLen
 	}
@@ -735,11 +736,11 @@ func (fs *memFS) SetXattr(ctx context.Context,
 	_, ok := inode.xattrs[op.Name]
 
 	switch op.Flags {
-	case 0x1:
+	case unix.XATTR_CREATE:
 		if ok {
 			err = fuse.EEXIST
 		}
-	case 0x2:
+	case unix.XATTR_REPLACE:
 		if !ok {
 			err = fuse.ENOATTR
 		}
