@@ -42,11 +42,10 @@ var fFsyncError = flag.Int("flushfs.fsync_error", 0, "")
 var fReadOnly = flag.Bool("read_only", false, "Mount in read-only mode.")
 var fDebug = flag.Bool("debug", false, "Enable debug logging.")
 
-func makeFlushFS() (server fuse.Server, err error) {
+func makeFlushFS() (fuse.Server, error) {
 	// Check the flags.
 	if *fFlushesFile == 0 || *fFsyncsFile == 0 {
-		err = fmt.Errorf("You must set the flushfs flags.")
-		return
+		return nil, fmt.Errorf("You must set the flushfs flags.")
 	}
 
 	// Set up the files.
@@ -67,18 +66,15 @@ func makeFlushFS() (server fuse.Server, err error) {
 
 	// Report flushes and fsyncs by writing the contents followed by a newline.
 	report := func(f *os.File, outErr error) func(string) error {
-		return func(s string) (err error) {
+		return func(s string) error {
 			buf := []byte(s)
 			buf = append(buf, '\n')
 
-			_, err = f.Write(buf)
-			if err != nil {
-				err = fmt.Errorf("Write: %v", err)
-				return
+			if _, err := f.Write(buf); err != nil {
+				return fmt.Errorf("Write: %v", err)
 			}
 
-			err = outErr
-			return
+			return outErr
 		}
 	}
 
@@ -86,31 +82,25 @@ func makeFlushFS() (server fuse.Server, err error) {
 	reportFsync := report(fsyncs, fsyncErr)
 
 	// Create the file system.
-	server, err = flushfs.NewFileSystem(reportFlush, reportFsync)
-
-	return
+	return flushfs.NewFileSystem(reportFlush, reportFsync)
 }
 
-func makeFS() (server fuse.Server, err error) {
+func makeFS() (fuse.Server, error) {
 	switch *fType {
 	default:
-		err = fmt.Errorf("Unknown FS type: %v", *fType)
+		return nil, fmt.Errorf("Unknown FS type: %v", *fType)
 
 	case "flushfs":
-		server, err = makeFlushFS()
+		return makeFlushFS()
 	}
-
-	return
 }
 
-func getReadyFile() (f *os.File, err error) {
+func getReadyFile() (*os.File, error) {
 	if *fReadyFile == 0 {
-		err = errors.New("You must set --ready_file.")
-		return
+		return nil, errors.New("You must set --ready_file.")
 	}
 
-	f = os.NewFile(uintptr(*fReadyFile), "(ready file)")
-	return
+	return os.NewFile(uintptr(*fReadyFile), "(ready file)"), nil
 }
 
 func main() {

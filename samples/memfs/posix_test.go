@@ -39,8 +39,7 @@ func TestPosix(t *testing.T) { RunTests(t) }
 
 func getFileOffset(f *os.File) (offset int64, err error) {
 	const relativeToCurrent = 1
-	offset, err = f.Seek(0, relativeToCurrent)
-	return
+	return f.Seek(0, relativeToCurrent)
 }
 
 ////////////////////////////////////////////////////////////////////////

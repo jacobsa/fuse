@@ -44,22 +44,18 @@ func RunCreateInParallelTest_NoTruncate(
 
 		// Set up a function that opens the file with O_CREATE and then appends a
 		// byte to it.
-		worker := func(id byte) (err error) {
+		worker := func(id byte) error {
 			f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 			if err != nil {
-				err = fmt.Errorf("Worker %d: Open: %v", id, err)
-				return
+				return fmt.Errorf("Worker %d: Open: %v", id, err)
 			}
-
 			defer f.Close()
 
-			_, err = f.Write([]byte{id})
-			if err != nil {
-				err = fmt.Errorf("Worker %d: Write: %v", id, err)
-				return
+			if _, err := f.Write([]byte{id}); err != nil {
+				return fmt.Errorf("Worker %d: Write: %v", id, err)
 			}
 
-			return
+			return nil
 		}
 
 		// Run several workers in parallel.
@@ -67,9 +63,8 @@ func RunCreateInParallelTest_NoTruncate(
 		b := syncutil.NewBundle(ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
 			})
 		}
 
@@ -121,21 +116,16 @@ func RunCreateInParallelTest_Truncate(
 				filename,
 				os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_TRUNC,
 				0600)
-
 			if err != nil {
-				err = fmt.Errorf("Worker %d: Open: %v", id, err)
-				return
+				return fmt.Errorf("Worker %d: Open: %v", id, err)
 			}
-
 			defer f.Close()
 
-			_, err = f.Write([]byte{id})
-			if err != nil {
-				err = fmt.Errorf("Worker %d: Write: %v", id, err)
-				return
+			if _, err := f.Write([]byte{id}); err != nil {
+				return fmt.Errorf("Worker %d: Write: %v", id, err)
 			}
 
-			return
+			return nil
 		}
 
 		// Run several workers in parallel.
@@ -143,9 +133,8 @@ func RunCreateInParallelTest_Truncate(
 		b := syncutil.NewBundle(ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
 			})
 		}
 
@@ -203,26 +192,22 @@ func RunCreateInParallelTest_Exclusive(
 
 			// If we failed to open due to the file already existing, just leave.
 			if os.IsExist(err) {
-				err = nil
-				return
+				return nil
 			}
 
 			// Propgate other errors.
 			if err != nil {
-				err = fmt.Errorf("Worker %d: Open: %v", id, err)
-				return
+				return fmt.Errorf("Worker %d: Open: %v", id, err)
 			}
 
 			atomic.AddUint64(&openCount, 1)
 			defer f.Close()
 
-			_, err = f.Write([]byte{id})
-			if err != nil {
-				err = fmt.Errorf("Worker %d: Write: %v", id, err)
-				return
+			if _, err := f.Write([]byte{id}); err != nil {
+				return fmt.Errorf("Worker %d: Write: %v", id, err)
 			}
 
-			return
+			return nil
 		}
 
 		// Run several workers in parallel.
@@ -230,9 +215,8 @@ func RunCreateInParallelTest_Exclusive(
 		b := syncutil.NewBundle(ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
 			})
 		}
 
@@ -269,19 +253,16 @@ func RunMkdirInParallelTest(
 		filename := path.Join(dir, "foo")
 
 		// Set up a function that creates the directory, ignoring EEXIST errors.
-		worker := func(id byte) (err error) {
-			err = os.Mkdir(filename, 0700)
-
+		worker := func(id byte) error {
+			err := os.Mkdir(filename, 0700)
 			if os.IsExist(err) {
-				err = nil
+				return nil
 			}
-
 			if err != nil {
-				err = fmt.Errorf("Worker %d: Mkdir: %v", id, err)
-				return
+				return fmt.Errorf("Worker %d: Mkdir: %v", id, err)
 			}
 
-			return
+			return nil
 		}
 
 		// Run several workers in parallel.
@@ -289,9 +270,8 @@ func RunMkdirInParallelTest(
 		b := syncutil.NewBundle(ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
 			})
 		}
 
@@ -325,19 +305,17 @@ func RunSymlinkInParallelTest(
 		filename := path.Join(dir, "foo")
 
 		// Set up a function that creates the symlink, ignoring EEXIST errors.
-		worker := func(id byte) (err error) {
-			err = os.Symlink("blah", filename)
-
+		worker := func(id byte) error {
+			err := os.Symlink("blah", filename)
 			if os.IsExist(err) {
-				err = nil
+				return nil
 			}
 
 			if err != nil {
-				err = fmt.Errorf("Worker %d: Symlink: %v", id, err)
-				return
+				return fmt.Errorf("Worker %d: Symlink: %v", id, err)
 			}
 
-			return
+			return nil
 		}
 
 		// Run several workers in parallel.
@@ -345,9 +323,8 @@ func RunSymlinkInParallelTest(
 		b := syncutil.NewBundle(ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
 			})
 		}
 
@@ -388,19 +365,16 @@ func RunHardlinkInParallelTest(
 		filename := path.Join(dir, "foo")
 
 		// Set up a function that creates the symlink, ignoring EEXIST errors.
-		worker := func(id byte) (err error) {
-			err = os.Link(originalFile, filename)
-
+		worker := func(id byte) error {
+			err := os.Link(originalFile, filename)
 			if os.IsExist(err) {
-				err = nil
+				return nil
 			}
-
 			if err != nil {
-				err = fmt.Errorf("Worker %d: Link: %v", id, err)
-				return
+				return fmt.Errorf("Worker %d: Link: %v", id, err)
 			}
 
-			return
+			return nil
 		}
 
 		// Run several workers in parallel.
@@ -408,9 +382,8 @@ func RunHardlinkInParallelTest(
 		b := syncutil.NewBundle(ctx)
 		for i := 0; i < numWorkers; i++ {
 			id := byte(i)
-			b.Add(func(ctx context.Context) (err error) {
-				err = worker(id)
-				return
+			b.Add(func(ctx context.Context) error {
+				return worker(id)
 			})
 		}
 

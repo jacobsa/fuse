@@ -213,14 +213,14 @@ func (c *MountConfig) toMap() (opts map[string]string) {
 		opts[k] = v
 	}
 
-	return
+	return opts
 }
 
 func escapeOptionsKey(s string) (res string) {
 	res = s
 	res = strings.Replace(res, `\`, `\\`, -1)
 	res = strings.Replace(res, `,`, `\,`, -1)
-	return
+	return res
 }
 
 func mapToOptionsString(opts map[string]string) string {

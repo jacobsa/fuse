@@ -35,14 +35,13 @@ import (
 // The directory cannot be modified.
 func NewFileSystem(
 	reportFlush func(string) error,
-	reportFsync func(string) error) (server fuse.Server, err error) {
+	reportFsync func(string) error) (fuse.Server, error) {
 	fs := &flushFS{
 		reportFlush: reportFlush,
 		reportFsync: reportFsync,
 	}
 
-	server = fuseutil.NewFileSystemServer(fs)
-	return
+	return fuseutil.NewFileSystemServer(fs), nil
 }
 
 const (
@@ -90,25 +89,19 @@ func (fs *flushFS) barAttributes() fuseops.InodeAttributes {
 }
 
 // LOCKS_REQUIRED(fs.mu)
-func (fs *flushFS) getAttributes(id fuseops.InodeID) (
-	attrs fuseops.InodeAttributes,
-	err error) {
+func (fs *flushFS) getAttributes(id fuseops.InodeID) (fuseops.InodeAttributes, error) {
 	switch id {
 	case fuseops.RootInodeID:
-		attrs = fs.rootAttributes()
-		return
+		return fs.rootAttributes(), nil
 
 	case fooID:
-		attrs = fs.fooAttributes()
-		return
+		return fs.fooAttributes(), nil
 
 	case barID:
-		attrs = fs.barAttributes()
-		return
+		return fs.barAttributes(), nil
 
 	default:
-		err = fuse.ENOENT
-		return
+		return fuseops.InodeAttributes{}, fuse.ENOENT
 	}
 }
 
@@ -118,20 +111,19 @@ func (fs *flushFS) getAttributes(id fuseops.InodeID) (
 
 func (fs *flushFS) StatFS(
 	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
-	return
+	op *fuseops.StatFSOp) error {
+	return nil
 }
 
 func (fs *flushFS) LookUpInode(
 	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Sanity check.
 	if op.Parent != fuseops.RootInodeID {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	// Set up the entry.
@@ -149,70 +141,69 @@ func (fs *flushFS) LookUpInode(
 		}
 
 	default:
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
-	return
+	return nil
 }
 
 func (fs *flushFS) GetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
+	var err error
 	op.Attributes, err = fs.getAttributes(op.Inode)
-	return
+	return err
 }
 
 func (fs *flushFS) SetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.SetInodeAttributesOp) (err error) {
+	op *fuseops.SetInodeAttributesOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Ignore any changes and simply return existing attributes.
+	var err error
 	op.Attributes, err = fs.getAttributes(op.Inode)
-
-	return
+	return err
 }
 
 func (fs *flushFS) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
+	op *fuseops.OpenFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Sanity check.
 	if op.Inode != fooID {
-		err = fuse.ENOSYS
-		return
+		return fuse.ENOSYS
 	}
 
-	return
+	return nil
 }
 
 func (fs *flushFS) ReadFile(
 	ctx context.Context,
-	op *fuseops.ReadFileOp) (err error) {
+	op *fuseops.ReadFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Ensure the offset is in range.
 	if op.Offset > int64(len(fs.fooContents)) {
-		return
+		return nil
 	}
 
 	// Read what we can.
 	op.BytesRead = copy(op.Dst, fs.fooContents[op.Offset:])
 
-	return
+	return nil
 }
 
 func (fs *flushFS) WriteFile(
 	ctx context.Context,
-	op *fuseops.WriteFileOp) (err error) {
+	op *fuseops.WriteFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -231,32 +222,30 @@ func (fs *flushFS) WriteFile(
 		panic(fmt.Sprintf("Unexpected short copy: %v", n))
 	}
 
-	return
+	return nil
 }
 
 func (fs *flushFS) SyncFile(
 	ctx context.Context,
-	op *fuseops.SyncFileOp) (err error) {
+	op *fuseops.SyncFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	err = fs.reportFsync(string(fs.fooContents))
-	return
+	return fs.reportFsync(string(fs.fooContents))
 }
 
 func (fs *flushFS) FlushFile(
 	ctx context.Context,
-	op *fuseops.FlushFileOp) (err error) {
+	op *fuseops.FlushFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	err = fs.reportFlush(string(fs.fooContents))
-	return
+	return fs.reportFlush(string(fs.fooContents))
 }
 
 func (fs *flushFS) OpenDir(
 	ctx context.Context,
-	op *fuseops.OpenDirOp) (err error) {
+	op *fuseops.OpenDirOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -266,16 +255,15 @@ func (fs *flushFS) OpenDir(
 	case barID:
 
 	default:
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
-	return
+	return nil
 }
 
 func (fs *flushFS) ReadDir(
 	ctx context.Context,
-	op *fuseops.ReadDirOp) (err error) {
+	op *fuseops.ReadDirOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -303,21 +291,19 @@ func (fs *flushFS) ReadDir(
 	case barID:
 
 	default:
-		err = fmt.Errorf("Unexpected inode: %v", op.Inode)
-		return
+		return fmt.Errorf("Unexpected inode: %v", op.Inode)
 	}
 
 	// If the offset is for the end of the listing, we're done. Otherwise we
 	// expect it to be for the start.
 	switch op.Offset {
 	case fuseops.DirOffset(len(dirents)):
-		return
+		return nil
 
 	case 0:
 
 	default:
-		err = fmt.Errorf("Unexpected offset: %v", op.Offset)
-		return
+		return fmt.Errorf("Unexpected offset: %v", op.Offset)
 	}
 
 	// Fill in the listing.
@@ -326,12 +312,11 @@ func (fs *flushFS) ReadDir(
 
 		// We don't support doing this in anything more than one shot.
 		if n == 0 {
-			err = fmt.Errorf("Couldn't fit listing in %v bytes", len(op.Dst))
-			return
+			return fmt.Errorf("Couldn't fit listing in %v bytes", len(op.Dst))
 		}
 
 		op.BytesRead += n
 	}
 
-	return
+	return nil
 }

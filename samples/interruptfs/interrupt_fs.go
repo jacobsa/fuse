@@ -56,13 +56,11 @@ type InterruptFS struct {
 	flushReceived chan struct{}
 }
 
-func New() (fs *InterruptFS) {
-	fs = &InterruptFS{
+func New() *InterruptFS {
+	return &InterruptFS{
 		readReceived:  make(chan struct{}),
 		flushReceived: make(chan struct{}),
 	}
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -101,35 +99,33 @@ func (fs *InterruptFS) EnableFlushBlocking() {
 
 func (fs *InterruptFS) StatFS(
 	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
-	return
+	op *fuseops.StatFSOp) error {
+	return nil
 }
 
 func (fs *InterruptFS) LookUpInode(
 	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) error {
 	// We support only one parent.
 	if op.Parent != fuseops.RootInodeID {
-		err = fmt.Errorf("Unexpected parent: %v", op.Parent)
-		return
+		return fmt.Errorf("Unexpected parent: %v", op.Parent)
 	}
 
 	// We support only one name.
 	if op.Name != "foo" {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	// Fill in the response.
 	op.Entry.Child = fooID
 	op.Entry.Attributes = fooAttrs
 
-	return
+	return nil
 }
 
 func (fs *InterruptFS) GetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) error {
 	switch op.Inode {
 	case fuseops.RootInodeID:
 		op.Attributes = rootAttrs
@@ -138,22 +134,21 @@ func (fs *InterruptFS) GetInodeAttributes(
 		op.Attributes = fooAttrs
 
 	default:
-		err = fmt.Errorf("Unexpected inode ID: %v", op.Inode)
-		return
+		return fmt.Errorf("Unexpected inode ID: %v", op.Inode)
 	}
 
-	return
+	return nil
 }
 
 func (fs *InterruptFS) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
-	return
+	op *fuseops.OpenFileOp) error {
+	return nil
 }
 
 func (fs *InterruptFS) ReadFile(
 	ctx context.Context,
-	op *fuseops.ReadFileOp) (err error) {
+	op *fuseops.ReadFileOp) error {
 	fs.mu.Lock()
 	shouldBlock := fs.blockForReads
 
@@ -173,15 +168,15 @@ func (fs *InterruptFS) ReadFile(
 		}
 
 		<-done
-		err = ctx.Err()
+		return ctx.Err()
 	}
 
-	return
+	return nil
 }
 
 func (fs *InterruptFS) FlushFile(
 	ctx context.Context,
-	op *fuseops.FlushFileOp) (err error) {
+	op *fuseops.FlushFileOp) error {
 	fs.mu.Lock()
 	shouldBlock := fs.blockForFlushes
 
@@ -201,8 +196,8 @@ func (fs *InterruptFS) FlushFile(
 		}
 
 		<-done
-		err = ctx.Err()
+		return ctx.Err()
 	}
 
-	return
+	return nil
 }

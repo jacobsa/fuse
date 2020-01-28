@@ -47,15 +47,13 @@ type FS interface {
 	MostRecentWriteSize() int
 }
 
-func New() (fs FS) {
-	fs = &statFS{
+func New() FS {
+	return &statFS{
 		cannedStatResponse: fuseops.InodeAttributes{
 			Mode: 0666,
 		},
 		mostRecentWriteSize: -1,
 	}
-
-	return
 }
 
 const childInodeID = fuseops.RootInodeID + 1
@@ -118,32 +116,31 @@ func (fs *statFS) MostRecentWriteSize() int {
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *statFS) StatFS(
 	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
+	op *fuseops.StatFSOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	*op = fs.cannedResponse
-	return
+	return nil
 }
 
 func (fs *statFS) LookUpInode(
 	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) error {
 	// Only the root has children.
 	if op.Parent != fuseops.RootInodeID {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	op.Entry.Child = childInodeID
 	op.Entry.Attributes = fs.fileAttrs()
 
-	return
+	return nil
 }
 
 func (fs *statFS) GetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) error {
 	switch op.Inode {
 	case fuseops.RootInodeID:
 		op.Attributes = dirAttrs()
@@ -152,32 +149,32 @@ func (fs *statFS) GetInodeAttributes(
 		op.Attributes = fs.fileAttrs()
 
 	default:
-		err = fuse.ENOENT
+		return fuse.ENOENT
 	}
 
-	return
+	return nil
 }
 
 func (fs *statFS) SetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.SetInodeAttributesOp) (err error) {
+	op *fuseops.SetInodeAttributesOp) error {
 	// Ignore calls to truncate existing files when opening.
-	return
+	return nil
 }
 
 func (fs *statFS) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
-	return
+	op *fuseops.OpenFileOp) error {
+	return nil
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *statFS) WriteFile(
 	ctx context.Context,
-	op *fuseops.WriteFileOp) (err error) {
+	op *fuseops.WriteFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	fs.mostRecentWriteSize = len(op.Data)
-	return
+	return nil
 }

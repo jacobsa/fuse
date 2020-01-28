@@ -26,8 +26,8 @@ type minimalFS struct {
 
 func (fs *minimalFS) StatFS(
 	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
-	return
+	op *fuseops.StatFSOp) error {
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////
