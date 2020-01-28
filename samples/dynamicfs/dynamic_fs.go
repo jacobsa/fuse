@@ -33,15 +33,14 @@ import (
 // This implementation depends on direct IO in fuse. Without it, all read
 // operations are suppressed because the kernel detects that they read beyond
 // the end of the files.
-func NewDynamicFS(clock timeutil.Clock) (server fuse.Server, err error) {
+func NewDynamicFS(clock timeutil.Clock) (fuse.Server, error) {
 	createTime := clock.Now()
 	fs := &dynamicFS{
 		clock:       clock,
 		createTime:  createTime,
 		fileHandles: make(map[fuseops.HandleID]string),
 	}
-	server = fuseutil.NewFileSystemServer(fs)
-	return
+	return fuseutil.NewFileSystemServer(fs), nil
 }
 
 type dynamicFS struct {
@@ -114,16 +113,14 @@ var gInodeInfo = map[fuseops.InodeID]inodeInfo{
 
 func findChildInode(
 	name string,
-	children []fuseutil.Dirent) (inode fuseops.InodeID, err error) {
+	children []fuseutil.Dirent) (fuseops.InodeID, error) {
 	for _, e := range children {
 		if e.Name == name {
-			inode = e.Inode
-			return
+			return e.Inode, nil
 		}
 	}
 
-	err = fuse.ENOENT
-	return
+	return 0, fuse.ENOENT
 }
 
 func (fs *dynamicFS) findUnusedHandle() fuseops.HandleID {
@@ -138,69 +135,64 @@ func (fs *dynamicFS) findUnusedHandle() fuseops.HandleID {
 
 func (fs *dynamicFS) GetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) error {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
 	if !ok {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 	// Copy over its attributes.
 	op.Attributes = info.attributes
-	return
+	return nil
 }
 
 func (fs *dynamicFS) LookUpInode(
 	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) error {
 	// Find the info for the parent.
 	parentInfo, ok := gInodeInfo[op.Parent]
 	if !ok {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	// Find the child within the parent.
 	childInode, err := findChildInode(op.Name, parentInfo.children)
 	if err != nil {
-		return
+		return err
 	}
 
 	// Copy over information.
 	op.Entry.Child = childInode
 	op.Entry.Attributes = gInodeInfo[childInode].attributes
 
-	return
+	return nil
 }
 
 func (fs *dynamicFS) OpenDir(
 	ctx context.Context,
-	op *fuseops.OpenDirOp) (err error) {
+	op *fuseops.OpenDirOp) error {
 	// Allow opening directory.
-	return
+	return nil
 }
 
 func (fs *dynamicFS) ReadDir(
 	ctx context.Context,
-	op *fuseops.ReadDirOp) (err error) {
+	op *fuseops.ReadDirOp) error {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
 	if !ok {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	if !info.dir {
-		err = fuse.EIO
-		return
+		return fuse.EIO
 	}
 
 	entries := info.children
 
 	// Grab the range of interest.
 	if op.Offset > fuseops.DirOffset(len(entries)) {
-		err = fuse.EIO
-		return
+		return fuse.EIO
 	}
 
 	entries = entries[op.Offset:]
@@ -215,12 +207,12 @@ func (fs *dynamicFS) ReadDir(
 		op.BytesRead += n
 	}
 
-	return
+	return nil
 }
 
 func (fs *dynamicFS) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
+	op *fuseops.OpenFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	var contents string
@@ -233,51 +225,49 @@ func (fs *dynamicFS) OpenFile(
 	case weekdayInode:
 		contents = fmt.Sprintf("Today is %s.", fs.clock.Now().Weekday())
 	default:
-		err = fuse.EINVAL
-		return
+		return fuse.EINVAL
 	}
 	handle := fs.findUnusedHandle()
 	fs.fileHandles[handle] = contents
 	op.UseDirectIO = true
 	op.Handle = handle
-	return
+	return nil
 }
 
 func (fs *dynamicFS) ReadFile(
 	ctx context.Context,
-	op *fuseops.ReadFileOp) (err error) {
+	op *fuseops.ReadFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	contents, ok := fs.fileHandles[op.Handle]
 	if !ok {
 		log.Printf("ReadFile: no open file handle: %d", op.Handle)
-		err = fuse.EIO
-		return
+		return fuse.EIO
 	}
 	reader := strings.NewReader(contents)
+	var err error
 	op.BytesRead, err = reader.ReadAt(op.Dst, op.Offset)
 	if err == io.EOF {
-		err = nil
+		return nil
 	}
-	return
+	return err
 }
 
 func (fs *dynamicFS) ReleaseFileHandle(
 	ctx context.Context,
-	op *fuseops.ReleaseFileHandleOp) (err error) {
+	op *fuseops.ReleaseFileHandleOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	_, ok := fs.fileHandles[op.Handle]
 	if !ok {
 		log.Printf("ReleaseFileHandle: bad handle: %d", op.Handle)
-		err = fuse.EIO
-		return
+		return fuse.EIO
 	}
 	delete(fs.fileHandles, op.Handle)
-	return
+	return nil
 }
 
 func (fs *dynamicFS) StatFS(ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
-	return
+	op *fuseops.StatFSOp) error {
+	return nil
 }

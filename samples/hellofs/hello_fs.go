@@ -33,13 +33,12 @@ import (
 //         world
 //
 // Each file contains the string "Hello, world!".
-func NewHelloFS(clock timeutil.Clock) (server fuse.Server, err error) {
+func NewHelloFS(clock timeutil.Clock) (fuse.Server, error) {
 	fs := &helloFS{
 		Clock: clock,
 	}
 
-	server = fuseutil.NewFileSystemServer(fs)
-	return
+	return fuseutil.NewFileSystemServer(fs), nil
 }
 
 type helloFS struct {
@@ -128,16 +127,14 @@ var gInodeInfo = map[fuseops.InodeID]inodeInfo{
 
 func findChildInode(
 	name string,
-	children []fuseutil.Dirent) (inode fuseops.InodeID, err error) {
+	children []fuseutil.Dirent) (fuseops.InodeID, error) {
 	for _, e := range children {
 		if e.Name == name {
-			inode = e.Inode
-			return
+			return e.Inode, nil
 		}
 	}
 
-	err = fuse.ENOENT
-	return
+	return 0, fuse.ENOENT
 }
 
 func (fs *helloFS) patchAttributes(
@@ -150,24 +147,23 @@ func (fs *helloFS) patchAttributes(
 
 func (fs *helloFS) StatFS(
 	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
-	return
+	op *fuseops.StatFSOp) error {
+	return nil
 }
 
 func (fs *helloFS) LookUpInode(
 	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) error {
 	// Find the info for the parent.
 	parentInfo, ok := gInodeInfo[op.Parent]
 	if !ok {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	// Find the child within the parent.
 	childInode, err := findChildInode(op.Name, parentInfo.children)
 	if err != nil {
-		return
+		return err
 	}
 
 	// Copy over information.
@@ -177,17 +173,16 @@ func (fs *helloFS) LookUpInode(
 	// Patch attributes.
 	fs.patchAttributes(&op.Entry.Attributes)
 
-	return
+	return nil
 }
 
 func (fs *helloFS) GetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) error {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
 	if !ok {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	// Copy over its attributes.
@@ -196,37 +191,34 @@ func (fs *helloFS) GetInodeAttributes(
 	// Patch attributes.
 	fs.patchAttributes(&op.Attributes)
 
-	return
+	return nil
 }
 
 func (fs *helloFS) OpenDir(
 	ctx context.Context,
-	op *fuseops.OpenDirOp) (err error) {
+	op *fuseops.OpenDirOp) error {
 	// Allow opening any directory.
-	return
+	return nil
 }
 
 func (fs *helloFS) ReadDir(
 	ctx context.Context,
-	op *fuseops.ReadDirOp) (err error) {
+	op *fuseops.ReadDirOp) error {
 	// Find the info for this inode.
 	info, ok := gInodeInfo[op.Inode]
 	if !ok {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	if !info.dir {
-		err = fuse.EIO
-		return
+		return fuse.EIO
 	}
 
 	entries := info.children
 
 	// Grab the range of interest.
 	if op.Offset > fuseops.DirOffset(len(entries)) {
-		err = fuse.EIO
-		return
+		return fuse.EIO
 	}
 
 	entries = entries[op.Offset:]
@@ -241,28 +233,29 @@ func (fs *helloFS) ReadDir(
 		op.BytesRead += n
 	}
 
-	return
+	return nil
 }
 
 func (fs *helloFS) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
+	op *fuseops.OpenFileOp) error {
 	// Allow opening any file.
-	return
+	return nil
 }
 
 func (fs *helloFS) ReadFile(
 	ctx context.Context,
-	op *fuseops.ReadFileOp) (err error) {
+	op *fuseops.ReadFileOp) error {
 	// Let io.ReaderAt deal with the semantics.
 	reader := strings.NewReader("Hello, world!")
 
+	var err error
 	op.BytesRead, err = reader.ReadAt(op.Dst, op.Offset)
 
 	// Special case: FUSE doesn't expect us to return io.EOF.
 	if err == io.EOF {
-		err = nil
+		return nil
 	}
 
-	return
+	return err
 }

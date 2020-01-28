@@ -24,16 +24,16 @@ func toByteSlice(p unsafe.Pointer, n int) []byte {
 }
 
 // fillWithGarbage writes random data to [p, p+n).
-func fillWithGarbage(p unsafe.Pointer, n int) (err error) {
+func fillWithGarbage(p unsafe.Pointer, n int) error {
 	b := toByteSlice(p, n)
-	_, err = io.ReadFull(rand.Reader, b)
-	return
+	_, err := io.ReadFull(rand.Reader, b)
+	return err
 }
 
-func randBytes(n int) (b []byte, err error) {
-	b = make([]byte, n)
-	_, err = io.ReadFull(rand.Reader, b)
-	return
+func randBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	_, err := io.ReadFull(rand.Reader, b)
+	return b, err
 }
 
 // findNonZero finds the offset of the first non-zero byte in [p, p+n). If

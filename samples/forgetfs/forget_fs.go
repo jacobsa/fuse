@@ -38,7 +38,7 @@ import (
 // after we expect it to be dead. Its Check method may be used to check that
 // there are no inodes with unexpected reference counts remaining, after
 // unmounting.
-func NewFileSystem() (fs *ForgetFS) {
+func NewFileSystem() *ForgetFS {
 	// Set up the actual file system.
 	impl := &fsImpl{
 		inodes: map[fuseops.InodeID]*inode{
@@ -78,12 +78,10 @@ func NewFileSystem() (fs *ForgetFS) {
 	impl.mu = syncutil.NewInvariantMutex(impl.checkInvariants)
 
 	// Set up a wrapper that exposes only certain methods.
-	fs = &ForgetFS{
+	return &ForgetFS{
 		impl:   impl,
 		server: fuseutil.NewFileSystemServer(impl),
 	}
-
-	return
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -206,8 +204,8 @@ func (fs *fsImpl) Check() {
 // Look up the inode and verify it hasn't been forgotten.
 //
 // LOCKS_REQUIRED(fs.mu)
-func (fs *fsImpl) findInodeByID(id fuseops.InodeID) (in *inode) {
-	in = fs.inodes[id]
+func (fs *fsImpl) findInodeByID(id fuseops.InodeID) *inode {
+	in := fs.inodes[id]
 	if in == nil {
 		panic(fmt.Sprintf("Unknown inode: %v", id))
 	}
@@ -216,7 +214,7 @@ func (fs *fsImpl) findInodeByID(id fuseops.InodeID) (in *inode) {
 		panic(fmt.Sprintf("Forgotten inode: %v", id))
 	}
 
-	return
+	return in
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -225,13 +223,13 @@ func (fs *fsImpl) findInodeByID(id fuseops.InodeID) (in *inode) {
 
 func (fs *fsImpl) StatFS(
 	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
-	return
+	op *fuseops.StatFSOp) error {
+	return nil
 }
 
 func (fs *fsImpl) LookUpInode(
 	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -248,8 +246,7 @@ func (fs *fsImpl) LookUpInode(
 		childID = cannedID_Bar
 
 	default:
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	// Look up the child.
@@ -262,12 +259,12 @@ func (fs *fsImpl) LookUpInode(
 		Attributes: child.attributes,
 	}
 
-	return
+	return nil
 }
 
 func (fs *fsImpl) GetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -277,12 +274,12 @@ func (fs *fsImpl) GetInodeAttributes(
 	// Return appropriate attributes.
 	op.Attributes = in.attributes
 
-	return
+	return nil
 }
 
 func (fs *fsImpl) ForgetInode(
 	ctx context.Context,
-	op *fuseops.ForgetInodeOp) (err error) {
+	op *fuseops.ForgetInodeOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -290,12 +287,12 @@ func (fs *fsImpl) ForgetInode(
 	in := fs.findInodeByID(op.Inode)
 	in.DecrementLookupCount(op.N)
 
-	return
+	return nil
 }
 
 func (fs *fsImpl) MkDir(
 	ctx context.Context,
-	op *fuseops.MkDirOp) (err error) {
+	op *fuseops.MkDirOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -322,12 +319,12 @@ func (fs *fsImpl) MkDir(
 		Attributes: child.attributes,
 	}
 
-	return
+	return nil
 }
 
 func (fs *fsImpl) CreateFile(
 	ctx context.Context,
-	op *fuseops.CreateFileOp) (err error) {
+	op *fuseops.CreateFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -354,31 +351,31 @@ func (fs *fsImpl) CreateFile(
 		Attributes: child.attributes,
 	}
 
-	return
+	return nil
 }
 
 func (fs *fsImpl) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
+	op *fuseops.OpenFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Verify that the inode has not been forgotten.
 	_ = fs.findInodeByID(op.Inode)
 
-	return
+	return nil
 }
 
 func (fs *fsImpl) OpenDir(
 	ctx context.Context,
-	op *fuseops.OpenDirOp) (err error) {
+	op *fuseops.OpenDirOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	// Verify that the inode has not been forgotten.
 	_ = fs.findInodeByID(op.Inode)
 
-	return
+	return nil
 }
 
 func (fs *fsImpl) Destroy() {

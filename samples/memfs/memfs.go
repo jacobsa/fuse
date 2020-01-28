@@ -144,13 +144,13 @@ func (fs *memFS) checkInvariants() {
 // Find the given inode. Panic if it doesn't exist.
 //
 // LOCKS_REQUIRED(fs.mu)
-func (fs *memFS) getInodeOrDie(id fuseops.InodeID) (inode *inode) {
-	inode = fs.inodes[id]
+func (fs *memFS) getInodeOrDie(id fuseops.InodeID) *inode {
+	inode := fs.inodes[id]
 	if inode == nil {
 		panic(fmt.Sprintf("Unknown inode: %v", id))
 	}
 
-	return
+	return inode
 }
 
 // Allocate a new inode, assigning it an ID that is not in use.
@@ -172,7 +172,7 @@ func (fs *memFS) allocateInode(
 		fs.inodes = append(fs.inodes, inode)
 	}
 
-	return
+	return id, inode
 }
 
 // LOCKS_REQUIRED(fs.mu)
@@ -187,13 +187,13 @@ func (fs *memFS) deallocateInode(id fuseops.InodeID) {
 
 func (fs *memFS) StatFS(
 	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
-	return
+	op *fuseops.StatFSOp) error {
+	return nil
 }
 
 func (fs *memFS) LookUpInode(
 	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -203,8 +203,7 @@ func (fs *memFS) LookUpInode(
 	// Does the directory have an entry with the given name?
 	childID, _, ok := inode.LookUpChild(op.Name)
 	if !ok {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	// Grab the child.
@@ -219,12 +218,12 @@ func (fs *memFS) LookUpInode(
 	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 	op.Entry.EntryExpiration = op.Entry.AttributesExpiration
 
-	return
+	return nil
 }
 
 func (fs *memFS) GetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -238,15 +237,16 @@ func (fs *memFS) GetInodeAttributes(
 	// (since it also handles invalidation).
 	op.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 
-	return
+	return nil
 }
 
 func (fs *memFS) SetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.SetInodeAttributesOp) (err error) {
+	op *fuseops.SetInodeAttributesOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
+	var err error
 	if op.Size != nil && op.Handle == nil && *op.Size != 0 {
 		// require that truncate to non-zero has to be ftruncate()
 		// but allow open(O_TRUNC)
@@ -266,12 +266,12 @@ func (fs *memFS) SetInodeAttributes(
 	// (since it also handles invalidation).
 	op.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 
-	return
+	return err
 }
 
 func (fs *memFS) MkDir(
 	ctx context.Context,
-	op *fuseops.MkDirOp) (err error) {
+	op *fuseops.MkDirOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -282,8 +282,7 @@ func (fs *memFS) MkDir(
 	// duplicate.
 	_, _, exists := parent.LookUpChild(op.Name)
 	if exists {
-		err = fuse.EEXIST
-		return
+		return fuse.EEXIST
 	}
 
 	// Set up attributes from the child.
@@ -309,24 +308,25 @@ func (fs *memFS) MkDir(
 	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 	op.Entry.EntryExpiration = op.Entry.AttributesExpiration
 
-	return
+	return nil
 }
 
 func (fs *memFS) MkNode(
 	ctx context.Context,
-	op *fuseops.MkNodeOp) (err error) {
+	op *fuseops.MkNodeOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
+	var err error
 	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode)
-	return
+	return err
 }
 
 // LOCKS_REQUIRED(fs.mu)
 func (fs *memFS) createFile(
 	parentID fuseops.InodeID,
 	name string,
-	mode os.FileMode) (entry fuseops.ChildInodeEntry, err error) {
+	mode os.FileMode) (fuseops.ChildInodeEntry, error) {
 	// Grab the parent, which we will update shortly.
 	parent := fs.getInodeOrDie(parentID)
 
@@ -334,8 +334,7 @@ func (fs *memFS) createFile(
 	// duplicate.
 	_, _, exists := parent.LookUpChild(name)
 	if exists {
-		err = fuse.EEXIST
-		return
+		return fuseops.ChildInodeEntry{}, fuse.EEXIST
 	}
 
 	// Set up attributes for the child.
@@ -358,6 +357,7 @@ func (fs *memFS) createFile(
 	parent.AddChild(childID, name, fuseutil.DT_File)
 
 	// Fill in the response entry.
+	var entry fuseops.ChildInodeEntry
 	entry.Child = childID
 	entry.Attributes = child.attrs
 
@@ -366,22 +366,23 @@ func (fs *memFS) createFile(
 	entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 	entry.EntryExpiration = entry.AttributesExpiration
 
-	return
+	return entry, nil
 }
 
 func (fs *memFS) CreateFile(
 	ctx context.Context,
-	op *fuseops.CreateFileOp) (err error) {
+	op *fuseops.CreateFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
+	var err error
 	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode)
-	return
+	return err
 }
 
 func (fs *memFS) CreateSymlink(
 	ctx context.Context,
-	op *fuseops.CreateSymlinkOp) (err error) {
+	op *fuseops.CreateSymlinkOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -392,8 +393,7 @@ func (fs *memFS) CreateSymlink(
 	// duplicate.
 	_, _, exists := parent.LookUpChild(op.Name)
 	if exists {
-		err = fuse.EEXIST
-		return
+		return fuse.EEXIST
 	}
 
 	// Set up attributes from the child.
@@ -427,12 +427,12 @@ func (fs *memFS) CreateSymlink(
 	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 	op.Entry.EntryExpiration = op.Entry.AttributesExpiration
 
-	return
+	return nil
 }
 
 func (fs *memFS) CreateLink(
 	ctx context.Context,
-	op *fuseops.CreateLinkOp) (err error) {
+	op *fuseops.CreateLinkOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -443,8 +443,7 @@ func (fs *memFS) CreateLink(
 	// duplicate.
 	_, _, exists := parent.LookUpChild(op.Name)
 	if exists {
-		err = fuse.EEXIST
-		return
+		return fuse.EEXIST
 	}
 
 	// Get the target inode to be linked
@@ -467,12 +466,12 @@ func (fs *memFS) CreateLink(
 	op.Entry.AttributesExpiration = time.Now().Add(365 * 24 * time.Hour)
 	op.Entry.EntryExpiration = op.Entry.AttributesExpiration
 
-	return
+	return nil
 }
 
 func (fs *memFS) Rename(
 	ctx context.Context,
-	op *fuseops.RenameOp) (err error) {
+	op *fuseops.RenameOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -481,8 +480,7 @@ func (fs *memFS) Rename(
 	childID, childType, ok := oldParent.LookUpChild(op.OldName)
 
 	if !ok {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	// If the new name exists already in the new parent, make sure it's not a
@@ -494,8 +492,7 @@ func (fs *memFS) Rename(
 
 		var buf [4096]byte
 		if existing.isDir() && existing.ReadDir(buf[:], 0) > 0 {
-			err = fuse.ENOTEMPTY
-			return
+			return fuse.ENOTEMPTY
 		}
 
 		newParent.RemoveChild(op.NewName)
@@ -510,12 +507,12 @@ func (fs *memFS) Rename(
 	// Finally, remove the old name from the old parent.
 	oldParent.RemoveChild(op.OldName)
 
-	return
+	return nil
 }
 
 func (fs *memFS) RmDir(
 	ctx context.Context,
-	op *fuseops.RmDirOp) (err error) {
+	op *fuseops.RmDirOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -525,8 +522,7 @@ func (fs *memFS) RmDir(
 	// Find the child within the parent.
 	childID, _, ok := parent.LookUpChild(op.Name)
 	if !ok {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	// Grab the child.
@@ -534,8 +530,7 @@ func (fs *memFS) RmDir(
 
 	// Make sure the child is empty.
 	if child.Len() != 0 {
-		err = fuse.ENOTEMPTY
-		return
+		return fuse.ENOTEMPTY
 	}
 
 	// Remove the entry within the parent.
@@ -544,12 +539,12 @@ func (fs *memFS) RmDir(
 	// Mark the child as unlinked.
 	child.attrs.Nlink--
 
-	return
+	return nil
 }
 
 func (fs *memFS) Unlink(
 	ctx context.Context,
-	op *fuseops.UnlinkOp) (err error) {
+	op *fuseops.UnlinkOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -559,8 +554,7 @@ func (fs *memFS) Unlink(
 	// Find the child within the parent.
 	childID, _, ok := parent.LookUpChild(op.Name)
 	if !ok {
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	// Grab the child.
@@ -572,12 +566,12 @@ func (fs *memFS) Unlink(
 	// Mark the child as unlinked.
 	child.attrs.Nlink--
 
-	return
+	return nil
 }
 
 func (fs *memFS) OpenDir(
 	ctx context.Context,
-	op *fuseops.OpenDirOp) (err error) {
+	op *fuseops.OpenDirOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -590,12 +584,12 @@ func (fs *memFS) OpenDir(
 		panic("Found non-dir.")
 	}
 
-	return
+	return nil
 }
 
 func (fs *memFS) ReadDir(
 	ctx context.Context,
-	op *fuseops.ReadDirOp) (err error) {
+	op *fuseops.ReadDirOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -605,12 +599,12 @@ func (fs *memFS) ReadDir(
 	// Serve the request.
 	op.BytesRead = inode.ReadDir(op.Dst, int(op.Offset))
 
-	return
+	return nil
 }
 
 func (fs *memFS) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
+	op *fuseops.OpenFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -623,12 +617,12 @@ func (fs *memFS) OpenFile(
 		panic("Found non-file.")
 	}
 
-	return
+	return nil
 }
 
 func (fs *memFS) ReadFile(
 	ctx context.Context,
-	op *fuseops.ReadFileOp) (err error) {
+	op *fuseops.ReadFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -636,19 +630,20 @@ func (fs *memFS) ReadFile(
 	inode := fs.getInodeOrDie(op.Inode)
 
 	// Serve the request.
+	var err error
 	op.BytesRead, err = inode.ReadAt(op.Dst, op.Offset)
 
 	// Don't return EOF errors; we just indicate EOF to fuse using a short read.
 	if err == io.EOF {
-		err = nil
+		return nil
 	}
 
-	return
+	return err
 }
 
 func (fs *memFS) WriteFile(
 	ctx context.Context,
-	op *fuseops.WriteFileOp) (err error) {
+	op *fuseops.WriteFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -656,14 +651,14 @@ func (fs *memFS) WriteFile(
 	inode := fs.getInodeOrDie(op.Inode)
 
 	// Serve the request.
-	_, err = inode.WriteAt(op.Data, op.Offset)
+	_, err := inode.WriteAt(op.Data, op.Offset)
 
-	return
+	return err
 }
 
 func (fs *memFS) ReadSymlink(
 	ctx context.Context,
-	op *fuseops.ReadSymlinkOp) (err error) {
+	op *fuseops.ReadSymlinkOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -673,11 +668,11 @@ func (fs *memFS) ReadSymlink(
 	// Serve the request.
 	op.Target = inode.target
 
-	return
+	return nil
 }
 
 func (fs *memFS) GetXattr(ctx context.Context,
-	op *fuseops.GetXattrOp) (err error) {
+	op *fuseops.GetXattrOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -687,17 +682,17 @@ func (fs *memFS) GetXattr(ctx context.Context,
 		if len(op.Dst) >= len(value) {
 			copy(op.Dst, value)
 		} else if len(op.Dst) != 0 {
-			err = syscall.ERANGE
+			return syscall.ERANGE
 		}
 	} else {
-		err = fuse.ENOATTR
+		return fuse.ENOATTR
 	}
 
-	return
+	return nil
 }
 
 func (fs *memFS) ListXattr(ctx context.Context,
-	op *fuseops.ListXattrOp) (err error) {
+	op *fuseops.ListXattrOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -707,7 +702,7 @@ func (fs *memFS) ListXattr(ctx context.Context,
 	for key := range inode.xattrs {
 		keyLen := len(key) + 1
 
-		if err == nil && len(dst) >= keyLen {
+		if len(dst) >= keyLen {
 			copy(dst, key)
 			dst = dst[keyLen:]
 		} else if len(op.Dst) != 0 {
@@ -716,11 +711,11 @@ func (fs *memFS) ListXattr(ctx context.Context,
 		op.BytesRead += keyLen
 	}
 
-	return
+	return nil
 }
 
 func (fs *memFS) RemoveXattr(ctx context.Context,
-	op *fuseops.RemoveXattrOp) (err error) {
+	op *fuseops.RemoveXattrOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	inode := fs.getInodeOrDie(op.Inode)
@@ -728,13 +723,13 @@ func (fs *memFS) RemoveXattr(ctx context.Context,
 	if _, ok := inode.xattrs[op.Name]; ok {
 		delete(inode.xattrs, op.Name)
 	} else {
-		err = fuse.ENOATTR
+		return fuse.ENOATTR
 	}
-	return
+	return nil
 }
 
 func (fs *memFS) SetXattr(ctx context.Context,
-	op *fuseops.SetXattrOp) (err error) {
+	op *fuseops.SetXattrOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	inode := fs.getInodeOrDie(op.Inode)
@@ -744,28 +739,25 @@ func (fs *memFS) SetXattr(ctx context.Context,
 	switch op.Flags {
 	case unix.XATTR_CREATE:
 		if ok {
-			err = fuse.EEXIST
+			return fuse.EEXIST
 		}
 	case unix.XATTR_REPLACE:
 		if !ok {
-			err = fuse.ENOATTR
+			return fuse.ENOATTR
 		}
 	}
 
-	if err == nil {
-		value := make([]byte, len(op.Value))
-		copy(value, op.Value)
-		inode.xattrs[op.Name] = value
-	}
-
-	return
+	value := make([]byte, len(op.Value))
+	copy(value, op.Value)
+	inode.xattrs[op.Name] = value
+	return nil
 }
 
 func (fs *memFS) Fallocate(ctx context.Context,
-	op *fuseops.FallocateOp) (err error) {
+	op *fuseops.FallocateOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	inode := fs.getInodeOrDie(op.Inode)
 	inode.Fallocate(op.Mode, op.Length, op.Length)
-	return
+	return nil
 }

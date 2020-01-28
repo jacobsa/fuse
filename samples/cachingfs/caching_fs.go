@@ -82,7 +82,7 @@ type CachingFS interface {
 //
 func NewCachingFS(
 	lookupEntryTimeout time.Duration,
-	getattrTimeout time.Duration) (fs CachingFS, err error) {
+	getattrTimeout time.Duration) (CachingFS, error) {
 	roundUp := func(n fuseops.InodeID) fuseops.InodeID {
 		return numInodes * ((n + numInodes - 1) / numInodes)
 	}
@@ -96,8 +96,7 @@ func NewCachingFS(
 
 	cfs.mu = syncutil.NewInvariantMutex(cfs.checkInvariants)
 
-	fs = cfs
-	return
+	return cfs, nil
 }
 
 const (
@@ -262,14 +261,14 @@ func (fs *cachingFS) SetKeepCache(keep bool) {
 
 func (fs *cachingFS) StatFS(
 	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
-	return
+	op *fuseops.StatFSOp) error {
+	return nil
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) LookUpInode(
 	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -281,8 +280,7 @@ func (fs *cachingFS) LookUpInode(
 	case "foo":
 		// Parent must be the root.
 		if op.Parent != fuseops.RootInodeID {
-			err = fuse.ENOENT
-			return
+			return fuse.ENOENT
 		}
 
 		id = fs.fooID()
@@ -291,8 +289,7 @@ func (fs *cachingFS) LookUpInode(
 	case "dir":
 		// Parent must be the root.
 		if op.Parent != fuseops.RootInodeID {
-			err = fuse.ENOENT
-			return
+			return fuse.ENOENT
 		}
 
 		id = fs.dirID()
@@ -301,16 +298,14 @@ func (fs *cachingFS) LookUpInode(
 	case "bar":
 		// Parent must be dir.
 		if op.Parent == fuseops.RootInodeID || op.Parent%numInodes != dirOffset {
-			err = fuse.ENOENT
-			return
+			return fuse.ENOENT
 		}
 
 		id = fs.barID()
 		attrs = fs.barAttrs()
 
 	default:
-		err = fuse.ENOENT
-		return
+		return fuse.ENOENT
 	}
 
 	// Fill in the response.
@@ -318,13 +313,13 @@ func (fs *cachingFS) LookUpInode(
 	op.Entry.Attributes = attrs
 	op.Entry.EntryExpiration = time.Now().Add(fs.lookupEntryTimeout)
 
-	return
+	return nil
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *cachingFS) GetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -349,29 +344,30 @@ func (fs *cachingFS) GetInodeAttributes(
 	op.Attributes = attrs
 	op.AttributesExpiration = time.Now().Add(fs.getattrTimeout)
 
-	return
+	return nil
 }
 
 func (fs *cachingFS) OpenDir(
 	ctx context.Context,
-	op *fuseops.OpenDirOp) (err error) {
-	return
+	op *fuseops.OpenDirOp) error {
+	return nil
 }
 
 func (fs *cachingFS) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
+	op *fuseops.OpenFileOp) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	op.KeepPageCache = fs.keepPageCache
 
-	return
+	return nil
 }
 
 func (fs *cachingFS) ReadFile(
 	ctx context.Context,
-	op *fuseops.ReadFileOp) (err error) {
+	op *fuseops.ReadFileOp) error {
+	var err error
 	op.BytesRead, err = io.ReadFull(rand.Reader, op.Dst)
-	return
+	return err
 }

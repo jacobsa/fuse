@@ -80,23 +80,21 @@ var getToolContents_Err error
 var getToolContents_Once sync.Once
 
 // Implementation detail of getToolPath.
-func getToolContentsImpl() (contents []byte, err error) {
+func getToolContentsImpl() ([]byte, error) {
 	// Fast path: has the user set the flag?
 	if *fToolPath != "" {
-		contents, err = ioutil.ReadFile(*fToolPath)
+		contents, err := ioutil.ReadFile(*fToolPath)
 		if err != nil {
-			err = fmt.Errorf("Reading mount_sample contents: %v", err)
-			return
+			return nil, fmt.Errorf("Reading mount_sample contents: %v", err)
 		}
 
-		return
+		return contents, err
 	}
 
 	// Create a temporary directory into which we will compile the tool.
 	tempDir, err := ioutil.TempDir("", "sample_test")
 	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
-		return
+		return nil, fmt.Errorf("TempDir: %v", err)
 	}
 
 	toolPath := path.Join(tempDir, "mount_sample")
@@ -114,34 +112,30 @@ func getToolContentsImpl() (contents []byte, err error) {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf(
+		return nil, fmt.Errorf(
 			"mount_sample exited with %v, output:\n%s",
 			err,
 			string(output))
-
-		return
 	}
 
 	// Slurp the tool contents.
-	contents, err = ioutil.ReadFile(toolPath)
+	contents, err := ioutil.ReadFile(toolPath)
 	if err != nil {
-		err = fmt.Errorf("ReadFile: %v", err)
-		return
+		return nil, fmt.Errorf("ReadFile: %v", err)
 	}
 
-	return
+	return contents, nil
 }
 
 // Build the mount_sample tool if it has not yet been built for this process.
 // Return its contents.
-func getToolContents() (contents []byte, err error) {
+func getToolContents() ([]byte, error) {
 	// Get hold of the binary contents, if we haven't yet.
 	getToolContents_Once.Do(func() {
 		getToolContents_Contents, getToolContents_Err = getToolContentsImpl()
 	})
 
-	contents, err = getToolContents_Contents, getToolContents_Err
-	return
+	return getToolContents_Contents, getToolContents_Err
 }
 
 func waitForMountSample(
@@ -184,29 +178,27 @@ func waitForReady(readyReader *os.File, c chan<- struct{}) {
 }
 
 // Like SetUp, but doens't panic.
-func (t *SubprocessTest) initialize(ctx context.Context) (err error) {
+func (t *SubprocessTest) initialize(ctx context.Context) error {
 	// Initialize the context.
 	t.Ctx = ctx
 
 	// Set up a temporary directory.
+	var err error
 	t.Dir, err = ioutil.TempDir("", "sample_test")
 	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
-		return
+		return fmt.Errorf("TempDir: %v", err)
 	}
 
 	// Build/read the mount_sample tool.
 	toolContents, err := getToolContents()
 	if err != nil {
-		err = fmt.Errorf("getTooltoolContents: %v", err)
-		return
+		return fmt.Errorf("getTooltoolContents: %v", err)
 	}
 
 	// Create a temporary file to hold the contents of the tool.
 	toolFile, err := ioutil.TempFile("", "sample_test")
 	if err != nil {
-		err = fmt.Errorf("TempFile: %v", err)
-		return
+		return fmt.Errorf("TempFile: %v", err)
 	}
 
 	defer toolFile.Close()
@@ -217,21 +209,18 @@ func (t *SubprocessTest) initialize(ctx context.Context) (err error) {
 
 	// Write out the tool contents and make them executable.
 	if _, err = toolFile.Write(toolContents); err != nil {
-		err = fmt.Errorf("toolFile.Write: %v", err)
-		return
+		return fmt.Errorf("toolFile.Write: %v", err)
 	}
 
 	if err = toolFile.Chmod(0500); err != nil {
-		err = fmt.Errorf("toolFile.Chmod: %v", err)
-		return
+		return fmt.Errorf("toolFile.Chmod: %v", err)
 	}
 
 	// Close the tool file to prevent "text file busy" errors below.
 	err = toolFile.Close()
 	toolFile = nil
 	if err != nil {
-		err = fmt.Errorf("toolFile.Close: %v", err)
-		return
+		return fmt.Errorf("toolFile.Close: %v", err)
 	}
 
 	// Set up basic args for the subprocess.
@@ -247,8 +236,7 @@ func (t *SubprocessTest) initialize(ctx context.Context) (err error) {
 	// Set up a pipe for the "ready" status.
 	readyReader, readyWriter, err := os.Pipe()
 	if err != nil {
-		err = fmt.Errorf("Pipe: %v", err)
-		return
+		return fmt.Errorf("Pipe: %v", err)
 	}
 
 	defer readyReader.Close()
@@ -280,9 +268,8 @@ func (t *SubprocessTest) initialize(ctx context.Context) (err error) {
 	}
 
 	// Start the command.
-	if err = mountCmd.Start(); err != nil {
-		err = fmt.Errorf("mountCmd.Start: %v", err)
-		return
+	if err := mountCmd.Start(); err != nil {
+		return fmt.Errorf("mountCmd.Start: %v", err)
 	}
 
 	// Launch a goroutine that waits for it and returns its status.
@@ -296,14 +283,14 @@ func (t *SubprocessTest) initialize(ctx context.Context) (err error) {
 
 	select {
 	case <-readyChan:
-	case err = <-mountSampleErr:
-		return
+	case err := <-mountSampleErr:
+		return err
 	}
 
 	// TearDown is no responsible for joining.
 	t.mountSampleErr = mountSampleErr
 
-	return
+	return nil
 }
 
 // Unmount the file system and clean up. Panics on error.
@@ -329,7 +316,7 @@ func (t *SubprocessTest) destroy() (err error) {
 
 	// If we didn't try to mount the file system, there's nothing further to do.
 	if t.mountSampleErr == nil {
-		return
+		return nil
 	}
 
 	// In the background, initiate an unmount.
@@ -358,9 +345,9 @@ func (t *SubprocessTest) destroy() (err error) {
 	}()
 
 	// Wait for the subprocess.
-	if err = <-t.mountSampleErr; err != nil {
-		return
+	if err := <-t.mountSampleErr; err != nil {
+		return err
 	}
 
-	return
+	return nil
 }

@@ -49,12 +49,10 @@ type FS interface {
 	SetError(t reflect.Type, err syscall.Errno)
 }
 
-func New() (fs FS, err error) {
-	fs = &errorFS{
+func New() (FS, error) {
+	return &errorFS{
 		errors: make(map[reflect.Type]syscall.Errno),
-	}
-
-	return
+	}, nil
 }
 
 type errorFS struct {
@@ -95,9 +93,10 @@ func (fs *errorFS) transformError(op interface{}, err *error) bool {
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *errorFS) GetInodeAttributes(
 	ctx context.Context,
-	op *fuseops.GetInodeAttributesOp) (err error) {
+	op *fuseops.GetInodeAttributesOp) error {
+	var err error
 	if fs.transformError(op, &err) {
-		return
+		return err
 	}
 
 	// Figure out which inode the request is for.
@@ -111,100 +110,99 @@ func (fs *errorFS) GetInodeAttributes(
 		op.Attributes = fooAttrs
 
 	default:
-		err = fmt.Errorf("Unknown inode: %d", op.Inode)
-		return
+		return fmt.Errorf("Unknown inode: %d", op.Inode)
 	}
 
-	return
+	return nil
 }
 
 func (fs *errorFS) StatFS(
 	ctx context.Context,
-	op *fuseops.StatFSOp) (err error) {
-	return
+	op *fuseops.StatFSOp) error {
+	return nil
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *errorFS) LookUpInode(
 	ctx context.Context,
-	op *fuseops.LookUpInodeOp) (err error) {
+	op *fuseops.LookUpInodeOp) error {
+	var err error
 	if fs.transformError(op, &err) {
-		return
+		return err
 	}
 
 	// Is this a known inode?
 	if !(op.Parent == fuseops.RootInodeID && op.Name == "foo") {
-		err = syscall.ENOENT
-		return
+		return syscall.ENOENT
 	}
 
 	op.Entry.Child = fooInodeID
 	op.Entry.Attributes = fooAttrs
 
-	return
+	return nil
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *errorFS) OpenFile(
 	ctx context.Context,
-	op *fuseops.OpenFileOp) (err error) {
+	op *fuseops.OpenFileOp) error {
+	var err error
 	if fs.transformError(op, &err) {
-		return
+		return err
 	}
 
 	if op.Inode != fooInodeID {
-		err = fmt.Errorf("Unsupported inode ID: %d", op.Inode)
-		return
+		return fmt.Errorf("Unsupported inode ID: %d", op.Inode)
 	}
 
-	return
+	return nil
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *errorFS) ReadFile(
 	ctx context.Context,
-	op *fuseops.ReadFileOp) (err error) {
+	op *fuseops.ReadFileOp) error {
+	var err error
 	if fs.transformError(op, &err) {
-		return
+		return err
 	}
 
 	if op.Inode != fooInodeID || op.Offset != 0 {
-		err = fmt.Errorf("Unexpected request: %#v", op)
-		return
+		return fmt.Errorf("Unexpected request: %#v", op)
 	}
 
 	op.BytesRead = copy(op.Dst, FooContents)
 
-	return
+	return nil
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *errorFS) OpenDir(
 	ctx context.Context,
-	op *fuseops.OpenDirOp) (err error) {
+	op *fuseops.OpenDirOp) error {
+	var err error
 	if fs.transformError(op, &err) {
-		return
+		return err
 	}
 
 	if op.Inode != fuseops.RootInodeID {
-		err = fmt.Errorf("Unsupported inode ID: %d", op.Inode)
-		return
+		return fmt.Errorf("Unsupported inode ID: %d", op.Inode)
 	}
 
-	return
+	return nil
 }
 
 // LOCKS_EXCLUDED(fs.mu)
 func (fs *errorFS) ReadDir(
 	ctx context.Context,
-	op *fuseops.ReadDirOp) (err error) {
+	op *fuseops.ReadDirOp) error {
+	var err error
 	if fs.transformError(op, &err) {
-		return
+		return err
 	}
 
 	if op.Inode != fuseops.RootInodeID || op.Offset != 0 {
-		err = fmt.Errorf("Unexpected request: %#v", op)
-		return
+		return fmt.Errorf("Unexpected request: %#v", op)
 	}
 
 	op.BytesRead = fuseutil.WriteDirent(
@@ -216,5 +214,5 @@ func (fs *errorFS) ReadDir(
 			Type:   fuseutil.DT_File,
 		})
 
-	return
+	return nil
 }

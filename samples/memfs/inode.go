@@ -73,20 +73,17 @@ type inode struct {
 
 // Create a new inode with the supplied attributes, which need not contain
 // time-related information (the inode object will take care of that).
-func newInode(
-	attrs fuseops.InodeAttributes) (in *inode) {
+func newInode(attrs fuseops.InodeAttributes) *inode {
 	// Update time info.
 	now := time.Now()
 	attrs.Mtime = now
 	attrs.Crtime = now
 
 	// Create the object.
-	in = &inode{
+	return &inode{
 		attrs:  attrs,
 		xattrs: make(map[string][]byte),
 	}
-
-	return
 }
 
 func (in *inode) CheckInvariants() {
@@ -168,12 +165,11 @@ func (in *inode) findChild(name string) (i int, ok bool) {
 	var e fuseutil.Dirent
 	for i, e = range in.entries {
 		if e.Name == name {
-			ok = true
-			return
+			return i, true
 		}
 	}
 
-	return
+	return 0, false
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -183,14 +179,15 @@ func (in *inode) findChild(name string) (i int, ok bool) {
 // Return the number of children of the directory.
 //
 // REQUIRES: in.isDir()
-func (in *inode) Len() (n int) {
+func (in *inode) Len() int {
+	var n int
 	for _, e := range in.entries {
 		if e.Type != fuseutil.DT_Unknown {
 			n++
 		}
 	}
 
-	return
+	return n
 }
 
 // Find an entry for the given child name and return its inode ID.
@@ -206,7 +203,7 @@ func (in *inode) LookUpChild(name string) (
 		typ = in.entries[index].Type
 	}
 
-	return
+	return id, typ, ok
 }
 
 // Add an entry for a child.
@@ -272,11 +269,12 @@ func (in *inode) RemoveChild(name string) {
 // Serve a ReadDir request.
 //
 // REQUIRES: in.isDir()
-func (in *inode) ReadDir(p []byte, offset int) (n int) {
+func (in *inode) ReadDir(p []byte, offset int) int {
 	if !in.isDir() {
 		panic("ReadDir called on non-directory.")
 	}
 
+	var n int
 	for i := offset; i < len(in.entries); i++ {
 		e := in.entries[i]
 
@@ -293,36 +291,35 @@ func (in *inode) ReadDir(p []byte, offset int) (n int) {
 		n += tmp
 	}
 
-	return
+	return n
 }
 
 // Read from the file's contents. See documentation for ioutil.ReaderAt.
 //
 // REQUIRES: in.isFile()
-func (in *inode) ReadAt(p []byte, off int64) (n int, err error) {
+func (in *inode) ReadAt(p []byte, off int64) (int, error) {
 	if !in.isFile() {
 		panic("ReadAt called on non-file.")
 	}
 
 	// Ensure the offset is in range.
 	if off > int64(len(in.contents)) {
-		err = io.EOF
-		return
+		return 0, io.EOF
 	}
 
 	// Read what we can.
-	n = copy(p, in.contents[off:])
+	n := copy(p, in.contents[off:])
 	if n < len(p) {
-		err = io.EOF
+		return n, io.EOF
 	}
 
-	return
+	return n, nil
 }
 
 // Write to the file's contents. See documentation for ioutil.WriterAt.
 //
 // REQUIRES: in.isFile()
-func (in *inode) WriteAt(p []byte, off int64) (n int, err error) {
+func (in *inode) WriteAt(p []byte, off int64) (int, error) {
 	if !in.isFile() {
 		panic("WriteAt called on non-file.")
 	}
@@ -339,14 +336,14 @@ func (in *inode) WriteAt(p []byte, off int64) (n int, err error) {
 	}
 
 	// Copy in the data.
-	n = copy(in.contents[off:], p)
+	n := copy(in.contents[off:], p)
 
 	// Sanity check.
 	if n != len(p) {
 		panic(fmt.Sprintf("Unexpected short copy: %v", n))
 	}
 
-	return
+	return n, nil
 }
 
 // Update attributes from non-nil parameters.
@@ -384,17 +381,15 @@ func (in *inode) SetAttributes(
 	}
 }
 
-func (in *inode) Fallocate(mode uint32, offset uint64, length uint64) (
-	err error) {
-	if mode == 0 {
-		newSize := int(offset + length)
-		if newSize > len(in.contents) {
-			padding := make([]byte, newSize-len(in.contents))
-			in.contents = append(in.contents, padding...)
-			in.attrs.Size = offset + length
-		}
-	} else {
-		err = fuse.ENOSYS
+func (in *inode) Fallocate(mode uint32, offset uint64, length uint64) error {
+	if mode != 0 {
+		return fuse.ENOSYS
 	}
-	return
+	newSize := int(offset + length)
+	if newSize > len(in.contents) {
+		padding := make([]byte, newSize-len(in.contents))
+		in.contents = append(in.contents, padding...)
+		in.attrs.Size = offset + length
+	}
+	return nil
 }

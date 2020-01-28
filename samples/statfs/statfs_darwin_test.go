@@ -35,7 +35,7 @@ var gDfOutputRegexp = regexp.MustCompile(`^\S+\s+(\d+)\s+(\d+)\s+(\d+)\s+\d+%\s+
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
-func convertName(in []int8) (s string) {
+func convertName(in []int8) string {
 	var tmp []byte
 	for _, v := range in {
 		if v == 0 {
@@ -45,8 +45,7 @@ func convertName(in []int8) (s string) {
 		tmp = append(tmp, byte(v))
 	}
 
-	s = string(tmp)
-	return
+	return string(tmp)
 }
 
 ////////////////////////////////////////////////////////////////////////

@@ -27,12 +27,12 @@ import (
 // "resource busy" errors, which happen from time to time on OS X (due to weird
 // requests from the Finder) and when tests don't or can't synchronize all
 // events.
-func unmount(dir string) (err error) {
+func unmount(dir string) error {
 	delay := 10 * time.Millisecond
 	for {
-		err = fuse.Unmount(dir)
+		err := fuse.Unmount(dir)
 		if err == nil {
-			return
+			return err
 		}
 
 		if strings.Contains(err.Error(), "resource busy") {
@@ -42,7 +42,6 @@ func unmount(dir string) (err error) {
 			continue
 		}
 
-		err = fmt.Errorf("Unmount: %v", err)
-		return
+		return fmt.Errorf("Unmount: %v", err)
 	}
 }

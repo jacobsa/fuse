@@ -83,7 +83,7 @@ func (t *cachingFSTest) statAll() (foo, dir, bar os.FileInfo) {
 	bar, err = os.Stat(path.Join(t.Dir, "dir/bar"))
 	AssertEq(nil, err)
 
-	return
+	return foo, dir, bar
 }
 
 func (t *cachingFSTest) openFiles() (foo, dir, bar *os.File) {
@@ -98,7 +98,7 @@ func (t *cachingFSTest) openFiles() (foo, dir, bar *os.File) {
 	bar, err = os.Open(path.Join(t.Dir, "dir/bar"))
 	AssertEq(nil, err)
 
-	return
+	return foo, dir, bar
 }
 
 func (t *cachingFSTest) statFiles(
@@ -114,7 +114,7 @@ func (t *cachingFSTest) statFiles(
 	bar, err = h.Stat()
 	AssertEq(nil, err)
 
-	return
+	return foo, dir, bar
 }
 
 func getInodeID(fi os.FileInfo) uint64 {

@@ -75,7 +75,7 @@ func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
 func (t *SampleTest) initialize(
 	ctx context.Context,
 	server fuse.Server,
-	config *fuse.MountConfig) (err error) {
+	config *fuse.MountConfig) error {
 	// Initialize the context used by the test.
 	t.Ctx = ctx
 
@@ -89,20 +89,19 @@ func (t *SampleTest) initialize(
 	t.Clock.SetTime(time.Date(2012, 8, 15, 22, 56, 0, 0, time.Local))
 
 	// Set up a temporary directory.
+	var err error
 	t.Dir, err = ioutil.TempDir("", "sample_test")
 	if err != nil {
-		err = fmt.Errorf("TempDir: %v", err)
-		return
+		return fmt.Errorf("TempDir: %v", err)
 	}
 
 	// Mount the file system.
 	t.mfs, err = fuse.Mount(t.Dir, server, config)
 	if err != nil {
-		err = fmt.Errorf("Mount: %v", err)
-		return
+		return fmt.Errorf("Mount: %v", err)
 	}
 
-	return
+	return nil
 }
 
 // Unmount the file system and clean up. Panics on error.
@@ -126,28 +125,23 @@ func (t *SampleTest) destroy() (err error) {
 
 	// Was the file system mounted?
 	if t.mfs == nil {
-		return
+		return nil
 	}
 
 	// Unmount the file system.
-	err = unmount(t.Dir)
-	if err != nil {
-		err = fmt.Errorf("unmount: %v", err)
-		return
+	if err := unmount(t.Dir); err != nil {
+		return fmt.Errorf("unmount: %v", err)
 	}
 
 	// Unlink the mount point.
-	if err = os.Remove(t.Dir); err != nil {
-		err = fmt.Errorf("Unlinking mount point: %v", err)
-		return
+	if err := os.Remove(t.Dir); err != nil {
+		return fmt.Errorf("Unlinking mount point: %v", err)
 	}
 
 	// Join the file system.
-	err = t.mfs.Join(t.Ctx)
-	if err != nil {
-		err = fmt.Errorf("mfs.Join: %v", err)
-		return
+	if err := t.mfs.Join(t.Ctx); err != nil {
+		return fmt.Errorf("mfs.Join: %v", err)
 	}
 
-	return
+	return nil
 }

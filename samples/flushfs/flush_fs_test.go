@@ -121,30 +121,24 @@ var isDarwin = runtime.GOOS == "darwin"
 
 func readReports(f *os.File) (reports []string, err error) {
 	// Seek the file to the start.
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		err = fmt.Errorf("Seek: %v", err)
-		return
+	if _, err := f.Seek(0, 0); err != nil {
+		return nil, fmt.Errorf("Seek: %v", err)
 	}
 
 	// We expect reports to end in a newline (including the final one).
 	reader := bufio.NewReader(f)
 	for {
-		var record []byte
-		record, err = reader.ReadBytes('\n')
+		record, err := reader.ReadBytes('\n')
 		if err == io.EOF {
 			if len(record) != 0 {
-				err = fmt.Errorf("Unexpected record:\n%s", hex.Dump(record))
-				return
+				return nil, fmt.Errorf("Unexpected record:\n%s", hex.Dump(record))
 			}
 
-			err = nil
-			return
+			return reports, nil
 		}
 
 		if err != nil {
-			err = fmt.Errorf("ReadBytes: %v", err)
-			return
+			return nil, fmt.Errorf("ReadBytes: %v", err)
 		}
 
 		// Strip the newline.
@@ -153,41 +147,39 @@ func readReports(f *os.File) (reports []string, err error) {
 }
 
 // Return a copy of the current contents of t.flushes.
-func (t *flushFSTest) getFlushes() (p []string) {
-	var err error
-	if p, err = readReports(t.flushes); err != nil {
+func (t *flushFSTest) getFlushes() []string {
+	p, err := readReports(t.flushes)
+	if err != nil {
 		panic(err)
 	}
-
-	return
+	return p
 }
 
 // Return a copy of the current contents of t.fsyncs.
-func (t *flushFSTest) getFsyncs() (p []string) {
-	var err error
-	if p, err = readReports(t.fsyncs); err != nil {
+func (t *flushFSTest) getFsyncs() []string {
+	p, err := readReports(t.fsyncs)
+	if err != nil {
 		panic(err)
 	}
-
-	return
+	return p
 }
 
 // Like syscall.Dup2, but correctly annotates the syscall as blocking. See here
 // for more info: https://github.com/golang/go/issues/10202
-func dup2(oldfd int, newfd int) (err error) {
+func dup2(oldfd int, newfd int) error {
 	_, _, e1 := syscall.Syscall(
 		syscall.SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
 
 	if e1 != 0 {
-		err = e1
+		return e1
 	}
 
-	return
+	return nil
 }
 
 // Call msync(2) with the MS_SYNC flag on a slice previously returned by
 // mmap(2).
-func msync(p []byte) (err error) {
+func msync(p []byte) error {
 	_, _, errno := unix.Syscall(
 		unix.SYS_MSYNC,
 		uintptr(unsafe.Pointer(&p[0])),
@@ -195,11 +187,10 @@ func msync(p []byte) (err error) {
 		unix.MS_SYNC)
 
 	if errno != 0 {
-		err = errno
-		return
+		return errno
 	}
 
-	return
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////

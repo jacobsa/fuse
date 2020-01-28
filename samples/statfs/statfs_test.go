@@ -53,7 +53,7 @@ func df(dir string) (capacity, used, available uint64, err error) {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return
+		return 0, 0, 0, err
 	}
 
 	// Scrape it.
@@ -65,23 +65,22 @@ func df(dir string) (capacity, used, available uint64, err error) {
 
 		submatches := gDfOutputRegexp.FindSubmatch(line)
 		if submatches == nil {
-			err = fmt.Errorf("Unable to parse line: %q", line)
-			return
+			return 0, 0, 0, fmt.Errorf("Unable to parse line: %q", line)
 		}
 
 		capacity, err = strconv.ParseUint(string(submatches[1]), 10, 64)
 		if err != nil {
-			return
+			return 0, 0, 0, err
 		}
 
 		used, err = strconv.ParseUint(string(submatches[2]), 10, 64)
 		if err != nil {
-			return
+			return 0, 0, 0, err
 		}
 
 		available, err = strconv.ParseUint(string(submatches[3]), 10, 64)
 		if err != nil {
-			return
+			return 0, 0, 0, err
 		}
 
 		// Scale appropriately based on the BLOCKSIZE set above.
@@ -89,11 +88,10 @@ func df(dir string) (capacity, used, available uint64, err error) {
 		used *= 1024
 		available *= 1024
 
-		return
+		return capacity, used, available, nil
 	}
 
-	err = fmt.Errorf("Unable to parse df output:\n%s", output)
-	return
+	return 0, 0, 0, fmt.Errorf("Unable to parse df output:\n%s", output)
 }
 
 ////////////////////////////////////////////////////////////////////////
