@@ -139,6 +139,18 @@ type MountConfig struct {
 	// target.
 	EnableSymlinkCaching bool
 
+	// Linux only.
+	//
+	// Tell the kernel to treat returning -ENOSYS on OpenFile as not needing
+	// OpenFile calls at all (Linux >= 3.16):
+	EnableNoOpenSupport bool
+
+	// Linux only.
+	//
+	// Tell the kernel to treat returning -ENOSYS on OpenDir as not needing
+	// OpenDir calls at all (Linux >= 5.1):
+	EnableNoOpendirSupport bool
+
 	// OS X only.
 	//
 	// The name of the mounted volume, as displayed in the Finder. If empty, a

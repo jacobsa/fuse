@@ -149,6 +149,8 @@ func (c *Connection) Init() error {
 	}
 
 	cacheSymlinks := initOp.Flags&fusekernel.InitCacheSymlinks > 0
+	noOpenSupport := initOp.Flags&fusekernel.InitNoOpenSupport > 0
+	noOpendirSupport := initOp.Flags&fusekernel.InitNoOpendirSupport > 0
 
 	// Respond to the init op.
 	initOp.Library = c.protocol
@@ -169,6 +171,18 @@ func (c *Connection) Init() error {
 	// into it (might require fixing the size field of inode attributes first):
 	if c.cfg.EnableSymlinkCaching && cacheSymlinks {
 		initOp.Flags |= fusekernel.InitCacheSymlinks
+	}
+
+	// Tell the kernel to treat returning -ENOSYS on OpenFile as not needing
+	// OpenFile calls at all (Linux >= 3.16):
+	if c.cfg.EnableNoOpenSupport && noOpenSupport {
+		initOp.Flags |= fusekernel.InitNoOpenSupport
+	}
+
+	// Tell the kernel to treat returning -ENOSYS on OpenDir as not needing
+	// OpenDir calls at all (Linux >= 5.1):
+	if c.cfg.EnableNoOpendirSupport && noOpendirSupport {
+		initOp.Flags |= fusekernel.InitNoOpendirSupport
 	}
 
 	c.Reply(ctx, nil)
