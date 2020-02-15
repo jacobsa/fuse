@@ -148,6 +148,8 @@ func (c *Connection) Init() error {
 		c.protocol = initOp.Kernel
 	}
 
+	cacheSymlinks := initOp.Flags&fusekernel.InitCacheSymlinks > 0
+
 	// Respond to the init op.
 	initOp.Library = c.protocol
 	initOp.MaxReadahead = maxReadahead
@@ -161,6 +163,12 @@ func (c *Connection) Init() error {
 	// Enable writeback caching if the user hasn't asked us not to.
 	if !c.cfg.DisableWritebackCaching {
 		initOp.Flags |= fusekernel.InitWritebackCache
+	}
+
+	// Enable caching symlink targets in the kernel page cache if the user opted
+	// into it (might require fixing the size field of inode attributes first):
+	if c.cfg.EnableSymlinkCaching && cacheSymlinks {
+		initOp.Flags |= fusekernel.InitCacheSymlinks
 	}
 
 	c.Reply(ctx, nil)
