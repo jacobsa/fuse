@@ -149,11 +149,16 @@ func directmount(dir string, cfg *MountConfig) (*os.File, error) {
 		delete(opts, k)
 	}
 	delete(opts, "fsname") // handled via fstype mount(2) parameter
+	fstype := "fuse"
+	if subtype, ok := opts["subtype"]; ok {
+		fstype += "." + subtype
+	}
+	delete(opts, "subtype")
 	data += "," + mapToOptionsString(opts)
 	if err := unix.Mount(
 		cfg.FSName, // source
 		dir,        // target
-		"fuse",     // fstype
+		fstype,     // fstype
 		mountflag,  // mountflag
 		data,       // data
 	); err != nil {
