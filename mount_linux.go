@@ -108,8 +108,8 @@ func disableFunc(flag uintptr) func(uintptr) uintptr {
 
 // As per libfuse/fusermount.c:602: https://bit.ly/2SgtWYM#L602
 var mountflagopts = map[string]func(uintptr) uintptr{
-	"rw":      enableFunc(unix.MS_RDONLY),
-	"ro":      disableFunc(unix.MS_RDONLY),
+	"rw":      disableFunc(unix.MS_RDONLY),
+	"ro":      enableFunc(unix.MS_RDONLY),
 	"suid":    disableFunc(unix.MS_NOSUID),
 	"nosuid":  enableFunc(unix.MS_NOSUID),
 	"dev":     disableFunc(unix.MS_NODEV),
