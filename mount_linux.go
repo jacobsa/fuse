@@ -7,9 +7,12 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/jacobsa/fuse/internal/buffer"
 )
 
 func fusermount(dir string, cfg *MountConfig) (*os.File, error) {
@@ -28,6 +31,11 @@ func fusermount(dir string, cfg *MountConfig) (*os.File, error) {
 
 	// Start fusermount, passing it a buffer in which to write stderr.
 	var stderr bytes.Buffer
+
+	if cfg.Options == nil {
+		cfg.Options = make(map[string]string)
+	}
+	cfg.Options["max_read"] = strconv.Itoa(buffer.MaxReadSize)
 
 	cmd := exec.Command(
 		"fusermount",
