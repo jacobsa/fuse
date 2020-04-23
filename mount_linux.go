@@ -12,6 +12,17 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+func findFusermount() (string, error) {
+	path, err := exec.LookPath("fusermount3")
+	if err != nil {
+		path, err = exec.LookPath("fusermount")
+	}
+	if err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
 func fusermount(dir string, cfg *MountConfig) (*os.File, error) {
 	// Create a socket pair.
 	fds, err := syscall.Socketpair(syscall.AF_FILE, syscall.SOCK_STREAM, 0)
@@ -29,8 +40,12 @@ func fusermount(dir string, cfg *MountConfig) (*os.File, error) {
 	// Start fusermount, passing it a buffer in which to write stderr.
 	var stderr bytes.Buffer
 
+	fusermount, err := findFusermount()
+	if err != nil {
+		return nil, err
+	}
 	cmd := exec.Command(
-		"fusermount",
+		fusermount,
 		"-o", cfg.toOptionsString(),
 		"--",
 		dir,

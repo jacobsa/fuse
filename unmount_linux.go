@@ -7,8 +7,11 @@ import (
 )
 
 func unmount(dir string) error {
-	// Call fusermount.
-	cmd := exec.Command("fusermount", "-u", dir)
+	fusermount, err := findFusermount()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(fusermount, "-u", dir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if len(output) > 0 {
