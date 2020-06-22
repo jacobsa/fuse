@@ -102,5 +102,5 @@ func (t *ErrorFSTest) ReadDir() {
 
 	// Read
 	_, err = f.Readdirnames(1)
-	ExpectThat(err, Error(MatchesRegexp("read.*: .*owner died")))
+	ExpectThat(err, Error(MatchesRegexp("(read|fdopendir).*: .*owner died")))
 }
