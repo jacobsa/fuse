@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"syscall"
 	"testing"
 
 	"github.com/jacobsa/fuse/fusetesting"
@@ -166,7 +167,6 @@ func (t *PosixTest) WriteStartsPastEndOfFile() {
 }
 
 func (t *PosixTest) WriteStartsPastEndOfFile_AppendMode() {
-	return // WriteAt on O_APPEND files returns an error starting with Go 1.13
 	var err error
 	var n int
 
@@ -185,7 +185,7 @@ func (t *PosixTest) WriteStartsPastEndOfFile_AppendMode() {
 	AssertEq(3, n)
 
 	// Write at offset six.
-	n, err = f.WriteAt([]byte("222"), 6)
+	n, err = syscall.Pwrite(int(f.Fd()), []byte("222"), 6)
 	AssertEq(nil, err)
 	AssertEq(3, n)
 
@@ -237,7 +237,6 @@ func (t *PosixTest) WriteAtDoesntChangeOffset_NotAppendMode() {
 }
 
 func (t *PosixTest) WriteAtDoesntChangeOffset_AppendMode() {
-	return // WriteAt on O_APPEND files returns an error starting with Go 1.13
 	var err error
 	var n int
 
@@ -259,7 +258,7 @@ func (t *PosixTest) WriteAtDoesntChangeOffset_AppendMode() {
 	AssertEq(nil, err)
 
 	// Write the range [10, 14).
-	n, err = f.WriteAt([]byte("taco"), 2)
+	n, err = syscall.Pwrite(int(f.Fd()), []byte("taco"), 10)
 	AssertEq(nil, err)
 	AssertEq(4, n)
 
@@ -270,7 +269,6 @@ func (t *PosixTest) WriteAtDoesntChangeOffset_AppendMode() {
 }
 
 func (t *PosixTest) AppendMode() {
-	return // WriteAt on O_APPEND files returns an error starting with Go 1.13
 	var err error
 	var n int
 	var off int64
@@ -301,7 +299,7 @@ func (t *PosixTest) AppendMode() {
 	ExpectEq(13, off)
 
 	// A random write should still work, without updating the offset.
-	n, err = f.WriteAt([]byte("H"), 0)
+	n, err = syscall.Pwrite(int(f.Fd()), []byte("H"), 0)
 	AssertEq(nil, err)
 	AssertEq(1, n)
 
