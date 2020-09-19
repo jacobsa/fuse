@@ -32,6 +32,7 @@ func opName(op interface{}) string {
 }
 
 func describeRequest(op interface{}) (s string) {
+
 	v := reflect.ValueOf(op).Elem()
 
 	// We will set up a comma-separated list of components.
@@ -55,6 +56,15 @@ func describeRequest(op interface{}) (s string) {
 		addComponent("name %q", f.Interface())
 	}
 
+	if f := v.FieldByName("Metadata"); f.IsValid() {
+		meta := f.Interface().(fuseops.OpMetadata)
+		if meta.Pid == 0 {
+			addComponent("##### NO PID FOR OP ####")
+		} else {
+			addComponent("PID %+v", meta.Pid)
+		}
+	}
+
 	// Handle special cases.
 	switch typed := op.(type) {
 	case *interruptOp:
@@ -64,6 +74,9 @@ func describeRequest(op interface{}) (s string) {
 		addComponent("opcode %d", typed.OpCode)
 
 	case *fuseops.SetInodeAttributesOp:
+		if true {
+			return fmt.Sprintf("%v", typed)
+		}
 		if typed.Size != nil {
 			addComponent("size %d", *typed.Size)
 		}
@@ -81,25 +94,43 @@ func describeRequest(op interface{}) (s string) {
 		}
 
 	case *fuseops.ReadFileOp:
+		if true {
+			return fmt.Sprintf("%v", typed)
+		}
 		addComponent("handle %d", typed.Handle)
 		addComponent("offset %d", typed.Offset)
 		addComponent("%d bytes", len(typed.Dst))
 
 	case *fuseops.WriteFileOp:
+		if true {
+			return fmt.Sprintf("%v", typed)
+		}
 		addComponent("handle %d", typed.Handle)
 		addComponent("offset %d", typed.Offset)
 		addComponent("%d bytes", len(typed.Data))
 
 	case *fuseops.RemoveXattrOp:
+		if true {
+			return fmt.Sprintf("%v", typed)
+		}
 		addComponent("name %s", typed.Name)
 
 	case *fuseops.GetXattrOp:
+		if true {
+			return fmt.Sprintf("%v", typed)
+		}
 		addComponent("name %s", typed.Name)
 
 	case *fuseops.SetXattrOp:
+		if true {
+			return fmt.Sprintf("%v", typed)
+		}
 		addComponent("name %s", typed.Name)
 
 	case *fuseops.FallocateOp:
+		if true {
+			return fmt.Sprintf("%v", typed)
+		}
 		addComponent("offset %d", typed.Offset)
 		addComponent("length %d", typed.Length)
 		addComponent("mode %d", typed.Mode)

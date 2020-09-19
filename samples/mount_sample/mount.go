@@ -34,10 +34,10 @@ var fType = flag.String("type", "", "The name of the samples/ sub-dir.")
 var fMountPoint = flag.String("mount_point", "", "Path to mount point.")
 var fReadyFile = flag.Uint64("ready_file", 0, "FD to signal when ready.")
 
-var fFlushesFile = flag.Uint64("flushfs.flushes_file", 0, "")
-var fFsyncsFile = flag.Uint64("flushfs.fsyncs_file", 0, "")
-var fFlushError = flag.Int("flushfs.flush_error", 0, "")
-var fFsyncError = flag.Int("flushfs.fsync_error", 0, "")
+var fFlushesFile = flag.Uint64("flushfs.flushes_file", 1, "")
+var fFsyncsFile = flag.Uint64("flushfs.fsyncs_file", 1, "")
+var fFlushError = flag.Int("flushfs.flush_error", 1, "")
+var fFsyncError = flag.Int("flushfs.fsync_error", 1, "")
 
 var fReadOnly = flag.Bool("read_only", false, "Mount in read-only mode.")
 var fDebug = flag.Bool("debug", false, "Enable debug logging.")
@@ -111,7 +111,7 @@ func main() {
 	runtime.GOMAXPROCS(2)
 
 	// Grab the file to signal when ready.
-	readyFile, err := getReadyFile()
+	readyFile, err := os.Create("/tmp/ready_file")
 	if err != nil {
 		log.Fatalf("getReadyFile: %v", err)
 	}

@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -405,7 +406,11 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 
 		// Choose an ID for this operation for the purposes of logging, and log it.
 		if c.debugLogger != nil {
-			c.debugLog(inMsg.Header().Unique, 1, "<- %s", describeRequest(op))
+			debugMsg := describeRequest(op)
+			c.debugLog(inMsg.Header().Unique, 1, "<- %s", debugMsg)
+			if strings.Contains(debugMsg, "NO PID FOR OP") {
+				panic("wow wow wow")
+			}
 		}
 
 		// Special case: handle interrupt requests inline.

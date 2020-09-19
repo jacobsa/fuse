@@ -52,11 +52,13 @@ func convertInMessage(
 		o = &fuseops.LookUpInodeOp{
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(buf[:n-1]),
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpGetattr:
 		o = &fuseops.GetInodeAttributesOp{
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpSetattr:
@@ -68,6 +70,7 @@ func convertInMessage(
 
 		to := &fuseops.SetInodeAttributesOp{
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 		o = to
 
@@ -106,6 +109,8 @@ func convertInMessage(
 		o = &fuseops.ForgetInodeOp{
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
 			N:     in.Nlookup,
+			// Not important but sure.
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpMkdir:
@@ -132,6 +137,7 @@ func convertInMessage(
 			// opcode is mkdir. But we want the correct mode to go through, so ensure
 			// that os.ModeDir is set.
 			Mode: convertFileMode(in.Mode) | os.ModeDir,
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpMknod:
@@ -151,6 +157,7 @@ func convertInMessage(
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(name),
 			Mode:   convertFileMode(in.Mode),
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpCreate:
@@ -189,6 +196,7 @@ func convertInMessage(
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(newName),
 			Target: string(target),
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpRename:
@@ -217,6 +225,7 @@ func convertInMessage(
 			OldName:   string(oldName),
 			NewParent: fuseops.InodeID(in.Newdir),
 			NewName:   string(newName),
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpUnlink:
@@ -229,6 +238,7 @@ func convertInMessage(
 		o = &fuseops.UnlinkOp{
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(buf[:n-1]),
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpRmdir:
@@ -241,6 +251,7 @@ func convertInMessage(
 		o = &fuseops.RmDirOp{
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(buf[:n-1]),
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpOpen:
@@ -252,6 +263,7 @@ func convertInMessage(
 	case fusekernel.OpOpendir:
 		o = &fuseops.OpenDirOp{
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpRead:
@@ -264,6 +276,8 @@ func convertInMessage(
 			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle: fuseops.HandleID(in.Fh),
 			Offset: int64(in.Offset),
+			// Not needed but sure.
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 		o = to
 
@@ -285,6 +299,7 @@ func convertInMessage(
 		}
 
 		to := &fuseops.ReadDirOp{
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle: fuseops.HandleID(in.Fh),
 			Offset: fuseops.DirOffset(in.Offset),
@@ -310,6 +325,8 @@ func convertInMessage(
 		}
 
 		o = &fuseops.ReleaseFileHandleOp{
+			// Not needed, but sure
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Handle: fuseops.HandleID(in.Fh),
 		}
 
@@ -321,6 +338,8 @@ func convertInMessage(
 		}
 
 		o = &fuseops.ReleaseDirHandleOp{
+			// Not needed byt sure.
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Handle: fuseops.HandleID(in.Fh),
 		}
 
@@ -336,6 +355,7 @@ func convertInMessage(
 		}
 
 		o = &fuseops.WriteFileOp{
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle: fuseops.HandleID(in.Fh),
 			Data:   buf,
@@ -350,6 +370,7 @@ func convertInMessage(
 		}
 
 		o = &fuseops.SyncFileOp{
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle: fuseops.HandleID(in.Fh),
 		}
@@ -369,6 +390,7 @@ func convertInMessage(
 
 	case fusekernel.OpReadlink:
 		o = &fuseops.ReadSymlinkOp{
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
 		}
 
@@ -417,6 +439,7 @@ func convertInMessage(
 		}
 
 		o = &fuseops.CreateLinkOp{
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(name),
 			Target: fuseops.InodeID(in.Oldnodeid),
@@ -430,6 +453,7 @@ func convertInMessage(
 		}
 
 		o = &fuseops.RemoveXattrOp{
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:  string(buf[:n-1]),
 		}
@@ -449,6 +473,7 @@ func convertInMessage(
 		name = name[:i]
 
 		to := &fuseops.GetXattrOp{
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:  string(name),
 		}
@@ -473,6 +498,7 @@ func convertInMessage(
 		}
 
 		to := &fuseops.ListXattrOp{
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
 		}
 		o = to
@@ -508,6 +534,7 @@ func convertInMessage(
 		name, value := payload[:i], payload[i+1:len(payload)]
 
 		o = &fuseops.SetXattrOp{
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:  string(name),
 			Value: value,
@@ -521,6 +548,7 @@ func convertInMessage(
 		}
 
 		o = &fuseops.FallocateOp{
+			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle: fuseops.HandleID(in.Fh),
 			Offset: in.Offset,
