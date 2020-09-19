@@ -109,7 +109,6 @@ func convertInMessage(
 		o = &fuseops.ForgetInodeOp{
 			Inode: fuseops.InodeID(inMsg.Header().Nodeid),
 			N:     in.Nlookup,
-			// Not important but sure.
 			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 
@@ -276,7 +275,6 @@ func convertInMessage(
 			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle: fuseops.HandleID(in.Fh),
 			Offset: int64(in.Offset),
-			// Not needed but sure.
 			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 		}
 		o = to
@@ -325,7 +323,6 @@ func convertInMessage(
 		}
 
 		o = &fuseops.ReleaseFileHandleOp{
-			// Not needed, but sure
 			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Handle: fuseops.HandleID(in.Fh),
 		}
@@ -338,7 +335,6 @@ func convertInMessage(
 		}
 
 		o = &fuseops.ReleaseDirHandleOp{
-			// Not needed byt sure.
 			Metadata: fuseops.OpMetadata{Pid: inMsg.Header().Pid},
 			Handle: fuseops.HandleID(in.Fh),
 		}

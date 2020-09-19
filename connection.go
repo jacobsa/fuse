@@ -409,7 +409,8 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 			debugMsg := describeRequest(op)
 			c.debugLog(inMsg.Header().Unique, 1, "<- %s", debugMsg)
 			if strings.Contains(debugMsg, "NO PID FOR OP") {
-				panic("wow wow wow")
+				// Added for debugging temporarily.
+				panic("==NO PID FOR OP==")
 			}
 		}
 
