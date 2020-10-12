@@ -194,6 +194,10 @@ func (fs *memFS) StatFS(
 func (fs *memFS) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) error {
+	if op.OpContext.Pid == 0 {
+		return fuse.EINVAL
+	}
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -224,6 +228,10 @@ func (fs *memFS) LookUpInode(
 func (fs *memFS) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) error {
+	if op.OpContext.Pid == 0 {
+		return fuse.EINVAL
+	}
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -243,6 +251,10 @@ func (fs *memFS) GetInodeAttributes(
 func (fs *memFS) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) error {
+	if op.OpContext.Pid == 0 {
+		return fuse.EINVAL
+	}
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -272,6 +284,10 @@ func (fs *memFS) SetInodeAttributes(
 func (fs *memFS) MkDir(
 	ctx context.Context,
 	op *fuseops.MkDirOp) error {
+	if op.OpContext.Pid == 0 {
+		return fuse.EINVAL
+	}
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -314,6 +330,10 @@ func (fs *memFS) MkDir(
 func (fs *memFS) MkNode(
 	ctx context.Context,
 	op *fuseops.MkNodeOp) error {
+	if op.OpContext.Pid == 0 {
+		return fuse.EINVAL
+	}
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -371,15 +391,14 @@ func (fs *memFS) createFile(
 
 func (fs *memFS) CreateFile(
 	ctx context.Context,
-	op *fuseops.CreateFileOp) error {
-	if op.Metadata.Pid == 0 {
-		// CreateFileOp should have a valid pid in metadata.
+	op *fuseops.CreateFileOp) (err error) {
+	if op.OpContext.Pid == 0 {
+		// CreateFileOp should have a valid pid in context.
 		return fuse.EINVAL
 	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	var err error
 	op.Entry, err = fs.createFile(op.Parent, op.Name, op.Mode)
 	return err
 }
@@ -609,8 +628,8 @@ func (fs *memFS) ReadDir(
 func (fs *memFS) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) error {
-	if op.Metadata.Pid == 0 {
-		// OpenFileOp should have a valid pid in metadata.
+	if op.OpContext.Pid == 0 {
+		// OpenFileOp should have a valid pid in context.
 		return fuse.EINVAL
 	}
 
@@ -668,8 +687,8 @@ func (fs *memFS) WriteFile(
 func (fs *memFS) FlushFile(
 	ctx context.Context,
 	op *fuseops.FlushFileOp) (err error) {
-	if op.Metadata.Pid == 0 {
-		// FlushFileOp should have a valid pid in metadata.
+	if op.OpContext.Pid == 0 {
+		// FlushFileOp should have a valid pid in context.
 		return fuse.EINVAL
 	}
 	return

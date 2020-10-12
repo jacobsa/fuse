@@ -55,8 +55,8 @@ func describeRequest(op interface{}) (s string) {
 		addComponent("name %q", f.Interface())
 	}
 
-	if f := v.FieldByName("Metadata"); f.IsValid() {
-		meta := f.Interface().(fuseops.OpMetadata)
+	if f := v.FieldByName("OpContext"); f.IsValid() {
+		meta := f.Interface().(fuseops.OpContext)
 		if meta.Pid == 0 {
 			addComponent("##### NO PID FOR OP ####")
 		} else {

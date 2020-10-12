@@ -23,8 +23,8 @@ import (
 // File system
 ////////////////////////////////////////////////////////////////////////
 
-// OpMetadata contains metadata about the file system operation.
-type OpMetadata struct {
+// OpContext contains context of the file system operation.
+type OpContext struct {
 	// PID of the process that is invoking the operation.
 	Pid uint32
 }
@@ -125,8 +125,8 @@ type LookUpInodeOp struct {
 	//
 	// The lookup count for the inode is implicitly incremented. See notes on
 	// ForgetInodeOp for more information.
-	Entry    ChildInodeEntry
-	Metadata OpMetadata
+	Entry     ChildInodeEntry
+	OpContext OpContext
 }
 
 // Refresh the attributes for an inode whose ID was previously returned in a
@@ -142,7 +142,7 @@ type GetInodeAttributesOp struct {
 	// more.
 	Attributes           InodeAttributes
 	AttributesExpiration time.Time
-	Metadata             OpMetadata
+	OpContext            OpContext
 }
 
 // Change attributes for an inode.
@@ -167,7 +167,7 @@ type SetInodeAttributesOp struct {
 	// ChildInodeEntry.AttributesExpiration for more.
 	Attributes           InodeAttributes
 	AttributesExpiration time.Time
-	Metadata             OpMetadata
+	OpContext            OpContext
 }
 
 // Decrement the reference count for an inode ID previously issued by the file
@@ -214,8 +214,8 @@ type ForgetInodeOp struct {
 	Inode InodeID
 
 	// The amount to decrement the reference count.
-	N        uint64
-	Metadata OpMetadata
+	N         uint64
+	OpContext OpContext
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -245,8 +245,8 @@ type MkDirOp struct {
 	//
 	// The lookup count for the inode is implicitly incremented. See notes on
 	// ForgetInodeOp for more information.
-	Entry    ChildInodeEntry
-	Metadata OpMetadata
+	Entry     ChildInodeEntry
+	OpContext OpContext
 }
 
 // Create a file inode as a child of an existing directory inode. The kernel
@@ -273,8 +273,8 @@ type MkNodeOp struct {
 	//
 	// The lookup count for the inode is implicitly incremented. See notes on
 	// ForgetInodeOp for more information.
-	Entry    ChildInodeEntry
-	Metadata OpMetadata
+	Entry     ChildInodeEntry
+	OpContext OpContext
 }
 
 // Create a file inode and open it.
@@ -288,9 +288,6 @@ type MkNodeOp struct {
 //
 // Therefore the file system should return EEXIST if the name already exists.
 type CreateFileOp struct {
-	// Metadata
-	Metadata OpMetadata
-
 	// The ID of parent directory inode within which to create the child file.
 	Parent InodeID
 
@@ -313,6 +310,7 @@ type CreateFileOp struct {
 	// file handle. The file system must ensure this ID remains valid until a
 	// later call to ReleaseFileHandle.
 	Handle HandleID
+	OpContext OpContext
 }
 
 // Create a symlink inode. If the name already exists, the file system should
@@ -332,8 +330,8 @@ type CreateSymlinkOp struct {
 	//
 	// The lookup count for the inode is implicitly incremented. See notes on
 	// ForgetInodeOp for more information.
-	Entry    ChildInodeEntry
-	Metadata OpMetadata
+	Entry     ChildInodeEntry
+	OpContext OpContext
 }
 
 // Create a hard link to an inode. If the name already exists, the file system
@@ -353,8 +351,8 @@ type CreateLinkOp struct {
 	//
 	// The lookup count for the inode is implicitly incremented. See notes on
 	// ForgetInodeOp for more information.
-	Entry    ChildInodeEntry
-	Metadata OpMetadata
+	Entry     ChildInodeEntry
+	OpContext OpContext
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -405,7 +403,7 @@ type RenameOp struct {
 	// overwritten within it.
 	NewParent InodeID
 	NewName   string
-	Metadata  OpMetadata
+	OpContext OpContext
 }
 
 // Unlink a directory from its parent. Because directories cannot have a link
@@ -418,9 +416,9 @@ type RenameOp struct {
 type RmDirOp struct {
 	// The ID of parent directory inode, and the name of the directory being
 	// removed within it.
-	Parent   InodeID
-	Name     string
-	Metadata OpMetadata
+	Parent    InodeID
+	Name      string
+	OpContext OpContext
 }
 
 // Unlink a file or symlink from its parent. If this brings the inode's link
@@ -432,9 +430,9 @@ type RmDirOp struct {
 type UnlinkOp struct {
 	// The ID of parent directory inode, and the name of the entry being removed
 	// within it.
-	Parent   InodeID
-	Name     string
-	Metadata OpMetadata
+	Parent    InodeID
+	Name      string
+	OpContext OpContext
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -459,8 +457,8 @@ type OpenDirOp struct {
 	// The handle may be supplied in future ops like ReadDirOp that contain a
 	// directory handle. The file system must ensure this ID remains valid until
 	// a later call to ReleaseDirHandle.
-	Handle   HandleID
-	Metadata OpMetadata
+	Handle    HandleID
+	OpContext OpContext
 }
 
 // Read entries from a directory previously opened with OpenDir.
@@ -553,7 +551,7 @@ type ReadDirOp struct {
 	// FUSE_DIRENT_ALIGN (http://goo.gl/UziWvH) is less than the read size of
 	// PAGE_SIZE used by fuse_readdir (cf. https://goo.gl/VajtS2).
 	BytesRead int
-	Metadata  OpMetadata
+	OpContext OpContext
 }
 
 // Release a previously-minted directory handle. The kernel sends this when
@@ -568,8 +566,8 @@ type ReleaseDirHandleOp struct {
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
-	Handle   HandleID
-	Metadata OpMetadata
+	Handle    HandleID
+	OpContext OpContext
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -583,9 +581,6 @@ type ReleaseDirHandleOp struct {
 // process. On OS X it may not be sent for every open(2)
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
 type OpenFileOp struct {
-	// Metadata
-	Metadata OpMetadata
-
 	// The ID of the inode to be opened.
 	Inode InodeID
 
@@ -622,6 +617,8 @@ type OpenFileOp struct {
 	// layer. This allows for filesystems whose file sizes are not known in
 	// advance, for example, because contents are generated on the fly.
 	UseDirectIO bool
+
+	OpContext OpContext
 }
 
 // Read data from a file previously opened with CreateFile or OpenFile.
@@ -652,7 +649,7 @@ type ReadFileOp struct {
 	//
 	// If direct IO is enabled, semantics should match those of read(2).
 	BytesRead int
-	Metadata  OpMetadata
+	OpContext OpContext
 }
 
 // Write data to a file previously opened with CreateFile or OpenFile.
@@ -711,8 +708,8 @@ type WriteFileOp struct {
 	// be written, except on error (http://goo.gl/KUpwwn). This appears to be
 	// because it uses file mmapping machinery (http://goo.gl/SGxnaN) to write a
 	// page at a time.
-	Data     []byte
-	Metadata OpMetadata
+	Data      []byte
+	OpContext OpContext
 }
 
 // Synchronize the current contents of an open file to storage.
@@ -733,9 +730,9 @@ type WriteFileOp struct {
 // file (but which is not used in "real" file systems).
 type SyncFileOp struct {
 	// The file and handle being sync'd.
-	Inode    InodeID
-	Handle   HandleID
-	Metadata OpMetadata
+	Inode     InodeID
+	Handle    HandleID
+	OpContext OpContext
 }
 
 // Flush the current state of an open file to storage upon closing a file
@@ -787,12 +784,10 @@ type SyncFileOp struct {
 // to at least schedule a real flush, and maybe do it immediately in order to
 // return any errors that occur.
 type FlushFileOp struct {
-	// Metadata
-	Metadata OpMetadata
-
 	// The file and handle being flushed.
 	Inode  InodeID
 	Handle HandleID
+	OpContext OpContext
 }
 
 // Release a previously-minted file handle. The kernel calls this when there
@@ -807,8 +802,8 @@ type ReleaseFileHandleOp struct {
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
 	// file system).
-	Handle   HandleID
-	Metadata OpMetadata
+	Handle    HandleID
+	OpContext OpContext
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -821,8 +816,8 @@ type ReadSymlinkOp struct {
 	Inode InodeID
 
 	// Set by the file system: the target of the symlink.
-	Target   string
-	Metadata OpMetadata
+	Target    string
+	OpContext OpContext
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -838,8 +833,8 @@ type RemoveXattrOp struct {
 	Inode InodeID
 
 	// The name of the extended attribute.
-	Name     string
-	Metadata OpMetadata
+	Name      string
+	OpContext OpContext
 }
 
 // Get an extended attribute.
@@ -861,7 +856,7 @@ type GetXattrOp struct {
 	// the number of bytes that would have been read into Dst if Dst was
 	// big enough (return ERANGE in this case).
 	BytesRead int
-	Metadata  OpMetadata
+	OpContext OpContext
 }
 
 // List all the extended attributes for a file.
@@ -882,7 +877,7 @@ type ListXattrOp struct {
 	// the number of bytes that would have been read into Dst if Dst was
 	// big enough (return ERANGE in this case).
 	BytesRead int
-	Metadata  OpMetadata
+	OpContext OpContext
 }
 
 // Set an extended attribute.
@@ -903,8 +898,8 @@ type SetXattrOp struct {
 	// If Flags is 0x2, and the attribute does not exist, ENOATTR should be returned.
 	// If Flags is 0x0, the extended attribute will be created if need be, or will
 	// simply replace the value if the attribute exists.
-	Flags    uint32
-	Metadata OpMetadata
+	Flags     uint32
+	OpContext OpContext
 }
 
 type FallocateOp struct {
@@ -923,6 +918,6 @@ type FallocateOp struct {
 	// If Mode has 0x2, deallocate space within the range specified
 	// If Mode has 0x2, it sbould also have 0x1 (deallocate should not increase
 	// file size)
-	Mode     uint32
-	Metadata OpMetadata
+	Mode      uint32
+	OpContext OpContext
 }

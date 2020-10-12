@@ -280,6 +280,10 @@ func (fs *fsImpl) GetInodeAttributes(
 func (fs *fsImpl) ForgetInode(
 	ctx context.Context,
 	op *fuseops.ForgetInodeOp) error {
+	if op.OpContext.Pid == 0 {
+		return fuse.EINVAL
+	}
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
