@@ -297,10 +297,10 @@ func convertInMessage(
 		}
 
 		to := &fuseops.ReadDirOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle:    fuseops.HandleID(in.Fh),
 			Offset:    fuseops.DirOffset(in.Offset),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 		o = to
 
@@ -323,8 +323,8 @@ func convertInMessage(
 		}
 
 		o = &fuseops.ReleaseFileHandleOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Handle:    fuseops.HandleID(in.Fh),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpReleasedir:
@@ -335,8 +335,8 @@ func convertInMessage(
 		}
 
 		o = &fuseops.ReleaseDirHandleOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Handle:    fuseops.HandleID(in.Fh),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpWrite:
@@ -351,11 +351,11 @@ func convertInMessage(
 		}
 
 		o = &fuseops.WriteFileOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle:    fuseops.HandleID(in.Fh),
 			Data:      buf,
 			Offset:    int64(in.Offset),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpFsync:
@@ -366,9 +366,9 @@ func convertInMessage(
 		}
 
 		o = &fuseops.SyncFileOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle:    fuseops.HandleID(in.Fh),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpFlush:
@@ -386,8 +386,8 @@ func convertInMessage(
 
 	case fusekernel.OpReadlink:
 		o = &fuseops.ReadSymlinkOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpStatfs:
@@ -435,10 +435,10 @@ func convertInMessage(
 		}
 
 		o = &fuseops.CreateLinkOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Parent:    fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:      string(name),
 			Target:    fuseops.InodeID(in.Oldnodeid),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpRemovexattr:
@@ -449,9 +449,9 @@ func convertInMessage(
 		}
 
 		o = &fuseops.RemoveXattrOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:      string(buf[:n-1]),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpGetxattr:
@@ -469,9 +469,9 @@ func convertInMessage(
 		name = name[:i]
 
 		to := &fuseops.GetXattrOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:      string(name),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 		o = to
 
@@ -494,8 +494,8 @@ func convertInMessage(
 		}
 
 		to := &fuseops.ListXattrOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 		o = to
 
@@ -530,11 +530,11 @@ func convertInMessage(
 		name, value := payload[:i], payload[i+1:len(payload)]
 
 		o = &fuseops.SetXattrOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:      string(name),
 			Value:     value,
 			Flags:     in.Flags,
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 	case fusekernel.OpFallocate:
 		type input fusekernel.FallocateIn
@@ -544,12 +544,12 @@ func convertInMessage(
 		}
 
 		o = &fuseops.FallocateOp{
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle:    fuseops.HandleID(in.Fh),
 			Offset:    in.Offset,
 			Length:    in.Length,
 			Mode:      in.Mode,
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
 	default:

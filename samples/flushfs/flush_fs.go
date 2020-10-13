@@ -228,6 +228,10 @@ func (fs *flushFS) WriteFile(
 func (fs *flushFS) SyncFile(
 	ctx context.Context,
 	op *fuseops.SyncFileOp) error {
+	if op.OpContext.Pid == 0 {
+		return fuse.EINVAL
+	}
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 

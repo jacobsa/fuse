@@ -71,7 +71,7 @@ func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
 	}
 }
 
-// Like SetUp, but doens't panic.
+// Like SetUp, but doesn't panic.
 func (t *SampleTest) initialize(
 	ctx context.Context,
 	server fuse.Server,
@@ -94,6 +94,10 @@ func (t *SampleTest) initialize(
 	if err != nil {
 		return fmt.Errorf("TempDir: %v", err)
 	}
+
+	// Disable writeback caching so that pid is always available in OpContext
+	t.MountConfig.DisableWritebackCaching = true
+	config.DisableWritebackCaching = true
 
 	// Mount the file system.
 	t.mfs, err = fuse.Mount(t.Dir, server, config)
