@@ -256,10 +256,6 @@ func (fs *dynamicFS) ReadFile(
 func (fs *dynamicFS) ReleaseFileHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseFileHandleOp) error {
-	if op.OpContext.Pid == 0 {
-		return fuse.EINVAL
-	}
-
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	_, ok := fs.fileHandles[op.Handle]

@@ -95,10 +95,6 @@ func (t *SampleTest) initialize(
 		return fmt.Errorf("TempDir: %v", err)
 	}
 
-	// Disable writeback caching so that pid is always available in OpContext
-	t.MountConfig.DisableWritebackCaching = true
-	config.DisableWritebackCaching = true
-
 	// Mount the file system.
 	t.mfs, err = fuse.Mount(t.Dir, server, config)
 	if err != nil {
