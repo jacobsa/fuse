@@ -97,6 +97,9 @@ type memFSTest struct {
 }
 
 func (t *memFSTest) SetUp(ti *TestInfo) {
+	// Disable writeback caching so that pid is always available in OpContext
+	t.MountConfig.DisableWritebackCaching = true
+
 	t.Server = memfs.NewMemFS(currentUid(), currentGid())
 	t.SampleTest.SetUp(ti)
 }

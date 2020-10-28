@@ -71,7 +71,7 @@ func (t *SampleTest) SetUp(ti *ogletest.TestInfo) {
 	}
 }
 
-// Like SetUp, but doens't panic.
+// Like SetUp, but doesn't panic.
 func (t *SampleTest) initialize(
 	ctx context.Context,
 	server fuse.Server,
