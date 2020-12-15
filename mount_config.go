@@ -184,7 +184,7 @@ func (c *MountConfig) toMap() (opts map[string]string) {
 
 	// Enable permissions checking in the kernel. See the comments on
 	// InodeAttributes.Mode.
-	if c.DisableDefaultPermissions {
+	if !c.DisableDefaultPermissions {
 		opts["default_permissions"] = ""
 	}
 
