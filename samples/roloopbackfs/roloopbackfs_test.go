@@ -16,8 +16,10 @@ package roloopbackfs_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -26,8 +28,6 @@ import (
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/roloopbackfs"
 	. "github.com/jacobsa/ogletest"
-	"io/ioutil"
-	"os"
 )
 
 var (

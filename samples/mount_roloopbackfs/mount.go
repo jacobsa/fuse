@@ -17,11 +17,11 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/jacobsa/fuse/samples/roloopbackfs"
 	"log"
 	"os"
 
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/samples/roloopbackfs"
 )
 
 var fPhysicalPath = flag.String("path", "", "Physical path to loopback.")
@@ -39,22 +39,22 @@ func main() {
 		log.Fatalf("You must set --path.")
 	}
 
+	if *fMountPoint == "" {
+		log.Fatalf("You must set --mount_point.")
+	}
+
+	err := os.MkdirAll(*fMountPoint, 0777)
+	if err != nil {
+		log.Fatalf("Failed to create mount point at '%v'", *fMountPoint)
+	}
+
 	server, err := roloopbackfs.NewReadonlyLoopbackServer(*fPhysicalPath, errorLogger)
 	if err != nil {
 		log.Fatalf("makeFS: %v", err)
 	}
 
-	if *fMountPoint == "" {
-		log.Fatalf("You must set --mount_point.")
-	}
-
-	_, err = os.Stat(*fMountPoint)
-	if os.IsNotExist(err) {
-		os.MkdirAll(*fMountPoint, 0777)
-	}
-
 	cfg := &fuse.MountConfig{
-		ReadOnly: true,
+		ReadOnly:    true,
 		ErrorLogger: errorLogger,
 	}
 
