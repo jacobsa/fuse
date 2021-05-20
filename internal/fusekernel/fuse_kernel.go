@@ -44,9 +44,9 @@ import (
 // The FUSE version implemented by the package.
 const (
 	ProtoVersionMinMajor = 7
-	ProtoVersionMinMinor = 8
+	ProtoVersionMinMinor = 28
 	ProtoVersionMaxMajor = 7
-	ProtoVersionMaxMinor = 12
+	ProtoVersionMaxMinor = 31
 )
 
 const (
@@ -266,6 +266,7 @@ const (
 	InitAsyncDIO         InitFlags = 1 << 15
 	InitWritebackCache   InitFlags = 1 << 16
 	InitNoOpenSupport    InitFlags = 1 << 17
+	InitMaxPages         InitFlags = 1 << 22
 	InitCacheSymlinks    InitFlags = 1 << 23
 	InitNoOpendirSupport InitFlags = 1 << 24
 
@@ -286,6 +287,7 @@ var initFlagNames = []flagName{
 	{uint32(InitAtomicTrunc), "InitAtomicTrunc"},
 	{uint32(InitExportSupport), "InitExportSupport"},
 	{uint32(InitBigWrites), "InitBigWrites"},
+	{uint32(InitMaxPages), "InitMaxPages"},
 	{uint32(InitDontMask), "InitDontMask"},
 	{uint32(InitSpliceWrite), "InitSpliceWrite"},
 	{uint32(InitSpliceMove), "InitSpliceMove"},
@@ -714,12 +716,15 @@ type InitIn struct {
 const InitInSize = int(unsafe.Sizeof(InitIn{}))
 
 type InitOut struct {
-	Major        uint32
-	Minor        uint32
-	MaxReadahead uint32
-	Flags        uint32
-	Unused       uint32
-	MaxWrite     uint32
+	Major               uint32
+	Minor               uint32
+	MaxReadahead        uint32
+	Flags               uint32
+	MaxBackground       uint16
+	CongestionThreshold uint16
+	MaxWrite            uint32
+	TimeGran            uint32
+	MaxPages            uint32
 }
 
 type InterruptIn struct {
