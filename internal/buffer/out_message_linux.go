@@ -17,5 +17,5 @@ package buffer
 // The maximum read size that we expect to ever see from the kernel, used for
 // calculating the size of out messages.
 //
-// For 4 KiB pages, this is 128 KiB (cf. https://goo.gl/HOiEYo)
-const MaxReadSize = 1 << 17
+// For 4 KiB pages, this is 1024 KiB (cf. https://goo.gl/HOiEYo)
+const MaxReadSize = 1 << 20
