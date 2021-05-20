@@ -796,7 +796,12 @@ func (c *Connection) kernelResponseForOp(
 		out.Minor = o.Library.Minor
 		out.MaxReadahead = o.MaxReadahead
 		out.Flags = uint32(o.Flags)
+		// Default values
+		out.MaxBackground = 1000
+		out.CongestionThreshold = 750
 		out.MaxWrite = o.MaxWrite
+		out.TimeGran = 1
+		out.MaxPages = o.MaxPages
 
 	default:
 		panic(fmt.Sprintf("Unexpected op: %#v", op))
