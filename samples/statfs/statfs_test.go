@@ -194,7 +194,7 @@ func (t *StatFSTest) WriteSize() {
 	// small chunks of data.
 	switch runtime.GOOS {
 	case "linux":
-		ExpectEq(1<<17, t.fs.MostRecentWriteSize())
+		ExpectEq(1<<20, t.fs.MostRecentWriteSize())
 
 	case "darwin":
 		ExpectEq(1<<20, t.fs.MostRecentWriteSize())
