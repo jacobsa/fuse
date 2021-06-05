@@ -857,6 +857,6 @@ func (fs *memFS) Fallocate(ctx context.Context,
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	inode := fs.getInodeOrDie(op.Inode)
-	inode.Fallocate(op.Mode, op.Length, op.Length)
+	inode.Fallocate(op.Mode, op.Offset, op.Length)
 	return nil
 }
