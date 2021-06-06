@@ -78,6 +78,9 @@ func dirAttrs() fuseops.InodeAttributes {
 }
 
 func (fs *statFS) fileAttrs() fuseops.InodeAttributes {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
 	return fs.cannedStatResponse
 }
 
