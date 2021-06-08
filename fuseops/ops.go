@@ -923,3 +923,62 @@ type FallocateOp struct {
 	Mode      uint32
 	OpContext OpContext
 }
+
+// Notify IO readiness event
+type NotifyPollOp struct {
+}
+
+// Notify to invalidate cache for an inode.
+// Added in FUSE protocol version 7.12. If the kernel does not support this
+// (or a newer) version, the op will return -ENOSYS and do nothing
+type NotifyInvalInodeOp struct {
+	// inode to invalidatej
+	Ino InodeID
+
+	// the offset in the inode where to start invalidating or negative to invalidate attributes only
+	Off int64
+
+	// the amount of cache to invalidate or 0 for all
+	Len int64
+}
+
+// Notify to invalidate parent attributes and the dentry matching parent/name
+// Added in FUSE protocol version 7.12. If the kernel does not support this
+// (or a newer) version, the op will return -ENOSYS and do nothing
+type NotifyInvalEntryOp struct {
+	// the inode number
+	Parent InodeID
+
+	// the child entry file name
+	Name string
+}
+
+// Store data to the kernel buffers
+// Cf:http://libfuse.github.io/doxygen/fuse__lowlevel_8h.html#a9cb974af9745294ff446d11cba2422f1
+type NotifyStoreOp struct {
+}
+
+// Retrieve data from the kernel buffers
+type NotifyRetrieveOp struct {
+}
+
+// This op behaves like NotifyInvalEntryOp with the following additional
+// effect (at least as of Linux kernel 4.8):
+
+// If the provided child inode matches the inode that is currently
+// associated with the cached dentry, and if there are any inotify
+// watches registered for the dentry, then the watchers are informed
+// that the dentry has been deleted.
+// Added in FUSE protocol version 7.18. If the kernel does not
+// support this (or a newer) version, op will return -ENOSYS and do nothing.
+
+type NotifyDeleteOp struct {
+	// the inode number
+	Parent InodeID
+
+	// the child entry's inode
+	Child InodeID
+
+	// the child entry file name
+	Name string
+}

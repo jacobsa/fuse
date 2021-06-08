@@ -24,6 +24,7 @@ type MountedFileSystem struct {
 	// The result to return from Join. Not valid until the channel is closed.
 	joinStatus          error
 	joinStatusAvailable chan struct{}
+	Conn                interface{}
 }
 
 // Dir returns the directory on which the file system is mounted (or where we
