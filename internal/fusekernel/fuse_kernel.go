@@ -724,7 +724,8 @@ type InitOut struct {
 	CongestionThreshold uint16
 	MaxWrite            uint32
 	TimeGran            uint32
-	MaxPages            uint32
+	MaxPages            uint16
+	Unused              [8]uint16
 }
 
 type InterruptIn struct {

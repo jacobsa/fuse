@@ -44,5 +44,5 @@ type initOp struct {
 	MaxReadahead  uint32
 	MaxBackground uint16
 	MaxWrite      uint32
-	MaxPages      uint32
+	MaxPages      uint16
 }
