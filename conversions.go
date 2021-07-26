@@ -358,7 +358,7 @@ func convertInMessage(
 			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
-	case fusekernel.OpFsync:
+	case fusekernel.OpFsync, fusekernel.OpFsyncdir:
 		type input fusekernel.FsyncIn
 		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
 		if in == nil {
