@@ -725,7 +725,8 @@ type InitOut struct {
 	MaxWrite            uint32
 	TimeGran            uint32
 	MaxPages            uint16
-	Unused              [8]uint16
+	MapAlignment        uint16
+	Unused              [8]uint32
 }
 
 type InterruptIn struct {
