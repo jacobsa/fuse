@@ -80,7 +80,7 @@ func TestMemclr(t *testing.T) {
 				p = unsafe.Pointer(&b[0])
 			}
 
-			memclr(p, uintptr(len(b)))
+			jacobsa_fuse_memclr(p, uintptr(len(b)))
 
 			// Check
 			if i := findNonZero(p, len(b)); i != len(b) {
