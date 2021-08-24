@@ -174,6 +174,10 @@ type MountConfig struct {
 	// /proc/mounts will show the filesystem type as fuse.<Subtype>.
 	// If not set, /proc/mounts will show the filesystem type as fuse/fuseblk.
 	Subtype string
+
+	//Flag to disable async reads that are received from
+	//the kernel
+	DisableAsyncReads bool
 }
 
 // Create a map containing all of the key=value mount options to be given to
