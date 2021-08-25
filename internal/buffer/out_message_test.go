@@ -107,9 +107,12 @@ func TestOutMessageAppend(t *testing.T) {
 		t.Errorf("om.Len() = %d, want %d", got, want)
 	}
 
-	b := om.Bytes()
+	b := []byte(nil)
+	for i := 0; i < len(om.Sglist); i++ {
+		b = append(b, om.Sglist[i]...)
+	}
 	if got, want := len(b), wantLen; got != want {
-		t.Fatalf("len(om.Bytes()) = %d, want %d", got, want)
+		t.Fatalf("len(om.OutHeaderBytes()) = %d, want %d", got, want)
 	}
 
 	want := append(
@@ -137,9 +140,12 @@ func TestOutMessageAppendString(t *testing.T) {
 		t.Errorf("om.Len() = %d, want %d", got, want)
 	}
 
-	b := om.Bytes()
+	b := []byte(nil)
+	for i := 0; i < len(om.Sglist); i++ {
+		b = append(b, om.Sglist[i]...)
+	}
 	if got, want := len(b), wantLen; got != want {
-		t.Fatalf("len(om.Bytes()) = %d, want %d", got, want)
+		t.Fatalf("len(om.OutHeaderBytes()) = %d, want %d", got, want)
 	}
 
 	want := append(
@@ -168,9 +174,12 @@ func TestOutMessageShrinkTo(t *testing.T) {
 		t.Errorf("om.Len() = %d, want %d", got, want)
 	}
 
-	b := om.Bytes()
+	b := []byte(nil)
+	for i := 0; i < len(om.Sglist); i++ {
+		b = append(b, om.Sglist[i]...)
+	}
 	if got, want := len(b), wantLen; got != want {
-		t.Fatalf("len(om.Bytes()) = %d, want %d", got, want)
+		t.Fatalf("len(om.OutHeaderBytes()) = %d, want %d", got, want)
 	}
 
 	want := append(
@@ -201,7 +210,7 @@ func TestOutMessageHeader(t *testing.T) {
 	*h = want
 
 	// Check that the result is as expected.
-	b := om.Bytes()
+	b := om.OutHeaderBytes()
 	if len(b) != int(unsafe.Sizeof(want)) {
 		t.Fatalf("unexpected length %d; want %d", len(b), unsafe.Sizeof(want))
 	}
@@ -225,9 +234,7 @@ func TestOutMessageReset(t *testing.T) {
 		}
 
 		// Ensure a non-zero payload length.
-		if p := om.GrowNoZero(128); p == nil {
-			t.Fatal("GrowNoZero failed")
-		}
+		p := om.Grow(128)
 
 		// Reset.
 		om.Reset()
@@ -259,10 +266,7 @@ func TestOutMessageGrow(t *testing.T) {
 	// Set up garbage where the payload will soon be.
 	const payloadSize = 1234
 	{
-		p := om.GrowNoZero(payloadSize)
-		if p == nil {
-			t.Fatal("GrowNoZero failed")
-		}
+		p := om.Grow(payloadSize)
 
 		err := fillWithGarbage(p, payloadSize)
 		if err != nil {
@@ -283,7 +287,10 @@ func TestOutMessageGrow(t *testing.T) {
 		t.Errorf("om.Len() = %d, want %d", got, want)
 	}
 
-	b := om.Bytes()
+	b := []byte(nil)
+	for i := 0; i < len(om.Sglist); i++ {
+		b = append(b, om.Sglist[i]...)
+	}
 	if got, want := len(b), wantLen; got != want {
 		t.Fatalf("len(om.Len()) = %d, want %d", got, want)
 	}
@@ -304,7 +311,7 @@ func BenchmarkOutMessageReset(b *testing.B) {
 			om.Reset()
 		}
 
-		b.SetBytes(int64(unsafe.Offsetof(om.payload)))
+		b.SetBytes(int64(om.Len()))
 	})
 
 	// Many megabytes worth of buffers, which should defeat the CPU cache.
@@ -321,7 +328,7 @@ func BenchmarkOutMessageReset(b *testing.B) {
 			oms[i%numMessages].Reset()
 		}
 
-		b.SetBytes(int64(unsafe.Offsetof(oms[0].payload)))
+		b.SetBytes(int64(oms[0].Len()))
 	})
 }
 
