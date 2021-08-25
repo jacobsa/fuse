@@ -52,6 +52,7 @@ type FileSystem interface {
 	ReleaseDirHandle(context.Context, *fuseops.ReleaseDirHandleOp) error
 	OpenFile(context.Context, *fuseops.OpenFileOp) error
 	ReadFile(context.Context, *fuseops.ReadFileOp) error
+	VectoredRead(context.Context, *fuseops.VectoredReadOp) error
 	WriteFile(context.Context, *fuseops.WriteFileOp) error
 	SyncFile(context.Context, *fuseops.SyncFileOp) error
 	FlushFile(context.Context, *fuseops.FlushFileOp) error
@@ -189,6 +190,9 @@ func (s *fileSystemServer) handleOp(
 
 	case *fuseops.ReadFileOp:
 		err = s.fs.ReadFile(ctx, typed)
+
+	case *fuseops.VectoredReadOp:
+		err = s.fs.VectoredRead(ctx, typed)
 
 	case *fuseops.WriteFileOp:
 		err = s.fs.WriteFile(ctx, typed)

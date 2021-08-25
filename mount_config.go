@@ -156,6 +156,11 @@ type MountConfig struct {
 	// actually utilise any form of qualifiable UNIX permissions.
 	DisableDefaultPermissions bool
 
+	// Use VectoredReadOp instead of ReadFileOp.
+	// Vectored read allows file systems to reduce memory copying overhead if
+	// the data is already in memory when they return it to FUSE.
+	UseVectoredRead bool
+
 	// OS X only.
 	//
 	// The name of the mounted volume, as displayed in the Finder. If empty, a

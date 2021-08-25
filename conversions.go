@@ -38,6 +38,7 @@ import (
 //
 // The caller is responsible for arranging for the message to be destroyed.
 func convertInMessage(
+	config *MountConfig,
 	inMsg *buffer.InMessage,
 	outMsg *buffer.OutMessage,
 	protocol fusekernel.Protocol) (o interface{}, err error) {
@@ -284,24 +285,28 @@ func convertInMessage(
 			return nil, errors.New("Corrupt OpRead")
 		}
 
-		to := &fuseops.ReadFileOp{
-			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
-			Handle:    fuseops.HandleID(in.Fh),
-			Offset:    int64(in.Offset),
-			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
+		if !config.UseVectoredRead {
+			// Use part of the incoming message storage as the read buffer
+			buf := inMsg.GetFree(int(in.Size))
+			to := &fuseops.ReadFileOp{
+				Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
+				Handle:    fuseops.HandleID(in.Fh),
+				Offset:    int64(in.Offset),
+				Dst:       buf,
+				OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
+			}
+			o = to
+		} else {
+			// Don't allocate any buffers when zero-copy is used
+			to := &fuseops.VectoredReadOp{
+				Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
+				Handle:    fuseops.HandleID(in.Fh),
+				Offset:    int64(in.Offset),
+				Size:      int64(in.Size),
+				OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
+			}
+			o = to
 		}
-		o = to
-
-		readSize := int(in.Size)
-		p := outMsg.GrowNoZero(readSize)
-		if p == nil {
-			return nil, fmt.Errorf("Can't grow for %d-byte read", readSize)
-		}
-
-		sh := (*reflect.SliceHeader)(unsafe.Pointer(&to.Dst))
-		sh.Data = uintptr(p)
-		sh.Len = readSize
-		sh.Cap = readSize
 
 	case fusekernel.OpReaddir:
 		in := (*fusekernel.ReadIn)(inMsg.Consume(fusekernel.ReadInSize(protocol)))
@@ -318,7 +323,7 @@ func convertInMessage(
 		o = to
 
 		readSize := int(in.Size)
-		p := outMsg.GrowNoZero(readSize)
+		p := outMsg.Grow(readSize)
 		if p == nil {
 			return nil, fmt.Errorf("Can't grow for %d-byte read", readSize)
 		}
@@ -489,15 +494,19 @@ func convertInMessage(
 		o = to
 
 		readSize := int(in.Size)
-		p := outMsg.GrowNoZero(readSize)
-		if p == nil {
-			return nil, fmt.Errorf("Can't grow for %d-byte read", readSize)
-		}
+		if readSize > 0 {
+			p := outMsg.Grow(readSize)
+			if p == nil {
+				return nil, fmt.Errorf("Can't grow for %d-byte read", readSize)
+			}
 
-		sh := (*reflect.SliceHeader)(unsafe.Pointer(&to.Dst))
-		sh.Data = uintptr(p)
-		sh.Len = readSize
-		sh.Cap = readSize
+			sh := (*reflect.SliceHeader)(unsafe.Pointer(&to.Dst))
+			sh.Data = uintptr(p)
+			sh.Len = readSize
+			sh.Cap = readSize
+		} else {
+			to.Dst = nil
+		}
 
 	case fusekernel.OpListxattr:
 		type input fusekernel.ListxattrIn
@@ -514,7 +523,7 @@ func convertInMessage(
 
 		readSize := int(in.Size)
 		if readSize != 0 {
-			p := outMsg.GrowNoZero(readSize)
+			p := outMsg.Grow(readSize)
 			if p == nil {
 				return nil, fmt.Errorf("Can't grow for %d-byte read", readSize)
 			}
@@ -718,9 +727,11 @@ func (c *Connection) kernelResponseForOp(
 		}
 
 	case *fuseops.ReadFileOp:
-		// convertInMessage already set up the destination buffer to be at the end
-		// of the out message. We need only shrink to the right size based on how
-		// much the user read.
+		m.Append(o.Dst)
+		m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
+
+	case *fuseops.VectoredReadOp:
+		m.Append(o.Data...)
 		m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
 
 	case *fuseops.WriteFileOp:

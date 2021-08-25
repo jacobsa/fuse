@@ -654,6 +654,37 @@ type ReadFileOp struct {
 	OpContext OpContext
 }
 
+// Vectored read - same as ReadFileOp, but the buffer isn't provided by the library.
+// The file system returns a list of slices instead.
+type VectoredReadOp struct {
+	// The file inode that we are reading, and the handle previously returned by
+	// CreateFile or OpenFile when opening that inode.
+	Inode  InodeID
+	Handle HandleID
+
+	// The offset within the file at which to read.
+	Offset int64
+
+	// The size of the read.
+	Size int64
+
+	// Set by the file system: data to send back to the client.
+	Data [][]byte
+
+	// Set by the file system: the number of bytes read.
+	//
+	// The FUSE documentation requires that exactly the requested number of bytes
+	// be returned, except in the case of EOF or error (http://goo.gl/ZgfBkF).
+	// This appears to be because it uses file mmapping machinery
+	// (http://goo.gl/SGxnaN) to read a page at a time. It appears to understand
+	// where EOF is by checking the inode size (http://goo.gl/0BkqKD), returned
+	// by a previous call to LookUpInode, GetInodeAttributes, etc.
+	//
+	// If direct IO is enabled, semantics should match those of read(2).
+	BytesRead int
+	OpContext OpContext
+}
+
 // Write data to a file previously opened with CreateFile or OpenFile.
 //
 // When the user writes data using write(2), the write goes into the page

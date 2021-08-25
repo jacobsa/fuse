@@ -138,6 +138,12 @@ func (fs *NotImplementedFileSystem) ReadFile(
 	return fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) VectoredRead(
+	ctx context.Context,
+	op *fuseops.VectoredReadOp) error {
+	return fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) WriteFile(
 	ctx context.Context,
 	op *fuseops.WriteFileOp) error {

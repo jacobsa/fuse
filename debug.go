@@ -97,6 +97,11 @@ func describeRequest(op interface{}) (s string) {
 		addComponent("offset %d", typed.Offset)
 		addComponent("%d bytes", len(typed.Dst))
 
+	case *fuseops.VectoredReadOp:
+		addComponent("handle %d", typed.Handle)
+		addComponent("offset %d", typed.Offset)
+		addComponent("%d bytes", typed.Size)
+
 	case *fuseops.WriteFileOp:
 		addComponent("handle %d", typed.Handle)
 		addComponent("offset %d", typed.Offset)
