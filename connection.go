@@ -162,7 +162,7 @@ func (c *Connection) Init() error {
 	// Tell the kernel not to use pitifully small 4 KiB writes.
 	initOp.Flags |= fusekernel.InitBigWrites
 
-	if !c.cfg.DisableAsyncReads {
+	if c.cfg.EnableAsyncReads {
 		initOp.Flags |= fusekernel.InitAsyncRead
 	}
 
