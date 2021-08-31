@@ -27,7 +27,8 @@ import (
 
 type readBenchFS struct {
 	fuseutil.NotImplementedFileSystem
-	buf []byte
+	buf             []byte
+	useVectoredRead bool
 }
 
 // 1 TB
@@ -35,14 +36,13 @@ const fileSize = 1024 * 1024 * 1024 * 1024
 
 var _ fuseutil.FileSystem = &readBenchFS{}
 
-// Create a file system that mirrors an existing physical path, in a readonly mode
-
-func NewReadBenchServer() (server fuse.Server, err error) {
+func NewReadBenchServer(useVectoredRead bool) (server fuse.Server, err error) {
 	// 1 GB of random data to exceed CPU cache
 	buf := make([]byte, 1024*1024*1024)
 	rand.Read(buf)
 	server = fuseutil.NewFileSystemServer(&readBenchFS{
-		buf: buf,
+		buf:             buf,
+		useVectoredRead: useVectoredRead,
 	})
 	return
 }
@@ -123,7 +123,7 @@ func (fs *readBenchFS) ReadFile(ctx context.Context, op *fuseops.ReadFileOp) err
 	if op.Offset > fileSize {
 		return io.EOF
 	}
-	end := op.Offset + int64(len(op.Dst))
+	end := op.Offset + op.Size
 	if end > fileSize {
 		end = fileSize
 	}
@@ -134,10 +134,13 @@ func (fs *readBenchFS) ReadFile(ctx context.Context, op *fuseops.ReadFileOp) err
 		if e-s > end-pos {
 			e = s + end - pos
 		}
-		copy(op.Dst[pos-op.Offset:], fs.buf[s:])
+		if fs.useVectoredRead {
+			op.Data = append(op.Data, fs.buf[s:e])
+		} else {
+			copy(op.Dst[pos-op.Offset:], fs.buf[s:])
+		}
 		pos = op.Offset + e
 	}
-	//op.Data = [][]byte{ contents[op.Offset : end] }
 	op.BytesRead = int(end - op.Offset)
 	return nil
 }
