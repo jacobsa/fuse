@@ -91,6 +91,8 @@ func NewFileSystemServer(fs FileSystem) fuse.Server {
 type fileSystemServer struct {
 	fs          FileSystem
 	opsInFlight sync.WaitGroup
+	//use set/get to use mfs not Mfs
+	Mfs *fuse.MountedFileSystem
 }
 
 func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
@@ -124,6 +126,77 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	}
 }
 
+func (s *fileSystemServer) InvalidateEntry(parent fuseops.InodeID, name string) error {
+	c := s.GetMfs().Conn.(*fuse.Connection)
+
+	op := &fuseops.NotifyInvalEntryOp{
+		Parent: fuseops.InodeID(parent),
+		Name:   string(name),
+	}
+	ctx, _ := c.SetNotifyContext(op)
+	var key interface{} = contextKey
+        foo := ctx.Value(key)
+        opstate, ok := foo.(opState)
+        if !ok {
+               panic(fmt.Sprintf("notify op have  invalid context: %#v", ctx))
+	}
+	s.opsInFlight.Add(1)
+	go func(opstate *opState) {
+		defer s.opsInFlight.Done()
+		c.NotifyKernel(opstate)
+	}(opstate)
+	return nil
+}
+func (s *fileSystemServer) NotifyDelete(
+	parent fuseops.InodeID,
+	child fuseops.InodeID,
+	name string) error {
+	c := s.GetMfs().Conn.(*fuse.Connection)
+	op := &fuseops.NotifyDeleteOp{
+		Parent: fuseops.InodeID(parent),
+		Child:  fuseops.InodeID(child),
+		Name:   string(name),
+	}
+	ctx, _ := c.SetNotifyContext(op)
+	var key interface{} = contextKey
+        foo := ctx.Value(key)
+        opstate, ok := foo.(opState)
+        if !ok {
+               panic(fmt.Sprintf("notify op have  invalid context: %#v", ctx))
+	}
+	s.opsInFlight.Add(1)
+	go func(opstate *opState) {
+		defer s.opsInFlight.Done()
+		c.NotifyKernel(opstate)
+	}(opstate)
+	return nil
+
+}
+func (s *fileSystemServer) InvalidateInode(
+	ino fuseops.InodeID,
+	off int64,
+	len int64) error {
+	c := s.GetMfs().Conn.(*fuse.Connection)
+	op := &fuseops.NotifyInvalInodeOp{
+		Ino: fuseops.InodeID(ino),
+		Off: off,
+		Len: len,
+	}
+	ctx, _ := c.SetNotifyContext(op)
+	var key interface{} = contextKey
+        foo := ctx.Value(key)
+        opstate, ok := foo.(opState)
+        if !ok {
+               panic(fmt.Sprintf("notify op have  invalid context: %#v", ctx))
+	}
+	s.opsInFlight.Add(1)
+	go func(opstate *opState) {
+		defer s.opsInFlight.Done()
+		c.NotifyKernel(opstate)
+	}(opstate)
+	return nil
+
+}
 func (s *fileSystemServer) handleOp(
 	c *fuse.Connection,
 	ctx context.Context,
@@ -222,4 +295,13 @@ func (s *fileSystemServer) handleOp(
 	}
 
 	c.Reply(ctx, err)
+}
+
+func (s *fileSystemServer) GetMfs() *fuse.MountedFileSystem {
+	return s.Mfs
+
+}
+func (s *fileSystemServer) SetMfs(mfs *fuse.MountedFileSystem) {
+	s.Mfs = mfs
+
 }
