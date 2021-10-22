@@ -15,10 +15,11 @@
 package roloopbackfs
 
 import (
-	"golang.org/x/net/context"
 	"log"
 	"os"
 	"sync"
+
+	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -37,7 +38,6 @@ var _ fuseutil.FileSystem = &readonlyLoopbackFs{}
 // Create a file system that mirrors an existing physical path, in a readonly mode
 
 func NewReadonlyLoopbackServer(loopbackPath string, logger *log.Logger) (server fuse.Server, err error) {
-
 	if _, err = os.Stat(loopbackPath); err != nil {
 		return nil, err
 	}

@@ -113,7 +113,6 @@ func openOSXFUSEDev(devPrefix string) (dev *os.File, err error) {
 
 func convertMountArgs(daemonVar string, libVar string,
 	cfg *MountConfig) ([]string, []string, error) {
-
 	// The mount helper doesn't understand any escaping.
 	for k, v := range cfg.toMap() {
 		if strings.Contains(k, ",") || strings.Contains(v, ",") {
@@ -124,7 +123,7 @@ func convertMountArgs(daemonVar string, libVar string,
 		}
 	}
 
-	env := []string{ libVar+"=" }
+	env := []string{libVar + "="}
 	if daemonVar != "" {
 		env = append(env, daemonVar+"="+os.Args[0])
 	}
@@ -135,7 +134,7 @@ func convertMountArgs(daemonVar string, libVar string,
 		//
 		// OSXFUSE seems to ignore InitResponse.MaxWrite, and uses
 		// this instead.
-		"-o", "iosize="+strconv.FormatUint(buffer.MaxWriteSize, 10),
+		"-o", "iosize=" + strconv.FormatUint(buffer.MaxWriteSize, 10),
 	}
 
 	return argv, env, nil
@@ -149,7 +148,6 @@ func callMount(
 	cfg *MountConfig,
 	dev *os.File,
 	ready chan<- error) error {
-
 	argv, env, err := convertMountArgs(daemonVar, libVar, cfg)
 	if err != nil {
 		return err
@@ -197,7 +195,6 @@ func callMountCommFD(
 	libVar string,
 	dir string,
 	cfg *MountConfig) (*os.File, error) {
-
 	argv, env, err := convertMountArgs(daemonVar, libVar, cfg)
 	if err != nil {
 		return nil, err

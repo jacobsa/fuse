@@ -527,7 +527,7 @@ func convertInMessage(
 			return nil, errors.New("Corrupt OpSetxattr")
 		}
 
-		name, value := payload[:i], payload[i+1:len(payload)]
+		name, value := payload[:i], payload[i+1:]
 
 		o = &fuseops.SetXattrOp{
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),

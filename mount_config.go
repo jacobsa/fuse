@@ -153,7 +153,7 @@ type MountConfig struct {
 
 	// Disable FUSE default permissions.
 	// This is useful for situations where the backing data store (e.g., S3) doesn't
-	// actually utilise any form of qualifiable UNIX permissions.
+	// actually utilize any form of qualifiable UNIX permissions.
 	DisableDefaultPermissions bool
 
 	// OS X only.
