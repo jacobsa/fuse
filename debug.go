@@ -115,6 +115,11 @@ func describeRequest(op interface{}) (s string) {
 		addComponent("offset %d", typed.Offset)
 		addComponent("length %d", typed.Length)
 		addComponent("mode %d", typed.Mode)
+
+	case *fuseops.FileLockOp:
+		addComponent("handle %d", typed.Handle)
+		addComponent("locktype %d", typed.Type)
+		addComponent("owner %d", typed.Type)
 	}
 
 	// Use just the name if there is no extra info.

@@ -66,7 +66,7 @@ type Kstatfs struct {
 	Spare   [6]uint32
 }
 
-type fileLock struct {
+type FileLock struct {
 	Start uint64
 	End   uint64
 	Type  uint32
@@ -683,7 +683,7 @@ type FallocateIn struct {
 type LkIn struct {
 	Fh      uint64
 	Owner   uint64
-	Lk      fileLock
+	Lk      FileLock
 	LkFlags uint32
 	padding uint32
 }
@@ -698,7 +698,7 @@ func LkInSize(p Protocol) uintptr {
 }
 
 type LkOut struct {
-	Lk fileLock
+	Lk FileLock
 }
 
 type AccessIn struct {

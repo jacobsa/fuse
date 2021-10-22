@@ -929,3 +929,39 @@ type FallocateOp struct {
 	Mode      uint32
 	OpContext OpContext
 }
+
+type FileLockCmd int
+
+const (
+	FileLockGet FileLockCmd = iota
+	FileLockSet
+	FileLockSetw
+)
+
+func (f FileLockCmd) String() string {
+	var ret string
+	switch f {
+	case FileLockGet:
+		ret = "FileLockGet"
+	case FileLockSet:
+		ret = "FileLockSet"
+	case FileLockSetw:
+		ret = "FileLockSetw"
+	}
+	return ret
+}
+
+type FileLockOp struct {
+	// File lock arguments
+
+	Start uint64
+	End   uint64
+	Cmd   FileLockCmd
+	Type  FileLockType
+
+	Inode  InodeID
+	Handle HandleID
+	Owner  uint64
+
+	OpContext OpContext
+}

@@ -220,3 +220,26 @@ type ChildInodeEntry struct {
 	// default. See notes on MountConfig.EnableVnodeCaching for more.
 	EntryExpiration time.Time
 }
+
+// Posix Locking types..
+
+type FileLockType uint32 // L_TYPE
+
+const (
+	F_RDLOCK FileLockType = iota
+	F_WRLOCK
+	F_UNLOCK
+)
+
+func (f FileLockType) String() string {
+	var ret string
+	switch f {
+	case F_RDLOCK:
+		ret = "RDLOCK"
+	case F_WRLOCK:
+		ret = "WRLOCK"
+	case F_UNLOCK:
+		ret = "UNLOCK"
+	}
+	return ret
+}

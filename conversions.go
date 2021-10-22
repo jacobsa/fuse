@@ -669,8 +669,74 @@ func convertInMessage(
 				Gid: hdr.Gid,
 			},
 		}
+
+	case fusekernel.OpGetlk:
+		type input fusekernel.LkIn
+		in := (*input)(inMsg.Consume(fusekernel.LkInSize(protocol)))
+		if in == nil {
+			err = errors.New("Corrupt OpGetlk")
+			return
 		}
 
+		o = &fuseops.FileLockOp{
+			Start:  in.Lk.Start,
+			End:    in.Lk.End,
+			Cmd:    fuseops.FileLockGet,
+			Type:   MapFlockType(in.Lk.Type),
+			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
+			Owner:  in.Owner,
+			OpContext: fuseops.OpContext{
+				Pid: in.Lk.Pid, // pid comes from kernel message
+				Uid: hdr.Uid,
+				Gid: hdr.Gid,
+			},
+		}
+
+	case fusekernel.OpSetlk:
+		type input fusekernel.LkIn
+		in := (*input)(inMsg.Consume(fusekernel.LkInSize(protocol)))
+		if in == nil {
+			err = errors.New("Corrupt OpSetlk")
+			return
+		}
+
+		o = &fuseops.FileLockOp{
+			Start:  in.Lk.Start,
+			End:    in.Lk.End,
+			Cmd:    fuseops.FileLockSet,
+			Type:   MapFlockType(in.Lk.Type),
+			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
+			Owner:  in.Owner,
+			OpContext: fuseops.OpContext{
+				Pid: in.Lk.Pid, // pid comes from kernel message
+				Uid: hdr.Uid,
+				Gid: hdr.Gid,
+			},
+		}
+	case fusekernel.OpSetlkw:
+		type input fusekernel.LkIn
+		in := (*input)(inMsg.Consume(fusekernel.LkInSize(protocol)))
+		if in == nil {
+			err = errors.New("Corrupt OpSetlkw")
+			return
+		}
+
+		o = &fuseops.FileLockOp{
+			Start:  in.Lk.Start,
+			End:    in.Lk.End,
+			Cmd:    fuseops.FileLockSetw,
+			Type:   MapFlockType(in.Lk.Type),
+			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
+			Owner:  in.Owner,
+			OpContext: fuseops.OpContext{
+				Pid: in.Lk.Pid, // pid comes from kernel message
+				Uid: hdr.Uid,
+				Gid: hdr.Gid,
+			},
+		}
 	default:
 		o = &unknownOp{
 			OpCode: hdr.Opcode,
@@ -919,6 +985,20 @@ func (c *Connection) kernelResponseForOp(
 		out.MaxWrite = o.MaxWrite
 		out.TimeGran = 1
 		out.MaxPages = o.MaxPages
+
+	case *fuseops.FileLockOp:
+		if o.Cmd == fuseops.FileLockGet {
+			out := (*fusekernel.FileLock)(m.Grow(int(unsafe.Sizeof(fusekernel.FileLock{}))))
+			if o.Type == fuseops.F_UNLOCK {
+				out.Start = 0
+				out.End = 0
+			} else {
+				out.Start = o.Start
+				out.End = o.End
+			}
+			out.Type = UnmapFlockType(o.Type)
+			out.Pid = o.OpContext.Pid
+		}
 
 	default:
 		panic(fmt.Sprintf("Unexpected op: %#v", op))

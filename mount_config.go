@@ -113,6 +113,10 @@ type MountConfig struct {
 	// syscall doesn't return until the file system returns.
 	DisableWritebackCaching bool
 
+	// Enable Posix file locking
+
+	EnableFileLocking bool
+
 	// OS X only.
 	//
 	// Normally on OS X we mount with the novncache option
