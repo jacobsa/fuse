@@ -267,11 +267,12 @@ func mapToOptionsString(opts map[string]string) string {
 		k = escapeOptionsKey(k)
 
 		component := k
-		if v != "" {
-			component = fmt.Sprintf("%s=%s", k, v)
+		if component != "" {
+			if v != "" {
+				component = fmt.Sprintf("%s=%s", k, v)
+			}
+			components = append(components, component)
 		}
-
-		components = append(components, component)
 	}
 
 	return strings.Join(components, ",")
