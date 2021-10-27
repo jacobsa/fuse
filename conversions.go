@@ -248,10 +248,29 @@ func convertInMessage(
 		}
 
 		names := inMsg.ConsumeBytes(inMsg.Len())
+
 		// names should be "old\x00new\x00"
 		if len(names) < 4 {
 			return nil, errors.New("Corrupt OpRename")
 		}
+
+		// macFuse 4.2.1 workaround: the kernel implementation is buggy.
+		// It call OpRename with the data type of OpRename2. The workaround consists
+		// in skipping the first 8 bytes of names (which are zeroes).
+
+		if len(names) > 8 {
+			if names[0] == '\x00' &&
+				names[1] == '\x00' &&
+				names[2] == '\x00' &&
+				names[3] == '\x00' &&
+				names[4] == '\x00' &&
+				names[5] == '\x00' &&
+				names[6] == '\x00' &&
+				names[7] == '\x00' {
+				names = names[8:]
+			}
+		}
+
 		if names[len(names)-1] != '\x00' {
 			return nil, errors.New("Corrupt OpRename")
 		}
