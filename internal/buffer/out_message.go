@@ -146,5 +146,5 @@ func (m *OutMessage) Bytes() []byte {
 		Cap:  l,
 	}
 
-	return *(*[]byte)(unsafe.Pointer(&sh))
+	return *(*[]byte)(unsafe.Pointer(&sh.Data))
 }

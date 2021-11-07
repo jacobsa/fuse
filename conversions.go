@@ -412,7 +412,7 @@ func convertInMessage(
 		}
 
 		o = &initOp{
-			Kernel:       fusekernel.Protocol{in.Major, in.Minor},
+			Kernel:       fusekernel.Protocol{Major: in.Major, Minor: in.Minor},
 			MaxReadahead: in.MaxReadahead,
 			Flags:        fusekernel.InitFlags(in.Flags),
 		}

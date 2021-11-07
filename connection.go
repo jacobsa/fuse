@@ -129,8 +129,8 @@ func (c *Connection) Init() error {
 
 	// Make sure the protocol version spoken by the kernel is new enough.
 	min := fusekernel.Protocol{
-		fusekernel.ProtoVersionMinMajor,
-		fusekernel.ProtoVersionMinMinor,
+		Major: fusekernel.ProtoVersionMinMajor,
+		Minor: fusekernel.ProtoVersionMinMinor,
 	}
 
 	if initOp.Kernel.LT(min) {
@@ -140,8 +140,8 @@ func (c *Connection) Init() error {
 
 	// Downgrade our protocol if necessary.
 	c.protocol = fusekernel.Protocol{
-		fusekernel.ProtoVersionMaxMajor,
-		fusekernel.ProtoVersionMaxMinor,
+		Major: fusekernel.ProtoVersionMaxMajor,
+		Minor: fusekernel.ProtoVersionMaxMinor,
 	}
 
 	if initOp.Kernel.LT(c.protocol) {

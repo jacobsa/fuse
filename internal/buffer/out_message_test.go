@@ -20,7 +20,7 @@ func toByteSlice(p unsafe.Pointer, n int) []byte {
 		Cap:  n,
 	}
 
-	return *(*[]byte)(unsafe.Pointer(&sh))
+	return *(*[]byte)(unsafe.Pointer(&sh.Data))
 }
 
 // fillWithGarbage writes random data to [p, p+n).
