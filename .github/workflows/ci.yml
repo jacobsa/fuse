@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  linux-tests:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Go
+      uses: actions/setup-go@v2.1.4
+      with:
+        go-version: 1.16
+      id: go
+    - name: Install fuse
+      run: sudo apt-get update && sudo apt-get install -y fuse3 libfuse-dev
+    - name: Build
+      run: go build ./...
+    # Exclude TestPosix and TestMemFS because some of the tests hung indefinitely.
+    # Also, tests need to be run sequentially to avoid hanging indefinitely.
+    - name: Run tests
+      run: go test -v -p 1 -bench=. -run="TestSuccessfulMount|TestNonexistentMountPoint|TestCachingFS|TestDynamicFS|TestErrorFS|TestFlushFS|TestForgetFS|TestHelloFS|TestInterruptFS|TestReadonlyLoopbackFS|TestStatFS" ./...
+
+  macos-build:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Go
+      uses: actions/setup-go@v2.1.4
+      with:
+        go-version: 1.16
+      id: go
+    - name: Install macfuse
+      run: HOMEBREW_NO_AUTO_UPDATE=1 brew install macfuse
+    - name: Build
+      run: |
+        go build ./...
+        go build ./samples/mount_hello/... ./samples/mount_roloopbackfs/... ./samples/mount_sample/...
+    # Skip running tests as `go test` hung in macOS.
