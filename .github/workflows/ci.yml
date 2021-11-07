@@ -26,7 +26,7 @@ jobs:
     # Exclude TestPosix and TestMemFS because some of the tests hung indefinitely.
     # Also, tests need to be run sequentially to avoid hanging indefinitely.
     - name: Run tests
-      run: go test -v -p 1 -bench=. -run="TestSuccessfulMount|TestNonexistentMountPoint|TestCachingFS|TestDynamicFS|TestErrorFS|TestFlushFS|TestForgetFS|TestHelloFS|TestInterruptFS|TestReadonlyLoopbackFS|TestStatFS" ./...
+      run: GOMAXPROCS=1 go test -v -p 1 -bench=. -run="TestSuccessfulMount|TestNonexistentMountPoint|TestCachingFS|TestDynamicFS|TestErrorFS|TestFlushFS|TestForgetFS|TestHelloFS|TestInterruptFS|TestReadonlyLoopbackFS|TestStatFS" ./...
 
   macos-build:
     runs-on: macos-latest
