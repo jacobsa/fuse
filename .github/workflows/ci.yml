@@ -19,11 +19,16 @@ jobs:
       with:
         go-version: 1.16
       id: go
-    # Check the codebase has been formatted by `gofmt` by checking whether
-    # the output of `gofmt -l` is empty, as recommended in
-    # https://github.com/golang/go/issues/24230)
+    # Check the codebase has been formatted by `gofmt`.
+    # We run two `gofmt` commands for different purposes:
+    # 1. `gofmt -d .`: to print diffs in the CI log if any.
+    # 2. `gofmt -l`: to test there is a diff in the codebase. This is because
+    #    `gofmt` exits with exit status 0 even if there is a diff.
+    #     This is recommended in https://github.com/golang/go/issues/24230)
     - name: Run gofmt
-      run: test -z $(gofmt -l .)
+      run: |
+        gofmt -d .
+        test -z $(gofmt -l .)
 
   linux-tests:
     runs-on: ubuntu-20.04
