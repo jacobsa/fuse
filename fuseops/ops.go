@@ -311,7 +311,7 @@ type CreateFileOp struct {
 	// The handle may be supplied in future ops like ReadFileOp that contain a
 	// file handle. The file system must ensure this ID remains valid until a
 	// later call to ReleaseFileHandle.
-	Handle HandleID
+	Handle    HandleID
 	OpContext OpContext
 }
 
@@ -787,8 +787,8 @@ type SyncFileOp struct {
 // return any errors that occur.
 type FlushFileOp struct {
 	// The file and handle being flushed.
-	Inode  InodeID
-	Handle HandleID
+	Inode     InodeID
+	Handle    HandleID
 	OpContext OpContext
 }
 
