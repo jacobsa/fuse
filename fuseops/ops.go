@@ -443,7 +443,7 @@ type UnlinkOp struct {
 
 // Open a directory inode.
 //
-// On Linux the Kernel sends this when setting up a struct file for a particular inode
+// On Linux the kernel sends this when setting up a struct file for a particular inode
 // with type directory, usually in response to an open(2) call from a
 // user-space process. On OS X it may not be sent for every open(2) (cf.
 // https://github.com/osxfuse/osxfuse/issues/199).
@@ -578,7 +578,7 @@ type ReleaseDirHandleOp struct {
 
 // Open a file inode.
 //
-// On Linux the Kernel sends this when setting up a struct file for a particular inode
+// On Linux the kernel sends this when setting up a struct file for a particular inode
 // with type file, usually in response to an open(2) call from a user-space
 // process. On OS X it may not be sent for every open(2)
 // (cf.https://github.com/osxfuse/osxfuse/issues/199).
