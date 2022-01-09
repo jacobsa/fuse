@@ -855,10 +855,6 @@ func (t *MemFSTest) AppendMode() {
 	AssertEq(nil, err)
 	ExpectEq(13, off)
 
-	off, err = getFileOffset(f)
-	AssertEq(nil, err)
-	ExpectEq(13, off)
-
 	// Read back the contents of the file, which should be correct even though we
 	// seeked to a silly place before writing the world part.
 	//
