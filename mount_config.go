@@ -113,6 +113,10 @@ type MountConfig struct {
 	// syscall doesn't return until the file system returns.
 	DisableWritebackCaching bool
 
+	// Enable Posix file locking
+
+	EnableFileLocking bool
+
 	// OS X only.
 	//
 	// Normally on OS X we mount with the novncache option
@@ -153,7 +157,7 @@ type MountConfig struct {
 
 	// Disable FUSE default permissions.
 	// This is useful for situations where the backing data store (e.g., S3) doesn't
-	// actually utilise any form of qualifiable UNIX permissions.
+	// actually utilize any form of qualifiable UNIX permissions.
 	DisableDefaultPermissions bool
 
 	// OS X only.
@@ -263,11 +267,12 @@ func mapToOptionsString(opts map[string]string) string {
 		k = escapeOptionsKey(k)
 
 		component := k
-		if v != "" {
-			component = fmt.Sprintf("%s=%s", k, v)
+		if component != "" {
+			if v != "" {
+				component = fmt.Sprintf("%s=%s", k, v)
+			}
+			components = append(components, component)
 		}
-
-		components = append(components, component)
 	}
 
 	return strings.Join(components, ",")

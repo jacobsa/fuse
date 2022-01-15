@@ -121,7 +121,6 @@ func (in *inodeEntry) ListChildren(inodes *sync.Map) ([]*fuseutil.Dirent, error)
 	}
 	dirents := make([]*fuseutil.Dirent, len(children))
 	for i, child := range children {
-
 		childInode, err := getOrCreateInode(inodes, in.id, child.Name())
 		if err != nil || childInode == nil {
 			return nil, nil

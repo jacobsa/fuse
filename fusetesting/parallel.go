@@ -76,7 +76,7 @@ func RunCreateInParallelTest_NoTruncate(
 		AssertEq(nil, err)
 
 		idsSeen := make(map[byte]struct{})
-		for i, _ := range contents {
+		for i := range contents {
 			id := contents[i]
 			AssertLt(id, numWorkers)
 
@@ -147,7 +147,7 @@ func RunCreateInParallelTest_Truncate(
 		AssertEq(nil, err)
 
 		idsSeen := make(map[byte]struct{})
-		for i, _ := range contents {
+		for i := range contents {
 			id := contents[i]
 			AssertLt(id, numWorkers)
 

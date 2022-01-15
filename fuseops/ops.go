@@ -29,6 +29,12 @@ type OpContext struct {
 	// PID of the process that is invoking the operation.
 	// Not filled in case of a writepage operation.
 	Pid uint32
+
+	// UID of the calling process.
+	Uid uint32
+
+	// GID of the calling process.
+	Gid uint32
 }
 
 // Return statistics about the file system's capacity and available resources.
@@ -921,5 +927,41 @@ type FallocateOp struct {
 	// If Mode has 0x2, it sbould also have 0x1 (deallocate should not increase
 	// file size)
 	Mode      uint32
+	OpContext OpContext
+}
+
+type FileLockCmd int
+
+const (
+	FileLockGet FileLockCmd = iota
+	FileLockSet
+	FileLockSetw
+)
+
+func (f FileLockCmd) String() string {
+	var ret string
+	switch f {
+	case FileLockGet:
+		ret = "FileLockGet"
+	case FileLockSet:
+		ret = "FileLockSet"
+	case FileLockSetw:
+		ret = "FileLockSetw"
+	}
+	return ret
+}
+
+type FileLockOp struct {
+	// File lock arguments
+
+	Start uint64
+	End   uint64
+	Cmd   FileLockCmd
+	Type  FileLockType
+
+	Inode  InodeID
+	Handle HandleID
+	Owner  uint64
+
 	OpContext OpContext
 }

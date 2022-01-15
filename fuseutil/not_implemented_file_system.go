@@ -200,3 +200,10 @@ func (fs *NotImplementedFileSystem) Fallocate(
 
 func (fs *NotImplementedFileSystem) Destroy() {
 }
+
+func (fs *NotImplementedFileSystem) LockFile(
+	ctx context.Context,
+	op *fuseops.FileLockOp) (err error) {
+	err = fuse.ENOSYS
+	return
+}

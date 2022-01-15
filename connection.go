@@ -193,6 +193,12 @@ func (c *Connection) Init() error {
 		initOp.Flags |= fusekernel.InitNoOpendirSupport
 	}
 
+	// enable posix locking...
+	if c.cfg.EnableFileLocking {
+		initOp.Flags |= fusekernel.InitFlockLocks
+		initOp.Flags |= fusekernel.InitPosixLocks
+	}
+
 	c.Reply(ctx, nil)
 	return nil
 }
