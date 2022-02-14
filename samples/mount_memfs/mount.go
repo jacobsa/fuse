@@ -52,7 +52,7 @@ func main() {
 	server := memfs.NewMemFS(uint32(uid), uint32(gid))
 
 	cfg := &fuse.MountConfig{
-		// Disable writeback caching so that pid is always available in OpContex
+		// Disable writeback caching so that pid is always available in OpContext
 		DisableWritebackCaching: true,
 	}
 
