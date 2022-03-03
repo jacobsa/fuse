@@ -49,47 +49,6 @@ func findNonZero(p unsafe.Pointer, n int) int {
 	return n
 }
 
-func TestMemclr(t *testing.T) {
-	// All sizes up to 32 bytes.
-	var sizes []int
-	for i := 0; i <= 32; i++ {
-		sizes = append(sizes, i)
-	}
-
-	// And a few hand-chosen sizes.
-	sizes = append(sizes, []int{
-		39, 41, 64, 127, 128, 129,
-		1<<20 - 1,
-		1 << 20,
-		1<<20 + 1,
-	}...)
-
-	// For each size, fill a buffer with random bytes and then zero it.
-	for _, size := range sizes {
-		size := size
-		t.Run(fmt.Sprintf("size=%d", size), func(t *testing.T) {
-			// Generate
-			b, err := randBytes(size)
-			if err != nil {
-				t.Fatalf("randBytes: %v", err)
-			}
-
-			// Clear
-			var p unsafe.Pointer
-			if len(b) != 0 {
-				p = unsafe.Pointer(&b[0])
-			}
-
-			jacobsa_fuse_memclr(p, uintptr(len(b)))
-
-			// Check
-			if i := findNonZero(p, len(b)); i != len(b) {
-				t.Fatalf("non-zero byte at offset %d", i)
-			}
-		})
-	}
-}
-
 func TestOutMessageAppend(t *testing.T) {
 	var om OutMessage
 	om.Reset()
@@ -234,7 +193,7 @@ func TestOutMessageReset(t *testing.T) {
 		}
 
 		// Ensure a non-zero payload length.
-		p := om.Grow(128)
+		om.Grow(128)
 
 		// Reset.
 		om.Reset()
