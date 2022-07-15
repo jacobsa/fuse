@@ -661,6 +661,9 @@ func (fs *memFS) OpenFile(
 		// OpenFileOp should have a valid pid in context.
 		return fuse.EINVAL
 	}
+	if op.OpenFlags == nil {
+		return fuse.EINVAL
+	}
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()

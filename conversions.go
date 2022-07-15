@@ -294,8 +294,16 @@ func convertInMessage(
 		}
 
 	case fusekernel.OpOpen:
+		type input fusekernel.OpenIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			return nil, errors.New("Corrupt OpOpen")
+		}
+		openFlags := fusekernel.OpenFlags(in.Flags)
+
 		o = &fuseops.OpenFileOp{
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
+			OpenFlags: &openFlags,
 			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
