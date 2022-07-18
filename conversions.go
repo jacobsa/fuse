@@ -299,11 +299,10 @@ func convertInMessage(
 		if in == nil {
 			return nil, errors.New("Corrupt OpOpen")
 		}
-		openFlags := fusekernel.OpenFlags(in.Flags)
 
 		o = &fuseops.OpenFileOp{
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
-			OpenFlags: &openFlags,
+			OpenFlags: fusekernel.OpenFlags(in.Flags),
 			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 

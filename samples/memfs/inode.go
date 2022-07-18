@@ -33,6 +33,9 @@ type inode struct {
 	// Mutable state
 	/////////////////////////
 
+	// Name of the inode
+	name string
+
 	// The current attributes of this inode.
 	//
 	// INVARIANT: attrs.Mode &^ (os.ModePerm|os.ModeDir|os.ModeSymlink) == 0
@@ -73,7 +76,7 @@ type inode struct {
 
 // Create a new inode with the supplied attributes, which need not contain
 // time-related information (the inode object will take care of that).
-func newInode(attrs fuseops.InodeAttributes) *inode {
+func newInode(attrs fuseops.InodeAttributes, name string) *inode {
 	// Update time info.
 	now := time.Now()
 	attrs.Mtime = now
@@ -81,6 +84,7 @@ func newInode(attrs fuseops.InodeAttributes) *inode {
 
 	// Create the object.
 	return &inode{
+		name:   name,
 		attrs:  attrs,
 		xattrs: make(map[string][]byte),
 	}

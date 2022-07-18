@@ -16,6 +16,7 @@ package memfs
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
@@ -27,6 +28,11 @@ import (
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/syncutil"
 	"golang.org/x/sys/unix"
+)
+
+const (
+	FileOpenFlagsXattrName = "fileOpenFlagsXattr"
+	CheckFileOpenFlagsFileName = "checkFileOpenFlags"
 )
 
 type memFS struct {
@@ -85,7 +91,7 @@ func NewMemFS(
 		Gid:  gid,
 	}
 
-	fs.inodes[fuseops.RootInodeID] = newInode(rootAttrs)
+	fs.inodes[fuseops.RootInodeID] = newInode(rootAttrs, "")
 
 	// Set up invariant checking.
 	fs.mu = syncutil.NewInvariantMutex(fs.checkInvariants)
@@ -157,9 +163,10 @@ func (fs *memFS) getInodeOrDie(id fuseops.InodeID) *inode {
 //
 // LOCKS_REQUIRED(fs.mu)
 func (fs *memFS) allocateInode(
-	attrs fuseops.InodeAttributes) (id fuseops.InodeID, inode *inode) {
+	attrs fuseops.InodeAttributes,
+	name string) (id fuseops.InodeID, inode *inode) {
 	// Create the inode.
-	inode = newInode(attrs)
+	inode = newInode(attrs, name)
 
 	// Re-use a free ID if possible. Otherwise mint a new one.
 	numFree := len(fs.freeInodes)
@@ -310,7 +317,7 @@ func (fs *memFS) MkDir(
 	}
 
 	// Allocate a child.
-	childID, child := fs.allocateInode(childAttrs)
+	childID, child := fs.allocateInode(childAttrs, op.Name)
 
 	// Add an entry in the parent.
 	parent.AddChild(childID, op.Name, fuseutil.DT_Directory)
@@ -371,7 +378,7 @@ func (fs *memFS) createFile(
 	}
 
 	// Allocate a child.
-	childID, child := fs.allocateInode(childAttrs)
+	childID, child := fs.allocateInode(childAttrs, name)
 
 	// Add an entry in the parent.
 	parent.AddChild(childID, name, fuseutil.DT_File)
@@ -438,7 +445,7 @@ func (fs *memFS) CreateSymlink(
 	}
 
 	// Allocate a child.
-	childID, child := fs.allocateInode(childAttrs)
+	childID, child := fs.allocateInode(childAttrs, op.Name)
 
 	// Set up its target.
 	child.target = op.Target
@@ -661,9 +668,6 @@ func (fs *memFS) OpenFile(
 		// OpenFileOp should have a valid pid in context.
 		return fuse.EINVAL
 	}
-	if op.OpenFlags == nil {
-		return fuse.EINVAL
-	}
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -675,6 +679,20 @@ func (fs *memFS) OpenFile(
 
 	if !inode.isFile() {
 		panic("Found non-file.")
+	}
+
+	if inode.name == CheckFileOpenFlagsFileName {
+		// Set attribute (name=fileOpenFlagsXattr, value=OpenFlags) to test whether
+		// we set OpenFlags correctly. The value is checked in test with getXattr.
+		value := make([]byte, 4)
+		binary.LittleEndian.PutUint32(value, uint32(op.OpenFlags))
+		err := fs.setXattrHelper(inode, &fuseops.SetXattrOp{
+			Name:      FileOpenFlagsXattrName,
+			Value:     value,
+		})
+		if err != nil {
+			panic("unable to set fileOpenFlagsXattr")
+		}
 	}
 
 	return nil
@@ -832,6 +850,12 @@ func (fs *memFS) SetXattr(ctx context.Context,
 	defer fs.mu.Unlock()
 	inode := fs.getInodeOrDie(op.Inode)
 
+	return fs.setXattrHelper(inode, op)
+}
+
+// Required to hold fs.mu
+func (fs *memFS) setXattrHelper(inode *inode,
+	op *fuseops.SetXattrOp) error {
 	_, ok := inode.xattrs[op.Name]
 
 	switch op.Flags {
