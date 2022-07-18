@@ -39,17 +39,17 @@ var contextKey interface{} = contextKeyType(0)
 //
 // As of 2015-03-26, the behavior in the kernel is:
 //
-//  *  (http://goo.gl/bQ1f1i, http://goo.gl/HwBrR6) Set the local variable
+//   - (http://goo.gl/bQ1f1i, http://goo.gl/HwBrR6) Set the local variable
 //     ra_pages to be init_response->max_readahead divided by the page size.
 //
-//  *  (http://goo.gl/gcIsSh, http://goo.gl/LKV2vA) Set
+//   - (http://goo.gl/gcIsSh, http://goo.gl/LKV2vA) Set
 //     backing_dev_info::ra_pages to the min of that value and what was sent
 //     in the request's max_readahead field.
 //
-//  *  (http://goo.gl/u2SqzH) Use backing_dev_info::ra_pages when deciding
+//   - (http://goo.gl/u2SqzH) Use backing_dev_info::ra_pages when deciding
 //     how much to read ahead.
 //
-//  *  (http://goo.gl/JnhbdL) Don't read ahead at all if that field is zero.
+//   - (http://goo.gl/JnhbdL) Don't read ahead at all if that field is zero.
 //
 // Reading a page at a time is a drag. Ask for a larger size.
 const maxReadahead = 1 << 20
@@ -517,7 +517,16 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 			err = c.writeMessage(outMsg.OutHeaderBytes())
 		}
 		if err != nil && c.errorLogger != nil {
-			c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
+			errMsg := fmt.Sprintf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
+			// Do not pollute error logs if the error is 'no such file or directory'
+			// but if debug logger is enabled, do push the log there.
+			if err != syscall.ENOENT {
+				c.errorLogger.Printf(errMsg)
+			} else {
+				if c.debugLogger != nil {
+					c.debugLogger.Println(errMsg)
+				}
+			}
 		}
 		outMsg.Sglist = nil
 	}
