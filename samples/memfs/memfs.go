@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	FileOpenFlagsXattrName = "fileOpenFlagsXattr"
+	FileOpenFlagsXattrName     = "fileOpenFlagsXattr"
 	CheckFileOpenFlagsFileName = "checkFileOpenFlags"
 )
 
@@ -687,8 +687,8 @@ func (fs *memFS) OpenFile(
 		value := make([]byte, 4)
 		binary.LittleEndian.PutUint32(value, uint32(op.OpenFlags))
 		err := fs.setXattrHelper(inode, &fuseops.SetXattrOp{
-			Name:      FileOpenFlagsXattrName,
-			Value:     value,
+			Name:  FileOpenFlagsXattrName,
+			Value: value,
 		})
 		if err != nil {
 			panic("unable to set fileOpenFlagsXattr")
