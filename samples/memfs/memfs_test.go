@@ -91,8 +91,7 @@ func applyUmask(m os.FileMode) os.FileMode {
 }
 
 func (t *MemFSTest) checkOpenFlagsXattr(
-	fileName string,
-	expectedOpenFlags fusekernel.OpenFlags) {
+	fileName string, expectedOpenFlags fusekernel.OpenFlags) {
 	dest := make([]byte, 4)
 	_, err := unix.Getxattr(fileName, memfs.FileOpenFlagsXattrName, dest)
 	AssertEq(nil, err)

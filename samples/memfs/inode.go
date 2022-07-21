@@ -33,7 +33,8 @@ type inode struct {
 	// Mutable state
 	/////////////////////////
 
-	// Name of the inode
+	// Name of the inode, only contains relative path.
+	// For example, if the full path for an inode is /foo/bar/f1, its name is f1.
 	name string
 
 	// The current attributes of this inode.

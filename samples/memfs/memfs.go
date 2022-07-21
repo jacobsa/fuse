@@ -163,8 +163,7 @@ func (fs *memFS) getInodeOrDie(id fuseops.InodeID) *inode {
 //
 // LOCKS_REQUIRED(fs.mu)
 func (fs *memFS) allocateInode(
-	attrs fuseops.InodeAttributes,
-	name string) (id fuseops.InodeID, inode *inode) {
+	attrs fuseops.InodeAttributes, name string) (id fuseops.InodeID, inode *inode) {
 	// Create the inode.
 	inode = newInode(attrs, name)
 
@@ -854,8 +853,7 @@ func (fs *memFS) SetXattr(ctx context.Context,
 }
 
 // Required to hold fs.mu
-func (fs *memFS) setXattrHelper(inode *inode,
-	op *fuseops.SetXattrOp) error {
+func (fs *memFS) setXattrHelper(inode *inode, op *fuseops.SetXattrOp) error {
 	_, ok := inode.xattrs[op.Name]
 
 	switch op.Flags {
