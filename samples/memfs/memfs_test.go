@@ -16,6 +16,7 @@ package memfs_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"io"
 	"io/ioutil"
 	"os"
@@ -31,6 +32,7 @@ import (
 	fallocate "github.com/detailyang/go-fallocate"
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fusetesting"
+	"github.com/jacobsa/fuse/internal/fusekernel"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/memfs"
 	. "github.com/jacobsa/oglematchers"
@@ -86,6 +88,15 @@ func applyUmask(m os.FileMode) os.FileMode {
 
 	// Apply it.
 	return m &^ os.FileMode(umask)
+}
+
+func (t *MemFSTest) checkOpenFlagsXattr(
+	fileName string, expectedOpenFlags fusekernel.OpenFlags) {
+	dest := make([]byte, 4)
+	_, err := unix.Getxattr(fileName, memfs.FileOpenFlagsXattrName, dest)
+	AssertEq(nil, err)
+	openFlags := binary.LittleEndian.Uint32(dest)
+	AssertEq(openFlags, uint32(expectedOpenFlags))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -292,7 +303,7 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	var stat *syscall.Stat_t
 
 	// Write a file.
-	fileName := path.Join(t.Dir, "foo")
+	fileName := path.Join(t.Dir, memfs.CheckFileOpenFlagsFileName)
 	const contents = "Hello\x00world"
 
 	createTime := time.Now()
@@ -304,7 +315,7 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	stat = fi.Sys().(*syscall.Stat_t)
 
 	AssertEq(nil, err)
-	ExpectEq("foo", fi.Name())
+	ExpectEq(memfs.CheckFileOpenFlagsFileName, fi.Name())
 	ExpectEq(len(contents), fi.Size())
 	ExpectEq(applyUmask(0400), fi.Mode())
 	ExpectThat(fi, fusetesting.MtimeIsWithin(createTime, timeSlop))
@@ -321,6 +332,7 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	slice, err := ioutil.ReadFile(fileName)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(slice))
+	t.checkOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
 }
 
 func (t *MemFSTest) CreateNewFile_InSubDir() {
@@ -372,7 +384,7 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	var stat *syscall.Stat_t
 
 	// Write a file.
-	fileName := path.Join(t.Dir, "foo")
+	fileName := path.Join(t.Dir, memfs.CheckFileOpenFlagsFileName)
 
 	createTime := time.Now()
 	err = ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
@@ -382,6 +394,7 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0400)
 	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
+	t.checkOpenFlagsXattr(fileName, fusekernel.OpenWriteOnly)
 
 	modifyTime := time.Now()
 	n, err = f.WriteAt([]byte("H"), 0)
@@ -393,7 +406,7 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	stat = fi.Sys().(*syscall.Stat_t)
 
 	AssertEq(nil, err)
-	ExpectEq("foo", fi.Name())
+	ExpectEq(memfs.CheckFileOpenFlagsFileName, fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
 	ExpectEq(applyUmask(0600), fi.Mode())
 	ExpectThat(fi, fusetesting.MtimeIsWithin(modifyTime, timeSlop))
@@ -410,6 +423,7 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	slice, err := ioutil.ReadFile(fileName)
 	AssertEq(nil, err)
 	ExpectEq("Hello, world!", string(slice))
+	t.checkOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
 }
 
 func (t *MemFSTest) ModifyExistingFile_InSubDir() {
@@ -832,7 +846,7 @@ func (t *MemFSTest) AppendMode() {
 	buf := make([]byte, 1024)
 
 	// Create a file with some contents.
-	fileName := path.Join(t.Dir, "foo")
+	fileName := path.Join(t.Dir, memfs.CheckFileOpenFlagsFileName)
 	err = ioutil.WriteFile(fileName, []byte("Jello, "), 0600)
 	AssertEq(nil, err)
 
@@ -840,6 +854,7 @@ func (t *MemFSTest) AppendMode() {
 	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_APPEND, 0600)
 	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
+	t.checkOpenFlagsXattr(fileName, fusekernel.OpenReadWrite)
 
 	// Seek to somewhere silly and then write.
 	off, err = f.Seek(2, 0)
@@ -907,7 +922,7 @@ func (t *MemFSTest) ReadsPastEndOfFile() {
 
 func (t *MemFSTest) Truncate_Smaller() {
 	var err error
-	fileName := path.Join(t.Dir, "foo")
+	fileName := path.Join(t.Dir, memfs.CheckFileOpenFlagsFileName)
 
 	// Create a file.
 	err = ioutil.WriteFile(fileName, []byte("taco"), 0600)
@@ -917,6 +932,7 @@ func (t *MemFSTest) Truncate_Smaller() {
 	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
 	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
+	t.checkOpenFlagsXattr(fileName, fusekernel.OpenReadWrite)
 
 	// Truncate it.
 	err = f.Truncate(2)
@@ -931,6 +947,7 @@ func (t *MemFSTest) Truncate_Smaller() {
 	contents, err := ioutil.ReadFile(fileName)
 	AssertEq(nil, err)
 	ExpectEq("ta", string(contents))
+	t.checkOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
 }
 
 func (t *MemFSTest) Truncate_SameSize() {

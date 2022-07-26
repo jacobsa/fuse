@@ -648,7 +648,7 @@ type OpenFileOp struct {
 	// advance, for example, because contents are generated on the fly.
 	UseDirectIO bool
 
-	OpenFlags *fusekernel.OpenFlags
+	OpenFlags fusekernel.OpenFlags
 
 	OpContext OpContext
 }
