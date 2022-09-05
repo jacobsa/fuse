@@ -53,10 +53,16 @@ func Mount(
 	}
 
 	// Begin the mounting process, which will continue in the background.
+	if config.DebugLogger != nil {
+		config.DebugLogger.Println("Beginning the mounting process")
+	}
 	ready := make(chan error, 1)
 	dev, err := mount(dir, config, ready)
 	if err != nil {
 		return nil, fmt.Errorf("mount: %v", err)
+	}
+	if config.DebugLogger != nil {
+		config.DebugLogger.Println("Completed the mounting process")
 	}
 
 	// Choose a parent context for ops.
@@ -65,6 +71,9 @@ func Mount(
 		cfgCopy.OpContext = context.Background()
 	}
 
+	if config.DebugLogger != nil {
+		config.DebugLogger.Println("Creating a connection object")
+	}
 	// Create a Connection object wrapping the device.
 	connection, err := newConnection(
 		cfgCopy,
@@ -74,6 +83,9 @@ func Mount(
 	if err != nil {
 		return nil, fmt.Errorf("newConnection: %v", err)
 	}
+	if config.DebugLogger != nil {
+		config.DebugLogger.Println("Successfully created the connection")
+	}
 
 	// Serve the connection in the background. When done, set the join status.
 	go func() {
@@ -81,6 +93,10 @@ func Mount(
 		mfs.joinStatus = connection.close()
 		close(mfs.joinStatusAvailable)
 	}()
+
+	if config.DebugLogger != nil {
+		config.DebugLogger.Println("Waiting for mounting process to complete")
+	}
 
 	// Wait for the mount process to complete.
 	if err := <-ready; err != nil {
