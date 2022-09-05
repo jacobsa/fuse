@@ -40,7 +40,7 @@ var fFlushError = flag.Int("flushfs.flush_error", 0, "")
 var fFsyncError = flag.Int("flushfs.fsync_error", 0, "")
 
 var fReadOnly = flag.Bool("read_only", false, "Mount in read-only mode.")
-var fDebug = flag.Bool("debug", true, "Enable debug logging.")
+var fDebug = flag.Bool("debug", false, "Enable debug logging.")
 
 func makeFlushFS() (fuse.Server, error) {
 	// Check the flags.
