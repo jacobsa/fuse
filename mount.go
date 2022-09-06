@@ -127,12 +127,7 @@ func checkMountPoint(dir string) error {
 	return nil
 }
 
-func fusermount(
-	binary string,
-	argv []string,
-	additionalEnv []string,
-	wait bool,
-	debugLogger *log.Logger) (*os.File, error) {
+func fusermount(binary string, argv []string, additionalEnv []string, wait bool, debugLogger *log.Logger) (*os.File, error) {
 	if debugLogger != nil {
 		debugLogger.Println("Creating a socket pair")
 	}
