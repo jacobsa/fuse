@@ -36,9 +36,9 @@ const (
 
 // A file system with a fixed structure that looks like this:
 //
-//     foo
-//     dir/
-//         bar
+//	foo
+//	dir/
+//	    bar
 //
 // The file system is configured with durations that specify how long to allow
 // inode entries and attributes to be cached, used when responding to fuse
@@ -71,15 +71,14 @@ type CachingFS interface {
 // Create a file system that issues cacheable responses according to the
 // following rules:
 //
-//  *  LookUpInodeResponse.Entry.EntryExpiration is set according to
+//   - LookUpInodeResponse.Entry.EntryExpiration is set according to
 //     lookupEntryTimeout.
 //
-//  *  GetInodeAttributesResponse.AttributesExpiration is set according to
+//   - GetInodeAttributesResponse.AttributesExpiration is set according to
 //     getattrTimeout.
 //
-//  *  Nothing else is marked cacheable. (In particular, the attributes
+//   - Nothing else is marked cacheable. (In particular, the attributes
 //     returned by LookUpInode are not cacheable.)
-//
 func NewCachingFS(
 	lookupEntryTimeout time.Duration,
 	getattrTimeout time.Duration) (CachingFS, error) {

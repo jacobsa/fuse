@@ -26,9 +26,8 @@ import (
 
 // Sample output:
 //
-//     Filesystem                  1K-blocks Used Available Use% Mounted on
-//     some_fuse_file_system       512       64   384       15%  /tmp/sample_test001288095
-//
+//	Filesystem                  1K-blocks Used Available Use% Mounted on
+//	some_fuse_file_system       512       64   384       15%  /tmp/sample_test001288095
 var gDfOutputRegexp = regexp.MustCompile(`^\S+\s+(\d+)\s+(\d+)\s+(\d+)\s+\d+%.*$`)
 
 ////////////////////////////////////////////////////////////////////////

@@ -28,9 +28,9 @@ import (
 
 // Create a file system with a fixed structure that looks like this:
 //
-//     hello
-//     dir/
-//         world
+//	hello
+//	dir/
+//	    world
 //
 // Each file contains the string "Hello, world!".
 func NewHelloFS(clock timeutil.Clock) (fuse.Server, error) {
