@@ -98,7 +98,7 @@ func convertInMessage(
 		}
 
 		if valid&fusekernel.SetattrMode != 0 {
-			mode := convertFileMode(in.Mode)
+			mode := ConvertFileMode(in.Mode)
 			to.Mode = &mode
 		}
 
@@ -185,7 +185,7 @@ func convertInMessage(
 			// the fact that this is a directory is implicit in the fact that the
 			// opcode is mkdir. But we want the correct mode to go through, so ensure
 			// that os.ModeDir is set.
-			Mode: convertFileMode(in.Mode) | os.ModeDir,
+			Mode: ConvertFileMode(in.Mode) | os.ModeDir,
 			OpContext: fuseops.OpContext{
 				FuseID: inMsg.Header().Unique,
 				Pid:    inMsg.Header().Pid,
@@ -208,7 +208,7 @@ func convertInMessage(
 		o = &fuseops.MkNodeOp{
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(name),
-			Mode:   convertFileMode(in.Mode),
+			Mode:   ConvertFileMode(in.Mode),
 			Rdev:   in.Rdev,
 			OpContext: fuseops.OpContext{
 				FuseID: inMsg.Header().Unique,
@@ -232,7 +232,7 @@ func convertInMessage(
 		o = &fuseops.CreateFileOp{
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(name),
-			Mode:   convertFileMode(in.Mode),
+			Mode:   ConvertFileMode(in.Mode),
 			OpContext: fuseops.OpContext{
 				FuseID: inMsg.Header().Unique,
 				Pid:    inMsg.Header().Pid,
@@ -980,34 +980,7 @@ func convertAttributes(
 	out.Blocks = (in.Size + 512 - 1) / 512
 
 	// Set the mode.
-	out.Mode = uint32(in.Mode) & 0777
-	switch {
-	default:
-		out.Mode |= syscall.S_IFREG
-	case in.Mode&os.ModeDir != 0:
-		out.Mode |= syscall.S_IFDIR
-	case in.Mode&os.ModeDevice != 0:
-		if in.Mode&os.ModeCharDevice != 0 {
-			out.Mode |= syscall.S_IFCHR
-		} else {
-			out.Mode |= syscall.S_IFBLK
-		}
-	case in.Mode&os.ModeNamedPipe != 0:
-		out.Mode |= syscall.S_IFIFO
-	case in.Mode&os.ModeSymlink != 0:
-		out.Mode |= syscall.S_IFLNK
-	case in.Mode&os.ModeSocket != 0:
-		out.Mode |= syscall.S_IFSOCK
-	}
-	if in.Mode&os.ModeSetuid != 0 {
-		out.Mode |= syscall.S_ISUID
-	}
-	if in.Mode&os.ModeSetgid != 0 {
-		out.Mode |= syscall.S_ISGID
-	}
-	if in.Mode&os.ModeSticky != 0 {
-		out.Mode |= syscall.S_ISVTX
-	}
+	out.Mode = ConvertGoMode(in.Mode)
 
 	if out.Mode&(syscall.S_IFCHR|syscall.S_IFBLK) != 0 {
 		out.Rdev = in.Rdev
@@ -1041,7 +1014,9 @@ func convertChildInodeEntry(
 	convertAttributes(in.Child, &in.Attributes, &out.Attr)
 }
 
-func convertFileMode(unixMode uint32) os.FileMode {
+// ConvertFileMode returns an os.FileMode with the Go mode and permission bits
+// set according to the Linux mode and permission bits.
+func ConvertFileMode(unixMode uint32) os.FileMode {
 	mode := os.FileMode(unixMode & 0777)
 	switch unixMode & syscall.S_IFMT {
 	case syscall.S_IFREG:
@@ -1072,6 +1047,40 @@ func convertFileMode(unixMode uint32) os.FileMode {
 		mode |= os.ModeSticky
 	}
 	return mode
+}
+
+// ConvertGoMode returns an integer with the Linux mode and permission bits
+// set according to the Go mode and permission bits.
+func ConvertGoMode(inMode os.FileMode) uint32 {
+	outMode := uint32(inMode) & 0777
+	switch {
+	default:
+		outMode |= syscall.S_IFREG
+	case inMode&os.ModeDir != 0:
+		outMode |= syscall.S_IFDIR
+	case inMode&os.ModeDevice != 0:
+		if inMode&os.ModeCharDevice != 0 {
+			outMode |= syscall.S_IFCHR
+		} else {
+			outMode |= syscall.S_IFBLK
+		}
+	case inMode&os.ModeNamedPipe != 0:
+		outMode |= syscall.S_IFIFO
+	case inMode&os.ModeSymlink != 0:
+		outMode |= syscall.S_IFLNK
+	case inMode&os.ModeSocket != 0:
+		outMode |= syscall.S_IFSOCK
+	}
+	if inMode&os.ModeSetuid != 0 {
+		outMode |= syscall.S_ISUID
+	}
+	if inMode&os.ModeSetgid != 0 {
+		outMode |= syscall.S_ISGID
+	}
+	if inMode&os.ModeSticky != 0 {
+		outMode |= syscall.S_ISVTX
+	}
+	return outMode
 }
 
 func writeXattrSize(m *buffer.OutMessage, size uint32) {
