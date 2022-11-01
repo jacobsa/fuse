@@ -304,6 +304,9 @@ type MkNodeOp struct {
 	Name string
 	Mode os.FileMode
 
+	// The device number (only valid if created file is a device)
+	Rdev uint32
+
 	// Set by the file system: information about the inode that was created.
 	//
 	// The lookup count for the inode is implicitly incremented. See notes on
