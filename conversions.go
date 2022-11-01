@@ -209,6 +209,7 @@ func convertInMessage(
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(name),
 			Mode:   convertFileMode(in.Mode),
+			Rdev:   in.Rdev,
 			OpContext: fuseops.OpContext{
 				FuseID: inMsg.Header().Unique,
 				Pid:    inMsg.Header().Pid,
@@ -1006,6 +1007,10 @@ func convertAttributes(
 	}
 	if in.Mode&os.ModeSticky != 0 {
 		out.Mode |= syscall.S_ISVTX
+	}
+
+	if out.Mode&(syscall.S_IFCHR|syscall.S_IFBLK) != 0 {
+		out.Rdev = in.Rdev
 	}
 }
 
