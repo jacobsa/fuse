@@ -16,6 +16,7 @@ package statfs_test
 
 import (
 	"fmt"
+	"github.com/jacobsa/oglematchers"
 	"math"
 	"regexp"
 	"syscall"
@@ -68,7 +69,7 @@ func (t *StatFSTest) Syscall_ZeroValues() {
 	ExpectEq(0, stat.Bavail)
 	ExpectEq(0, stat.Files)
 	ExpectEq(0, stat.Ffree)
-	ExpectEq("osxfuse", convertName(stat.Fstypename[:]))
+	ExpectThat(convertName(stat.Fstypename[:]), oglematchers.AnyOf(oglematchers.Equals("osxfuse"), oglematchers.Equals("macfuse")))
 	ExpectEq(t.canonicalDir, convertName(stat.Mntonname[:]))
 	ExpectEq(fsName, convertName(stat.Mntfromname[:]))
 }
@@ -103,7 +104,7 @@ func (t *StatFSTest) Syscall_NonZeroValues() {
 	ExpectEq(canned.BlocksAvailable, stat.Bavail)
 	ExpectEq(canned.Inodes, stat.Files)
 	ExpectEq(canned.InodesFree, stat.Ffree)
-	ExpectEq("osxfuse", convertName(stat.Fstypename[:]))
+	ExpectThat(convertName(stat.Fstypename[:]), oglematchers.AnyOf(oglematchers.Equals("osxfuse"), oglematchers.Equals("macfuse")))
 	ExpectEq(t.canonicalDir, convertName(stat.Mntonname[:]))
 	ExpectEq(fsName, convertName(stat.Mntfromname[:]))
 }
