@@ -28,6 +28,9 @@ import (
 // OpContext contains extra context that may be needed by some file systems.
 // See https://libfuse.github.io/doxygen/structfuse__context.html as a reference.
 type OpContext struct {
+	// FuseID is the Unique identifier for each operation from the kernel.
+	FuseID uint64
+
 	// PID of the process that is invoking the operation.
 	// Not filled in case of a writepage operation.
 	Pid uint32
