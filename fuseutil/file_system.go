@@ -129,6 +129,16 @@ func (s *fileSystemServer) handleOp(
 	c *fuse.Connection,
 	ctx context.Context,
 	op interface{}) {
+
+	handlePanic := func() {
+		// detect if panic occurred or not
+		a := recover()
+		if a != nil {
+			c.ErrorLogger.Fatal("Panic: ", a)
+		}
+	}
+
+	defer handlePanic()
 	defer s.opsInFlight.Done()
 
 	// Dispatch to the appropriate method.

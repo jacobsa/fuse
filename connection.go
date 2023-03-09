@@ -59,7 +59,7 @@ const maxReadahead = 1 << 20
 type Connection struct {
 	cfg         MountConfig
 	debugLogger *log.Logger
-	errorLogger *log.Logger
+	ErrorLogger *log.Logger
 
 	// The device through which we're talking to the kernel, and the protocol
 	// version that we're using to talk to it.
@@ -99,7 +99,7 @@ func newConnection(
 	c := &Connection{
 		cfg:         cfg,
 		debugLogger: debugLogger,
-		errorLogger: errorLogger,
+		ErrorLogger: errorLogger,
 		dev:         dev,
 		cancelFuncs: make(map[uint64]func()),
 	}
@@ -441,7 +441,7 @@ func (c *Connection) shouldLogError(
 	}
 
 	// We can't log if there's nothing to log to.
-	if c.errorLogger == nil {
+	if c.ErrorLogger == nil {
 		return false
 	}
 
@@ -503,7 +503,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 
 	// Error logging
 	if c.shouldLogError(op, opErr) {
-		c.errorLogger.Printf("%T error: %v", op, opErr)
+		c.ErrorLogger.Printf("%T error: %v", op, opErr)
 	}
 
 	// Send the reply to the kernel, if one is required.
@@ -516,8 +516,8 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 		} else {
 			err = c.writeMessage(outMsg.OutHeaderBytes())
 		}
-		if err != nil && c.errorLogger != nil {
-			c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
+		if err != nil && c.ErrorLogger != nil {
+			c.ErrorLogger.Printf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
 		}
 		outMsg.Sglist = nil
 	}
