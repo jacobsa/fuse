@@ -65,6 +65,8 @@ type FileSystem interface {
 	Fallocate(context.Context, *fuseops.FallocateOp) error
 	Poll(context.Context, *fuseops.PollOp) error
 
+	SetConnection(*fuse.Connection)
+
 	// Regard all inodes (including the root inode) as having their lookup counts
 	// decremented to zero, and clean up any resources associated with the file
 	// system. No further calls to the file system will be made.
@@ -96,6 +98,8 @@ type fileSystemServer struct {
 }
 
 func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
+	s.fs.SetConnection(c)
+
 	// When we are done, we clean up by waiting for all in-flight ops then
 	// destroying the file system.
 	defer func() {
