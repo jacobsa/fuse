@@ -349,6 +349,34 @@ var releaseFlagNames = []flagName{
 	{uint32(ReleaseFlush), "ReleaseFlush"},
 }
 
+// Poll flags and events are used in the Poll exchange.
+type PollFlags uint32
+
+const (
+	// From the kernel source:
+	// Ask for notification if there's someone waiting for it.
+	// The client may ignore the flag and always notify.
+	PollScheduleNotify PollFlags = 1 << 0
+)
+
+type PollEvents uint32
+
+const (
+	PollInEvent     PollEvents = 0x0001
+	PollPriEvent    PollEvents = 0x0002
+	PollOutEvent    PollEvents = 0x0004
+	PollErrEvent    PollEvents = 0x0008
+	PollHupEvent    PollEvents = 0x0010
+	PollNvalEvent   PollEvents = 0x0020
+	PollRdNormEvent PollEvents = 0x0040
+	PollRdBandEvent PollEvents = 0x0080
+	PollWrNormEvent PollEvents = 0x0100
+	PollWrBandEvent PollEvents = 0x0200
+	PollMsgEvent    PollEvents = 0x0400
+	PollRemoveEvent PollEvents = 0x1000
+	PollRdHupEvent  PollEvents = 0x2000
+)
+
 // Opcodes
 const (
 	OpLookup      = 1
@@ -389,6 +417,7 @@ const (
 	OpDestroy     = 38
 	OpIoctl       = 39 // Linux?
 	OpPoll        = 40 // Linux?
+	OpNotifyReply = 41
 	OpBatchForget = 42
 	OpFallocate   = 43
 	OpReaddirplus = 44
@@ -561,6 +590,18 @@ func CreateInSize(p Protocol) uintptr {
 	default:
 		return unsafe.Sizeof(CreateIn{})
 	}
+}
+
+type PollIn struct {
+	Fh     uint64
+	Kh     uint64
+	Flags  uint32
+	Events uint32
+}
+
+type PollOut struct {
+	Revents uint32
+	padding uint32
 }
 
 type ReleaseIn struct {
@@ -798,7 +839,14 @@ const (
 	NotifyCodePoll       int32 = 1
 	NotifyCodeInvalInode int32 = 2
 	NotifyCodeInvalEntry int32 = 3
+	NotifyCodeStore      int32 = 4
+	NotifyCodeRetrieve   int32 = 5
+	NotifyCodeDelete     int32 = 6
 )
+
+type NotifyPollWakeupOut struct {
+	Kh uint64
+}
 
 type NotifyInvalInodeOut struct {
 	Ino uint64
@@ -814,4 +862,36 @@ type NotifyInvalEntryOut struct {
 
 type SyncFSIn struct {
 	Padding uint64
+}
+
+type NotifyDeleteOut struct {
+	Parent  uint64
+	Child   uint64
+	Namelen uint32
+	padding uint32
+}
+
+type NotifyStoreOut struct {
+	Nodeid  uint64
+	Offset  uint64
+	Size    uint32
+	padding uint32
+}
+
+type NotifyRetrieveOut struct {
+	Unique  uint64
+	Nodeid  uint64
+	Offset  uint64
+	Size    uint32
+	padding uint32
+}
+
+// Matches the size of WriteIn
+type NotifyRetrieveIn struct {
+	dummy1 uint64
+	Offset uint64
+	Size   uint32
+	dummy2 uint32
+	dummy3 uint64
+	dummy4 uint64
 }
