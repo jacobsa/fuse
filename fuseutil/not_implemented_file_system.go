@@ -216,5 +216,8 @@ func (fs *NotImplementedFileSystem) Poll(
 	return fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) SetConnection(*fuse.Connection) {
+}
+
 func (fs *NotImplementedFileSystem) Destroy() {
 }

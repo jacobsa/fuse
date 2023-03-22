@@ -747,6 +747,26 @@ func convertInMessage(
 			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
+	case fusekernel.OpNotifyReply:
+		type input fusekernel.NotifyRetrieveIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			return nil, errors.New("Corrupt OpNotifyReply")
+		}
+
+		buf := inMsg.ConsumeBytes(inMsg.Len())
+		if len(buf) < int(in.Size) {
+			return nil, errors.New("Corrupt OpNotifyReply")
+		}
+
+		o = &fuseops.NotifyRetrieveReplyOp{
+			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
+			Unique:    inMsg.Header().Unique,
+			Offset:    in.Offset,
+			Length:    in.Size,
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
+		}
+
 	default:
 		o = &unknownOp{
 			OpCode: inMsg.Header().Opcode,
@@ -778,6 +798,9 @@ func (c *Connection) kernelResponse(
 		return true
 
 	case *fuseops.BatchForgetOp:
+		return true
+
+	case *fuseops.NotifyRetrieveReplyOp:
 		return true
 
 	case *interruptOp:
@@ -1018,8 +1041,74 @@ func (c *Connection) kernelResponseForOp(
 		out := (*fusekernel.PollOut)(m.Grow(int(unsafe.Sizeof(fusekernel.PollOut{}))))
 		out.Revents = uint32(o.Revents)
 
+	case *fuseops.NotifyRetrieveReplyOp:
+		// Empty response
+
 	default:
 		panic(fmt.Sprintf("Unexpected op: %#v", op))
+	}
+
+	return
+}
+
+// Like kernelResponse, but assumes the user replied with a nil error to the op.
+func (c *Connection) kernelNotification(
+	m *buffer.OutMessage,
+	op interface{}) {
+
+	h := m.OutHeader()
+	h.Unique = 0
+
+	// Create the appropriate output message
+	switch o := op.(type) {
+	case *fuseops.NotifyPollWakeup:
+		h.Error = fusekernel.NotifyCodePoll
+		out := (*fusekernel.NotifyPollWakeupOut)(m.Grow(int(unsafe.Sizeof(fusekernel.NotifyPollWakeupOut{}))))
+		out.Kh = o.Kh
+
+	case *fuseops.NotifyInvalInode:
+		h.Error = fusekernel.NotifyCodeInvalInode
+		out := (*fusekernel.NotifyInvalInodeOut)(m.Grow(int(unsafe.Sizeof(fusekernel.NotifyInvalInodeOut{}))))
+		out.Ino = uint64(o.Inode)
+		out.Off = o.Offset
+		out.Len = o.Length
+
+	case *fuseops.NotifyInvalEntry:
+		h.Error = fusekernel.NotifyCodeInvalEntry
+		out := (*fusekernel.NotifyInvalEntryOut)(m.Grow(int(unsafe.Sizeof(fusekernel.NotifyInvalEntryOut{}))))
+		out.Parent = uint64(o.Parent)
+		out.Namelen = uint32(len(o.Name))
+		m.AppendString(o.Name)
+		m.AppendString("\x00")
+
+	case *fuseops.NotifyDelete:
+		h.Error = fusekernel.NotifyCodeDelete
+		out := (*fusekernel.NotifyDeleteOut)(m.Grow(int(unsafe.Sizeof(fusekernel.NotifyDeleteOut{}))))
+		out.Parent = uint64(o.Parent)
+		out.Child = uint64(o.Child)
+		out.Namelen = uint32(len(o.Name))
+		m.AppendString(o.Name)
+		m.AppendString("\x00")
+
+	case *fuseops.NotifyStore:
+		h.Error = fusekernel.NotifyCodeStore
+		out := (*fusekernel.NotifyStoreOut)(m.Grow(int(unsafe.Sizeof(fusekernel.NotifyStoreOut{}))))
+		out.Nodeid = uint64(o.Inode)
+		out.Offset = o.Offset
+		out.Size = o.Length
+		m.Append(o.Data...)
+		m.ShrinkTo(buffer.OutMessageHeaderSize + int(unsafe.Sizeof(fusekernel.NotifyStoreOut{})) + int(o.Length))
+
+	case *fuseops.NotifyRetrieve:
+		h.Error = fusekernel.NotifyCodeRetrieve
+		out := (*fusekernel.NotifyRetrieveOut)(m.Grow(int(unsafe.Sizeof(fusekernel.NotifyRetrieveOut{}))))
+		out.Unique = o.Unique
+		out.Nodeid = uint64(o.Inode)
+		out.Offset = o.Offset
+		out.Size = o.Length
+
+	default:
+		panic(fmt.Sprintf("Unexpected notification: %#v", op))
 	}
 
 	return

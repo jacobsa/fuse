@@ -375,18 +375,33 @@ func (c *Connection) readMessage() (*buffer.InMessage, error) {
 }
 
 // Write the supplied message to the kernel.
-func (c *Connection) writeMessage(msg []byte) error {
-	// Avoid the retry loop in os.File.Write.
-	n, err := syscall.Write(int(c.dev.Fd()), msg)
+func (c *Connection) writeMessage(outMsg *buffer.OutMessage) error {
+	var err error
+	var n int
+	expectedLen := outMsg.Len()
+	if outMsg.Sglist != nil {
+		if fusekernel.IsPlatformFuseT {
+			// writev is not atomic on macos, restrict to fuse-t platform
+			writeLock.Lock()
+			defer writeLock.Unlock()
+		}
+		n, err = writev(int(c.dev.Fd()), outMsg.Sglist)
+	} else {
+		// Avoid the retry loop in os.File.Write.
+		n, err = syscall.Write(int(c.dev.Fd()), outMsg.OutHeaderBytes())
+	}
+	if err == nil && n != expectedLen {
+		err = fmt.Errorf("Wrote %d bytes; expected %d", n, expectedLen)
+	}
 	if err != nil {
-		return err
+		writeErrMsg := fmt.Sprintf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
+		if c.errorLogger != nil {
+			c.errorLogger.Print(writeErrMsg)
+		}
+		return fmt.Errorf(writeErrMsg)
 	}
-
-	if n != len(msg) {
-		return fmt.Errorf("Wrote %d bytes; expected %d", n, len(msg))
-	}
-
-	return nil
+	outMsg.Sglist = nil
+	return err
 }
 
 // ReadOp consumes the next op from the kernel process, returning the op and a
@@ -527,25 +542,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	noResponse := c.kernelResponse(outMsg, inMsg.Header().Unique, op, opErr)
 
 	if !noResponse {
-		var err error
-		if outMsg.Sglist != nil {
-			if fusekernel.IsPlatformFuseT {
-				// writev is not atomic on macos, restrict to fuse-t platform
-				writeLock.Lock()
-				defer writeLock.Unlock()
-			}
-			_, err = writev(int(c.dev.Fd()), outMsg.Sglist)
-		} else {
-			err = c.writeMessage(outMsg.OutHeaderBytes())
-		}
-		if err != nil {
-			writeErrMsg := fmt.Sprintf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
-			if c.errorLogger != nil {
-				c.errorLogger.Print(writeErrMsg)
-			}
-			return fmt.Errorf(writeErrMsg)
-		}
-		outMsg.Sglist = nil
+		c.writeMessage(outMsg)
 	}
 
 	return nil
@@ -559,6 +556,17 @@ func (c *Connection) callbackForOp(op interface{}) func() {
 		return o.Callback
 	}
 	return nil
+}
+
+// Send a notification to the kernel
+// notification must be a pointer to one of fuseops.NotifyXXX structures
+// To avoid a deadlock notifications must not be called in the execution path of a related filesytem operation or within any code that could hold a lock that could be needed to execute such an operation. As of kernel 4.18, a "related operation" is a lookup(), symlink(), mknod(), mkdir(), unlink(), rename(), link() or create() request for the parent, and a setattr(), unlink(), rmdir(), rename(), setxattr(), removexattr(), readdir() or readdirplus() request for the inode itself.
+func (c *Connection) Notify(notification interface{}) error {
+	outMsg := c.getOutMessage()
+	defer c.putOutMessage(outMsg)
+	c.kernelNotification(outMsg, notification)
+	outMsg.OutHeader().Len = uint32(outMsg.Len())
+	return c.writeMessage(outMsg)
 }
 
 // Close the connection. Must not be called until operations that were read
