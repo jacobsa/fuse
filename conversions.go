@@ -731,6 +731,22 @@ func convertInMessage(
 			},
 		}
 
+	case fusekernel.OpPoll:
+		type input fusekernel.PollIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			return nil, errors.New("Corrupt OpPoll")
+		}
+
+		o = &fuseops.PollOp{
+			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
+			Handle:    fuseops.HandleID(in.Fh),
+			Kh:        in.Kh,
+			Flags:     fusekernel.PollFlags(in.Flags),
+			Events:    fusekernel.PollEvents(in.Events),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
+		}
+
 	default:
 		o = &unknownOp{
 			OpCode: inMsg.Header().Opcode,
@@ -997,6 +1013,10 @@ func (c *Connection) kernelResponseForOp(
 		out.MaxWrite = o.MaxWrite
 		out.TimeGran = 1
 		out.MaxPages = o.MaxPages
+
+	case *fuseops.PollOp:
+		out := (*fusekernel.PollOut)(m.Grow(int(unsafe.Sizeof(fusekernel.PollOut{}))))
+		out.Revents = uint32(o.Revents)
 
 	default:
 		panic(fmt.Sprintf("Unexpected op: %#v", op))

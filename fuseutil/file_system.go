@@ -64,6 +64,7 @@ type FileSystem interface {
 	SetXattr(context.Context, *fuseops.SetXattrOp) error
 	Fallocate(context.Context, *fuseops.FallocateOp) error
 	SyncFS(context.Context, *fuseops.SyncFSOp) error
+	Poll(context.Context, *fuseops.PollOp) error
 
 	// Regard all inodes (including the root inode) as having their lookup counts
 	// decremented to zero, and clean up any resources associated with the file
@@ -240,6 +241,9 @@ func (s *fileSystemServer) handleOp(
 
 	case *fuseops.SyncFSOp:
 		err = s.fs.SyncFS(ctx, typed)
+
+	case *fuseops.PollOp:
+		err = s.fs.Poll(ctx, typed)
 	}
 
 	c.Reply(ctx, err)
