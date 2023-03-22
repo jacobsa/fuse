@@ -204,5 +204,11 @@ func (fs *NotImplementedFileSystem) Fallocate(
 	return fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) Poll(
+	ctx context.Context,
+	op *fuseops.PollOp) error {
+	return fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) Destroy() {
 }
