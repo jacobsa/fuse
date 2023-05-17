@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-
-	"github.com/jacobsa/fuse/internal/buffer"
 )
 
 var errNoAvail = errors.New("no available fuse devices")
@@ -135,7 +133,7 @@ func convertMountArgs(daemonVar string, libVar string,
 		//
 		// OSXFUSE seems to ignore InitResponse.MaxWrite, and uses
 		// this instead.
-		"-o", "iosize=" + strconv.FormatUint(buffer.MaxWriteSize, 10),
+		"-o", "iosize=" + strconv.FormatUint(MaxWriteSize, 10),
 	}
 
 	return argv, env, nil

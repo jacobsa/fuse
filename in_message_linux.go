@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package buffer
+package fuse
 
 // The maximum fuse write request size that InMessage can acommodate.
 //
-// Experimentally, OS X appears to cap the size of writes to 1 MiB, regardless
-// of whether a larger size is specified in the mount options.
+// As of kernel 4.20 Linux accepts writes up to 256 pages or 1MiB
 const MaxWriteSize = 1 << 20

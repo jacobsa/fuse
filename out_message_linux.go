@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package buffer
+package fuse
 
 // The maximum read size that we expect to ever see from the kernel, used for
 // calculating the size of out messages.

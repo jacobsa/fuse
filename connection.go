@@ -26,8 +26,6 @@ import (
 	"syscall"
 
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/fuse/internal/buffer"
-	"github.com/jacobsa/fuse/internal/freelist"
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
@@ -74,16 +72,14 @@ type Connection struct {
 	// GUARDED_BY(mu)
 	cancelFuncs map[uint64]func()
 
-	// Freelists, serviced by freelists.go.
-	inMessages  freelist.Freelist // GUARDED_BY(mu)
-	outMessages freelist.Freelist // GUARDED_BY(mu)
+	messageProvider MessageProvider
 }
 
 // State that is maintained for each in-flight op. This is stuffed into the
 // context that the user uses to reply to the op.
 type opState struct {
-	inMsg  *buffer.InMessage
-	outMsg *buffer.OutMessage
+	inMsg  *InMessage
+	outMsg *OutMessage
 	op     interface{}
 }
 
@@ -96,12 +92,17 @@ func newConnection(
 	debugLogger *log.Logger,
 	errorLogger *log.Logger,
 	dev *os.File) (*Connection, error) {
+	var messageProvider MessageProvider = &DefaultMessageProvider{}
+	if cfg.MessageProvider != nil {
+		messageProvider = cfg.MessageProvider
+	}
 	c := &Connection{
-		cfg:         cfg,
-		debugLogger: debugLogger,
-		errorLogger: errorLogger,
-		dev:         dev,
-		cancelFuncs: make(map[uint64]func()),
+		cfg:             cfg,
+		debugLogger:     debugLogger,
+		errorLogger:     errorLogger,
+		dev:             dev,
+		cancelFuncs:     make(map[uint64]func()),
+		messageProvider: messageProvider,
 	}
 
 	// Initialize.
@@ -155,7 +156,7 @@ func (c *Connection) Init() error {
 	// Respond to the init op.
 	initOp.Library = c.protocol
 	initOp.MaxReadahead = maxReadahead
-	initOp.MaxWrite = buffer.MaxWriteSize
+	initOp.MaxWrite = MaxWriteSize
 
 	initOp.Flags = 0
 
@@ -332,9 +333,9 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 
 // Read the next message from the kernel. The message must later be destroyed
 // using destroyInMessage.
-func (c *Connection) readMessage() (*buffer.InMessage, error) {
+func (c *Connection) readMessage() (*InMessage, error) {
 	// Allocate a message.
-	m := c.getInMessage()
+	m := c.messageProvider.GetInMessage()
 
 	// Loop past transient errors.
 	for {
@@ -360,7 +361,7 @@ func (c *Connection) readMessage() (*buffer.InMessage, error) {
 		}
 
 		if err != nil {
-			c.putInMessage(m)
+			c.messageProvider.PutInMessage(m)
 			return nil, err
 		}
 
@@ -404,10 +405,10 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 		}
 
 		// Convert the message to an op.
-		outMsg := c.getOutMessage()
+		outMsg := c.messageProvider.GetOutMessage()
 		op, err = convertInMessage(&c.cfg, inMsg, outMsg, c.protocol)
 		if err != nil {
-			c.putOutMessage(outMsg)
+			c.messageProvider.PutOutMessage(outMsg)
 			return nil, nil, fmt.Errorf("convertInMessage: %v", err)
 		}
 
@@ -486,8 +487,8 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	fuseID := inMsg.Header().Unique
 
 	// Make sure we destroy the messages when we're done.
-	defer c.putInMessage(inMsg)
-	defer c.putOutMessage(outMsg)
+	defer c.messageProvider.PutInMessage(inMsg)
+	defer c.messageProvider.PutOutMessage(outMsg)
 
 	// Clean up state for this op.
 	c.finishOp(inMsg.Header().Opcode, inMsg.Header().Unique)

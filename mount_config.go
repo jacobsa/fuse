@@ -185,6 +185,11 @@ type MountConfig struct {
 	// Flag to enable async reads that are received from
 	// the kernel
 	EnableAsyncReads bool
+
+	// Allows for overriding the default message provider.
+	// This makes it possible to add hooks and control when
+	// message buffers are reused.
+	MessageProvider MessageProvider
 }
 
 // Create a map containing all of the key=value mount options to be given to

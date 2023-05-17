@@ -25,7 +25,6 @@ import (
 	"unsafe"
 
 	"github.com/jacobsa/fuse/fuseops"
-	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
@@ -39,8 +38,8 @@ import (
 // The caller is responsible for arranging for the message to be destroyed.
 func convertInMessage(
 	config *MountConfig,
-	inMsg *buffer.InMessage,
-	outMsg *buffer.OutMessage,
+	inMsg *InMessage,
+	outMsg *OutMessage,
 	protocol fusekernel.Protocol) (o interface{}, err error) {
 	switch inMsg.Header().Opcode {
 	case fusekernel.OpLookup:
@@ -706,7 +705,7 @@ func convertInMessage(
 // Fill in the response that should be sent to the kernel, or set noResponse if
 // the op requires no response.
 func (c *Connection) kernelResponse(
-	m *buffer.OutMessage,
+	m *OutMessage,
 	fuseID uint64,
 	op interface{},
 	opErr error) (noResponse bool) {
@@ -742,7 +741,7 @@ func (c *Connection) kernelResponse(
 			// the header, because on OS X the kernel otherwise returns EINVAL when we
 			// attempt to write an error response with a length that extends beyond the
 			// header.
-			m.ShrinkTo(buffer.OutMessageHeaderSize)
+			m.ShrinkTo(OutMessageHeaderSize)
 		}
 	}
 
@@ -758,7 +757,7 @@ func (c *Connection) kernelResponse(
 // Like kernelResponse, but assumes the user replied with a nil error to the
 // op.
 func (c *Connection) kernelResponseForOp(
-	m *buffer.OutMessage,
+	m *OutMessage,
 	op interface{}) {
 	// Create the appropriate output message
 	switch o := op.(type) {
@@ -827,7 +826,7 @@ func (c *Connection) kernelResponseForOp(
 		// convertInMessage already set up the destination buffer to be at the end
 		// of the out message. We need only shrink to the right size based on how
 		// much the user read.
-		m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
+		m.ShrinkTo(OutMessageHeaderSize + o.BytesRead)
 
 	case *fuseops.ReleaseDirHandleOp:
 		// Empty response
@@ -850,7 +849,7 @@ func (c *Connection) kernelResponseForOp(
 		} else {
 			m.Append(o.Data...)
 		}
-		m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
+		m.ShrinkTo(OutMessageHeaderSize + o.BytesRead)
 
 	case *fuseops.WriteFileOp:
 		out := (*fusekernel.WriteOut)(m.Grow(int(unsafe.Sizeof(fusekernel.WriteOut{}))))
@@ -915,14 +914,14 @@ func (c *Connection) kernelResponseForOp(
 		if len(o.Dst) == 0 {
 			writeXattrSize(m, uint32(o.BytesRead))
 		} else {
-			m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
+			m.ShrinkTo(OutMessageHeaderSize + o.BytesRead)
 		}
 
 	case *fuseops.ListXattrOp:
 		if len(o.Dst) == 0 {
 			writeXattrSize(m, uint32(o.BytesRead))
 		} else {
-			m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
+			m.ShrinkTo(OutMessageHeaderSize + o.BytesRead)
 		}
 
 	case *fuseops.SetXattrOp:
@@ -1083,7 +1082,7 @@ func ConvertGoMode(inMode os.FileMode) uint32 {
 	return outMode
 }
 
-func writeXattrSize(m *buffer.OutMessage, size uint32) {
+func writeXattrSize(m *OutMessage, size uint32) {
 	out := (*fusekernel.GetxattrOut)(m.Grow(int(unsafe.Sizeof(fusekernel.GetxattrOut{}))))
 	out.Size = size
 }
