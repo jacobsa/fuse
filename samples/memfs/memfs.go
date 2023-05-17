@@ -627,7 +627,7 @@ func (fs *memFS) OpenFile(
 		// Set attribute (name=fileOpenFlagsXattr, value=OpenFlags) to test whether
 		// we set OpenFlags correctly. The value is checked in test with getXattr.
 		value := make([]byte, 4)
-		binary.LittleEndian.PutUint32(value, uint32(op.OpenFlags))
+		binary.LittleEndian.PutUint32(value, uint32(op.OpenFlags)&syscall.O_ACCMODE)
 		err := fs.setXattrHelper(inode, &fuseops.SetXattrOp{
 			Name:  FileOpenFlagsXattrName,
 			Value: value,
