@@ -21,16 +21,32 @@ import (
 	"github.com/jacobsa/fuse/internal/freelist"
 )
 
+// MessageProvider is used to get and release the buffers
+// needed to communicate with the kernel. Any implementations
+// of this interface must be thread safe.
 type MessageProvider interface {
+	// GetInMessage is called before reading each operation from the
+	// kernel. It is generally recommended to maintain a pool of
+	// InMessages rather than generating a new InMessage for every
+	// operation, since the buffer size needed to read an operation
+	// from the kernel can be quite large. A new InMessage can be
+	// generated with NewInMessage.
 	GetInMessage() *InMessage
 
+	// GetOutMessage is called after reading each operation from the
+	// kernel. Reset should be called on any OutMessage before it can
+	// be safely reused.
 	GetOutMessage() *OutMessage
 
+	// PutInMessage and PutOutMessage are called either on error, or after
+	// the response to a FUSE operation has been written to the kernel.
 	PutInMessage(*InMessage)
-
 	PutOutMessage(*OutMessage)
 }
 
+// DefaultMessageProvider is used as the implementation for MessageProvider
+// if no custom implementation is provided in the MountConfig. This class
+// uses a simple list of pointers to recycle InMessages and OutMessages.
 type DefaultMessageProvider struct {
 	mu sync.Mutex
 

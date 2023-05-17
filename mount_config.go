@@ -186,9 +186,13 @@ type MountConfig struct {
 	// the kernel
 	EnableAsyncReads bool
 
-	// Allows for overriding the default message provider.
-	// This makes it possible to add hooks and control when
-	// message buffers are reused.
+	// Allows for overriding the default message provider. This makes it possible
+	// to add hooks and control when message buffers are reused. For example,
+	// this may be useful when "UseVectoredRead" is enabled and the application
+	// needs to know when the data for a ReadFile operation has been written
+	// back to the kernel.
+	//
+	// If this field is nil, DefaultMessageProvider will be used.
 	MessageProvider MessageProvider
 }
 
