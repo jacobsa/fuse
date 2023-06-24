@@ -34,6 +34,10 @@ type OpContext struct {
 	// PID of the process that is invoking the operation.
 	// Not filled in case of a writepage operation.
 	Pid uint32
+
+	// UID of the process that is invoking the operation.
+	// Not filled in case of a writepage operation.
+	Uid uint32
 }
 
 // Return statistics about the file system's capacity and available resources.
