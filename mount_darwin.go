@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -77,6 +78,8 @@ var (
 		},
 	}
 )
+
+const FUSET_SRV_PATH = "/usr/local/bin/go-nfsv4"
 
 func loadOSXFUSE(bin string) error {
 	cmd := exec.Command(bin)
@@ -212,7 +215,7 @@ func callMountCommFD(
 // to the kernel. Mounting continues in the background, and is complete when an
 // error is written to the supplied channel. The file system may need to
 // service the connection in order for mounting to complete.
-func mount(
+func mountOsxFuse(
 	dir string,
 	cfg *MountConfig,
 	ready chan<- error) (dev *os.File, err error) {
@@ -262,4 +265,148 @@ func mount(
 	}
 
 	return nil, errOSXFUSENotFound
+}
+
+func fusetBinary() (string, error) {
+	srv_path := os.Getenv("FUSE_NFSSRV_PATH")
+	if srv_path == "" {
+		srv_path = FUSET_SRV_PATH
+	}
+
+	if _, err := os.Stat(srv_path); err == nil {
+		return srv_path, nil
+	}
+
+	return "", fmt.Errorf("FUSE-T not found")
+}
+
+func unixgramSocketpair() (l, r *os.File, err error) {
+	fd, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		return nil, nil, os.NewSyscallError("socketpair",
+			err.(syscall.Errno))
+	}
+	l = os.NewFile(uintptr(fd[0]), fmt.Sprintf("socketpair-half%d", fd[0]))
+	r = os.NewFile(uintptr(fd[1]), fmt.Sprintf("socketpair-half%d", fd[1]))
+	return
+}
+
+var local, local_mon, remote, remote_mon *os.File
+
+func startFuseTServer(binary string, argv []string,
+	additionalEnv []string,
+	wait bool,
+	debugLogger *log.Logger,
+	ready chan<- error) (*os.File, error) {
+	if debugLogger != nil {
+		debugLogger.Println("Creating a socket pair")
+	}
+
+	var err error
+	local, remote, err = unixgramSocketpair()
+	if err != nil {
+		return nil, err
+	}
+	defer remote.Close()
+
+	local_mon, remote_mon, err = unixgramSocketpair()
+	if err != nil {
+		return nil, err
+	}
+	defer remote_mon.Close()
+
+	syscall.CloseOnExec(int(local.Fd()))
+	syscall.CloseOnExec(int(local_mon.Fd()))
+
+	if debugLogger != nil {
+		debugLogger.Println("Creating files to wrap the sockets")
+	}
+
+	if debugLogger != nil {
+		debugLogger.Println("Starting fusermount/os mount")
+	}
+	// Start fusermount/mount_macfuse/mount_osxfuse.
+	cmd := exec.Command(binary, argv...)
+	cmd.Env = append(os.Environ(), "_FUSE_COMMFD=3")
+	cmd.Env = append(cmd.Env, "_FUSE_MONFD=4")
+	cmd.Env = append(cmd.Env, additionalEnv...)
+	cmd.ExtraFiles = []*os.File{remote, remote_mon}
+	cmd.Stderr = os.Stderr
+
+	// Run the command.
+	err = cmd.Start()
+	cmd.Process.Release()
+	if err != nil {
+		return nil, fmt.Errorf("running %v: %v", binary, err)
+	}
+
+	if debugLogger != nil {
+		debugLogger.Println("Wrapping socket pair in a connection")
+	}
+
+	if debugLogger != nil {
+		debugLogger.Println("Checking that we have a unix domain socket")
+	}
+
+	if debugLogger != nil {
+		debugLogger.Println("Read a message from socket")
+	}
+
+	go func() {
+		if _, err = local_mon.Write([]byte("mount")); err != nil {
+			err = fmt.Errorf("fuse-t failed: %v", err)
+		} else {
+			reply := make([]byte, 4)
+			if _, err = local_mon.Read(reply); err != nil {
+				fmt.Printf("mount read  %v\n", err)
+				err = fmt.Errorf("fuse-t failed: %v", err)
+			}
+		}
+
+		ready <- err
+		close(ready)
+	}()
+
+	if debugLogger != nil {
+		debugLogger.Println("Successfully read the socket message.")
+	}
+
+	return local, nil
+}
+
+func mountFuset(
+	bin string,
+	dir string,
+	cfg *MountConfig,
+	ready chan<- error) (dev *os.File, err error) {
+
+	env := []string{}
+	argv := []string{
+		fmt.Sprintf("--rwsize=%d", buffer.MaxWriteSize),
+		"--namedattr=false",
+	}
+
+	if cfg.VolumeName != "" {
+		argv = append(argv, "--volname")
+		argv = append(argv, cfg.VolumeName)
+	}
+	if cfg.ReadOnly {
+		argv = append(argv, "-r")
+	}
+
+	env = append(env, "_FUSE_COMMVERS=2")
+	argv = append(argv, dir)
+
+	return startFuseTServer(bin, argv, env, false, cfg.DebugLogger, ready)
+}
+
+func mount(
+	dir string,
+	cfg *MountConfig,
+	ready chan<- error) (dev *os.File, err error) {
+
+	if fuset_bin, err := fusetBinary(); err == nil {
+		return mountFuset(fuset_bin, dir, cfg, ready)
+	}
+	return mountOsxFuse(dir, cfg, ready)
 }
