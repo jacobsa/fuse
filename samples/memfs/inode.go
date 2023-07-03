@@ -17,6 +17,7 @@ package memfs
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"time"
 
@@ -377,7 +378,8 @@ func (in *inode) SetAttributes(
 
 	// Change mode?
 	if mode != nil {
-		in.attrs.Mode = *mode
+		in.attrs.Mode &= ^fs.ModePerm
+		in.attrs.Mode |= *mode & fs.ModePerm
 	}
 
 	// Change mtime?
