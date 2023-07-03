@@ -467,6 +467,8 @@ func (c *Connection) shouldLogError(
 	return true
 }
 
+var writeLock sync.Mutex
+
 // Reply replies to an op previously read using ReadOp, with the supplied error
 // (or nil if successful). The context must be the context returned by ReadOp.
 //
@@ -510,6 +512,10 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 	noResponse := c.kernelResponse(outMsg, inMsg.Header().Unique, op, opErr)
 
 	if !noResponse {
+		// writev is not atomic
+		writeLock.Lock()
+		defer writeLock.Unlock()
+
 		var err error
 		if outMsg.Sglist != nil {
 			_, err = writev(int(c.dev.Fd()), outMsg.Sglist)
