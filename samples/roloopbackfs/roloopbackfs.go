@@ -121,7 +121,7 @@ func (fs *readonlyLoopbackFs) ReadDir(
 	}
 
 	if op.Offset > fuseops.DirOffset(len(children)) {
-		return fuse.EIO
+		return nil
 	}
 
 	children = children[op.Offset:]
@@ -139,8 +139,13 @@ func (fs *readonlyLoopbackFs) ReadDir(
 func (fs *readonlyLoopbackFs) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) error {
-	// Allow opening any file.
+
+	var _, found = fs.inodes.Load(op.Inode)
+	if !found {
+		return fuse.ENOENT
+	}
 	return nil
+
 }
 
 func (fs *readonlyLoopbackFs) ReadFile(
