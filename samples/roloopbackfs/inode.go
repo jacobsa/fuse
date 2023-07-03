@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
-	"time"
+	"syscall"
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
@@ -53,21 +53,20 @@ func getOrCreateInode(inodes *sync.Map, parentId fuseops.InodeID, name string) (
 		return nil, nil
 	}
 	parentPath := parent.(Inode).Path()
-	entries, err := ioutil.ReadDir(parentPath)
+
+	path := filepath.Join(parentPath, name)
+	fileInfo, err := os.Stat(path)
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
-	for _, entry := range entries {
-		if entry.Name() == name {
-			inodeEntry := &inodeEntry{
-				id:   nextInodeID(),
-				path: filepath.Join(parentPath, name),
-			}
-			storedEntry, _ := inodes.LoadOrStore(inodeEntry.id, inodeEntry)
-			return storedEntry.(Inode), nil
-		}
+	stat, _ := fileInfo.Sys().(*syscall.Stat_t)
+
+	inodeEntry := &inodeEntry{
+		id:   fuseops.InodeID(stat.Ino),
+		path: path,
 	}
-	return nil, nil
+	storedEntry, _ := inodes.LoadOrStore(inodeEntry.id, inodeEntry)
+	return storedEntry.(Inode), nil
 }
 
 type inodeEntry struct {
@@ -101,16 +100,14 @@ func (in *inodeEntry) Attributes() (*fuseops.InodeAttributes, error) {
 	if err != nil {
 		return &fuseops.InodeAttributes{}, err
 	}
+
 	return &fuseops.InodeAttributes{
-		Size:   uint64(fileInfo.Size()),
-		Nlink:  1,
-		Mode:   fileInfo.Mode(),
-		Atime:  fileInfo.ModTime(),
-		Mtime:  fileInfo.ModTime(),
-		Ctime:  time.Now(),
-		Crtime: time.Now(),
-		Uid:    uid,
-		Gid:    gid,
+		Size:  uint64(fileInfo.Size()),
+		Nlink: 1,
+		Mode:  fileInfo.Mode(),
+		Mtime: fileInfo.ModTime(),
+		Uid:   uid,
+		Gid:   gid,
 	}, nil
 }
 
