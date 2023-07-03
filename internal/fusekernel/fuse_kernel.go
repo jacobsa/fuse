@@ -44,7 +44,7 @@ import (
 // The FUSE version implemented by the package.
 const (
 	ProtoVersionMinMajor = 7
-	ProtoVersionMinMinor = 19
+	ProtoVersionMinMinor = 18
 	ProtoVersionMaxMajor = 7
 	ProtoVersionMaxMinor = 31
 )
