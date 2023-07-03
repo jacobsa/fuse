@@ -218,7 +218,7 @@ func (fs *helloFS) ReadDir(
 
 	// Grab the range of interest.
 	if op.Offset > fuseops.DirOffset(len(entries)) {
-		return fuse.EIO
+		return nil
 	}
 
 	entries = entries[op.Offset:]
