@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/jacobsa/fuse/internal/buffer"
+	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
 var errNoAvail = errors.New("no available fuse devices")
@@ -380,6 +381,7 @@ func mountFuset(
 	cfg *MountConfig,
 	ready chan<- error) (dev *os.File, err error) {
 
+	fusekernel.IsPlatformFuseT = true
 	env := []string{}
 	argv := []string{
 		fmt.Sprintf("--rwsize=%d", buffer.MaxWriteSize),
@@ -405,6 +407,7 @@ func mount(
 	cfg *MountConfig,
 	ready chan<- error) (dev *os.File, err error) {
 
+	fusekernel.IsPlatformFuseT = false
 	if fuset_bin, err := fusetBinary(); err == nil {
 		return mountFuset(fuset_bin, dir, cfg, ready)
 	}
