@@ -390,7 +390,6 @@ func mountFuset(
 	env := []string{}
 	argv := []string{
 		fmt.Sprintf("--rwsize=%d", buffer.MaxWriteSize),
-		"--namedattr=false",
 	}
 
 	if cfg.VolumeName != "" {
