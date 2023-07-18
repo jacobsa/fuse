@@ -1903,27 +1903,6 @@ func (t *MemFSTest) RemoveXAttr() {
 	AssertEq(fuse.ENOATTR, err)
 }
 
-func (t *MemFSTest) ReadFileCallback() {
-	var err error
-
-	// Create a file
-	filePath := path.Join(t.Dir, "foo")
-	err = ioutil.WriteFile(filePath, []byte("taco"), 0600)
-	AssertEq(nil, err)
-
-	err = unix.Removexattr(filePath, "foo")
-	AssertEq(fuse.ENOATTR, err)
-
-	err = unix.Setxattr(filePath, "foo", []byte("bar"), unix.XATTR_CREATE)
-	AssertEq(nil, err)
-
-	err = unix.Removexattr(filePath, "foo")
-	AssertEq(nil, err)
-
-	_, err = unix.Getxattr(filePath, "foo", nil)
-	AssertEq(fuse.ENOATTR, err)
-}
-
 ////////////////////////////////////////////////////////////////////////
 // Mknod
 ////////////////////////////////////////////////////////////////////////
