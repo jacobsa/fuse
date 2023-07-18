@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/buffer"
 	"github.com/jacobsa/fuse/samples"
 	"github.com/jacobsa/fuse/samples/memfs"
 	. "github.com/jacobsa/ogletest"
@@ -38,14 +38,14 @@ func (t *MessageProviderTest) TearDown() {}
 // and tracks how often each message is called.
 type MessageProviderTestImpl struct {
 	mu                     sync.RWMutex
-	defaultMessageProvider fuse.DefaultMessageProvider
+	defaultMessageProvider buffer.DefaultMessageProvider
 	getInMessageCount      int
 	getOutMessageCount     int
 	putInMessageCount      int
 	putOutMessageCount     int
 }
 
-func (m *MessageProviderTestImpl) GetInMessage() *fuse.InMessage {
+func (m *MessageProviderTestImpl) GetInMessage() *buffer.InMessage {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -53,7 +53,7 @@ func (m *MessageProviderTestImpl) GetInMessage() *fuse.InMessage {
 	return m.defaultMessageProvider.GetInMessage()
 }
 
-func (m *MessageProviderTestImpl) GetOutMessage() *fuse.OutMessage {
+func (m *MessageProviderTestImpl) GetOutMessage() *buffer.OutMessage {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -61,7 +61,7 @@ func (m *MessageProviderTestImpl) GetOutMessage() *fuse.OutMessage {
 	return m.defaultMessageProvider.GetOutMessage()
 }
 
-func (m *MessageProviderTestImpl) PutInMessage(x *fuse.InMessage) {
+func (m *MessageProviderTestImpl) PutInMessage(x *buffer.InMessage) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -69,7 +69,7 @@ func (m *MessageProviderTestImpl) PutInMessage(x *fuse.InMessage) {
 	m.defaultMessageProvider.PutInMessage(x)
 }
 
-func (m *MessageProviderTestImpl) PutOutMessage(x *fuse.OutMessage) {
+func (m *MessageProviderTestImpl) PutOutMessage(x *buffer.OutMessage) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

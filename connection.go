@@ -25,6 +25,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/jacobsa/fuse/buffer"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
@@ -72,14 +73,14 @@ type Connection struct {
 	// GUARDED_BY(mu)
 	cancelFuncs map[uint64]func()
 
-	messageProvider MessageProvider
+	messageProvider buffer.MessageProvider
 }
 
 // State that is maintained for each in-flight op. This is stuffed into the
 // context that the user uses to reply to the op.
 type opState struct {
-	inMsg  *InMessage
-	outMsg *OutMessage
+	inMsg  *buffer.InMessage
+	outMsg *buffer.OutMessage
 	op     interface{}
 }
 
@@ -92,7 +93,7 @@ func newConnection(
 	debugLogger *log.Logger,
 	errorLogger *log.Logger,
 	dev *os.File) (*Connection, error) {
-	var messageProvider MessageProvider = &DefaultMessageProvider{}
+	var messageProvider buffer.MessageProvider = &buffer.DefaultMessageProvider{}
 	if cfg.MessageProvider != nil {
 		messageProvider = cfg.MessageProvider
 	}
@@ -156,7 +157,7 @@ func (c *Connection) Init() error {
 	// Respond to the init op.
 	initOp.Library = c.protocol
 	initOp.MaxReadahead = maxReadahead
-	initOp.MaxWrite = MaxWriteSize
+	initOp.MaxWrite = buffer.MaxWriteSize
 
 	initOp.Flags = 0
 
@@ -333,7 +334,7 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 
 // Read the next message from the kernel. The message must later be destroyed
 // using destroyInMessage.
-func (c *Connection) readMessage() (*InMessage, error) {
+func (c *Connection) readMessage() (*buffer.InMessage, error) {
 	// Allocate a message.
 	m := c.messageProvider.GetInMessage()
 

@@ -20,6 +20,8 @@ import (
 	"log"
 	"runtime"
 	"strings"
+
+	"github.com/jacobsa/fuse/buffer"
 )
 
 // Optional configuration accepted by Mount.
@@ -193,7 +195,7 @@ type MountConfig struct {
 	// back to the kernel.
 	//
 	// If this field is nil, DefaultMessageProvider will be used.
-	MessageProvider MessageProvider
+	MessageProvider buffer.MessageProvider
 }
 
 // Create a map containing all of the key=value mount options to be given to

@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fuse
+package buffer
 
-// The maximum fuse write request size that InMessage can acommodate.
+// The maximum read size that we expect to ever see from the kernel, used for
+// calculating the size of out messages.
 //
-// As of kernel 4.20 Linux accepts writes up to 256 pages or 1MiB
-const MaxWriteSize = 1 << 20
+// For 4 KiB pages, this is 1024 KiB (cf. https://github.com/torvalds/linux/blob/15db16837a35d8007cb8563358787412213db25e/fs/fuse/fuse_i.h#L38-L40)
+const MaxReadSize = 1 << 20
