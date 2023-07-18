@@ -332,7 +332,12 @@ func startFuseTServer(binary string, argv []string,
 	cmd.Env = append(cmd.Env, "_FUSE_MONFD=4")
 	cmd.Env = append(cmd.Env, additionalEnv...)
 	cmd.ExtraFiles = []*os.File{remote, remote_mon}
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = nil
+	cmd.Stdout = nil
+	// daemonize
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid: true,
+	}
 
 	// Run the command.
 	err = cmd.Start()
