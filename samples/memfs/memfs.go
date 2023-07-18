@@ -67,6 +67,9 @@ type memFS struct {
 	// INVARIANT: This is all and only indices i of 'inodes' such that i >
 	// fuseops.RootInodeID and inodes[i] == nil
 	freeInodes []fuseops.InodeID // GUARDED_BY(mu)
+
+	readFileCallback  func()
+	writeFileCallback func()
 }
 
 // Create a file system that stores data and metadata in memory.
@@ -77,11 +80,21 @@ type memFS struct {
 func NewMemFS(
 	uid uint32,
 	gid uint32) fuse.Server {
+	return NewMemFSWithCallbacks(uid, gid, nil, nil)
+}
+
+func NewMemFSWithCallbacks(
+	uid uint32,
+	gid uint32,
+	readFileCallback func(),
+	writeFileCallback func()) fuse.Server {
 	// Set up the basic struct.
 	fs := &memFS{
-		inodes: make([]*inode, fuseops.RootInodeID+1),
-		uid:    uid,
-		gid:    gid,
+		inodes:            make([]*inode, fuseops.RootInodeID+1),
+		uid:               uid,
+		gid:               gid,
+		readFileCallback:  readFileCallback,
+		writeFileCallback: writeFileCallback,
 	}
 
 	// Set up the root inode.
@@ -627,7 +640,7 @@ func (fs *memFS) OpenFile(
 		// Set attribute (name=fileOpenFlagsXattr, value=OpenFlags) to test whether
 		// we set OpenFlags correctly. The value is checked in test with getXattr.
 		value := make([]byte, 4)
-		binary.LittleEndian.PutUint32(value, uint32(op.OpenFlags))
+		binary.LittleEndian.PutUint32(value, uint32(op.OpenFlags)&syscall.O_ACCMODE)
 		err := fs.setXattrHelper(inode, &fuseops.SetXattrOp{
 			Name:  FileOpenFlagsXattrName,
 			Value: value,
@@ -653,6 +666,8 @@ func (fs *memFS) ReadFile(
 	var err error
 	op.BytesRead, err = inode.ReadAt(op.Dst, op.Offset)
 
+	op.Callback = fs.readFileCallback
+
 	// Don't return EOF errors; we just indicate EOF to fuse using a short read.
 	if err == io.EOF {
 		return nil
@@ -672,6 +687,8 @@ func (fs *memFS) WriteFile(
 
 	// Serve the request.
 	_, err := inode.WriteAt(op.Data, op.Offset)
+
+	op.Callback = fs.writeFileCallback
 
 	return err
 }

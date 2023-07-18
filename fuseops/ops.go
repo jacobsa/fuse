@@ -697,6 +697,11 @@ type ReadFileOp struct {
 	// If direct IO is enabled, semantics should match those of read(2).
 	BytesRead int
 	OpContext OpContext
+
+	// If set, this function will be invoked after the operation response has been
+	// sent to the kernel and before the buffers containing the response data are
+	// freed.
+	Callback func()
 }
 
 // Write data to a file previously opened with CreateFile or OpenFile.
@@ -757,6 +762,11 @@ type WriteFileOp struct {
 	// page at a time.
 	Data      []byte
 	OpContext OpContext
+
+	// If set, this function will be invoked after the operation response has been
+	// sent to the kernel and before the buffers containing the response data are
+	// freed.
+	Callback func()
 }
 
 // Synchronize the current contents of an open file to storage.
