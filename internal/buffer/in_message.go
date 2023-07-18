@@ -53,24 +53,6 @@ func NewInMessage() *InMessage {
 	}
 }
 
-func readAll(r io.Reader, dest []byte) (int, error) {
-	offset := 0
-
-	for offset < len(dest) {
-		// read the remaining buffer
-		n, err := r.Read(dest[offset:])
-		if n == 0 && err == nil {
-			// remote fd closed
-			return n, err
-		}
-		offset += n
-		if err != nil {
-			return offset, err
-		}
-	}
-	return offset, nil
-}
-
 var readLock sync.Mutex
 
 func (m *InMessage) ReadSingle(r io.Reader) (int, error) {
@@ -78,13 +60,13 @@ func (m *InMessage) ReadSingle(r io.Reader) (int, error) {
 	defer readLock.Unlock()
 
 	// read request length
-	if _, err := readAll(r, m.storage[0:4]); err != nil {
+	if _, err := io.ReadFull(r, m.storage[0:4]); err != nil {
 		return 0, err
 	}
 
 	l := m.Header().Len
 	// read remaining request
-	if n, err := readAll(r, m.storage[4:l]); err != nil {
+	if n, err := io.ReadFull(r, m.storage[4:l]); err != nil {
 		return n, err
 	}
 	return int(l), nil
