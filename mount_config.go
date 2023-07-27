@@ -159,9 +159,18 @@ type MountConfig struct {
 	// Use vectored reads.
 	// Vectored read allows file systems to avoid memory copying overhead if
 	// the data is already in memory when they return it to FUSE.
-	// When turned on, ReadFileOp.Dst is always nil and the FS must return data
-	// being read from the file as a list of slices in ReadFileOp.Data.
+	// When turned on, the FS must return data being read from the file as a
+	// list of slices in ReadFileOp.Data.
 	UseVectoredRead bool
+
+	// If vectored reads are enabled, the ReadFileOp.Dst buffer is nil by default.
+	// However, some file systems may still want the Dst buffer to be allocated in
+	// case they need space to hold the read data in memory. It is efficient to use
+	// the Dst buffer for this case because it reuses memory that was already
+	// allocated to read the kernel operation. However, if this flag is enabled,
+	// the file system must append the Dst buffer to ReadFileOp.Data if it wants
+	// the Dst buffer to be included in the response to the kernel.
+	AllocateReadBufferForVectoredRead bool
 
 	// OS X only.
 	//

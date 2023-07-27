@@ -678,7 +678,11 @@ type ReadFileOp struct {
 	Size int64
 
 	// The destination buffer, whose length gives the size of the read.
-	// For vectored reads, this field is always nil as the buffer is not provided.
+	// For vectored reads, this field is nil unless the file system explicitly
+	// asks for it to be provided with the AllocateReadBufferForVectoredRead flag.
+	// If vectored reads and AllocateReadBufferForVectoredRead are enabled, this
+	// buffer must be appended to Data if the file system wants it to be returned
+	// to the kernel.
 	Dst []byte
 
 	// Set by the file system:

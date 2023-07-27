@@ -379,9 +379,10 @@ func convertInMessage(
 				Pid:    inMsg.Header().Pid,
 			},
 		}
-		if !config.UseVectoredRead {
+		if !config.UseVectoredRead || config.AllocateReadBufferForVectoredRead {
 			// Use part of the incoming message storage as the read buffer
 			// For vectored zero-copy reads, don't allocate any buffers
+			// unless the FUSE server explicitly asks for it
 			to.Dst = inMsg.GetFree(int(in.Size))
 		}
 		o = to
@@ -845,7 +846,11 @@ func (c *Connection) kernelResponseForOp(
 		}
 
 	case *fuseops.ReadFileOp:
-		if o.Dst != nil {
+		if o.Dst != nil && !(c.cfg.UseVectoredRead && c.cfg.AllocateReadBufferForVectoredRead) {
+			// If vectored reads are enabled and the FUSE server explicitly asked for the Dst
+			// buffer to be allocated, we will still only return the Data buffers to the kernel.
+			// If the FUSE server wants the Dst buffer to be included in the kernel response,
+			// it must append the Dst buffer to the Data array.
 			m.Append(o.Dst)
 		} else {
 			m.Append(o.Data...)
