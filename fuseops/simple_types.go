@@ -59,6 +59,7 @@ func init() {
 // InodeAttributes contains attributes for a file or directory inode. It
 // corresponds to struct inode (cf. http://goo.gl/tvYyQt).
 type InodeAttributes struct {
+	Type Filetype
 	Size uint64
 
 	// The number of incoming hard links to this inode.
