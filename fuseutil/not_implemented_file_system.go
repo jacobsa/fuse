@@ -132,6 +132,12 @@ func (fs *NotImplementedFileSystem) ReleaseDirHandle(
 	return fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) ListDir(
+	ctx context.Context,
+	op *fuseops.ListDirOp) error {
+	return fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) OpenFile(
 	ctx context.Context,
 	op *fuseops.OpenFileOp) error {

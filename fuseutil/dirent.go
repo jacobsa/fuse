@@ -15,45 +15,15 @@
 package fuseutil
 
 import (
-	"syscall"
 	"unsafe"
 
 	"github.com/jacobsa/fuse/fuseops"
 )
 
-type DirentType uint32
-
-const (
-	DT_Unknown   DirentType = 0
-	DT_Socket    DirentType = syscall.DT_SOCK
-	DT_Link      DirentType = syscall.DT_LNK
-	DT_File      DirentType = syscall.DT_REG
-	DT_Block     DirentType = syscall.DT_BLK
-	DT_Directory DirentType = syscall.DT_DIR
-	DT_Char      DirentType = syscall.DT_CHR
-	DT_FIFO      DirentType = syscall.DT_FIFO
-)
-
-// A struct representing an entry within a directory file, describing a child.
-// See notes on fuseops.ReadDirOp and on WriteDirent for details.
-type Dirent struct {
-	// The (opaque) offset within the directory file of the entry following this
-	// one. See notes on fuseops.ReadDirOp.Offset for details.
-	Offset fuseops.DirOffset
-
-	// The inode of the child file or directory, and its name within the parent.
-	Inode fuseops.InodeID
-	Name  string
-
-	// The type of the child. The zero value (DT_Unknown) is legal, but means
-	// that the kernel will need to call GetAttr when the type is needed.
-	Type DirentType
-}
-
 // Write the supplied directory entry into the given buffer in the format
 // expected in fuseops.ReadFileOp.Data, returning the number of bytes written.
 // Return zero if the entry would not fit.
-func WriteDirent(buf []byte, d Dirent) (n int) {
+func WriteDirent(buf []byte, d fuseops.Dirent) (n int) {
 	// We want to write bytes with the layout of fuse_dirent
 	// (http://goo.gl/BmFxob) in host order. The struct must be aligned according
 	// to FUSE_DIRENT_ALIGN (http://goo.gl/UziWvH), which dictates 8-byte
