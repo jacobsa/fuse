@@ -516,10 +516,11 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 			err = c.writeMessage(outMsg.OutHeaderBytes())
 		}
 		if err != nil {
+			writeErrMsg := fmt.Sprintf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
 			if c.errorLogger != nil {
-				c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
+				c.errorLogger.Print(writeErrMsg)
 			}
-			return fmt.Errorf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
+			return fmt.Errorf(writeErrMsg)
 		}
 		outMsg.Sglist = nil
 	}
