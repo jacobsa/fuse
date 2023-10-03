@@ -193,8 +193,7 @@ func (c *Connection) Init() error {
 		initOp.Flags |= fusekernel.InitNoOpendirSupport
 	}
 
-	c.Reply(ctx, nil)
-	return nil
+	return c.Reply(ctx, nil)
 }
 
 // Log information for an operation with the given ID. calldepth is the depth
@@ -471,7 +470,7 @@ func (c *Connection) shouldLogError(
 // (or nil if successful). The context must be the context returned by ReadOp.
 //
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) Reply(ctx context.Context, opErr error) {
+func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	// Extract the state we stuffed in earlier.
 	var key interface{} = contextKey
 	foo := ctx.Value(key)
@@ -516,11 +515,16 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 		} else {
 			err = c.writeMessage(outMsg.OutHeaderBytes())
 		}
-		if err != nil && c.errorLogger != nil {
-			c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
+		if err != nil {
+			if c.errorLogger != nil {
+				c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
+			}
+			return fmt.Errorf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
 		}
 		outMsg.Sglist = nil
 	}
+
+	return nil
 }
 
 // Close the connection. Must not be called until operations that were read
