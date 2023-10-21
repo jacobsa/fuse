@@ -28,7 +28,7 @@ func extractBirthtime(sys interface{}) (birthtime time.Time, ok bool) {
 }
 
 func extractNlink(sys interface{}) (nlink uint64, ok bool) {
-	return sys.(*syscall.Stat_t).Nlink, true
+	return uint64(sys.(*syscall.Stat_t).Nlink), true
 }
 
 func getTimes(stat *syscall.Stat_t) (atime, ctime, mtime time.Time) {
