@@ -185,6 +185,9 @@ type MountConfig struct {
 	// Flag to enable async reads that are received from
 	// the kernel
 	EnableAsyncReads bool
+
+	// Flag to allow fuse library clients to ignore interrupts.
+	IgnoreInterrupts bool
 }
 
 // Create a map containing all of the key=value mount options to be given to
