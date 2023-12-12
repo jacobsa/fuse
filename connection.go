@@ -484,9 +484,18 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	outMsg := state.outMsg
 	fuseID := inMsg.Header().Unique
 
-	// Make sure we destroy the messages when we're done.
-	defer c.putInMessage(inMsg)
-	defer c.putOutMessage(outMsg)
+	defer func() {
+		// Invoke any callbacks set by the FUSE server after the response to the kernel is
+		// complete and before the inMessage and outMessage memory buffers have been freed.
+		callback := c.callbackForOp(op)
+		if callback != nil {
+			callback()
+		}
+
+		// Make sure we destroy the messages when we're done.
+		c.putInMessage(inMsg)
+		c.putOutMessage(outMsg)
+	}()
 
 	// Clean up state for this op.
 	c.finishOp(inMsg.Header().Opcode, inMsg.Header().Unique)
@@ -525,6 +534,16 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 		outMsg.Sglist = nil
 	}
 
+	return nil
+}
+
+func (c *Connection) callbackForOp(op interface{}) func() {
+	switch o := op.(type) {
+	case *fuseops.ReadFileOp:
+		return o.Callback
+	case *fuseops.WriteFileOp:
+		return o.Callback
+	}
 	return nil
 }
 
