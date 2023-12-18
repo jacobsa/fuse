@@ -595,6 +595,15 @@ type ReadDirOp struct {
 	OpContext OpContext
 }
 
+// Read all entries from a directory.
+type ListDirOp struct {
+	// The directory inode that we are reading.
+	Inode  InodeID
+
+	// All entries from the directory listing.
+	Entries []Dirent
+}
+
 // Release a previously-minted directory handle. The kernel sends this when
 // there are no more references to an open directory: all file descriptors are
 // closed and all memory mappings are unmapped.

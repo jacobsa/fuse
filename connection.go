@@ -304,6 +304,17 @@ func (c *Connection) finishOp(
 
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) handleInterrupt(fuseID uint64) {
+	// Allow fuse library clients to ignore interupt signals.
+	// NOTE(bjornleffler): Golang issues lots of SIGURG signals, which are
+	// interpreted as interuption signals.
+	// https://github.com/golang/proposal/blob/master/design/24543-non-cooperative-preemption.md
+	// It would have been preferrable to ignore SIGURG, but I couldn't
+	// figure out how to do that. From kernel documentation (https://goo.gl/H55Dnr):
+	// "The userspace filesystem may ignore the INTERRUPT requests entirely"
+	if c.cfg.IgnoreInterrupts {
+		return
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

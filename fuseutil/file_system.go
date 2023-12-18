@@ -51,6 +51,7 @@ type FileSystem interface {
 	OpenDir(context.Context, *fuseops.OpenDirOp) error
 	ReadDir(context.Context, *fuseops.ReadDirOp) error
 	ReleaseDirHandle(context.Context, *fuseops.ReleaseDirHandleOp) error
+	ListDir(context.Context, *fuseops.ListDirOp) error
 	OpenFile(context.Context, *fuseops.OpenFileOp) error
 	ReadFile(context.Context, *fuseops.ReadFileOp) error
 	WriteFile(context.Context, *fuseops.WriteFileOp) error

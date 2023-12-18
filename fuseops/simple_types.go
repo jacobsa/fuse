@@ -17,6 +17,7 @@ package fuseops
 import (
 	"fmt"
 	"os"
+	"syscall"
 	"time"
 
 	"github.com/jacobsa/fuse/internal/fusekernel"
@@ -59,6 +60,7 @@ func init() {
 // InodeAttributes contains attributes for a file or directory inode. It
 // corresponds to struct inode (cf. http://goo.gl/tvYyQt).
 type InodeAttributes struct {
+	Type Filetype
 	Size uint64
 
 	// The number of incoming hard links to this inode.
@@ -221,4 +223,36 @@ type ChildInodeEntry struct {
 	// Beware: this value is ignored on OS X, where entry caching is disabled by
 	// default. See notes on MountConfig.EnableVnodeCaching for more.
 	EntryExpiration time.Time
+}
+
+type DirentType uint32
+
+const (
+	DT_Unknown   DirentType = 0
+	DT_Socket    DirentType = syscall.DT_SOCK
+	DT_Link      DirentType = syscall.DT_LNK
+	DT_File      DirentType = syscall.DT_REG
+	DT_Block     DirentType = syscall.DT_BLK
+	DT_Directory DirentType = syscall.DT_DIR
+	DT_Char      DirentType = syscall.DT_CHR
+	DT_FIFO      DirentType = syscall.DT_FIFO
+)
+
+// A struct representing an entry within a directory file, describing a child.
+// See notes on ReadDirOp and on WriteDirent for details.
+type Dirent struct {
+	// The (opaque) offset within the directory file of the entry following this
+	// one. See notes on ReadDirOp.Offset for details.
+	Offset DirOffset
+
+	// The inode of the child file or directory, and its name within the parent.
+	Inode InodeID
+	Name  string
+
+	// The type of the child. The zero value (DT_Unknown) is legal, but means
+	// that the kernel will need to call GetAttr when the type is needed.
+	Type DirentType
+
+	// Inode attributes for the entry.
+	Attributes InodeAttributes
 }
