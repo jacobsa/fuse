@@ -193,8 +193,7 @@ func (c *Connection) Init() error {
 		initOp.Flags |= fusekernel.InitNoOpendirSupport
 	}
 
-	c.Reply(ctx, nil)
-	return nil
+	return c.Reply(ctx, nil)
 }
 
 // Log information for an operation with the given ID. calldepth is the depth
@@ -305,6 +304,17 @@ func (c *Connection) finishOp(
 
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) handleInterrupt(fuseID uint64) {
+	// Allow fuse library clients to ignore interupt signals.
+	// NOTE(bjornleffler): Golang issues lots of SIGURG signals, which are
+	// interpreted as interuption signals.
+	// https://github.com/golang/proposal/blob/master/design/24543-non-cooperative-preemption.md
+	// It would have been preferrable to ignore SIGURG, but I couldn't
+	// figure out how to do that. From kernel documentation (https://goo.gl/H55Dnr):
+	// "The userspace filesystem may ignore the INTERRUPT requests entirely"
+	if c.cfg.IgnoreInterrupts {
+		return
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -471,7 +481,7 @@ func (c *Connection) shouldLogError(
 // (or nil if successful). The context must be the context returned by ReadOp.
 //
 // LOCKS_EXCLUDED(c.mu)
-func (c *Connection) Reply(ctx context.Context, opErr error) {
+func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	// Extract the state we stuffed in earlier.
 	var key interface{} = contextKey
 	foo := ctx.Value(key)
@@ -516,11 +526,17 @@ func (c *Connection) Reply(ctx context.Context, opErr error) {
 		} else {
 			err = c.writeMessage(outMsg.OutHeaderBytes())
 		}
-		if err != nil && c.errorLogger != nil {
-			c.errorLogger.Printf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
+		if err != nil {
+			writeErrMsg := fmt.Sprintf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
+			if c.errorLogger != nil {
+				c.errorLogger.Print(writeErrMsg)
+			}
+			return fmt.Errorf(writeErrMsg)
 		}
 		outMsg.Sglist = nil
 	}
+
+	return nil
 }
 
 // Close the connection. Must not be called until operations that were read
