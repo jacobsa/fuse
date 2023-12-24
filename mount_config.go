@@ -118,8 +118,8 @@ type MountConfig struct {
 	//
 	// Normally on OS X we mount with the novncache option
 	// (https://tinyurl.com/52hz9vya), which disables entry caching in the
-	// kernel. This is because osxfuse does not honor the entry expiration values
-	// we return to it, instead caching potentially forever
+	// kernel. This is because macFUSE (osxfuse) does not honor the entry
+	// expiration values we return to it, instead caching potentially forever
 	// (https://tinyurl.com/2rr6cd3m), and it is probably better to fail to cache
 	// than to cache for too long, since the latter is more likely to hide
 	// consistency bugs that are difficult to detect and diagnose.
@@ -167,8 +167,15 @@ type MountConfig struct {
 	// OS X only.
 	//
 	// The name of the mounted volume, as displayed in the Finder. If empty, a
-	// default name involving the string 'osxfuse' is used.
+	// default name involving the string 'osxfuse' (the old name of macFUSE)
+	// is used.
 	VolumeName string
+
+	// OS X only.
+	//
+	// The FUSE implementation to use. One of FUSEImplFuseT (default) or
+	// FUSEImplMacFUSE.
+	FuseImpl FUSEImpl
 
 	// Additional key=value options to pass unadulterated to the underlying mount
 	// command. See `man 8 mount`, the fuse documentation, etc. for
@@ -192,6 +199,13 @@ type MountConfig struct {
 	// Ref: https://github.com/torvalds/linux/commit/5c672ab3f0ee0f78f7acad183f34db0f8781a200
 	EnableParallelDirOps bool
 }
+
+type FUSEImpl uint8
+
+const (
+	FUSEImplFuseT = iota
+	FUSEImplMacFUSE
+)
 
 // Create a map containing all of the key=value mount options to be given to
 // the mount helper.
