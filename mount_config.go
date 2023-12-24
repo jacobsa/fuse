@@ -169,6 +169,11 @@ type MountConfig struct {
 	// default name involving the string 'osxfuse' is used.
 	VolumeName string
 
+	// OS X only.
+	//
+	// FuseType choice FUSE impl By OsxFuse/Fuse-T,default is OsxFuse
+	FuseType FuseType
+
 	// Additional key=value options to pass unadulterated to the underlying mount
 	// command. See `man 8 mount`, the fuse documentation, etc. for
 	// system-specific information.
@@ -186,6 +191,13 @@ type MountConfig struct {
 	// the kernel
 	EnableAsyncReads bool
 }
+
+type FuseType uint8
+
+const (
+	FuseTypeOsxFuse = iota + 1
+	FuseTypeFuseT
+)
 
 // Create a map containing all of the key=value mount options to be given to
 // the mount helper.

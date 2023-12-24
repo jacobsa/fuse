@@ -381,10 +381,13 @@ func startFuseTServer(binary string, argv []string,
 }
 
 func mountFuset(
-	bin string,
 	dir string,
 	cfg *MountConfig,
 	ready chan<- error) (dev *os.File, err error) {
+	fuseTBin, err := fusetBinary()
+	if err != nil {
+		return nil, err
+	}
 
 	fusekernel.IsPlatformFuseT = true
 	env := []string{}
@@ -403,7 +406,7 @@ func mountFuset(
 	env = append(env, "_FUSE_COMMVERS=2")
 	argv = append(argv, dir)
 
-	return startFuseTServer(bin, argv, env, false, cfg.DebugLogger, ready)
+	return startFuseTServer(fuseTBin, argv, env, false, cfg.DebugLogger, ready)
 }
 
 func mount(
@@ -412,8 +415,13 @@ func mount(
 	ready chan<- error) (dev *os.File, err error) {
 
 	fusekernel.IsPlatformFuseT = false
-	if fuset_bin, err := fusetBinary(); err == nil {
-		return mountFuset(fuset_bin, dir, cfg, ready)
+	switch cfg.FuseType {
+	case FuseTypeFuseT:
+		dev, err = mountFuset(dir, cfg, ready)
+	case FuseTypeOsxFuse:
+		fallthrough
+	default:
+		dev, err = mountOsxFuse(dir, cfg, ready)
 	}
-	return mountOsxFuse(dir, cfg, ready)
+	return
 }
