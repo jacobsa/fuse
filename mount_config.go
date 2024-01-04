@@ -171,7 +171,7 @@ type MountConfig struct {
 
 	// OS X only.
 	//
-	// FuseType choice FUSE impl By OsxFuse/Fuse-T,default is OsxFuse
+	// FuseType choice FUSE impl By Fuse-T/OsxFuse,default is Fuse-T
 	FuseType FuseType
 
 	// Additional key=value options to pass unadulterated to the underlying mount

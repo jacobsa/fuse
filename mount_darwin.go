@@ -416,12 +416,12 @@ func mount(
 
 	fusekernel.IsPlatformFuseT = false
 	switch cfg.FuseType {
-	case FuseTypeFuseT:
-		dev, err = mountFuset(dir, cfg, ready)
 	case FuseTypeOsxFuse:
+		dev, err = mountOsxFuse(dir, cfg, ready)
+	case FuseTypeFuseT:
 		fallthrough
 	default:
-		dev, err = mountOsxFuse(dir, cfg, ready)
+		dev, err = mountFuset(dir, cfg, ready)
 	}
 	return
 }
