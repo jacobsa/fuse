@@ -977,7 +977,7 @@ type FallocateOp struct {
 	// If Mode is 0x0, allocate disk space within the range specified
 	// If Mode has 0x1, allocate the space but don't increase the file size
 	// If Mode has 0x2, deallocate space within the range specified
-	// If Mode has 0x2, it sbould also have 0x1 (deallocate should not increase
+	// If Mode has 0x3, it should also have 0x1 (deallocate should not increase
 	// file size)
 	Mode      uint32
 	OpContext OpContext
