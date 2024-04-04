@@ -266,6 +266,7 @@ const (
 	InitAsyncDIO         InitFlags = 1 << 15
 	InitWritebackCache   InitFlags = 1 << 16
 	InitNoOpenSupport    InitFlags = 1 << 17
+	InitParallelDirOps   InitFlags = 1 << 18
 	InitMaxPages         InitFlags = 1 << 22
 	InitCacheSymlinks    InitFlags = 1 << 23
 	InitNoOpendirSupport InitFlags = 1 << 24
