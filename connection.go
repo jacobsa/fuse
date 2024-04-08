@@ -193,6 +193,11 @@ func (c *Connection) Init() error {
 		initOp.Flags |= fusekernel.InitNoOpendirSupport
 	}
 
+	// Tell the Kernel to allow sending parallel lookup and readdir operations.
+	if c.cfg.EnableParallelDirOps {
+		initOp.Flags |= fusekernel.InitParallelDirOps
+	}
+
 	return c.Reply(ctx, nil)
 }
 
