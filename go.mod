@@ -9,8 +9,8 @@ require (
 	github.com/jacobsa/syncutil v0.0.0-20180201203307-228ac8e5a6c3
 	github.com/jacobsa/timeutil v0.0.0-20170205232429-577e5acbbcf6
 	github.com/kylelemons/godebug v1.1.0
-	golang.org/x/net v0.17.0
-	golang.org/x/sys v0.13.0
+	golang.org/x/net v0.23.0
+	golang.org/x/sys v0.18.0
 )
 
 require (
