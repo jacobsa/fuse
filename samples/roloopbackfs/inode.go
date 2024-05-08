@@ -116,12 +116,12 @@ func (in *inodeEntry) ListChildren(inodes *sync.Map) ([]*fuseutil.Dirent, error)
 	if err != nil {
 		return nil, err
 	}
-	dirents := make([]*fuseutil.Dirent, len(children))
+	dirents := []*fuseutil.Dirent{}
 	for i, child := range children {
 
 		childInode, err := getOrCreateInode(inodes, in.id, child.Name())
 		if err != nil || childInode == nil {
-			return nil, nil
+			continue
 		}
 
 		var childType fuseutil.DirentType
@@ -133,12 +133,12 @@ func (in *inodeEntry) ListChildren(inodes *sync.Map) ([]*fuseutil.Dirent, error)
 			childType = fuseutil.DT_File
 		}
 
-		dirents[i] = &fuseutil.Dirent{
+		dirents = append(dirents, &fuseutil.Dirent{
 			Offset: fuseops.DirOffset(i + 1),
 			Inode:  childInode.Id(),
 			Name:   child.Name(),
 			Type:   childType,
-		}
+		})
 	}
 	return dirents, nil
 }
