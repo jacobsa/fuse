@@ -525,12 +525,13 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	noResponse := c.kernelResponse(outMsg, inMsg.Header().Unique, op, opErr)
 
 	if !noResponse {
-		// writev is not atomic
-		writeLock.Lock()
-		defer writeLock.Unlock()
-
 		var err error
 		if outMsg.Sglist != nil {
+			if fusekernel.IsPlatformFuseT {
+				// writev is not atomic on macos, restrict to fuse-t platform
+				writeLock.Lock()
+				defer writeLock.Unlock()
+			}
 			_, err = writev(int(c.dev.Fd()), outMsg.Sglist)
 		} else {
 			err = c.writeMessage(outMsg.OutHeaderBytes())
