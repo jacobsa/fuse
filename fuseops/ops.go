@@ -982,3 +982,8 @@ type FallocateOp struct {
 	Mode      uint32
 	OpContext OpContext
 }
+
+type SyncFSOp struct {
+	Inode     InodeID
+	OpContext OpContext
+}
