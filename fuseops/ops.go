@@ -500,6 +500,12 @@ type OpenDirOp struct {
 	// a later call to ReleaseDirHandle.
 	Handle    HandleID
 	OpContext OpContext
+
+	// Convey the kernel to cache the directory contents in the page cache.
+	CacheDirContentsAsPageCache bool
+
+	// Either to keep previous directory contents page cache or not.
+	KeepDirectoryContentsPageCache bool
 }
 
 // Read entries from a directory previously opened with OpenDir.
