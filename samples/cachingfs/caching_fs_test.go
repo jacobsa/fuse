@@ -873,7 +873,7 @@ func (t *DirCacheTest) NoCacheDirAndNoKeepDirCache() {
 	AssertNe(names1[1], names2[1])
 }
 
-func (t *DirCacheTest) CacheDirWithChangingKeepCacheDir() {
+func (t *DirCacheTest) CacheDirWithChangingKeepDirCache() {
 	t.fs.SetCacheDir(true)
 	t.fs.SetKeepDirCache(false)
 
@@ -924,7 +924,7 @@ func (t *DirCacheTest) CacheDirWithChangingKeepCacheDir() {
 	AssertNe(names2[1], names3[1])
 }
 
-func (t *DirCacheTest) ChangingCacheDirWithKeepCacheDir() {
+func (t *DirCacheTest) ChangingCacheDirWithKeepDirCache() {
 	t.fs.SetCacheDir(true)
 	t.fs.SetKeepDirCache(true)
 
@@ -958,7 +958,7 @@ func (t *DirCacheTest) ChangingCacheDirWithKeepCacheDir() {
 	AssertNe(names1[1], names2[1])
 
 	// Third read will be served from cache.
-	// But first read response is cached, since KeepCacheDir.
+	// But first read response is cached, since KeepDirCache.
 	t.fs.SetCacheDir(true)
 
 	// Third read, will be served from filesystem. So, names will be different.
