@@ -16,7 +16,6 @@ package cachingfs_test
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -683,7 +682,6 @@ func (t *PageCacheTest) TwoFileHandles_NoKeepCache() {
 
 func (t *PageCacheTest) TwoFileHandles_KeepCache() {
 	t.fs.SetKeepCache(true)
-	fmt.Print(t.Dir)
 
 	// Open the file.
 	f1, err := os.Open(path.Join(t.Dir, "foo"))

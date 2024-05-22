@@ -501,7 +501,7 @@ type OpenDirOp struct {
 	Handle    HandleID
 	OpContext OpContext
 
-	// CacheDir conveys the kernel to cache the response of next
+	// CacheDir conveys to the kernel to cache the response of next
 	// ReadDirOp as page cache. Once cached, listing on that directory will be
 	// served from the kernel until invalidated.
 	CacheDir bool

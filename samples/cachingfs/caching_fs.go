@@ -50,7 +50,7 @@ const (
 // file's data in the page cache or not.
 //
 // Each directory responds to readdir with random entries (different names).
-// SetCacheDir and  SetKeepDirCache can be used to control whether the response
+// SetCacheDir and SetKeepDirCache can be used to control whether the response
 // to OpenDirOp tells the kernel to cache the next response of ReadDirOp
 // in cache, or invalidate the existing cached entry in page cache.
 type CachingFS interface {
