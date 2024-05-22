@@ -723,3 +723,253 @@ func (t *PageCacheTest) TwoFileHandles_KeepCache() {
 
 	ExpectTrue(bytes.Equal(c1, c3))
 }
+
+////////////////////////////////////////////////////////////////////////
+// Dir cache
+////////////////////////////////////////////////////////////////////////
+
+type DirCacheTest struct {
+	cachingFSTest
+}
+
+var _ SetUpInterface = &DirCacheTest{}
+
+func init() { RegisterTestSuite(&DirCacheTest{}) }
+
+func (t *DirCacheTest) SetUp(ti *TestInfo) {
+	const (
+		lookupEntryTimeout = 0
+		getattrTimeout     = 0
+	)
+
+	t.cachingFSTest.setUp(ti, lookupEntryTimeout, getattrTimeout)
+}
+
+func (t *DirCacheTest) CacheDirAndKeepDirCache() {
+	t.fs.SetCacheDir(true)
+	t.fs.SetKeepDirCache(true)
+
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(path.Join(t.Dir, "dir"))
+	defer f.Close() // Make sure to close specially required in failure scenario.
+	AssertEq(nil, err)
+
+	names1, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names1))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	// Second read, will be served from cache.
+	f, err = os.Open(path.Join(t.Dir, "dir"))
+	AssertEq(nil, err)
+
+	names2, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names2))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	AssertEq(names1[0], names2[0])
+	AssertEq(names1[1], names2[1])
+}
+
+func (t *DirCacheTest) NoCacheDirAndKeepDirCache() {
+	t.fs.SetCacheDir(false)
+	t.fs.SetKeepDirCache(true)
+
+	// First read, no caching since NoCacheDir.
+	f, err := os.Open(path.Join(t.Dir, "dir"))
+	defer f.Close() // Make sure to close specially required in failure scenario.
+	AssertEq(nil, err)
+
+	names1, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names1))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	// Second read, will be served from filesystem, hence different name.
+	f, err = os.Open(path.Join(t.Dir, "dir"))
+	AssertEq(nil, err)
+
+	names2, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names2))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	AssertNe(names1[0], names2[0])
+	AssertNe(names1[1], names2[1])
+}
+
+func (t *DirCacheTest) CacheDirAndNoKeepDirCache() {
+	t.fs.SetCacheDir(true)
+	t.fs.SetKeepDirCache(false)
+
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(path.Join(t.Dir, "dir"))
+	defer f.Close() // Make sure to close specially required in failure scenario.
+	AssertEq(nil, err)
+
+	names1, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names1))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	// Second read, cached response will be invalidated since NoKeepDirCache.
+	// Hence, different names.
+	f, err = os.Open(path.Join(t.Dir, "dir"))
+	AssertEq(nil, err)
+
+	names2, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names2))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	AssertNe(names1[0], names2[0])
+	AssertNe(names1[1], names2[1])
+}
+
+func (t *DirCacheTest) NoCacheDirAndNoKeepDirCache() {
+	t.fs.SetCacheDir(false)
+	t.fs.SetKeepDirCache(false)
+
+	// First read, no caching since NoCacheDir.
+	f, err := os.Open(path.Join(t.Dir, "dir"))
+	defer f.Close() // Make sure to close specially required in failure scenario.
+	AssertEq(nil, err)
+
+	names1, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names1))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	// Second read, will be served from filesystem.
+	// Since NoCacheDir also NoKeepDirCache. Hence, different names.
+	f, err = os.Open(path.Join(t.Dir, "dir"))
+	AssertEq(nil, err)
+
+	names2, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names2))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	AssertNe(names1[0], names2[0])
+	AssertNe(names1[1], names2[1])
+}
+
+func (t *DirCacheTest) CacheDirWithChangingKeepDirCache() {
+	t.fs.SetCacheDir(true)
+	t.fs.SetKeepDirCache(false)
+
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(path.Join(t.Dir, "dir"))
+	defer f.Close() // Make sure to close specially required in failure scenario.
+	AssertEq(nil, err)
+
+	names1, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names1))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	// Cached response will not be invalidated. Hence, served from kernel cache.
+	t.fs.SetKeepDirCache(true)
+	// Second read, will be served from cache
+	f, err = os.Open(path.Join(t.Dir, "dir"))
+	AssertEq(nil, err)
+
+	names2, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names2))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	AssertEq(names1[0], names2[0])
+	AssertEq(names1[1], names2[1])
+
+	// Kernel has cached but invalidated due to NoKeepDirCache.
+	// Hence, third read will be served from filesystem.
+	t.fs.SetKeepDirCache(false)
+
+	// Third read, will be served from filesystem. So, names will be different.
+	f, err = os.Open(path.Join(t.Dir, "dir"))
+	AssertEq(nil, err)
+
+	names3, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names3))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	AssertNe(names2[0], names3[0])
+	AssertNe(names2[1], names3[1])
+}
+
+func (t *DirCacheTest) ChangingCacheDirWithKeepDirCache() {
+	t.fs.SetCacheDir(true)
+	t.fs.SetKeepDirCache(true)
+
+	// First read, kernel will cache the dir response.
+	f, err := os.Open(path.Join(t.Dir, "dir"))
+	defer f.Close() // Make sure to close specially required in failure scenario.
+	AssertEq(nil, err)
+
+	names1, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names1))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	// Cached response will not be invalidated, but also not be served from cache.
+	// Since NoCacheDir so names will be different.
+	t.fs.SetCacheDir(false)
+	// Second read, will be served from filesystem.
+	f, err = os.Open(path.Join(t.Dir, "dir"))
+	AssertEq(nil, err)
+
+	names2, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names2))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	AssertNe(names1[0], names2[0])
+	AssertNe(names1[1], names2[1])
+
+	// Third read will be served from cache.
+	// But first read response is cached, since KeepDirCache.
+	t.fs.SetCacheDir(true)
+
+	// Third read, will be served from filesystem. So, names will be different.
+	f, err = os.Open(path.Join(t.Dir, "dir"))
+	AssertEq(nil, err)
+
+	names3, err := f.Readdirnames(-1)
+	AssertEq(nil, err)
+	AssertEq(2, len(names3))
+
+	err = f.Close()
+	AssertEq(nil, err)
+
+	AssertEq(names1[0], names3[0])
+	AssertEq(names1[1], names3[1])
+}

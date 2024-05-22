@@ -853,6 +853,14 @@ func (c *Connection) kernelResponseForOp(
 		out := (*fusekernel.OpenOut)(m.Grow(int(unsafe.Sizeof(fusekernel.OpenOut{}))))
 		out.Fh = uint64(o.Handle)
 
+		if o.CacheDir {
+			out.OpenFlags |= uint32(fusekernel.OpenCacheDir)
+		}
+
+		if o.KeepCache {
+			out.OpenFlags |= uint32(fusekernel.OpenKeepCache)
+		}
+
 	case *fuseops.ReadDirOp:
 		// convertInMessage already set up the destination buffer to be at the end
 		// of the out message. We need only shrink to the right size based on how

@@ -48,6 +48,11 @@ const (
 // Each file responds to reads with random contents. SetKeepCache can be used
 // to control whether the response to OpenFileOp tells the kernel to keep the
 // file's data in the page cache or not.
+//
+// Each directory responds to readdir with random entries (different names).
+// SetCacheDir and SetKeepDirCache can be used to control whether the response
+// to OpenDirOp tells the kernel to cache the next response of ReadDirOp
+// in cache, or invalidate the existing cached entry in page cache.
 type CachingFS interface {
 	fuseutil.FileSystem
 
@@ -66,6 +71,14 @@ type CachingFS interface {
 	// Instruct the file system whether or not to reply to OpenFileOp with
 	// FOPEN_KEEP_CACHE set.
 	SetKeepCache(keep bool)
+
+	// Instruct the file system whether or not to reply to OpenDirOp with
+	// FOPEN_KEEP_CACHE set.
+	SetKeepDirCache(keep bool)
+
+	// Instruct the file system whether or not to reply to OpenDirOp with
+	// FOPEN_CACHE_DIR set.
+	SetCacheDir(cacheDir bool)
 }
 
 // Create a file system that issues cacheable responses according to the
@@ -125,6 +138,10 @@ type cachingFS struct {
 
 	// GUARDED_BY(mu)
 	keepPageCache bool
+
+	// GUARDED_BY(mu)
+	keepDirCache bool
+	cacheDir     bool
 
 	// The current ID of the lowest numbered non-root inode.
 	//
@@ -202,6 +219,17 @@ func (fs *cachingFS) barAttrs() fuseops.InodeAttributes {
 	}
 }
 
+func randomString(len int) string {
+	bytes := make([]byte, len)
+	nn, err := rand.Read(bytes)
+
+	if err != nil || len != nn {
+		return ""
+	}
+
+	return string(bytes)
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Public interface
 ////////////////////////////////////////////////////////////////////////
@@ -252,6 +280,22 @@ func (fs *cachingFS) SetKeepCache(keep bool) {
 	defer fs.mu.Unlock()
 
 	fs.keepPageCache = keep
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *cachingFS) SetKeepDirCache(keep bool) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	fs.keepDirCache = keep
+}
+
+// LOCKS_EXCLUDED(fs.mu)
+func (fs *cachingFS) SetCacheDir(cacheDir bool) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	fs.cacheDir = cacheDir
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -349,6 +393,51 @@ func (fs *cachingFS) GetInodeAttributes(
 func (fs *cachingFS) OpenDir(
 	ctx context.Context,
 	op *fuseops.OpenDirOp) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	op.CacheDir = fs.cacheDir
+	op.KeepCache = fs.keepDirCache
+
+	return nil
+}
+
+func (fs *cachingFS) ReadDir(
+	ctx context.Context,
+	op *fuseops.ReadDirOp) error {
+
+	entries := []fuseutil.Dirent{
+		{
+			Offset: 1,
+			Inode:  101,
+			Name:   "rdir" + randomString(4),
+			Type:   fuseutil.DT_Directory,
+		},
+		{
+			Offset: 2,
+			Inode:  102,
+			Name:   "rfoo" + randomString(4),
+			Type:   fuseutil.DT_File,
+		},
+	}
+
+	// Grab the range of interest.
+	if op.Offset > fuseops.DirOffset(len(entries)) {
+		return fuse.EIO
+	}
+
+	entries = entries[op.Offset:]
+
+	// Resume at the specified offset into the array.
+	for _, e := range entries {
+		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], e)
+		if n == 0 {
+			break
+		}
+
+		op.BytesRead += n
+	}
+
 	return nil
 }
 

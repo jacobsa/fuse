@@ -227,6 +227,7 @@ const (
 	OpenDirectIO    OpenResponseFlags = 1 << 0 // bypass page cache for this open file
 	OpenKeepCache   OpenResponseFlags = 1 << 1 // don't invalidate the data cache on open
 	OpenNonSeekable OpenResponseFlags = 1 << 2 // mark the file as non-seekable (not supported on OS X)
+	OpenCacheDir    OpenResponseFlags = 1 << 3 // allow caching this directory
 
 	OpenPurgeAttr OpenResponseFlags = 1 << 30 // OS X
 	OpenPurgeUBC  OpenResponseFlags = 1 << 31 // OS X
@@ -240,6 +241,7 @@ var openResponseFlagNames = []flagName{
 	{uint32(OpenDirectIO), "OpenDirectIO"},
 	{uint32(OpenKeepCache), "OpenKeepCache"},
 	{uint32(OpenNonSeekable), "OpenNonSeekable"},
+	{uint32(OpenCacheDir), "OpenCacheDir"},
 	{uint32(OpenPurgeAttr), "OpenPurgeAttr"},
 	{uint32(OpenPurgeUBC), "OpenPurgeUBC"},
 }
