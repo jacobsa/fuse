@@ -115,6 +115,9 @@ func describeRequest(op interface{}) (s string) {
 		addComponent("offset %d", typed.Offset)
 		addComponent("length %d", typed.Length)
 		addComponent("mode %d", typed.Mode)
+
+	case *fuseops.ReleaseFileHandleOp:
+		addComponent("Handle %d", typed.Handle)
 	}
 
 	// Use just the name if there is no extra info.
@@ -140,6 +143,11 @@ func describeResponse(op interface{}) string {
 		if entry, ok := f.Interface().(fuseops.ChildInodeEntry); ok {
 			addComponent("inode %v", entry.Child)
 		}
+	}
+
+	switch typed := op.(type) {
+	case *fuseops.OpenFileOp:
+		addComponent("Handle %d", typed.Handle)
 	}
 
 	return fmt.Sprintf("%s", strings.Join(components, ", "))
