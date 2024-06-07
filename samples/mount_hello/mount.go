@@ -50,6 +50,7 @@ func main() {
 
 	cfg := &fuse.MountConfig{
 		ReadOnly: *fReadOnly,
+		FuseType: fuse.FuseTypeOsxFuse,
 	}
 
 	if *fDebug {
