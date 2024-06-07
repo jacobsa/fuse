@@ -117,7 +117,7 @@ func describeRequest(op interface{}) (s string) {
 		addComponent("mode %d", typed.Mode)
 
 	case *fuseops.ReleaseFileHandleOp:
-		addComponent("Handle %d", typed.Handle)
+		addComponent("handle %d", typed.Handle)
 	}
 
 	// Use just the name if there is no extra info.
@@ -147,7 +147,7 @@ func describeResponse(op interface{}) string {
 
 	switch typed := op.(type) {
 	case *fuseops.OpenFileOp:
-		addComponent("Handle %d", typed.Handle)
+		addComponent("handle %d", typed.Handle)
 	}
 
 	return fmt.Sprintf("%s", strings.Join(components, ", "))
