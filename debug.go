@@ -144,11 +144,10 @@ func describeResponse(op interface{}) string {
 			addComponent("inode %v", entry.Child)
 		}
 	}
-
 	switch typed := op.(type) {
 	case *fuseops.OpenFileOp:
 		addComponent("handle %d", typed.Handle)
 	}
 
-	return fmt.Sprintf("%s", strings.Join(components, ", "))
+	return fmt.Sprintf("%s (%s)", opName(op), strings.Join(components, ", "))
 }
