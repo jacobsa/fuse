@@ -84,6 +84,7 @@ func directmount(dir string, cfg *MountConfig) (*os.File, error) {
 		mountflag = fn(mountflag)
 		delete(opts, k)
 	}
+	fsname := opts["fsname"]
 	delete(opts, "fsname") // handled via fstype mount(2) parameter
 	fstype := "fuse"
 	if subtype, ok := opts["subtype"]; ok {
@@ -96,11 +97,11 @@ func directmount(dir string, cfg *MountConfig) (*os.File, error) {
 		cfg.DebugLogger.Println("Starting the unix mounting")
 	}
 	if err := unix.Mount(
-		cfg.FSName, // source
-		dir,        // target
-		fstype,     // fstype
-		mountflag,  // mountflag
-		data,       // data
+		fsname,    // source
+		dir,       // target
+		fstype,    // fstype
+		mountflag, // mountflag
+		data,      // data
 	); err != nil {
 		if err == syscall.EPERM {
 			return nil, errFallback
