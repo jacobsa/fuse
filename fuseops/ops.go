@@ -437,7 +437,6 @@ type CreateLinkOp struct {
 //     posix and the man pages are imprecise about the actual semantics of a
 //     rename if it's not atomic, so it is probably not disastrous to be loose
 //     about this.
-//
 type RenameOp struct {
 	// The old parent directory, and the name of the entry within it to be
 	// relocated.
