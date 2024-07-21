@@ -27,7 +27,7 @@ import (
 // RootInodeID.
 //
 // This corresponds to struct inode::i_no in the VFS layer.
-// (Cf. http://goo.gl/tvYyQt)
+// (https://tinyurl.com/23sr9svd)
 type InodeID uint64
 
 // RootInodeID is a distinguished inode ID that identifies the root of the file
@@ -57,7 +57,7 @@ func init() {
 }
 
 // InodeAttributes contains attributes for a file or directory inode. It
-// corresponds to struct inode (cf. http://goo.gl/tvYyQt).
+// corresponds to struct inode (https://tinyurl.com/23sr9svd).
 type InodeAttributes struct {
 	Size uint64
 
@@ -70,20 +70,20 @@ type InodeAttributes struct {
 	// Note that in contrast to the defaults for FUSE, this package mounts file
 	// systems in a manner such that the kernel checks inode permissions in the
 	// standard posix way. This is implemented by setting the default_permissions
-	// mount option (cf. http://goo.gl/1LxOop and http://goo.gl/1pTjuk).
+	// mount option (https://tinyurl.com/ytun2zsn, https://tinyurl.com/52hz9vya).
 	//
 	// For example, in the case of mkdir:
 	//
-	//  *  (http://goo.gl/JkdxDI) sys_mkdirat calls inode_permission.
+	//  *  (https://tinyurl.com/4yp9bu3h) sys_mkdirat calls inode_permission.
 	//
 	//  *  (...) inode_permission eventually calls do_inode_permission.
 	//
-	//  *  (http://goo.gl/aGCsmZ) calls i_op->permission, which is
-	//     fuse_permission (cf. http://goo.gl/VZ9beH).
+	//  *  (https://tinyurl.com/5f9k2eya) calls i_op->permission, which is
+	//     fuse_permission (https://tinyurl.com/4kevbw27).
 	//
-	//  *  (http://goo.gl/5kqUKO) fuse_permission doesn't do anything at all for
-	//     several code paths if FUSE_DEFAULT_PERMISSIONS is unset. In contrast,
-	//     if that flag *is* set, then it calls generic_permission.
+	//  *  (https://tinyurl.com/nfea3pwj) fuse_permission doesn't do anything at
+	//     all for several code paths if FUSE_DEFAULT_PERMISSIONS is unset. In
+	//     contrast, if that flag *is* set, then it calls generic_permission.
 	//
 	Mode os.FileMode
 
@@ -117,15 +117,15 @@ func (a *InodeAttributes) DebugString() string {
 // when an ID is reused.
 //
 // This corresponds to struct inode::i_generation in the VFS layer.
-// (Cf. http://goo.gl/tvYyQt)
+// (https://tinyurl.com/23sr9svd)
 //
 // Some related reading:
 //
 //	http://fuse.sourceforge.net/doxygen/structfuse__entry__param.html
 //	http://stackoverflow.com/q/11071996/1505451
-//	http://goo.gl/CqvwyX
+//	https://tinyurl.com/yn7wmcmy
 //	http://julipedia.meroh.net/2005/09/nfs-file-handles.html
-//	http://goo.gl/wvo3MB
+//	https://tinyurl.com/2c8vsfrs
 type GenerationNumber uint64
 
 // HandleID is an opaque 64-bit number used to identify a particular open
@@ -160,7 +160,7 @@ type ChildInodeEntry struct {
 	// Ownership information in particular must be set to something reasonable or
 	// by default root will own everything and unprivileged users won't be able
 	// to do anything useful. In traditional file systems in the kernel, the
-	// function inode_init_owner (http://goo.gl/5qavg8) contains the
+	// function inode_init_owner (https://tinyurl.com/5yfdrfdf) contains the
 	// standards-compliant logic for this.
 	Attributes InodeAttributes
 
@@ -169,16 +169,19 @@ type ChildInodeEntry struct {
 	//
 	// For example, this is the abridged call chain for fstat(2):
 	//
-	//  *  (http://goo.gl/tKBH1p) fstat calls vfs_fstat.
-	//  *  (http://goo.gl/3HeITq) vfs_fstat eventuall calls vfs_getattr_nosec.
-	//  *  (http://goo.gl/DccFQr) vfs_getattr_nosec calls i_op->getattr.
-	//  *  (http://goo.gl/dpKkst) fuse_getattr calls fuse_update_attributes.
-	//  *  (http://goo.gl/yNlqPw) fuse_update_attributes uses the values in the
-	//     struct inode if allowed, otherwise calling out to the user-space code.
+	//  *  (https://tinyurl.com/bdd6ek3c) fstat calls vfs_fstat.
+	//  *  (https://tinyurl.com/3enne935) vfs_fstat eventuall calls
+	//     vfs_getattr_nosec.
+	//  *  (https://tinyurl.com/y5rkhzx4) vfs_getattr_nosec calls i_op->getattr.
+	//  *  (https://tinyurl.com/33hawubc) fuse_getattr calls
+	//     fuse_update_attributes.
+	//  *  (https://tinyurl.com/ywhhshxt) fuse_update_attributes uses the values
+	//      in the struct inode if allowed, otherwise calling out to the
+	//      user-space code.
 	//
 	// In addition to obvious cases like fstat, this is also used in more subtle
-	// cases like updating size information before seeking (http://goo.gl/2nnMFa)
-	// or reading (http://goo.gl/FQSWs8).
+	// cases like updating size information before seeking
+	// (https://tinyurl.com/hv2jabnh) or reading (https://tinyurl.com/bdkpz96v).
 	//
 	// Most 'real' file systems do not set inode_operations::getattr, and
 	// therefore vfs_getattr_nosec calls generic_fillattr which simply grabs the
@@ -205,16 +208,18 @@ type ChildInodeEntry struct {
 	// As in the discussion of attribute caching above, unlike real file systems,
 	// FUSE file systems may spontaneously change their name -> inode mapping.
 	// Therefore the FUSE VFS layer uses dentry_operations::d_revalidate
-	// (http://goo.gl/dVea0h) to intercept lookups and revalidate by calling the
-	// user-space LookUpInode method. However the latter may be slow, so it
-	// caches the entries until the time defined by this field.
+	// (https://tinyurl.com/ydb8ncrk) to intercept lookups and revalidate by
+	// calling the user-space LookUpInode method. However the latter may be slow,
+	// so it caches the entries until the time defined by this field.
 	//
 	// Example code walk:
 	//
-	//     * (http://goo.gl/M2G3tO) lookup_dcache calls d_revalidate if enabled.
-	//     * (http://goo.gl/ef0Elu) fuse_dentry_revalidate just uses the dentry's
-	//     inode if fuse_dentry_time(entry) hasn't passed. Otherwise it sends a
-	//     lookup request.
+	//     * (https://tinyurl.com/crddueft) lookup_dcache calls d_revalidate if
+	//       enabled.
+	//
+	//     * (https://tinyurl.com/bdsxacjy) fuse_dentry_revalidate just uses the
+	//       dentry's inode if fuse_dentry_time(entry) hasn't passed. Otherwise
+	//       it sends a lookup request.
 	//
 	// Leave at the zero value to disable caching.
 	//

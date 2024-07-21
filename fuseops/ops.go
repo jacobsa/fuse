@@ -44,16 +44,15 @@ type OpContext struct {
 //
 // Called by statfs(2) and friends:
 //
-//   - (https://goo.gl/Xi1lDr) sys_statfs called user_statfs, which calls
+//   - (https://tinyurl.com/234ppacj) sys_statfs called user_statfs, which calls
 //     vfs_statfs, which calls statfs_by_dentry.
 //
-//   - (https://goo.gl/VAIOwU) statfs_by_dentry calls the superblock
+//   - (https://tinyurl.com/u6keadjz) statfs_by_dentry calls the superblock
 //     operation statfs, which in our case points at
-//     fuse_statfs (cf. https://goo.gl/L7BTM3)
+//     fuse_statfs (https://tinyurl.com/mr45wd28)
 //
-//   - (https://goo.gl/Zn7Sgl) fuse_statfs sends a statfs op, then uses
-//     convert_fuse_statfs to convert the response in a straightforward
-//     manner.
+//   - (https://tinyurl.com/3wt3dw3c) fuse_statfs sends a statfs op, then uses
+//     convert_fuse_statfs to convert the response in a straightforward manner.
 //
 // This op is particularly important on OS X: if you don't implement it, the
 // file system will not successfully mount. If you don't model a sane amount of
@@ -64,15 +63,15 @@ type StatFSOp struct {
 	// system's capacity and space availability.
 	//
 	// On Linux this is surfaced as statfs::f_frsize, matching the posix standard
-	// (http://goo.gl/LktgrF), which says that f_blocks and friends are in units
-	// of f_frsize. On OS X this is surfaced as statfs::f_bsize, which plays the
-	// same roll.
+	// (https://tinyurl.com/2juj6ah6), which says that f_blocks and friends are
+	// in units of f_frsize. On OS X this is surfaced as statfs::f_bsize, which
+	// plays the same roll.
 	//
 	// It appears as though the original intent of statvfs::f_frsize in the posix
 	// standard was to support a smaller addressable unit than statvfs::f_bsize
 	// (cf. The Linux Programming Interface by Michael Kerrisk,
-	// https://goo.gl/5LZMxQ). Therefore users should probably arrange for this
-	// to be no larger than IoSize.
+	// https://tinyurl.com/5n8mjtws). Therefore users should probably arrange for
+	// this to be no larger than IoSize.
 	//
 	// On Linux this can be any value, and will be faithfully returned to the
 	// caller of statfs(2) (see the code walk above). On OS X it appears that
@@ -190,20 +189,22 @@ type SetInodeAttributesOp struct {
 // contain a note of this (but see also the note about the root inode below).
 // For example, LookUpInodeOp and MkDirOp. The authoritative source is the
 // libfuse documentation, which states that any op that returns
-// fuse_reply_entry fuse_reply_create implicitly increments (cf.
-// http://goo.gl/o5C7Dx).
+// fuse_reply_entry fuse_reply_create implicitly increments
+// (https://tinyurl.com/2xd5zssm).
 //
 // If the reference count hits zero, the file system can forget about that ID
 // entirely, and even re-use it in future responses. The kernel guarantees that
 // it will not otherwise use it again.
 //
 // The reference count corresponds to fuse_inode::nlookup
-// (http://goo.gl/ut48S4). Some examples of where the kernel manipulates it:
+// (https://tinyurl.com/ycka69ck). Some examples of where the kernel
+// manipulates it:
 //
-//   - (http://goo.gl/vPD9Oh) Any caller to fuse_iget increases the count.
-//   - (http://goo.gl/B6tTTC) fuse_lookup_name calls fuse_iget.
-//   - (http://goo.gl/IlcxWv) fuse_create_open calls fuse_iget.
-//   - (http://goo.gl/VQMQul) fuse_dentry_revalidate increments after
+//   - (https://tinyurl.com/s8dz2ays) Any caller to fuse_iget increases the
+//     count.
+//   - (https://tinyurl.com/mu37ceua) fuse_lookup_name calls fuse_iget.
+//   - (https://tinyurl.com/2nyhhnsh) fuse_create_open calls fuse_iget.
+//   - (https://tinyurl.com/mnjpu3a9) fuse_dentry_revalidate increments after
 //     revalidating.
 //
 // In contrast to all other inodes, RootInodeID begins with an implicit
@@ -211,12 +212,13 @@ type SetInodeAttributesOp struct {
 // could be no such op, because the root cannot be referred to by name.) Code
 // walk:
 //
-//   - (http://goo.gl/gWAheU) fuse_fill_super calls fuse_get_root_inode.
+//   - (https://tinyurl.com/yf8m2drx) fuse_fill_super calls
+//     fuse_get_root_inode.
 //
-//   - (http://goo.gl/AoLsbb) fuse_get_root_inode calls fuse_iget without
-//     sending any particular request.
+//   - (https://tinyurl.com/35f86asu) fuse_get_root_inode calls fuse_iget
+//     without sending any particular request.
 //
-//   - (http://goo.gl/vPD9Oh) fuse_iget increments nlookup.
+//   - (https://tinyurl.com/s8dz2ays) fuse_iget increments nlookup.
 //
 // File systems should tolerate but not rely on receiving forget ops for
 // remaining inodes when the file system unmounts, including the root inode.
@@ -266,10 +268,11 @@ type BatchForgetOp struct {
 //
 // The Linux kernel appears to verify the name doesn't already exist (mkdir
 // calls mkdirat calls user_path_create calls filename_create, which verifies:
-// http://goo.gl/FZpLu5). Indeed, the tests in samples/memfs that call in
-// parallel appear to bear this out. But osxfuse does not appear to guarantee
-// this (cf. https://goo.gl/PqzZDv). And if names may be created outside of the
-// kernel's control, it doesn't matter what the kernel does anyway.
+// https://tinyurl.com/24yw46mf). Indeed, the tests in samples/memfs that call
+// in parallel appear to bear this out. But osxfuse does not appear to
+// guarantee this (https://tinyurl.com/22587hcf). And if names may be created
+// outside of the kernel's control, it doesn't matter what the kernel does
+// anyway.
 //
 // Therefore the file system should return EEXIST if the name already exists.
 type MkDirOp struct {
@@ -290,14 +293,14 @@ type MkDirOp struct {
 
 // Create a file inode as a child of an existing directory inode. The kernel
 // sends this in response to a mknod(2) call. It may also send it in special
-// cases such as an NFS export (cf. https://goo.gl/HiLfnK). It is more typical
+// cases such as an NFS export (https://tinyurl.com/5dwxr7c9). It is more typical
 // to see CreateFileOp, which is received for an open(2) that creates a file.
 //
 // The Linux kernel appears to verify the name doesn't already exist (mknod
 // calls sys_mknodat calls user_path_create calls filename_create, which
-// verifies: http://goo.gl/FZpLu5). But osxfuse may not guarantee this, as with
-// mkdir(2). And if names may be created outside of the kernel's control, it
-// doesn't matter what the kernel does anyway.
+// verifies: https://tinyurl.com/24yw46mf). But osxfuse may not guarantee this,
+// as with mkdir(2). And if names may be created outside of the kernel's
+// control, it doesn't matter what the kernel does anyway.
 //
 // Therefore the file system should return EEXIST if the name already exists.
 type MkNodeOp struct {
@@ -323,10 +326,10 @@ type MkNodeOp struct {
 //
 // The kernel sends this when the user asks to open a file with the O_CREAT
 // flag and the kernel has observed that the file doesn't exist. (See for
-// example lookup_open, http://goo.gl/PlqE9d). However, osxfuse doesn't appear
-// to make this check atomically (cf. https://goo.gl/PqzZDv). And if names may
-// be created outside of the kernel's control, it doesn't matter what the
-// kernel does anyway.
+// example lookup_open, https://tinyurl.com/49899mvb). However, osxfuse doesn't
+// appear to make this check atomically (https://tinyurl.com/22587hcf). And if
+// names may be created outside of the kernel's control, it doesn't matter what
+// the kernel does anyway.
 //
 // Therefore the file system should return EEXIST if the name already exists.
 type CreateFileOp struct {
@@ -404,8 +407,8 @@ type CreateLinkOp struct {
 // Rename a file or directory, given the IDs of the original parent directory
 // and the new one (which may be the same).
 //
-// In Linux, this is called by vfs_rename (https://goo.gl/eERItT), which is
-// called by sys_renameat2 (https://goo.gl/fCC9qC).
+// In Linux, this is called by vfs_rename (https://tinyurl.com/2xbx9kr2), which
+// is called by sys_renameat2 (https://tinyurl.com/4zyak2kt).
 //
 // The kernel takes care of ensuring that the source and destination are not
 // identical (in which case it does nothing), that the rename is not across
@@ -414,7 +417,7 @@ type CreateLinkOp struct {
 //
 //   - If the new name is an existing directory, the file system must ensure it
 //     is empty before replacing it, returning ENOTEMPTY otherwise. (This is
-//     per the posix spec: http://goo.gl/4XtT79)
+//     per the posix spec: https://tinyurl.com/5n865nx9)
 //
 //   - The rename must be atomic from the point of view of an observer of the
 //     new name. That is, if the new name already exists, there must be no
@@ -422,9 +425,9 @@ type CreateLinkOp struct {
 //
 //   - It is okay for the new name to be modified before the old name is
 //     removed; these need not be atomic. In fact, the Linux man page
-//     explicitly says this is likely (cf. https://goo.gl/Y1wVZc).
+//     explicitly says this is likely (https://tinyurl.com/mdpbpjmr).
 //
-//   - Linux bends over backwards (https://goo.gl/pLDn3r) to ensure that
+//   - Linux bends over backwards (https://tinyurl.com/3hmt7puy) to ensure that
 //     neither the old nor the new parent can be concurrently modified. But
 //     it's not clear whether OS X does this, and in any case it doesn't matter
 //     for file systems that may be modified remotely. Therefore a careful file
@@ -434,6 +437,7 @@ type CreateLinkOp struct {
 //     posix and the man pages are imprecise about the actual semantics of a
 //     rename if it's not atomic, so it is probably not disastrous to be loose
 //     about this.
+//
 type RenameOp struct {
 	// The old parent directory, and the name of the entry within it to be
 	// relocated.
@@ -453,7 +457,7 @@ type RenameOp struct {
 //
 // The file system is responsible for checking that the directory is empty.
 //
-// Sample implementation in ext2: ext2_rmdir (http://goo.gl/B9QmFf)
+// Sample implementation in ext2: ext2_rmdir (https://tinyurl.com/bajkpcf9)
 type RmDirOp struct {
 	// The ID of parent directory inode, and the name of the directory being
 	// removed within it.
@@ -467,7 +471,7 @@ type RmDirOp struct {
 // ForgetInodeOp. It may still be referenced before then if a user still has
 // the file open.
 //
-// Sample implementation in ext2: ext2_unlink (http://goo.gl/hY6r6C)
+// Sample implementation in ext2: ext2_unlink (https://tinyurl.com/3wpwedcp)
 type UnlinkOp struct {
 	// The ID of parent directory inode, and the name of the entry being removed
 	// within it.
@@ -527,47 +531,51 @@ type ReadDirOp struct {
 	// at zero and is set by llseek and by the final consumed result returned by
 	// each call to ReadDir:
 	//
-	//  *  (http://goo.gl/2nWJPL) iterate_dir, which is called by getdents(2) and
-	//     readdir(2), sets dir_context::pos to file::f_pos before calling
-	//     f_op->iterate, and then does the opposite assignment afterward.
+	//  *  (https://tinyurl.com/3ueykmaj) iterate_dir, which is called by
+	//     getdents(2) and readdir(2), sets dir_context::pos to file::f_pos
+	//     before calling f_op->iterate, and then does the opposite assignment
+	//     afterward.
 	//
-	//  *  (http://goo.gl/rTQVSL) fuse_readdir, which implements iterate for fuse
-	//     directories, passes dir_context::pos as the offset to fuse_read_fill,
-	//     which passes it on to user-space. fuse_readdir later calls
-	//     parse_dirfile with the same context.
+	//  *  (https://tinyurl.com/a8urhfy9) fuse_readdir, which implements iterate
+	//     for fuse directories, passes dir_context::pos as the offset to
+	//     fuse_read_fill, which passes it on to user-space. fuse_readdir later
+	//     calls parse_dirfile with the same context.
 	//
-	//  *  (http://goo.gl/vU5ukv) For each returned result (except perhaps the
-	//     last, which may be truncated by the page boundary), parse_dirfile
-	//     updates dir_context::pos with fuse_dirent::off.
+	//  *  (https://tinyurl.com/5cev5fn4) For each returned result (except
+	//     perhaps the last, which may be truncated by the page boundary),
+	//     parse_dirfile updates dir_context::pos with fuse_dirent::off.
 	//
 	// It is affected by the Posix directory stream interfaces in the following
 	// manner:
 	//
-	//  *  (http://goo.gl/fQhbyn, http://goo.gl/ns1kDF) opendir initially causes
-	//     filepos to be set to zero.
+	//  *  (https://tinyurl.com/2pjv5jvz, https://tinyurl.com/2r6h4mkj) opendir
+	//     initially causes filepos to be set to zero.
 	//
-	//  *  (http://goo.gl/ezNKyR, http://goo.gl/xOmDv0) readdir allows the user
-	//     to iterate through the directory one entry at a time. As each entry is
-	//     consumed, its d_off field is stored in __dirstream::filepos.
+	//  *  (https://tinyurl.com/2yvcbcpv, https://tinyurl.com/bddezwp4) readdir
+	//     allows the user to iterate through the directory one entry at a time.
+	//     As each entry is consumed, its d_off field is stored in
+	//     __dirstream::filepos.
 	//
-	//  *  (http://goo.gl/WEOXG8, http://goo.gl/rjSXl3) telldir allows the user
-	//     to obtain the d_off field from the most recently returned entry.
+	//  *  (https://tinyurl.com/2pfbfe9v, https://tinyurl.com/4wtat58a) telldir
+	//     allows the user to obtain the d_off field from the most recently
+	//     returned entry.
 	//
-	//  *  (http://goo.gl/WG3nDZ, http://goo.gl/Lp0U6W) seekdir allows the user
-	//     to seek backward to an offset previously returned by telldir. It
-	//     stores the new offset in filepos, and calls llseek to update the
-	//     kernel's struct file.
+	//  *  (https://tinyurl.com/bdynryef, https://tinyurl.com/4hysrnb8) seekdir
+	//     allows the user to seek backward to an offset previously returned by
+	//     telldir. It stores the new offset in filepos, and calls llseek to
+	//     update the kernel's struct file.
 	//
-	//  *  (http://goo.gl/gONQhz, http://goo.gl/VlrQkc) rewinddir allows the user
-	//     to go back to the beginning of the directory, obtaining a fresh view.
-	//     It updates filepos and calls llseek to update the kernel's struct
-	//     file.
+	//  *  (https://tinyurl.com/5n8dkb44, https://tinyurl.com/3jnn5nnn) rewinddir
+	//     allows the user to go back to the beginning of the directory,
+	//     obtaining a fresh view. It updates filepos and calls llseek to update
+	//     the kernel's struct file.
 	//
 	// Unfortunately, FUSE offers no way to intercept seeks
-	// (http://goo.gl/H6gEXa), so there is no way to cause seekdir or rewinddir
-	// to fail. Additionally, there is no way to distinguish an explicit
-	// rewinddir followed by readdir from the initial readdir, or a rewinddir
-	// from a seekdir to the value returned by telldir just after opendir.
+	// (https://tinyurl.com/4bm2sfjd), so there is no way to cause seekdir or
+	// rewinddir to fail. Additionally, there is no way to distinguish an
+	// explicit rewinddir followed by readdir from the initial readdir, or a
+	// rewinddir from a seekdir to the value returned by telldir just after
+	// opendir.
 	//
 	// Luckily, Posix is vague about what the user will see if they seek
 	// backwards, and requires the user not to seek to an old offset after a
@@ -580,9 +588,9 @@ type ReadDirOp struct {
 	// The destination buffer, whose length gives the size of the read.
 	//
 	// The output data should consist of a sequence of FUSE directory entries in
-	// the format generated by fuse_add_direntry (http://goo.gl/qCcHCV), which is
-	// consumed by parse_dirfile (http://goo.gl/2WUmD2). Use fuseutil.WriteDirent
-	// to generate this data.
+	// the format generated by fuse_add_direntry (https://tinyurl.com/3r9t7d2p),
+	// which is consumed by parse_dirfile (https://tinyurl.com/bevwty74). Use
+	// fuseutil.WriteDirent to generate this data.
 	//
 	// Each entry returned exposes a directory offset to the user that may later
 	// show up in ReadDirRequest.Offset. See notes on that field for more
@@ -595,10 +603,10 @@ type ReadDirOp struct {
 	// entries available or the final entry would not fit.
 	//
 	// Zero means that the end of the directory has been reached. This is
-	// unambiguous because NAME_MAX (https://goo.gl/ZxzKaE) plus the size of
-	// fuse_dirent (https://goo.gl/WO8s3F) plus the 8-byte alignment of
-	// FUSE_DIRENT_ALIGN (http://goo.gl/UziWvH) is less than the read size of
-	// PAGE_SIZE used by fuse_readdir (cf. https://goo.gl/VajtS2).
+	// unambiguous because NAME_MAX (https://tinyurl.com/4r2b68jp) plus the size
+	// of fuse_dirent (https://tinyurl.com/mp43bu8) plus the 8-byte alignment of
+	// FUSE_DIRENT_ALIGN (https://tinyurl.com/3m3ewu7h) is less than the read
+	// size of PAGE_SIZE used by fuse_readdir (https://tinyurl.com/mrwxsfxw).
 	BytesRead int
 	OpContext OpContext
 }
@@ -610,7 +618,8 @@ type ReadDirOp struct {
 // The kernel guarantees that the handle ID will not be used in further ops
 // sent to the file system (unless it is reissued by the file system).
 //
-// Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
+// Errors from this op are ignored by the kernel
+// (https://tinyurl.com/2aaccyzk).
 type ReleaseDirHandleOp struct {
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the
@@ -643,15 +652,15 @@ type OpenFileOp struct {
 	Handle HandleID
 
 	// By default, fuse invalidates the kernel's page cache for an inode when a
-	// new file handle is opened for that inode (cf. https://goo.gl/2rZ9uk). The
-	// intent appears to be to allow users to "see" content that has changed
+	// new file handle is opened for that inode (https://tinyurl.com/yyb497zy).
+	// The intent appears to be to allow users to "see" content that has changed
 	// remotely on a networked file system by re-opening the file.
 	//
 	// For file systems where this is not a concern because all modifications for
 	// a particular inode go through the kernel, set this field to true to
 	// disable this behavior.
 	//
-	// (More discussion: http://goo.gl/cafzWF)
+	// (More discussion: https://tinyurl.com/4znxvzwh)
 	//
 	// Note that on OS X it appears that the behavior is always as if this field
 	// is set to true, regardless of its value, at least for files opened in the
@@ -700,11 +709,12 @@ type ReadFileOp struct {
 	// Set by the file system: the number of bytes read.
 	//
 	// The FUSE documentation requires that exactly the requested number of bytes
-	// be returned, except in the case of EOF or error (http://goo.gl/ZgfBkF).
-	// This appears to be because it uses file mmapping machinery
-	// (http://goo.gl/SGxnaN) to read a page at a time. It appears to understand
-	// where EOF is by checking the inode size (http://goo.gl/0BkqKD), returned
-	// by a previous call to LookUpInode, GetInodeAttributes, etc.
+	// be returned, except in the case of EOF or error
+	// (https://tinyurl.com/2mzewn35). This appears to be because it uses file
+	// mmapping machinery (https://tinyurl.com/avxy3dvm) to read a page at a
+	// time. It appears to understand where EOF is by checking the inode size
+	// (https://tinyurl.com/2eteerzt), returned by a previous call to
+	// LookUpInode, GetInodeAttributes, etc.
 	//
 	// If direct IO is enabled, semantics should match those of read(2).
 	BytesRead int
@@ -723,21 +733,22 @@ type ReadFileOp struct {
 // page via the FUSE VFS layer, causing this op to be sent:
 //
 //   - The kernel calls address_space_operations::writepage when a dirty page
-//     needs to be written to backing store (cf. http://goo.gl/Ezbewg). Fuse
-//     sets this to fuse_writepage (cf. http://goo.gl/IeNvLT).
+//     needs to be written to backing store (https://tinyurl.com/yck2sf5u).
+//     Fuse sets this to fuse_writepage (https://tinyurl.com/5n989f8p).
 //
-//   - (http://goo.gl/Eestuy) fuse_writepage calls fuse_writepage_locked.
+//   - (https://tinyurl.com/mvn6zv3j) fuse_writepage calls
+//     fuse_writepage_locked.
 //
-//   - (http://goo.gl/RqYIxY) fuse_writepage_locked makes a write request to
-//     the userspace server.
+//   - (https://tinyurl.com/2wn8scwb) fuse_writepage_locked makes a write
+//     request to the userspace server.
 //
 // Note that the kernel *will* ensure that writes are received and acknowledged
 // by the file system before sending a FlushFileOp when closing the file
 // descriptor to which they were written. Cf. the notes on
 // fuse.MountConfig.DisableWritebackCaching.
 //
-// (See also http://goo.gl/ocdTdM, fuse-devel thread "Fuse guarantees on
-// concurrent requests".)
+// (See also https://tinyurl.com/5dchkdtx, fuse-devel thread "Fuse guarantees
+// on concurrent requests".)
 type WriteFileOp struct {
 	// The file inode that we are modifying, and the handle previously returned
 	// by CreateFile or OpenFile when opening that inode.
@@ -769,9 +780,9 @@ type WriteFileOp struct {
 	// The data to write.
 	//
 	// The FUSE documentation requires that exactly the number of bytes supplied
-	// be written, except on error (http://goo.gl/KUpwwn). This appears to be
-	// because it uses file mmapping machinery (http://goo.gl/SGxnaN) to write a
-	// page at a time.
+	// be written, except on error (https://tinyurl.com/yuruk5tx). This appears
+	// to be because it uses file mmapping machinery
+	// (https://tinyurl.com/avxy3dvm) to write a page at a time.
 	Data      []byte
 	OpContext OpContext
 
@@ -784,15 +795,15 @@ type WriteFileOp struct {
 // Synchronize the current contents of an open file to storage.
 //
 // vfs.txt documents this as being called for by the fsync(2) system call
-// (cf. http://goo.gl/j9X8nB). Code walk for that case:
+// (https://tinyurl.com/y2kdrfzw). Code walk for that case:
 //
-//   - (http://goo.gl/IQkWZa) sys_fsync calls do_fsync, calls vfs_fsync, calls
-//     vfs_fsync_range.
+//   - (https://tinyurl.com/2s44cefz) sys_fsync calls do_fsync, calls
+//     vfs_fsync, calls vfs_fsync_range.
 //
-//   - (http://goo.gl/5L2SMy) vfs_fsync_range calls f_op->fsync.
+//   - (https://tinyurl.com/bdhhfam5) vfs_fsync_range calls f_op->fsync.
 //
-// Note that this is also sent by fdatasync(2) (cf. http://goo.gl/01R7rF), and
-// may be sent for msync(2) with the MS_SYNC flag (see the notes on
+// Note that this is also sent by fdatasync(2) (https://tinyurl.com/ja5wtszf),
+// and may be sent for msync(2) with the MS_SYNC flag (see the notes on
 // FlushFileOp).
 //
 // See also: FlushFileOp, which may perform a similar function when closing a
@@ -807,39 +818,42 @@ type SyncFileOp struct {
 // Flush the current state of an open file to storage upon closing a file
 // descriptor.
 //
-// vfs.txt documents this as being sent for each close(2) system call (cf.
-// http://goo.gl/FSkbrq). Code walk for that case:
+// vfs.txt documents this as being sent for each close(2) system call
+// (https://tinyurl.com/r4ujfxkc). Code walk for that case:
 //
-//   - (http://goo.gl/e3lv0e) sys_close calls __close_fd, calls filp_close.
-//   - (http://goo.gl/nI8fxD) filp_close calls f_op->flush (fuse_flush).
+//   - (https://tinyurl.com/2kzyyjcu) sys_close calls __close_fd, calls
+//     filp_close.
+
+//   - (https://tinyurl.com/4zdxrz52) filp_close calls f_op->flush
+//     (fuse_flush).
 //
 // But note that this is also sent in other contexts where a file descriptor is
-// closed, such as dup2(2) (cf. http://goo.gl/NQDvFS). In the case of close(2),
-// a flush error is returned to the user. For dup2(2), it is not.
+// closed, such as dup2(2) (https://tinyurl.com/5bj3z3f5). In the case of
+// close(2), a flush error is returned to the user. For dup2(2), it is not.
 //
 // One potentially significant case where this may not be sent is mmap'd files,
 // where the behavior is complicated:
 //
-//   - munmap(2) does not cause flushes (cf. http://goo.gl/j8B9g0).
+//   - munmap(2) does not cause flushes (https://tinyurl.com/ycy9z2jb).
 //
-//   - On OS X, if a user modifies a mapped file via the mapping before
-//     closing the file with close(2), the WriteFileOps for the modifications
-//     may not be received before the FlushFileOp for the close(2) (cf.
+//   - On OS X, if a user modifies a mapped file via the mapping before closing
+//     the file with close(2), the WriteFileOps for the modifications may not
+//     be received before the FlushFileOp for the close(2) (cf.
 //     https://github.com/osxfuse/osxfuse/issues/202). It appears that this may
-//     be fixed in osxfuse 3 (cf. https://goo.gl/rtvbko).
+//     be fixed in osxfuse 3 (https://tinyurl.com/2ne2jv8u).
 //
-//   - However, you safely can arrange for writes via a mapping to be
-//     flushed by calling msync(2) followed by close(2). On OS X msync(2)
-//     will cause a WriteFileOps to go through and close(2) will cause a
-//     FlushFile as usual (cf. http://goo.gl/kVmNcx). On Linux, msync(2) does
-//     nothing unless you set the MS_SYNC flag, in which case it causes a
-//     SyncFileOp to be sent (cf. http://goo.gl/P3mErk).
+//   - However, you safely can arrange for writes via a mapping to be flushed
+//     by calling msync(2) followed by close(2). On OS X msync(2) will cause a
+//     WriteFileOps to go through and close(2) will cause a FlushFile as usual
+//     (https://tinyurl.com/2p9b4axf). On Linux, msync(2) does nothing unless
+//     you set the MS_SYNC flag, in which case it causes a SyncFileOp to be
+//     sent (https://tinyurl.com/2y3d9hhj).
 //
 // In summary: if you make data durable in both FlushFile and SyncFile, then
 // your users can get safe behavior from mapped files on both operating systems
 // by calling msync(2) with MS_SYNC, followed by munmap(2), followed by
-// close(2). On Linux, the msync(2) is optional (cf. http://goo.gl/EIhAxv and
-// the notes on WriteFileOp).
+// close(2). On Linux, the msync(2) is optional (cf.
+// https://tinyurl.com/unesszdp and the notes on WriteFileOp).
 //
 // Because of cases like dup2(2), FlushFileOps are not necessarily one to one
 // with OpenFileOps. They should not be used for reference counting, and the
@@ -866,7 +880,8 @@ type FlushFileOp struct {
 // The kernel guarantees that the handle ID will not be used in further calls
 // to the file system (unless it is reissued by the file system).
 //
-// Errors from this op are ignored by the kernel (cf. http://goo.gl/RL38Do).
+// Errors from this op are ignored by the kernel
+// (https://tinyurl.com/2aaccyzk).
 type ReleaseFileHandleOp struct {
 	// The handle ID to be released. The kernel guarantees that this ID will not
 	// be used in further calls to the file system (unless it is reissued by the

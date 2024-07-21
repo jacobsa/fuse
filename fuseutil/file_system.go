@@ -81,8 +81,8 @@ type FileSystem interface {
 //
 // (It is safe to naively process ops concurrently because the kernel
 // guarantees to serialize operations that the user expects to happen in order,
-// cf. http://goo.gl/jnkHPO, fuse-devel thread "Fuse guarantees on concurrent
-// requests").
+// cf. https://tinyurl.com/bddm85v5, fuse-devel thread "Fuse guarantees on
+// concurrent requests").
 func NewFileSystemServer(fs FileSystem) fuse.Server {
 	return &fileSystemServer{
 		fs: fs,

@@ -185,11 +185,11 @@ func convertInMessage(
 			Name:   string(name),
 
 			// On Linux, vfs_mkdir calls through to the inode with at most
-			// permissions and sticky bits set (cf. https://goo.gl/WxgQXk), and fuse
-			// passes that on directly (cf. https://goo.gl/f31aMo). In other words,
-			// the fact that this is a directory is implicit in the fact that the
-			// opcode is mkdir. But we want the correct mode to go through, so ensure
-			// that os.ModeDir is set.
+			// permissions and sticky bits set (https://tinyurl.com/3djx8498), and
+			// fuse passes that on directly (https://tinyurl.com/exezw647). In other
+			// words, the fact that this is a directory is implicit in the fact that
+			// the opcode is mkdir. But we want the correct mode to go through, so
+			// ensure that os.ModeDir is set.
 			Mode: ConvertFileMode(in.Mode) | os.ModeDir,
 			OpContext: fuseops.OpContext{
 				FuseID: inMsg.Header().Unique,
@@ -915,7 +915,7 @@ func (c *Connection) kernelResponseForOp(
 		out.St.Ffree = o.InodesFree
 		out.St.Namelen = 255
 
-		// The posix spec for sys/statvfs.h (http://goo.gl/LktgrF) defines the
+		// The posix spec for sys/statvfs.h (https://tinyurl.com/2juj6ah6) defines the
 		// following fields of statvfs, among others:
 		//
 		//     f_bsize    File system block size.
@@ -925,7 +925,7 @@ func (c *Connection) kernelResponseForOp(
 		// It appears as though f_bsize was the only thing supported by most unixes
 		// originally, but then f_frsize was added when new sorts of file systems
 		// came about. Quoth The Linux Programming Interface by Michael Kerrisk
-		// (https://goo.gl/5LZMxQ):
+		// (https://tinyurl.com/5n8mjtws):
 		//
 		//     For most Linux file systems, the values of f_bsize and f_frsize are
 		//     the same. However, some file systems support the notion of block
@@ -1029,9 +1029,10 @@ func convertAttributes(
 // consumption by the fuse kernel module.
 func convertExpirationTime(t time.Time) (secs uint64, nsecs uint32) {
 	// Fuse represents durations as unsigned 64-bit counts of seconds and 32-bit
-	// counts of nanoseconds (cf. http://goo.gl/EJupJV). So negative durations
-	// are right out. There is no need to cap the positive magnitude, because
-	// 2^64 seconds is well longer than the 2^63 ns range of time.Duration.
+	// counts of nanoseconds (https://tinyurl.com/4muvkr6k). So negative
+	// durations are right out. There is no need to cap the positive magnitude,
+	// because 2^64 seconds is well longer than the 2^63 ns range of
+	// time.Duration.
 	d := t.Sub(time.Now())
 	if d > 0 {
 		secs = uint64(d / time.Second)

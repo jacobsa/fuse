@@ -30,7 +30,7 @@ func (f sortedEntries) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
 // Read the directory with the given name and return a list of directory
 // entries, sorted by name.
 //
-// Unlike ioutil.ReadDir (cf. http://goo.gl/i0nNP4), this function does not
+// Unlike ioutil.ReadDir (https://tinyurl.com/yft8kkxb), this function does not
 // silently ignore "file not found" errors when stat'ing the names read from
 // the directory.
 func ReadDirPicky(dirname string) (entries []os.FileInfo, err error) {

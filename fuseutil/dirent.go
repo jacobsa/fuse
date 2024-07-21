@@ -55,9 +55,9 @@ type Dirent struct {
 // Return zero if the entry would not fit.
 func WriteDirent(buf []byte, d Dirent) (n int) {
 	// We want to write bytes with the layout of fuse_dirent
-	// (http://goo.gl/BmFxob) in host order. The struct must be aligned according
-	// to FUSE_DIRENT_ALIGN (http://goo.gl/UziWvH), which dictates 8-byte
-	// alignment.
+	// (https://tinyurl.com/4k7y2h9r) in host order. The struct must be aligned
+	// according to FUSE_DIRENT_ALIGN (https://tinyurl.com/3m3ewu7h), which
+	// dictates 8-byte alignment.
 	type fuse_dirent struct {
 		ino     uint64
 		off     uint64
