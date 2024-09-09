@@ -46,7 +46,7 @@ const (
 	ProtoVersionMinMajor = 7
 	ProtoVersionMinMinor = 18
 	ProtoVersionMaxMajor = 7
-	ProtoVersionMaxMinor = 31
+	ProtoVersionMaxMinor = 34
 )
 
 const (
@@ -391,6 +391,14 @@ const (
 	OpPoll        = 40 // Linux?
 	OpBatchForget = 42
 	OpFallocate   = 43
+	OpReaddirplus = 44
+	//
+	OpRename2       = 45
+	OpLseek         = 46
+	OpCopyFileRange = 47
+	OpSetupMapping  = 48
+	OpRemoveMapping = 49
+	OpSyncFS        = 50
 
 	// OS X
 	OpSetvolname = 61
@@ -802,4 +810,8 @@ type NotifyInvalEntryOut struct {
 	Parent  uint64
 	Namelen uint32
 	padding uint32
+}
+
+type SyncFSIn struct {
+	Padding    uint64
 }

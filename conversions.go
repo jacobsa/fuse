@@ -489,7 +489,7 @@ func convertInMessage(
 		type input fusekernel.FsyncIn
 		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
 		if in == nil {
-			return nil, errors.New("Corrupt OpFsync")
+			return nil, errors.New("Corrupt OpFsync/OpFsyncdir")
 		}
 
 		o = &fuseops.SyncFileOp{
@@ -500,6 +500,18 @@ func convertInMessage(
 				Pid:    inMsg.Header().Pid,
 				Uid:    inMsg.Header().Uid,
 			},
+		}
+
+        case fusekernel.OpSyncFS:
+		type input fusekernel.SyncFSIn
+		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
+		if in == nil {
+			return nil, errors.New("Corrupt OpSyncFS")
+		}
+
+		o = &fuseops.SyncFSOp{
+			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
+			OpContext: fuseops.OpContext{Pid: inMsg.Header().Pid},
 		}
 
 	case fusekernel.OpFlush:
@@ -967,6 +979,9 @@ func (c *Connection) kernelResponseForOp(
 		// Empty response
 
 	case *fuseops.FallocateOp:
+		// Empty response
+
+	case *fuseops.SyncFSOp:
 		// Empty response
 
 	case *initOp:
