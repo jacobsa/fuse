@@ -813,5 +813,5 @@ type NotifyInvalEntryOut struct {
 }
 
 type SyncFSIn struct {
-	Padding    uint64
+	Padding uint64
 }

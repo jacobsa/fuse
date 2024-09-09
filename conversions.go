@@ -502,7 +502,7 @@ func convertInMessage(
 			},
 		}
 
-        case fusekernel.OpSyncFS:
+	case fusekernel.OpSyncFS:
 		type input fusekernel.SyncFSIn
 		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
 		if in == nil {
