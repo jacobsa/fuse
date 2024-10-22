@@ -90,19 +90,19 @@ func applyUmask(m os.FileMode) os.FileMode {
 	return m &^ os.FileMode(umask)
 }
 
-func (t *memFSTest) checkReadWriteOpenFlagsXattr(
+func (t *memFSTest) checkReadWriteOpenFlags(
 	fileName string, expectedOpenFlags fusekernel.OpenFlags) {
 	openFlags := t.getOpenFlagsXattr(fileName)
 	AssertEq(expectedOpenFlags, openFlags&fusekernel.OpenAccessModeMask)
 }
 
-func (t *memFSTest) checkOpenFlagsContainsFlagXattr(
+func (t *memFSTest) checkOpenFlagsContainsFlag(
 	fileName string, flag fusekernel.OpenFlags) {
 	openFlags := t.getOpenFlagsXattr(fileName)
 	AssertNe(0, openFlags&flag)
 }
 
-func (t *memFSTest) checkOpenFlagsNotContainsFlagXattr(
+func (t *memFSTest) checkOpenFlagsNotContainsFlag(
 	fileName string, flag fusekernel.OpenFlags) {
 	openFlags := t.getOpenFlagsXattr(fileName)
 	AssertEq(0, openFlags&flag)
@@ -348,7 +348,7 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	slice, err := ioutil.ReadFile(fileName)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(slice))
-	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
+	t.checkReadWriteOpenFlags(fileName, fusekernel.OpenReadOnly)
 }
 
 func (t *MemFSTest) CreateNewFile_InSubDir() {
@@ -410,7 +410,7 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0400)
 	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
-	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenWriteOnly)
+	t.checkReadWriteOpenFlags(fileName, fusekernel.OpenWriteOnly)
 
 	modifyTime := time.Now()
 	n, err = f.WriteAt([]byte("H"), 0)
@@ -439,7 +439,7 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	slice, err := ioutil.ReadFile(fileName)
 	AssertEq(nil, err)
 	ExpectEq("Hello, world!", string(slice))
-	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
+	t.checkReadWriteOpenFlags(fileName, fusekernel.OpenReadOnly)
 }
 
 func (t *MemFSTest) ModifyExistingFile_InSubDir() {
@@ -870,7 +870,7 @@ func (t *MemFSTest) AppendMode() {
 	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_APPEND, 0600)
 	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
-	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenReadWrite)
+	t.checkReadWriteOpenFlags(fileName, fusekernel.OpenReadWrite)
 
 	// Seek to somewhere silly and then write.
 	off, err = f.Seek(2, 0)
@@ -948,7 +948,7 @@ func (t *MemFSTest) Truncate_Smaller() {
 	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
 	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
-	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenReadWrite)
+	t.checkReadWriteOpenFlags(fileName, fusekernel.OpenReadWrite)
 
 	// Truncate it.
 	err = f.Truncate(2)
@@ -963,7 +963,7 @@ func (t *MemFSTest) Truncate_Smaller() {
 	contents, err := ioutil.ReadFile(fileName)
 	AssertEq(nil, err)
 	ExpectEq("ta", string(contents))
-	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
+	t.checkReadWriteOpenFlags(fileName, fusekernel.OpenReadOnly)
 }
 
 func (t *MemFSTest) Truncate_SameSize() {
@@ -2064,12 +2064,12 @@ func (t *atomicOTruncTest) OpenFileWithOTrunc() {
 	AssertEq(nil, err)
 	defer f.Close()
 
-	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenWriteOnly)
+	t.checkReadWriteOpenFlags(fileName, fusekernel.OpenWriteOnly)
 
 	if t.enableAtomicOTrunc {
-		t.checkOpenFlagsContainsFlagXattr(fileName, fusekernel.OpenTruncate)
+		t.checkOpenFlagsContainsFlag(fileName, fusekernel.OpenTruncate)
 	} else {
-		t.checkOpenFlagsNotContainsFlagXattr(fileName, fusekernel.OpenTruncate)
+		t.checkOpenFlagsNotContainsFlag(fileName, fusekernel.OpenTruncate)
 	}
 }
 
