@@ -90,13 +90,29 @@ func applyUmask(m os.FileMode) os.FileMode {
 	return m &^ os.FileMode(umask)
 }
 
-func (t *MemFSTest) checkOpenFlagsXattr(
+func (t *memFSTest) checkReadWriteOpenFlagsXattr(
 	fileName string, expectedOpenFlags fusekernel.OpenFlags) {
+	openFlags := t.getOpenFlagsXattr(fileName)
+	AssertEq(expectedOpenFlags, openFlags&fusekernel.OpenAccessModeMask)
+}
+
+func (t *memFSTest) checkOpenFlagsContainsFlagXattr(
+	fileName string, flag fusekernel.OpenFlags) {
+	openFlags := t.getOpenFlagsXattr(fileName)
+	AssertNe(0, openFlags&flag)
+}
+
+func (t *memFSTest) checkOpenFlagsNotContainsFlagXattr(
+	fileName string, flag fusekernel.OpenFlags) {
+	openFlags := t.getOpenFlagsXattr(fileName)
+	AssertEq(0, openFlags&flag)
+}
+
+func (t *memFSTest) getOpenFlagsXattr(fileName string) fusekernel.OpenFlags {
 	dest := make([]byte, 4)
 	_, err := unix.Getxattr(fileName, memfs.FileOpenFlagsXattrName, dest)
 	AssertEq(nil, err)
-	openFlags := binary.LittleEndian.Uint32(dest)
-	AssertEq(openFlags, uint32(expectedOpenFlags))
+	return fusekernel.OpenFlags(binary.LittleEndian.Uint32(dest))
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -332,7 +348,7 @@ func (t *MemFSTest) CreateNewFile_InRoot() {
 	slice, err := ioutil.ReadFile(fileName)
 	AssertEq(nil, err)
 	ExpectEq(contents, string(slice))
-	t.checkOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
+	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
 }
 
 func (t *MemFSTest) CreateNewFile_InSubDir() {
@@ -394,7 +410,7 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	f, err := os.OpenFile(fileName, os.O_WRONLY, 0400)
 	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
-	t.checkOpenFlagsXattr(fileName, fusekernel.OpenWriteOnly)
+	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenWriteOnly)
 
 	modifyTime := time.Now()
 	n, err = f.WriteAt([]byte("H"), 0)
@@ -423,7 +439,7 @@ func (t *MemFSTest) ModifyExistingFile_InRoot() {
 	slice, err := ioutil.ReadFile(fileName)
 	AssertEq(nil, err)
 	ExpectEq("Hello, world!", string(slice))
-	t.checkOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
+	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
 }
 
 func (t *MemFSTest) ModifyExistingFile_InSubDir() {
@@ -854,7 +870,7 @@ func (t *MemFSTest) AppendMode() {
 	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_APPEND, 0600)
 	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
-	t.checkOpenFlagsXattr(fileName, fusekernel.OpenReadWrite)
+	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenReadWrite)
 
 	// Seek to somewhere silly and then write.
 	off, err = f.Seek(2, 0)
@@ -932,7 +948,7 @@ func (t *MemFSTest) Truncate_Smaller() {
 	f, err := os.OpenFile(fileName, os.O_RDWR, 0)
 	t.ToClose = append(t.ToClose, f)
 	AssertEq(nil, err)
-	t.checkOpenFlagsXattr(fileName, fusekernel.OpenReadWrite)
+	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenReadWrite)
 
 	// Truncate it.
 	err = f.Truncate(2)
@@ -947,7 +963,7 @@ func (t *MemFSTest) Truncate_Smaller() {
 	contents, err := ioutil.ReadFile(fileName)
 	AssertEq(nil, err)
 	ExpectEq("ta", string(contents))
-	t.checkOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
+	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenReadOnly)
 }
 
 func (t *MemFSTest) Truncate_SameSize() {
@@ -2018,3 +2034,63 @@ func (t *MknodTest) Fallocate_Larger() {
 	AssertEq(nil, err)
 	ExpectEq("taco\x00\x00", string(contents))
 }
+
+////////////////////////////////////////////////////////////////////////
+// atomic_o_trunc
+////////////////////////////////////////////////////////////////////////
+
+type atomicOTruncTest struct {
+	memFSTest
+	enableAtomicOTrunc bool
+}
+
+func (t *atomicOTruncTest) SetUp(ti *TestInfo) {
+	// Disable writeback caching so that pid is always available in OpContext
+	t.MountConfig.DisableWritebackCaching = true
+	t.MountConfig.EnableAtomicTrunc = t.enableAtomicOTrunc
+
+	t.Server = memfs.NewMemFS(currentUid(), currentGid())
+	t.SampleTest.SetUp(ti)
+}
+
+func (t *atomicOTruncTest) OpenFileWithOTrunc() {
+	// Write a file.
+	fileName := path.Join(t.Dir, memfs.CheckFileOpenFlagsFileName)
+	err := ioutil.WriteFile(fileName, []byte("Hello, world!"), 0600)
+	AssertEq(nil, err)
+
+	// Open the file with O_TRUNC
+	f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_TRUNC, 0400)
+	AssertEq(nil, err)
+	defer f.Close()
+
+	t.checkReadWriteOpenFlagsXattr(fileName, fusekernel.OpenWriteOnly)
+
+	if t.enableAtomicOTrunc {
+		t.checkOpenFlagsContainsFlagXattr(fileName, fusekernel.OpenTruncate)
+	} else {
+		t.checkOpenFlagsNotContainsFlagXattr(fileName, fusekernel.OpenTruncate)
+	}
+}
+
+type AtmoicOTruncEnabledTest struct {
+	atomicOTruncTest
+}
+
+func (t *AtmoicOTruncEnabledTest) SetUp(ti *TestInfo) {
+	t.enableAtomicOTrunc = true
+	t.atomicOTruncTest.SetUp(ti)
+}
+
+func init() { RegisterTestSuite(&AtmoicOTruncEnabledTest{}) }
+
+type AtmoicOTruncDisabledTest struct {
+	atomicOTruncTest
+}
+
+func (t *AtmoicOTruncDisabledTest) SetUp(ti *TestInfo) {
+	t.enableAtomicOTrunc = false
+	t.atomicOTruncTest.SetUp(ti)
+}
+
+func init() { RegisterTestSuite(&AtmoicOTruncDisabledTest{}) }
