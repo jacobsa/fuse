@@ -210,5 +210,14 @@ func (fs *NotImplementedFileSystem) SyncFS(
 	return fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) Poll(
+	ctx context.Context,
+	op *fuseops.PollOp) error {
+	return fuse.ENOSYS
+}
+
+func (fs *NotImplementedFileSystem) SetConnection(*fuse.Connection) {
+}
+
 func (fs *NotImplementedFileSystem) Destroy() {
 }
