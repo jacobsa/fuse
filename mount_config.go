@@ -198,6 +198,13 @@ type MountConfig struct {
 	// kernel
 	// Ref: https://github.com/torvalds/linux/commit/5c672ab3f0ee0f78f7acad183f34db0f8781a200
 	EnableParallelDirOps bool
+
+	// Flag to enable atomic truncate during file open operations.
+	// When enabled, application calls to open with the O_TRUNC flag will cause a FUSE OpenFile
+	// op with the O_TRUNC flag set. In comparison, the default behavior is an OpenFile op
+	// without O_TRUNC, followed by a SetInodeAttributes op with the target size set to 0.
+	// Ref: https://github.com/torvalds/linux/commit/6ff958edbf39c014eb06b65ad25b736be08c4e63
+	EnableAtomicTrunc bool
 }
 
 type FUSEImpl uint8

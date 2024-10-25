@@ -200,6 +200,10 @@ func (c *Connection) Init() error {
 		initOp.Flags |= fusekernel.InitParallelDirOps
 	}
 
+	if c.cfg.EnableAtomicTrunc {
+		initOp.Flags |= fusekernel.InitAtomicTrunc
+	}
+
 	return c.Reply(ctx, nil)
 }
 
