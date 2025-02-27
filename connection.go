@@ -524,7 +524,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 
 	// Error logging
 	if c.shouldLogError(op, opErr) {
-		c.errorLogger.Printf("%T error: %v", op, opErr)
+		c.errorLogger.Printf("Op 0x%08x %T] -> Error: %q", fuseID, op, opErr)
 	}
 
 	// Send the reply to the kernel, if one is required.
