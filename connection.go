@@ -513,17 +513,21 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	// Clean up state for this op.
 	c.finishOp(inMsg.Header().Opcode, inMsg.Header().Unique)
 
+	logError := c.shouldLogError(op, opErr)
+
 	// Debug logging
 	if c.debugLogger != nil {
 		if opErr == nil {
 			c.debugLog(fuseID, 1, "-> %s", describeResponse(op))
 		} else {
-			c.debugLog(fuseID, 1, "-> Error: %q", opErr.Error())
+			if !logError {
+				c.debugLog(fuseID, 1, "-> Error: %q", opErr.Error())
+			}
 		}
 	}
 
 	// Error logging
-	if c.shouldLogError(op, opErr) {
+	if logError {
 		c.errorLogger.Printf("Op 0x%08x %T] -> Error: %q", fuseID, op, opErr)
 	}
 
