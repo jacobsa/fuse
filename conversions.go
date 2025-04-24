@@ -996,6 +996,7 @@ func (c *Connection) kernelResponseForOp(
 		out.CongestionThreshold = 9
 		out.MaxWrite = o.MaxWrite
 		out.TimeGran = 1
+		out.Flags2 = o.Flags2
 		out.MaxPages = o.MaxPages
 
 	default:
