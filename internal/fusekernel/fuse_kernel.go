@@ -201,9 +201,8 @@ func (fl OpenFlags) IsReadWrite() bool {
 
 // Return true if OpenAppend is set.
 func (fl OpenFlags) IsAppend() bool {
-	flags:=fl &^ OpenAccessModeMask
-	return flags&OpenAppend != 0
-} 
+	return fl&OpenAppend != 0
+}
 
 func accModeName(flags OpenFlags) string {
 	switch flags {
