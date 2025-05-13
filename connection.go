@@ -378,6 +378,23 @@ func (c *Connection) readMessage() (*buffer.InMessage, error) {
 	}
 }
 
+// Write a buffer.OutMessage to the kernel, with writev if vectored IO is useful
+// and write if not.
+func (c *Connection) writeOutMessage(outMsg *buffer.OutMessage) error {
+	var err error
+	if outMsg.Sglist != nil {
+		if fusekernel.IsPlatformFuseT {
+			// writev is not atomic on macos, restrict to fuse-t platform
+			writeLock.Lock()
+			defer writeLock.Unlock()
+		}
+		_, err = writev(int(c.dev.Fd()), outMsg.Sglist)
+	} else {
+		err = c.writeMessage(outMsg.OutHeaderBytes())
+	}
+	return err
+}
+
 // Write the supplied message to the kernel.
 func (c *Connection) writeMessage(msg []byte) error {
 	// Avoid the retry loop in os.File.Write.
@@ -535,17 +552,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	noResponse := c.kernelResponse(outMsg, inMsg.Header().Unique, op, opErr)
 
 	if !noResponse {
-		var err error
-		if outMsg.Sglist != nil {
-			if fusekernel.IsPlatformFuseT {
-				// writev is not atomic on macos, restrict to fuse-t platform
-				writeLock.Lock()
-				defer writeLock.Unlock()
-			}
-			_, err = writev(int(c.dev.Fd()), outMsg.Sglist)
-		} else {
-			err = c.writeMessage(outMsg.OutHeaderBytes())
-		}
+		err := c.writeOutMessage(outMsg)
 		if err != nil {
 			writeErrMsg := fmt.Sprintf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
 			if c.errorLogger != nil {
