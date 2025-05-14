@@ -277,11 +277,14 @@ const (
 	InitMaxPages         InitFlags = 1 << 22
 	InitCacheSymlinks    InitFlags = 1 << 23
 	InitNoOpendirSupport InitFlags = 1 << 24
+	InitExt InitFlags = 1 << 30
 
 	InitCaseSensitive InitFlags = 1 << 29 // OS X only
 	InitVolRename     InitFlags = 1 << 30 // OS X only
 	InitXtimes        InitFlags = 1 << 31 // OS X only
 )
+
+const InitDirectIOAllowMMAP uint64 = 1 << 36
 
 type flagName struct {
 	bit  uint32
@@ -310,6 +313,7 @@ var initFlagNames = []flagName{
 	{uint32(InitNoOpenSupport), "InitNoOpenSupport"},
 	{uint32(InitCacheSymlinks), "InitCacheSymlinks"},
 	{uint32(InitNoOpendirSupport), "InitNoOpendirSupport"},
+	{uint32(InitExt), "InitExt"},
 
 	{uint32(InitCaseSensitive), "InitCaseSensitive"},
 	{uint32(InitVolRename), "InitVolRename"},
@@ -753,7 +757,9 @@ type InitOut struct {
 	TimeGran            uint32
 	MaxPages            uint16
 	MapAlignment        uint16
-	Unused              [8]uint32
+	Flags2 				uint32
+	
+	Unused              [7]uint32
 }
 
 type InterruptIn struct {

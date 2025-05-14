@@ -204,6 +204,11 @@ func (c *Connection) Init() error {
 		initOp.Flags |= fusekernel.InitAtomicTrunc
 	}
 
+	outArgs := uint64(0)
+	outArgs |= fusekernel.InitDirectIOAllowMMAP
+	initOp.Flags |= fusekernel.InitExt
+	initOp.Flags2 |= uint32(outArgs >> 32)
+
 	return c.Reply(ctx, nil)
 }
 
