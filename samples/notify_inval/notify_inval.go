@@ -77,8 +77,7 @@ type notifyInvalInodeFS struct {
 const (
 	currentTimeFilename = "current_time"
 
-	rootInode        fuseops.InodeID = fuseops.RootInodeID
-	currentTimeInode                 = rootInode + iota
+	currentTimeInode = fuseops.RootInodeID + iota
 	changingFnameInode
 )
 
@@ -87,21 +86,21 @@ func (fs *notifyInvalInodeFS) invalidateInodes(oldTime time.Time) {
 	if err := fs.notifier.InvalidateInode(currentTimeInode, 0, 0); err != nil {
 		fmt.Printf("error invalidating current_time inode %v: %v\n", currentTimeInode, err)
 	}
-	if err := fs.notifier.InvalidateEntry(rootInode, currentTimeFilename); err != nil {
-		fmt.Printf("error invalidating current_time entry %v for parent %v: %v\n", currentTimeFilename, rootInode, err)
+	if err := fs.notifier.InvalidateEntry(fuseops.RootInodeID, currentTimeFilename); err != nil {
+		fmt.Printf("error invalidating current_time entry %v for parent %v: %v\n", currentTimeFilename, fuseops.RootInodeID, err)
 	}
 
 	if err := fs.notifier.InvalidateInode(changingFnameInode, 0, 0); err != nil {
 		fmt.Printf("error invalidating dynamic filename inode %v: %v\n", changingFnameInode, err)
 	}
-	if err := fs.notifier.InvalidateEntry(rootInode, oldTime.Format(time.RFC3339)); err != nil {
-		fmt.Printf("error invalidating dynamic filename entry for parent %v: %v\n", rootInode, err)
+	if err := fs.notifier.InvalidateEntry(fuseops.RootInodeID, oldTime.Format(time.RFC3339)); err != nil {
+		fmt.Printf("error invalidating dynamic filename entry for parent %v: %v\n", fuseops.RootInodeID, err)
 	}
 }
 
 func (fs *notifyInvalInodeFS) fillStat(ino fuseops.InodeID, attrs *fuseops.InodeAttributes) error {
 	switch ino {
-	case rootInode:
+	case fuseops.RootInodeID:
 		attrs.Nlink = 1
 		attrs.Mode = 0555 | os.ModeDir
 	case currentTimeInode:
@@ -118,7 +117,7 @@ func (fs *notifyInvalInodeFS) fillStat(ino fuseops.InodeID, attrs *fuseops.Inode
 }
 
 func (fs *notifyInvalInodeFS) LookUpInode(ctx context.Context, op *fuseops.LookUpInodeOp) error {
-	if op.Parent != rootInode {
+	if op.Parent != fuseops.RootInodeID {
 		return fuse.ENOENT
 	}
 
@@ -148,7 +147,7 @@ func (fs *notifyInvalInodeFS) GetInodeAttributes(ctx context.Context, op *fuseop
 }
 
 func (fs *notifyInvalInodeFS) ReadDir(ctx context.Context, op *fuseops.ReadDirOp) error {
-	if op.Inode != rootInode {
+	if op.Inode != fuseops.RootInodeID {
 		return fuse.ENOTDIR
 	}
 
@@ -174,7 +173,7 @@ func (fs *notifyInvalInodeFS) ReadDir(ctx context.Context, op *fuseops.ReadDirOp
 }
 
 func (fs *notifyInvalInodeFS) OpenFile(ctx context.Context, op *fuseops.OpenFileOp) error {
-	if op.Inode == rootInode {
+	if op.Inode == fuseops.RootInodeID {
 		return syscall.EISDIR
 	}
 	if op.Inode == changingFnameInode {
