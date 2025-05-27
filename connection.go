@@ -204,6 +204,9 @@ func (c *Connection) Init() error {
 		initOp.Flags |= fusekernel.InitAtomicTrunc
 	}
 
+	initOp.Flags |= fusekernel.InitDoReaddirplus
+	//initOp.Flags |= fusekernel.InitReaddirplusAuto
+
 	return c.Reply(ctx, nil)
 }
 

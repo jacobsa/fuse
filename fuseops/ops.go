@@ -609,6 +609,14 @@ type ReadDirOp struct {
 	BytesRead int
 	OpContext OpContext
 }
+type ReadDirPlusOp struct {
+	Inode     InodeID
+	Handle    HandleID
+	Offset    DirOffset
+	Dst       []byte
+	BytesRead int
+	OpContext OpContext
+}
 
 // Release a previously-minted directory handle. The kernel sends this when
 // there are no more references to an open directory: all file descriptors are

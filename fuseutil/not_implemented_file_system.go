@@ -126,6 +126,12 @@ func (fs *NotImplementedFileSystem) ReadDir(
 	return fuse.ENOSYS
 }
 
+func (fs *NotImplementedFileSystem) ReadDirPlus(
+	ctx context.Context,
+	op *fuseops.ReadDirPlusOp) error {
+	return fuse.ENOSYS
+}
+
 func (fs *NotImplementedFileSystem) ReleaseDirHandle(
 	ctx context.Context,
 	op *fuseops.ReleaseDirHandleOp) error {

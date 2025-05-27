@@ -430,6 +430,35 @@ func convertInMessage(
 		sh.Len = readSize
 		sh.Cap = readSize
 
+	case fusekernel.OpReaddirplus:
+		in := (*fusekernel.ReadIn)(inMsg.Consume(fusekernel.ReadInSize(protocol)))
+		if in == nil {
+			return nil, errors.New("Corrupt OpReaddirplus")
+		}
+
+		to := &fuseops.ReadDirPlusOp{
+			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
+			Handle: fuseops.HandleID(in.Fh),
+			Offset: fuseops.DirOffset(in.Offset),
+			OpContext: fuseops.OpContext{
+				FuseID: inMsg.Header().Unique,
+				Pid:    inMsg.Header().Pid,
+				Uid:    inMsg.Header().Uid,
+			},
+		}
+		o = to
+
+		readSize := int(in.Size)
+		p := outMsg.Grow(readSize)
+		if p == nil {
+			return nil, fmt.Errorf("Can't grow for %d-byte read", readSize)
+		}
+
+		sh := (*reflect.SliceHeader)(unsafe.Pointer(&to.Dst))
+		sh.Data = uintptr(p)
+		sh.Len = readSize
+		sh.Cap = readSize
+
 	case fusekernel.OpRelease:
 		type input fusekernel.ReleaseIn
 		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
@@ -812,14 +841,14 @@ func (c *Connection) kernelResponseForOp(
 	case *fuseops.GetInodeAttributesOp:
 		size := int(fusekernel.AttrOutSize(c.protocol))
 		out := (*fusekernel.AttrOut)(m.Grow(size))
-		out.AttrValid, out.AttrValidNsec = convertExpirationTime(
+		out.AttrValid, out.AttrValidNsec = ConvertExpirationTime(
 			o.AttributesExpiration)
 		convertAttributes(o.Inode, &o.Attributes, &out.Attr)
 
 	case *fuseops.SetInodeAttributesOp:
 		size := int(fusekernel.AttrOutSize(c.protocol))
 		out := (*fusekernel.AttrOut)(m.Grow(size))
-		out.AttrValid, out.AttrValidNsec = convertExpirationTime(
+		out.AttrValid, out.AttrValidNsec = ConvertExpirationTime(
 			o.AttributesExpiration)
 		convertAttributes(o.Inode, &o.Attributes, &out.Attr)
 
@@ -877,6 +906,9 @@ func (c *Connection) kernelResponseForOp(
 		// convertInMessage already set up the destination buffer to be at the end
 		// of the out message. We need only shrink to the right size based on how
 		// much the user read.
+		m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
+
+	case *fuseops.ReadDirPlusOp:
 		m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
 
 	case *fuseops.ReleaseDirHandleOp:
@@ -1042,7 +1074,7 @@ func convertAttributes(
 
 // Convert an absolute cache expiration time to a relative time from now for
 // consumption by the fuse kernel module.
-func convertExpirationTime(t time.Time) (secs uint64, nsecs uint32) {
+func ConvertExpirationTime(t time.Time) (secs uint64, nsecs uint32) {
 	// Fuse represents durations as unsigned 64-bit counts of seconds and 32-bit
 	// counts of nanoseconds (https://tinyurl.com/4muvkr6k). So negative
 	// durations are right out. There is no need to cap the positive magnitude,
@@ -1062,8 +1094,8 @@ func convertChildInodeEntry(
 	out *fusekernel.EntryOut) {
 	out.Nodeid = uint64(in.Child)
 	out.Generation = uint64(in.Generation)
-	out.EntryValid, out.EntryValidNsec = convertExpirationTime(in.EntryExpiration)
-	out.AttrValid, out.AttrValidNsec = convertExpirationTime(in.AttributesExpiration)
+	out.EntryValid, out.EntryValidNsec = ConvertExpirationTime(in.EntryExpiration)
+	out.AttrValid, out.AttrValidNsec = ConvertExpirationTime(in.AttributesExpiration)
 
 	convertAttributes(in.Child, &in.Attributes, &out.Attr)
 }

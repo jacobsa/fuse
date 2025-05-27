@@ -15,6 +15,7 @@
 package fuseutil
 
 import (
+	"github.com/jacobsa/fuse"
 	"syscall"
 	"unsafe"
 
@@ -48,6 +49,13 @@ type Dirent struct {
 	// The type of the child. The zero value (DT_Unknown) is legal, but means
 	// that the kernel will need to call GetAttr when the type is needed.
 	Type DirentType
+}
+type DirentPlus struct {
+	Offset fuseops.DirOffset
+	Inode  fuseops.InodeID
+	Name   string
+	Type   DirentType
+	Entry  fuseops.ChildInodeEntry
 }
 
 // Write the supplied directory entry into the given buffer in the format
@@ -98,6 +106,126 @@ func WriteDirent(buf []byte, d Dirent) (n int) {
 	// Add any necessary padding.
 	if padLen != 0 {
 		var padding [direntAlignment]byte
+		n += copy(buf[n:], padding[:padLen])
+	}
+
+	return n
+}
+
+func WriteDirentPlus(buf []byte, d DirentPlus) (n int) {
+
+	type fuse_attr struct {
+		ino       uint64
+		size      uint64
+		blocks    uint64
+		atime     uint64
+		mtime     uint64
+		ctime     uint64
+		atimensec uint32
+		mtimensec uint32
+		ctimensec uint32
+		mode      uint32
+		nlink     uint32
+		uid       uint32
+		gid       uint32
+		rdev      uint32
+		blksize   uint32
+		padding   uint32
+	}
+	type fuse_entry_out struct {
+		nodeid           uint64
+		generation       uint64
+		entry_valid      uint64
+		attr_valid       uint64
+		entry_valid_nsec uint32
+		attr_valid_nsec  uint32
+		attr             fuse_attr
+	}
+
+	type fuse_dirent struct {
+		ino     uint64
+		off     uint64
+		namelen uint32
+		type_   uint32
+		name    [0]byte
+	}
+
+	type fuse_direntplus struct {
+		entry_out fuse_entry_out
+		dirent    fuse_dirent
+	}
+
+	const direntPlusAlignment = 8                // FUSE_DIRENTPLUS_ALIGNMENT
+	const direntPlusHeaderSize = 8 + 8 + 4 + 4 + // fuse_dirent fields
+		8 + 8 + 8 + 8 + 4 + 4 + // child_ino, gen, attr_valid, entry_valid (seconds and nseconds)
+		8 + 8 + 8 + // ino_attr, size, blocks
+		8 + 8 + 8 + 4 + 4 + 4 + // atime, mtime, ctime (seconds and nseconds)
+		4 + 4 + 4 + 4 + 4 + 4 + 4 // mode, nlink, uid, gid, rdev, blksize, padding
+
+	// Compute the number of bytes of padding we'll need to maintain alignment
+	// for the next entry.
+	var padLen int
+	if len(d.Name)%direntPlusAlignment != 0 {
+		padLen = direntPlusAlignment - (len(d.Name) % direntPlusAlignment)
+	}
+
+	// Do we have enough room?
+	totalLen := direntPlusHeaderSize + len(d.Name) + padLen
+	if totalLen > len(buf) {
+		return n
+	}
+
+	EntryValid, EntryValidNsec := fuse.ConvertExpirationTime(d.Entry.EntryExpiration)
+	AttrValid, AttrValidNsec := fuse.ConvertExpirationTime(d.Entry.AttributesExpiration)
+	var Rdev uint32
+	Mode := fuse.ConvertGoMode(d.Entry.Attributes.Mode)
+	if Mode&(syscall.S_IFCHR|syscall.S_IFBLK) != 0 {
+		Rdev = d.Entry.Attributes.Rdev
+	}
+
+	// Write the header.
+	dp := fuse_direntplus{
+		entry_out: fuse_entry_out{
+			nodeid:           uint64(d.Entry.Child),
+			generation:       uint64(d.Entry.Generation),
+			entry_valid:      EntryValid,
+			attr_valid:       AttrValid,
+			entry_valid_nsec: EntryValidNsec,
+			attr_valid_nsec:  AttrValidNsec,
+			attr: fuse_attr{
+				ino:       uint64(d.Entry.Child),
+				size:      d.Entry.Attributes.Size,
+				blocks:    (d.Entry.Attributes.Size + 512 - 1) / 512,
+				atime:     uint64(d.Entry.Attributes.Atime.UnixNano() / 1e9),
+				mtime:     uint64(d.Entry.Attributes.Mtime.UnixNano() / 1e9),
+				ctime:     uint64(d.Entry.Attributes.Ctime.UnixNano() / 1e9),
+				atimensec: uint32(d.Entry.Attributes.Atime.UnixNano() % 1e9),
+				mtimensec: uint32(d.Entry.Attributes.Mtime.UnixNano() % 1e9),
+				ctimensec: uint32(d.Entry.Attributes.Ctime.UnixNano() % 1e9),
+				mode:      Mode,
+				nlink:     d.Entry.Attributes.Nlink,
+				rdev:      Rdev,
+				uid:       d.Entry.Attributes.Uid,
+				gid:       d.Entry.Attributes.Gid,
+			},
+		},
+
+		dirent: fuse_dirent{
+			ino:     uint64(d.Inode),
+			off:     uint64(d.Offset),
+			namelen: uint32(len(d.Name)),
+			type_:   uint32(d.Type),
+		},
+	}
+
+	n += copy(buf[n:], (*[direntPlusHeaderSize]byte)(unsafe.Pointer(&dp))[:])
+
+	// Write the name afterward.
+	n += copy(buf[n:], d.Name)
+
+	// Add any necessary padding.
+	if padLen != 0 {
+		var padding [direntPlusAlignment]byte
 		n += copy(buf[n:], padding[:padLen])
 	}
 
