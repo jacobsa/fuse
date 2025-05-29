@@ -164,6 +164,9 @@ func (c *Connection) Init() error {
 	// Tell the kernel not to use pitifully small 4 KiB writes.
 	initOp.Flags |= fusekernel.InitBigWrites
 
+	initOp.Flags |= fusekernel.InitDoReaddirplus
+	initOp.Flags |= fusekernel.InitReaddirplusAuto
+
 	if c.cfg.EnableAsyncReads {
 		initOp.Flags |= fusekernel.InitAsyncRead
 	}
@@ -204,8 +207,9 @@ func (c *Connection) Init() error {
 		initOp.Flags |= fusekernel.InitAtomicTrunc
 	}
 
-	initOp.Flags |= fusekernel.InitDoReaddirplus
-	//initOp.Flags |= fusekernel.InitReaddirplusAuto
+	if c.cfg.DisableReaddirplus {
+		initOp.Flags &= ^fusekernel.InitDoReaddirplus
+	}
 
 	return c.Reply(ctx, nil)
 }
