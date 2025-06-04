@@ -50,12 +50,18 @@ type Dirent struct {
 	// that the kernel will need to call GetAttr when the type is needed.
 	Type DirentType
 }
+
+// A struct representing an entry along with its attributes within a directory file, describing a child.
+// See notes on fuseops.ReadDirPlusOp and on WriteDirentPlus for details.
 type DirentPlus struct {
-	Offset fuseops.DirOffset
-	Inode  fuseops.InodeID
-	Name   string
-	Type   DirentType
-	Entry  fuseops.ChildInodeEntry
+	// The basic directory entry information (offset, inode, name, type).
+	Dirent Dirent
+
+	// Detailed information about the child inode, including its attributes
+	// (like size, mode, timestamps) and cache expiration times for both the
+	// attributes and the name lookup. This corresponds to the data
+	// consumed by the kernel to populate its cache (fuse_entry_out).
+	Entry fuseops.ChildInodeEntry
 }
 
 // Write the supplied directory entry into the given buffer in the format
@@ -112,8 +118,14 @@ func WriteDirent(buf []byte, d Dirent) (n int) {
 	return n
 }
 
+// Write the supplied directory entry with attributes into the given buffer in the format
+// expected in fuseops.ReadFileOp.Data, returning the number of bytes written.
+// Return zero if the entry would not fit.
 func WriteDirentPlus(buf []byte, d DirentPlus) (n int) {
-
+	// We want to write bytes with the layout of fuse_direntplus
+	// (http://shortn/_LNqd8uXg2p) in host order. The struct must be aligned
+	// according to FUSE_DIRENT_ALIGN (https://tinyurl.com/3m3ewu7h), which
+	// dictates 8-byte alignment.
 	type fuse_attr struct {
 		ino       uint64
 		size      uint64
@@ -132,6 +144,7 @@ func WriteDirentPlus(buf []byte, d DirentPlus) (n int) {
 		blksize   uint32
 		padding   uint32
 	}
+
 	type fuse_entry_out struct {
 		nodeid           uint64
 		generation       uint64
@@ -155,22 +168,20 @@ func WriteDirentPlus(buf []byte, d DirentPlus) (n int) {
 		dirent    fuse_dirent
 	}
 
-	const direntPlusAlignment = 8                // FUSE_DIRENTPLUS_ALIGNMENT
-	const direntPlusHeaderSize = 8 + 8 + 4 + 4 + // fuse_dirent fields
-		8 + 8 + 8 + 8 + 4 + 4 + // child_ino, gen, attr_valid, entry_valid (seconds and nseconds)
-		8 + 8 + 8 + // ino_attr, size, blocks
-		8 + 8 + 8 + 4 + 4 + 4 + // atime, mtime, ctime (seconds and nseconds)
-		4 + 4 + 4 + 4 + 4 + 4 + 4 // mode, nlink, uid, gid, rdev, blksize, padding
+	const direntPlusAlignment = 8
+	const direntPlusHeaderSize = 8 + 8 + 8 + 8 + 4 + 4 + //fuse_entry_out without attributes
+		8 + 8 + 8 + 8 + 8 + 8 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + //fuse_attributes
+		8 + 8 + 4 + 4 //fuse_dirent
 
 	// Compute the number of bytes of padding we'll need to maintain alignment
 	// for the next entry.
 	var padLen int
-	if len(d.Name)%direntPlusAlignment != 0 {
-		padLen = direntPlusAlignment - (len(d.Name) % direntPlusAlignment)
+	if len(d.Dirent.Name)%direntPlusAlignment != 0 {
+		padLen = direntPlusAlignment - (len(d.Dirent.Name) % direntPlusAlignment)
 	}
 
 	// Do we have enough room?
-	totalLen := direntPlusHeaderSize + len(d.Name) + padLen
+	totalLen := direntPlusHeaderSize + len(d.Dirent.Name) + padLen
 	if totalLen > len(buf) {
 		return n
 	}
@@ -211,17 +222,17 @@ func WriteDirentPlus(buf []byte, d DirentPlus) (n int) {
 		},
 
 		dirent: fuse_dirent{
-			ino:     uint64(d.Inode),
-			off:     uint64(d.Offset),
-			namelen: uint32(len(d.Name)),
-			type_:   uint32(d.Type),
+			ino:     uint64(d.Dirent.Inode),
+			off:     uint64(d.Dirent.Offset),
+			namelen: uint32(len(d.Dirent.Name)),
+			type_:   uint32(d.Dirent.Type),
 		},
 	}
 
 	n += copy(buf[n:], (*[direntPlusHeaderSize]byte)(unsafe.Pointer(&dp))[:])
 
 	// Write the name afterward.
-	n += copy(buf[n:], d.Name)
+	n += copy(buf[n:], d.Dirent.Name)
 
 	// Add any necessary padding.
 	if padLen != 0 {

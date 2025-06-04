@@ -909,6 +909,9 @@ func (c *Connection) kernelResponseForOp(
 		m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
 
 	case *fuseops.ReadDirPlusOp:
+		// convertInMessage already set up the destination buffer to be at the end
+		// of the out message. We need only shrink to the right size based on how
+		// much the user read.
 		m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
 
 	case *fuseops.ReleaseDirHandleOp:

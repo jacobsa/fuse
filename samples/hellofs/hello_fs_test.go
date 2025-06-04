@@ -101,6 +101,56 @@ func (t *HelloFSTest) ReadDir_NonExistent() {
 	ExpectThat(err, Error(HasSubstr("no such file")))
 }
 
+func (t *HelloFSTest) ReadDirPlus_Root() {
+	entriesPlus, err := fusetesting.ReadDirPlusPicky(t.Dir)
+
+	AssertEq(nil, err)
+	AssertEq(2, len(entriesPlus))
+	var fi os.FileInfo
+
+	// dir
+	fi = entriesPlus[0]
+	ExpectEq("dir", fi.Name())
+	ExpectEq(0, fi.Size())
+	ExpectEq(os.ModeDir|0555, fi.Mode())
+	ExpectEq(0, t.Clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
+	ExpectTrue(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+
+	// hello
+	fi = entriesPlus[1]
+	ExpectEq("hello", fi.Name())
+	ExpectEq(len("Hello, world!"), fi.Size())
+	ExpectEq(0444, fi.Mode())
+	ExpectEq(0, t.Clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+}
+
+func (t *HelloFSTest) ReadDirPlus_Dir() {
+	entriesPlus, err := fusetesting.ReadDirPlusPicky(path.Join(t.Dir, "dir"))
+
+	AssertEq(nil, err)
+	AssertEq(1, len(entriesPlus))
+	var fi os.FileInfo
+
+	// world
+	fi = entriesPlus[0]
+	ExpectEq("world", fi.Name())
+	ExpectEq(len("Hello, world!"), fi.Size())
+	ExpectEq(0444, fi.Mode())
+	ExpectEq(0, t.Clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
+	ExpectFalse(fi.IsDir())
+	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
+}
+
+func (t *HelloFSTest) ReadDirPlus_NonExistent() {
+	_, err := fusetesting.ReadDirPlusPicky(path.Join(t.Dir, "foobar"))
+
+	AssertNe(nil, err)
+	ExpectThat(err, Error(HasSubstr("no such file")))
+}
+
 func (t *HelloFSTest) Stat_Hello() {
 	fi, err := os.Stat(path.Join(t.Dir, "hello"))
 	AssertEq(nil, err)
