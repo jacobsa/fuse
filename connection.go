@@ -204,7 +204,7 @@ func (c *Connection) Init() error {
 		initOp.Flags |= fusekernel.InitAtomicTrunc
 	}
 
-	if !c.cfg.DisableReaddirplus {
+	if c.cfg.EnableReaddirplus {
 		// Enable Readdirplus support, allowing the kernel to use Readdirplus
 		initOp.Flags |= fusekernel.InitDoReaddirplus
 

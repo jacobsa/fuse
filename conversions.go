@@ -437,13 +437,15 @@ func convertInMessage(
 		}
 
 		to := &fuseops.ReadDirPlusOp{
-			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
-			Handle: fuseops.HandleID(in.Fh),
-			Offset: fuseops.DirOffset(in.Offset),
-			OpContext: fuseops.OpContext{
-				FuseID: inMsg.Header().Unique,
-				Pid:    inMsg.Header().Pid,
-				Uid:    inMsg.Header().Uid,
+			ReadDirOp: fuseops.ReadDirOp{
+				Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
+				Handle: fuseops.HandleID(in.Fh),
+				Offset: fuseops.DirOffset(in.Offset),
+				OpContext: fuseops.OpContext{
+					FuseID: inMsg.Header().Unique,
+					Pid:    inMsg.Header().Pid,
+					Uid:    inMsg.Header().Uid,
+				},
 			},
 		}
 		o = to
@@ -454,10 +456,11 @@ func convertInMessage(
 			return nil, fmt.Errorf("Can't grow for %d-byte read", readSize)
 		}
 
-		sh := (*reflect.SliceHeader)(unsafe.Pointer(&to.Dst))
-		sh.Data = uintptr(p)
-		sh.Len = readSize
-		sh.Cap = readSize
+		if readSize > 0 {
+			to.Dst = unsafe.Slice((*byte)(p), readSize)
+		} else {
+			to.Dst = nil
+		}
 
 	case fusekernel.OpRelease:
 		type input fusekernel.ReleaseIn
