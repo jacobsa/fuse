@@ -16,6 +16,7 @@ package fuseutil
 
 import (
 	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/internal/fusekernel"
 	"syscall"
 	"unsafe"
 
@@ -64,6 +65,14 @@ type DirentPlus struct {
 	Entry fuseops.ChildInodeEntry
 }
 
+type fuse_dirent struct {
+	ino     uint64
+	off     uint64
+	namelen uint32
+	type_   uint32
+	name    [0]byte
+}
+
 // Write the supplied directory entry into the given buffer in the format
 // expected in fuseops.ReadFileOp.Data, returning the number of bytes written.
 // Return zero if the entry would not fit.
@@ -72,13 +81,6 @@ func WriteDirent(buf []byte, d Dirent) (n int) {
 	// (https://tinyurl.com/4k7y2h9r) in host order. The struct must be aligned
 	// according to FUSE_DIRENT_ALIGN (https://tinyurl.com/3m3ewu7h), which
 	// dictates 8-byte alignment.
-	type fuse_dirent struct {
-		ino     uint64
-		off     uint64
-		namelen uint32
-		type_   uint32
-		name    [0]byte
-	}
 
 	const direntAlignment = 8
 	const direntSize = 8 + 8 + 4 + 4
@@ -122,25 +124,6 @@ func WriteDirent(buf []byte, d Dirent) (n int) {
 // expected in fuseops.ReadDirPlusOp.Dst returning the number of bytes written.
 // Return zero if the entry would not fit.
 func WriteDirentPlus(buf []byte, d DirentPlus) (n int) {
-	type fuse_attr struct {
-		ino       uint64
-		size      uint64
-		blocks    uint64
-		atime     uint64
-		mtime     uint64
-		ctime     uint64
-		atimensec uint32
-		mtimensec uint32
-		ctimensec uint32
-		mode      uint32
-		nlink     uint32
-		uid       uint32
-		gid       uint32
-		rdev      uint32
-		blksize   uint32
-		padding   uint32
-	}
-
 	type fuse_entry_out struct {
 		nodeid           uint64
 		generation       uint64
@@ -148,15 +131,7 @@ func WriteDirentPlus(buf []byte, d DirentPlus) (n int) {
 		attr_valid       uint64
 		entry_valid_nsec uint32
 		attr_valid_nsec  uint32
-		attr             fuse_attr
-	}
-
-	type fuse_dirent struct {
-		ino     uint64
-		off     uint64
-		namelen uint32
-		type_   uint32
-		name    [0]byte
+		attr             fusekernel.Attr
 	}
 
 	// We want to write bytes with the layout of fuse_direntplus
@@ -184,8 +159,8 @@ func WriteDirentPlus(buf []byte, d DirentPlus) (n int) {
 	// Compute the number of bytes of padding we'll need to maintain alignment
 	// for the next entry.
 	var padLen int
-	if len(d.Dirent.Name)%direntPlusAlignment != 0 {
-		padLen = direntPlusAlignment - (len(d.Dirent.Name) % direntPlusAlignment)
+	if pad := len(d.Dirent.Name) % direntPlusAlignment; pad != 0 {
+		padLen = direntPlusAlignment - pad
 	}
 
 	// Do we have enough room?
@@ -194,12 +169,12 @@ func WriteDirentPlus(buf []byte, d DirentPlus) (n int) {
 		return 0
 	}
 
-	EntryValid, EntryValidNsec := fuse.ConvertExpirationTime(d.Entry.EntryExpiration)
-	AttrValid, AttrValidNsec := fuse.ConvertExpirationTime(d.Entry.AttributesExpiration)
-	var Rdev uint32
-	Mode := fuse.ConvertGoMode(d.Entry.Attributes.Mode)
-	if Mode&(syscall.S_IFCHR|syscall.S_IFBLK) != 0 {
-		Rdev = d.Entry.Attributes.Rdev
+	entryValid, entryValidNsec := fuse.ConvertExpirationTime(d.Entry.EntryExpiration)
+	attrValid, attrValidNsec := fuse.ConvertExpirationTime(d.Entry.AttributesExpiration)
+	var rdev uint32
+	mode := fuse.ConvertGoMode(d.Entry.Attributes.Mode)
+	if mode&(syscall.S_IFCHR|syscall.S_IFBLK) != 0 {
+		rdev = d.Entry.Attributes.Rdev
 	}
 
 	// Write the header.
@@ -207,25 +182,26 @@ func WriteDirentPlus(buf []byte, d DirentPlus) (n int) {
 		entry_out: fuse_entry_out{
 			nodeid:           uint64(d.Entry.Child),
 			generation:       uint64(d.Entry.Generation),
-			entry_valid:      EntryValid,
-			attr_valid:       AttrValid,
-			entry_valid_nsec: EntryValidNsec,
-			attr_valid_nsec:  AttrValidNsec,
-			attr: fuse_attr{
-				ino:       uint64(d.Entry.Child),
-				size:      d.Entry.Attributes.Size,
-				blocks:    (d.Entry.Attributes.Size + 512 - 1) / 512, // round up to the nearest 512 boundary (In POSIX a "block" is a unit of 512 bytes)
-				atime:     uint64(d.Entry.Attributes.Atime.UnixNano() / 1e9),
-				mtime:     uint64(d.Entry.Attributes.Mtime.UnixNano() / 1e9),
-				ctime:     uint64(d.Entry.Attributes.Ctime.UnixNano() / 1e9),
-				atimensec: uint32(d.Entry.Attributes.Atime.UnixNano() % 1e9),
-				mtimensec: uint32(d.Entry.Attributes.Mtime.UnixNano() % 1e9),
-				ctimensec: uint32(d.Entry.Attributes.Ctime.UnixNano() % 1e9),
-				mode:      Mode,
-				nlink:     d.Entry.Attributes.Nlink,
-				rdev:      Rdev,
-				uid:       d.Entry.Attributes.Uid,
-				gid:       d.Entry.Attributes.Gid,
+			entry_valid:      entryValid,
+			attr_valid:       attrValid,
+			entry_valid_nsec: entryValidNsec,
+			attr_valid_nsec:  attrValidNsec,
+			attr: fusekernel.Attr{
+				Ino:  uint64(d.Entry.Child),
+				Size: d.Entry.Attributes.Size,
+				// round up to the nearest 512 boundary (In POSIX a "block" is a unit of 512 bytes)
+				Blocks:    (d.Entry.Attributes.Size + 512 - 1) / 512,
+				Atime:     uint64(d.Entry.Attributes.Atime.UnixNano() / 1e9),
+				Mtime:     uint64(d.Entry.Attributes.Mtime.UnixNano() / 1e9),
+				Ctime:     uint64(d.Entry.Attributes.Ctime.UnixNano() / 1e9),
+				AtimeNsec: uint32(d.Entry.Attributes.Atime.UnixNano() % 1e9),
+				MtimeNsec: uint32(d.Entry.Attributes.Mtime.UnixNano() % 1e9),
+				CtimeNsec: uint32(d.Entry.Attributes.Ctime.UnixNano() % 1e9),
+				Mode:      mode,
+				Nlink:     d.Entry.Attributes.Nlink,
+				Rdev:      rdev,
+				Uid:       d.Entry.Attributes.Uid,
+				Gid:       d.Entry.Attributes.Gid,
 			},
 		},
 

@@ -206,10 +206,9 @@ type MountConfig struct {
 	// Ref: https://github.com/torvalds/linux/commit/6ff958edbf39c014eb06b65ad25b736be08c4e63
 	EnableAtomicTrunc bool
 
-	// Flag to enable the ReadDirPlus capability.
-	// When enabled, more comprehensive directory information can be retrieved,
-	// which is beneficial for operations like 'ls -l' that require
-	// extended file attributes.
+	// Flag to tell the kernel we support ReadDirPlus, which optimizes performance
+	// by returning not just the directory entries (like ReadDir), but also their inode
+	// attributes, thereby saving one extra Lookup request per directory entry.
 	EnableReaddirplus bool
 }
 
