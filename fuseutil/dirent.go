@@ -145,7 +145,7 @@ func WriteDirentPlus(buf []byte, d DirentPlus) (n int) {
 
 	const direntPlusAlignment = 8
 
-	//size of fuse_attr
+	// size of fuse_attr
 	const fuseAttrSize = 8 + 8 + 8 + 8 + 8 + 8 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4
 
 	// size of fuse_entry_out without fuse_attr

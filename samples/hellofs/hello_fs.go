@@ -16,14 +16,13 @@ package hellofs
 
 import (
 	"context"
-	"io"
-	"os"
-	"strings"
-
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
+	"io"
+	"os"
+	"strings"
 )
 
 // Create a file system with a fixed structure that looks like this:

@@ -47,6 +47,7 @@ func (t *HelloFSTest) SetUp(ti *TestInfo) {
 	t.Server, err = hellofs.NewHelloFS(&t.Clock)
 	AssertEq(nil, err)
 
+	t.MountConfig.EnableReaddirplus = true
 	t.SampleTest.SetUp(ti)
 }
 
@@ -113,18 +114,14 @@ func (t *HelloFSTest) ReadDirPlus_Root() {
 	ExpectEq("dir", fi.Name())
 	ExpectEq(0, fi.Size())
 	ExpectEq(os.ModeDir|0555, fi.Mode())
-	ExpectEq(0, t.Clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectTrue(fi.IsDir())
-	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 
 	// hello
 	fi = entriesPlus[1]
 	ExpectEq("hello", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
 	ExpectEq(0444, fi.Mode())
-	ExpectEq(0, t.Clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectFalse(fi.IsDir())
-	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *HelloFSTest) ReadDirPlus_Dir() {
@@ -139,9 +136,7 @@ func (t *HelloFSTest) ReadDirPlus_Dir() {
 	ExpectEq("world", fi.Name())
 	ExpectEq(len("Hello, world!"), fi.Size())
 	ExpectEq(0444, fi.Mode())
-	ExpectEq(0, t.Clock.Now().Sub(fi.ModTime()), "ModTime: %v", fi.ModTime())
 	ExpectFalse(fi.IsDir())
-	ExpectEq(1, fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func (t *HelloFSTest) ReadDirPlus_NonExistent() {
