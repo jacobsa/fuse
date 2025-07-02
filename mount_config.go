@@ -205,6 +205,11 @@ type MountConfig struct {
 	// without O_TRUNC, followed by a SetInodeAttributes op with the target size set to 0.
 	// Ref: https://github.com/torvalds/linux/commit/6ff958edbf39c014eb06b65ad25b736be08c4e63
 	EnableAtomicTrunc bool
+
+	// Flag to tell the kernel we support ReadDirPlus, which optimizes performance
+	// by returning not just the directory entries (like ReadDir), but also their inode
+	// attributes, thereby saving one extra Lookup request per directory entry.
+	EnableReaddirplus bool
 }
 
 type FUSEImpl uint8

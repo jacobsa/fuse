@@ -610,6 +610,12 @@ type ReadDirOp struct {
 	OpContext OpContext
 }
 
+// Read entries with attributes from a directory previously opened with OpenDir.
+// By embedding ReadDirOp, it directly incorporates its fields, avoiding duplication.
+type ReadDirPlusOp struct {
+	ReadDirOp
+}
+
 // Release a previously-minted directory handle. The kernel sends this when
 // there are no more references to an open directory: all file descriptors are
 // closed and all memory mappings are unmapped.

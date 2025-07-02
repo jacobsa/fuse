@@ -16,14 +16,13 @@ package hellofs
 
 import (
 	"context"
-	"io"
-	"os"
-	"strings"
-
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/fuseutil"
 	"github.com/jacobsa/timeutil"
+	"io"
+	"os"
+	"strings"
 )
 
 // Create a file system with a fixed structure that looks like this:
@@ -62,6 +61,9 @@ type inodeInfo struct {
 
 	// For directories, children.
 	children []fuseutil.Dirent
+
+	// For directories, childrenPlus.
+	childrenPlus []fuseutil.DirentPlus
 }
 
 // We have a fixed directory structure.
@@ -85,6 +87,39 @@ var gInodeInfo = map[fuseops.InodeID]inodeInfo{
 				Inode:  dirInode,
 				Name:   "dir",
 				Type:   fuseutil.DT_Directory,
+			},
+		},
+		childrenPlus: []fuseutil.DirentPlus{
+			fuseutil.DirentPlus{
+				Dirent: fuseutil.Dirent{
+					Offset: 1,
+					Inode:  helloInode,
+					Name:   "hello",
+					Type:   fuseutil.DT_File,
+				},
+				Entry: fuseops.ChildInodeEntry{
+					Child: helloInode,
+					Attributes: fuseops.InodeAttributes{
+						Nlink: 1,
+						Mode:  0444,
+						Size:  uint64(len("Hello, world!")),
+					},
+				},
+			},
+			fuseutil.DirentPlus{
+				Dirent: fuseutil.Dirent{
+					Offset: 2,
+					Inode:  dirInode,
+					Name:   "dir",
+					Type:   fuseutil.DT_Directory,
+				},
+				Entry: fuseops.ChildInodeEntry{
+					Child: dirInode,
+					Attributes: fuseops.InodeAttributes{
+						Nlink: 1,
+						Mode:  0555 | os.ModeDir,
+					},
+				},
 			},
 		},
 	},
@@ -111,6 +146,24 @@ var gInodeInfo = map[fuseops.InodeID]inodeInfo{
 				Inode:  worldInode,
 				Name:   "world",
 				Type:   fuseutil.DT_File,
+			},
+		},
+		childrenPlus: []fuseutil.DirentPlus{
+			fuseutil.DirentPlus{
+				Dirent: fuseutil.Dirent{
+					Offset: 1,
+					Inode:  worldInode,
+					Name:   "world",
+					Type:   fuseutil.DT_File,
+				},
+				Entry: fuseops.ChildInodeEntry{
+					Child: worldInode,
+					Attributes: fuseops.InodeAttributes{
+						Nlink: 1,
+						Mode:  0444,
+						Size:  uint64(len("Hello, world!")),
+					},
+				},
 			},
 		},
 	},
@@ -226,6 +279,43 @@ func (fs *helloFS) ReadDir(
 	// Resume at the specified offset into the array.
 	for _, e := range entries {
 		n := fuseutil.WriteDirent(op.Dst[op.BytesRead:], e)
+		if n == 0 {
+			break
+		}
+
+		op.BytesRead += n
+	}
+
+	return nil
+}
+
+func (fs *helloFS) ReadDirPlus(
+	ctx context.Context,
+	op *fuseops.ReadDirPlusOp) error {
+	// Find the info for this inode.
+	info, ok := gInodeInfo[op.Inode]
+	if !ok {
+		return fuse.ENOENT
+	}
+
+	if !info.dir {
+		return fuse.EIO
+	}
+
+	entriesPlus := info.childrenPlus
+
+	// Grab the range of interest.
+	if op.Offset > fuseops.DirOffset(len(entriesPlus)) {
+		return nil
+	}
+
+	entriesPlus = entriesPlus[op.Offset:]
+
+	// Resume at the specified offset into the array.
+	for _, e := range entriesPlus {
+		entryPlus := e
+		fs.patchAttributes(&entryPlus.Entry.Attributes)
+		n := fuseutil.WriteDirentPlus(op.Dst[op.BytesRead:], entryPlus)
 		if n == 0 {
 			break
 		}

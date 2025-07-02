@@ -50,6 +50,7 @@ type FileSystem interface {
 	Unlink(context.Context, *fuseops.UnlinkOp) error
 	OpenDir(context.Context, *fuseops.OpenDirOp) error
 	ReadDir(context.Context, *fuseops.ReadDirOp) error
+	ReadDirPlus(context.Context, *fuseops.ReadDirPlusOp) error
 	ReleaseDirHandle(context.Context, *fuseops.ReleaseDirHandleOp) error
 	OpenFile(context.Context, *fuseops.OpenFileOp) error
 	ReadFile(context.Context, *fuseops.ReadFileOp) error
@@ -198,6 +199,9 @@ func (s *fileSystemServer) handleOp(
 
 	case *fuseops.ReadDirOp:
 		err = s.fs.ReadDir(ctx, typed)
+
+	case *fuseops.ReadDirPlusOp:
+		err = s.fs.ReadDirPlus(ctx, typed)
 
 	case *fuseops.ReleaseDirHandleOp:
 		err = s.fs.ReleaseDirHandle(ctx, typed)
