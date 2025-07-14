@@ -14,8 +14,16 @@
 
 package fuse
 
+import (
+	"errors"
+)
+
+var ErrExternallyManagedMountPoint = errors.New("externally managed mount point, skipping unmount")
+
 // Unmount attempts to unmount the file system whose mount point is the
 // supplied directory.
+// For external mountpoints (like /dev/fd/N), it returns ErrExternallyManagedMountPoint
+// for unsuccessful unmount attempt.
 func Unmount(dir string) error {
 	return unmount(dir)
 }
