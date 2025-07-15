@@ -210,6 +210,18 @@ type MountConfig struct {
 	// by returning not just the directory entries (like ReadDir), but also their inode
 	// attributes, thereby saving one extra Lookup request per directory entry.
 	EnableReaddirplus bool
+
+	// Flag to enable adaptive ReadDirPlus.
+	// This is only effective if EnableReaddirplus is true.
+	//
+	// When both flags are set, the kernel may dynamically choose between issuing
+	// ReaddirPlus and Readdir requests based on observed access patterns.
+	// For example, `ls` (which lists filenames only) may fall back to Readdir after an initial ReaddirPlus,
+	// whereas `ls -l` is more likely to continue using ReaddirPlus.
+	//
+	// If EnableReaddirplus is true and this flag is false, the kernel will always
+	// use ReaddirPlus for directory listing.
+	EnableAutoReaddirplus bool
 }
 
 type FUSEImpl uint8

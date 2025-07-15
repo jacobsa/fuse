@@ -208,8 +208,10 @@ func (c *Connection) Init() error {
 		// Enable Readdirplus support, allowing the kernel to use Readdirplus
 		initOp.Flags |= fusekernel.InitDoReaddirplus
 
-		// Enable adaptive Readdirplus, allowing the kernel to choose between Readdirplus and Readdir
-		initOp.Flags |= fusekernel.InitReaddirplusAuto
+		if c.cfg.EnableAutoReaddirplus {
+			// Enable adaptive Readdirplus, allowing the kernel to choose between Readdirplus and Readdir
+			initOp.Flags |= fusekernel.InitReaddirplusAuto
+		}
 	}
 
 	return c.Reply(ctx, nil)
