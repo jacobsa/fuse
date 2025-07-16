@@ -7,11 +7,8 @@ import (
 	"strings"
 )
 
-// Just for testing purposes to mock actual fuserunmount function.
-var fuserunmountMock = fuserunmount
-
 func unmount(dir string) error {
-	err := fuserunmountMock(dir)
+	err := fuserunmount(dir)
 	if err != nil {
 		// Return custom error for fusermount unmount error for /dev/fd/N mountpoints
 		if strings.HasPrefix(dir, "/dev/fd/") {
