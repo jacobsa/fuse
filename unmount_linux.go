@@ -4,9 +4,20 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 func unmount(dir string) error {
+	if err := fuserunmount(dir); err != nil {
+		// Return custom error for fusermount unmount error for /dev/fd/N mountpoints
+		if strings.HasPrefix(dir, "/dev/fd/") {
+			return fmt.Errorf("%w: %s", ErrExternallyManagedMountPoint, err)
+		}
+	}
+	return nil
+}
+
+func fuserunmount(dir string) error {
 	fusermount, err := findFusermount()
 	if err != nil {
 		return err
