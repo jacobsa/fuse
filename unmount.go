@@ -14,9 +14,7 @@
 
 package fuse
 
-import (
-	"errors"
-)
+import "errors"
 
 var ErrExternallyManagedMountPoint = errors.New("externally managed mount point, skipping unmount")
 
