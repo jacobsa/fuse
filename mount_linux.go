@@ -145,6 +145,11 @@ func mount(dir string, cfg *MountConfig, ready chan<- error) (*os.File, error) {
 		if err != nil {
 			return nil, err
 		}
+		// fusermount requires the runtime user to have write access to the directory.
+		// However, it doesn't give a useful error. So, check write access.
+		if err := unix.Access(dir, unix.W_OK); err != nil {
+			return nil, fmt.Errorf("the user doesn't have permissions on the mount point: %w", err)
+		}
 		argv := []string{
 			"-o", cfg.toOptionsString(),
 			"--",
