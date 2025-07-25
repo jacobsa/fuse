@@ -160,6 +160,7 @@ func mount(dir string, cfg *MountConfig, ready chan<- error) (*os.File, error) {
 		if err2 := unix.Access(dir, unix.W_OK); err2 != nil {
 			return nil, errors.Join(err, fmt.Errorf("the user doesn't have write-access on the mount point: %w", err2))
 		}
+		return dev, err
 	}
 	return dev, err
 }
