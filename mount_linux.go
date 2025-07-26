@@ -150,7 +150,17 @@ func mount(dir string, cfg *MountConfig, ready chan<- error) (*os.File, error) {
 			"--",
 			dir,
 		}
-		return fusermount(fusermountPath, argv, []string{}, true, cfg.DebugLogger)
+		dev, err := fusermount(fusermountPath, argv, []string{}, true, cfg.DebugLogger)
+		if err == nil {
+			return dev, nil
+		}
+		// fusermount requires the mount user to have write access to the directory.
+		// However, it doesn't give a useful error on mount-failure if the access is missing.
+		// So, add this check and return a useful error if the user doesn't have write-access.
+		if err2 := unix.Access(dir, unix.W_OK); err2 != nil {
+			return nil, errors.Join(err, fmt.Errorf("the user doesn't have write-access on the mount point: %w", err2))
+		}
+		return dev, err
 	}
 	return dev, err
 }
