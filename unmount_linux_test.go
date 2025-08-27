@@ -18,7 +18,7 @@ func Test_umountNoCustomError(t *testing.T) {
 	t.Setenv("PATH", "") // Clear PATH to fail unmount with fusermount is not found
 
 	err := unmount("/dev")
-	if err != nil && errors.Is(err, ErrExternallyManagedMountPoint) {
-		t.Errorf("Not expected custom error.")
+	if err == nil || errors.Is(err, ErrExternallyManagedMountPoint) {
+		t.Errorf("Expected error but not the custom error.")
 	}
 }
