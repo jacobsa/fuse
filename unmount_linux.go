@@ -13,6 +13,7 @@ func unmount(dir string) error {
 		if strings.HasPrefix(dir, "/dev/fd/") {
 			return fmt.Errorf("%w: %s", ErrExternallyManagedMountPoint, err)
 		}
+		return err
 	}
 	return nil
 }
