@@ -87,13 +87,15 @@ type FileSystem interface {
 // concurrent requests").
 func NewFileSystemServer(fs FileSystem) fuse.Server {
 	return &fileSystemServer{
-		fs: fs,
+		fs:             fs,
+		opsForgetInode: make(chan int, 100000),
 	}
 }
 
 type fileSystemServer struct {
-	fs          FileSystem
-	opsInFlight sync.WaitGroup
+	fs             FileSystem
+	opsInFlight    sync.WaitGroup
+	opsForgetInode chan int
 }
 
 func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
@@ -116,11 +118,12 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 
 		s.opsInFlight.Add(1)
 		if _, ok := op.(*fuseops.ForgetInodeOp); ok {
-			// Special case: call in this goroutine for
 			// forget inode ops, which may come in a
-			// flurry from the kernel and are generally
-			// cheap for the file system to handle
-			s.handleOp(c, ctx, op)
+			// flurry from the kernel and we should
+			// to limit the number of goroutines
+			// one goroutine 2KB, 10w goroutine max 200MB
+			s.opsForgetInode <- 1
+			go s.handleOp(c, ctx, op)
 		} else {
 			go s.handleOp(c, ctx, op)
 		}
@@ -153,6 +156,7 @@ func (s *fileSystemServer) handleOp(
 
 	case *fuseops.ForgetInodeOp:
 		err = s.fs.ForgetInode(ctx, typed)
+		<-s.opsForgetInode
 
 	case *fuseops.BatchForgetOp:
 		err = s.fs.BatchForget(ctx, typed)
