@@ -15,10 +15,11 @@
 package readbenchfs
 
 import (
-	"golang.org/x/net/context"
 	"io"
 	"math/rand"
 	"os"
+
+	"golang.org/x/net/context"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -27,8 +28,7 @@ import (
 
 type readBenchFS struct {
 	fuseutil.NotImplementedFileSystem
-	buf             []byte
-	useVectoredRead bool
+	buf []byte
 }
 
 // 1 TB
@@ -36,13 +36,12 @@ const fileSize = 1024 * 1024 * 1024 * 1024
 
 var _ fuseutil.FileSystem = &readBenchFS{}
 
-func NewReadBenchServer(useVectoredRead bool) (server fuse.Server, err error) {
+func NewReadBenchServer() (server fuse.Server, err error) {
 	// 1 GB of random data to exceed CPU cache
 	buf := make([]byte, 1024*1024*1024)
 	rand.Read(buf)
 	server = fuseutil.NewFileSystemServer(&readBenchFS{
-		buf:             buf,
-		useVectoredRead: useVectoredRead,
+		buf: buf,
 	})
 	return
 }
@@ -134,11 +133,7 @@ func (fs *readBenchFS) ReadFile(ctx context.Context, op *fuseops.ReadFileOp) err
 		if e-s > end-pos {
 			e = s + end - pos
 		}
-		if fs.useVectoredRead {
-			op.Data = append(op.Data, fs.buf[s:e])
-		} else {
-			copy(op.Dst[pos-op.Offset:], fs.buf[s:])
-		}
+		op.Data = append(op.Data, fs.buf[s:e])
 		pos = op.Offset + e
 	}
 	op.BytesRead = int(end - op.Offset)
