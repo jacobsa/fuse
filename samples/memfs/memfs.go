@@ -31,8 +31,9 @@ import (
 )
 
 const (
-	FileOpenFlagsXattrName     = "fileOpenFlagsXattr"
-	CheckFileOpenFlagsFileName = "checkFileOpenFlags"
+	FileOpenFlagsXattrName      = "fileOpenFlagsXattr"
+	CheckFileOpenFlagsFileName  = "checkFileOpenFlags"
+	EnableVectoredReadXattrName = "enableVectoredRead"
 )
 
 type memFS struct {
@@ -661,6 +662,13 @@ func (fs *memFS) ReadFile(
 
 	// Find the inode in question.
 	inode := fs.getInodeOrDie(op.Inode)
+
+	// Check if we should perform a vectored read.
+	if _, ok := inode.xattrs[EnableVectoredReadXattrName]; ok {
+		inode.VectoredReadAt(op)
+		op.Callback = fs.readFileCallback
+		return nil
+	}
 
 	// Serve the request.
 	var err error
