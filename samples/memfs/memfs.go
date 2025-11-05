@@ -663,16 +663,16 @@ func (fs *memFS) ReadFile(
 	// Find the inode in question.
 	inode := fs.getInodeOrDie(op.Inode)
 
-	// Check if we should perform a vectored read.
-	if _, ok := inode.xattrs[EnableVectoredReadXattrName]; ok {
-		inode.VectoredReadAt(op)
-		op.Callback = fs.readFileCallback
-		return nil
-	}
-
 	// Serve the request.
-	var err error
-	op.BytesRead, err = inode.ReadAt(op.Dst, op.Offset)
+	var err error // Check if we should perform a vectored read.
+	if _, ok := inode.xattrs[EnableVectoredReadXattrName]; ok {
+		// For testing purpose only.
+		// Set attribute (name=EnableVectoredReadXattrName, value=true) to test
+		// whether vectored read is working correctly.
+		op.BytesRead, err = inode.VectoredReadAt(op)
+	} else {
+		op.BytesRead, err = inode.ReadAt(op.Dst, op.Offset)
+	}
 
 	op.Callback = fs.readFileCallback
 
