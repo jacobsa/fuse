@@ -245,6 +245,7 @@ func convertInMessage(
 				Pid:    inMsg.Header().Pid,
 				Uid:    inMsg.Header().Uid,
 			},
+			OpenFlags: fusekernel.OpenFlags(in.Flags),
 		}
 
 	case fusekernel.OpSymlink:

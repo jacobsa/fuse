@@ -161,6 +161,7 @@ const (
 
 	OpenAppend    OpenFlags = syscall.O_APPEND
 	OpenCreate    OpenFlags = syscall.O_CREAT
+	OpenDirect    OpenFlags = syscall.O_DIRECT
 	OpenExclusive OpenFlags = syscall.O_EXCL
 	OpenSync      OpenFlags = syscall.O_SYNC
 	OpenTruncate  OpenFlags = syscall.O_TRUNC
@@ -204,6 +205,11 @@ func (fl OpenFlags) IsAppend() bool {
 	return fl&OpenAppend != 0
 }
 
+// Return true if OpenDirect is set.
+func (fl OpenFlags) IsDirect() bool {
+	return fl&OpenDirect != 0
+}
+
 func accModeName(flags OpenFlags) string {
 	switch flags {
 	case OpenReadOnly:
@@ -222,6 +228,7 @@ var openFlagNames = []flagName{
 	{uint32(OpenExclusive), "OpenExclusive"},
 	{uint32(OpenTruncate), "OpenTruncate"},
 	{uint32(OpenAppend), "OpenAppend"},
+	{uint32(OpenDirect), "OpenDirect"},
 	{uint32(OpenSync), "OpenSync"},
 }
 

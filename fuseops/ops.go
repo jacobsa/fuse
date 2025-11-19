@@ -356,6 +356,7 @@ type CreateFileOp struct {
 	// later call to ReleaseFileHandle.
 	Handle    HandleID
 	OpContext OpContext
+	OpenFlags fusekernel.OpenFlags
 }
 
 // Create a symlink inode. If the name already exists, the file system should
