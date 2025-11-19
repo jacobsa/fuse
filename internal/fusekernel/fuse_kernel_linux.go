@@ -1,6 +1,9 @@
 package fusekernel
 
-import "time"
+import (
+	"syscall"
+	"time"
+)
 
 type Attr struct {
 	Ino       uint64
@@ -47,6 +50,22 @@ func (in *SetattrIn) Chgtime() time.Time {
 
 func (in *SetattrIn) Flags() uint32 {
 	return 0
+}
+
+const (
+	OpenDirect OpenFlags = syscall.O_DIRECT
+)
+
+// Return true if OpenDirect is set.
+func (fl OpenFlags) IsDirect() bool {
+	return fl&OpenDirect != 0
+}
+
+func init() {
+	openFlagNames = append(openFlagNames, flagName{
+		bit:  uint32(OpenDirect),
+		name: "OpenDirect",
+	})
 }
 
 func openFlags(flags uint32) OpenFlags {

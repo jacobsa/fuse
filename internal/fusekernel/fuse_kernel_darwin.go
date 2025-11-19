@@ -59,6 +59,16 @@ func (in *SetattrIn) Flags() uint32 {
 	return in.Flags_
 }
 
+// O_DIRECT is not supported on Darwin.
+const (
+	OpenDirect OpenFlags = 0
+)
+
+// O_DIRECT is not directly supported on Darwin, so it always returns false.
+func (fl OpenFlags) IsDirect() bool {
+	return false
+}
+
 func openFlags(flags uint32) OpenFlags {
 	return OpenFlags(flags)
 }
