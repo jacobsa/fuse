@@ -52,9 +52,7 @@ func (in *SetattrIn) Flags() uint32 {
 	return 0
 }
 
-const (
-	OpenDirect OpenFlags = syscall.O_DIRECT
-)
+const OpenDirect OpenFlags = syscall.O_DIRECT
 
 // Return true if OpenDirect is set.
 func (fl OpenFlags) IsDirect() bool {

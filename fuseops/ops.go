@@ -357,7 +357,8 @@ type CreateFileOp struct {
 	Handle    HandleID
 	OpContext OpContext
 
-	// The flags from the open(2) call, passed through the kernel.
+	// The flags from the open(2) call, passed through the kernel's fuse driver
+	// to the FUSE daemon.
 	OpenFlags fusekernel.OpenFlags
 }
 
@@ -684,7 +685,8 @@ type OpenFileOp struct {
 	// advance, for example, because contents are generated on the fly.
 	UseDirectIO bool
 
-	// The flags from the open(2) call, passed through the kernel.
+	// The flags from the open(2) call, passed through the kernel's fuse driver
+	// to the FUSE daemon.
 	OpenFlags fusekernel.OpenFlags
 
 	OpContext OpContext
