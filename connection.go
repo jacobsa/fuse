@@ -91,7 +91,8 @@ type opState struct {
 	wlog   *WireLogRecord
 }
 
-// Return the current wirelog record from the context, if any.
+// Return the current wirelog record from the context if the MountConfig
+// contained a non-nil wireLogger, nil otherwise.
 func GetWirelog(ctx context.Context) *WireLogRecord {
 	val := ctx.Value(contextKey)
 	state, ok := val.(opState)

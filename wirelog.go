@@ -25,6 +25,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 )
 
+// NewWireLogRecord creates a new empty WireLogRecord.
 func NewWireLogRecord() *WireLogRecord {
 	return &WireLogRecord{
 		StartTime: time.Now(),
@@ -33,21 +34,21 @@ func NewWireLogRecord() *WireLogRecord {
 	}
 }
 
-// WireLogRecord struct
+// A WireLogRecord is created for each FUSE operation when WireLogger is
+// non-nil. Fields are filled in by jacobsa/fuse; file system implementations
+// can add their own fields by writing to the Extra map.
 type WireLogRecord struct {
 	Operation string
 	StartTime time.Time
 	Duration  time.Duration
 	Status    int
 	Context   *fuseops.OpContext
-	Args      map[string]any
+	Args      map[string]any // Serialized representation of the fuseops.*Op struct
 	Extra     map[string]any // Custom fields added by file system implementation
 }
 
-// Params that are ignored
 var ignoredParams = []string{"OpContext", "Dst", "Data"}
 
-// Format a wire log entry
 func formatWireLogEntry(op any, opErr error, wlog *WireLogRecord) ([]byte, error) {
 	v := reflect.ValueOf(op).Elem()
 	t := v.Type()
