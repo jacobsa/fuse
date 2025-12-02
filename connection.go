@@ -233,6 +233,11 @@ func (c *Connection) Init() error {
 		}
 	}
 
+	// Tell the kernel to allow shared mmap() for files opened with OpenDirectIO
+	if c.cfg.AllowDirectIOMmap {
+		initOp.OutFlags2 |= fusekernel.InitDirectIOAllowMmap
+	}
+
 	return c.Reply(ctx, nil)
 }
 
