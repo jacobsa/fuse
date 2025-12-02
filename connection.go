@@ -174,13 +174,17 @@ func (c *Connection) Init() error {
 	initOp.MaxReadahead = maxReadahead
 	initOp.MaxWrite = buffer.MaxWriteSize
 
-	initOp.Flags = 0
+	initOp.OutFlags = 0
+	initOp.OutFlags2 = 0
+
+	// Initialize the extended flags
+	initOp.OutFlags |= fusekernel.InitExt
 
 	// Tell the kernel not to use pitifully small 4 KiB writes.
-	initOp.Flags |= fusekernel.InitBigWrites
+	initOp.OutFlags |= fusekernel.InitBigWrites
 
 	if c.cfg.EnableAsyncReads {
-		initOp.Flags |= fusekernel.InitAsyncRead
+		initOp.OutFlags |= fusekernel.InitAsyncRead
 	}
 
 	// kernel 4.20 increases the max from 32 -> 256
@@ -189,43 +193,43 @@ func (c *Connection) Init() error {
 
 	// Enable writeback caching if the user hasn't asked us not to.
 	if !c.cfg.DisableWritebackCaching {
-		initOp.Flags |= fusekernel.InitWritebackCache
+		initOp.OutFlags |= fusekernel.InitWritebackCache
 	}
 
 	// Enable caching symlink targets in the kernel page cache if the user opted
 	// into it (might require fixing the size field of inode attributes first):
 	if c.cfg.EnableSymlinkCaching && cacheSymlinks {
-		initOp.Flags |= fusekernel.InitCacheSymlinks
+		initOp.OutFlags |= fusekernel.InitCacheSymlinks
 	}
 
 	// Tell the kernel to treat returning -ENOSYS on OpenFile as not needing
 	// OpenFile calls at all (Linux >= 3.16):
 	if c.cfg.EnableNoOpenSupport && noOpenSupport {
-		initOp.Flags |= fusekernel.InitNoOpenSupport
+		initOp.OutFlags |= fusekernel.InitNoOpenSupport
 	}
 
 	// Tell the kernel to treat returning -ENOSYS on OpenDir as not needing
 	// OpenDir calls at all (Linux >= 5.1):
 	if c.cfg.EnableNoOpendirSupport && noOpendirSupport {
-		initOp.Flags |= fusekernel.InitNoOpendirSupport
+		initOp.OutFlags |= fusekernel.InitNoOpendirSupport
 	}
 
 	// Tell the Kernel to allow sending parallel lookup and readdir operations.
 	if c.cfg.EnableParallelDirOps {
-		initOp.Flags |= fusekernel.InitParallelDirOps
+		initOp.OutFlags |= fusekernel.InitParallelDirOps
 	}
 
 	if c.cfg.EnableAtomicTrunc {
-		initOp.Flags |= fusekernel.InitAtomicTrunc
+		initOp.OutFlags |= fusekernel.InitAtomicTrunc
 	}
 
 	if c.cfg.EnableReaddirplus {
 		// Enable Readdirplus support, allowing the kernel to use Readdirplus
-		initOp.Flags |= fusekernel.InitDoReaddirplus
+		initOp.OutFlags |= fusekernel.InitDoReaddirplus
 
 		if c.cfg.EnableAutoReaddirplus {
 			// Enable adaptive Readdirplus, allowing the kernel to choose between Readdirplus and Readdir
-			initOp.Flags |= fusekernel.InitReaddirplusAuto
+			initOp.OutFlags |= fusekernel.InitReaddirplusAuto
 		}
 	}
 
