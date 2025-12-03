@@ -13,12 +13,14 @@ import (
 type Notifier struct {
 	inodeInvalidations  chan invalidateInodeCommand
 	dentryInvalidations chan invalidateEntryCommand
+	stores              chan storeCommand
 }
 
 func NewNotifier() *Notifier {
 	return &Notifier{
 		inodeInvalidations:  make(chan invalidateInodeCommand),
 		dentryInvalidations: make(chan invalidateEntryCommand),
+		stores:              make(chan storeCommand),
 	}
 }
 
@@ -35,6 +37,13 @@ type invalidateEntryCommand struct {
 	// If fusekernel.NotifyInvalEntryOut is updated to use its padding as flags,
 	// we can support the expire flag in this command as well.
 	done chan<- error
+}
+
+type storeCommand struct {
+	nodeid fuseops.InodeID
+	offset int64
+	data   []byte
+	done   chan<- error
 }
 
 // InvalidateInode notifies the kernel to invalidate an inode cache entry. See
@@ -62,6 +71,19 @@ func (n *Notifier) InvalidateInode(inode fuseops.InodeID, offset, length int64) 
 func (n *Notifier) InvalidateEntry(parent fuseops.InodeID, name string) error {
 	done := make(chan error)
 	n.dentryInvalidations <- invalidateEntryCommand{parent, name, done}
+	return <-done
+}
+
+// Store notifies the kernel to store the given data at the offset for the
+// target inode. See the libfuse documentation at
+// https://libfuse.github.io/doxygen/fuse__lowlevel_8h.html#af856725ed4a13ed7c17512554043edbc
+// for more details. Note that data must be no more than 4GiB in length.
+//
+// Store blocks until the kernel write completes, and returns the error from the
+// kernel, if any. ENOSYS indicates that the kernel does not support stores.
+func (n *Notifier) Store(nodeid fuseops.InodeID, offset int64, data []byte) error {
+	done := make(chan error)
+	n.stores <- storeCommand{nodeid, offset, data, done}
 	return <-done
 }
 
@@ -101,6 +123,23 @@ func serviceEntryInval(c *Connection, parent fuseops.InodeID, name string) error
 	return c.writeOutMessage(outMsg)
 }
 
+func serviceStore(c *Connection, nodeid fuseops.InodeID, offset int64, data []byte) error {
+	outMsg := c.getOutMessage()
+	defer c.putOutMessage(outMsg)
+
+	cmd := fusekernel.NotifyStoreOut{
+		NodeID: uint64(nodeid),
+		Offset: offset,
+		Size:   uint32(len(data)),
+	}
+	outMsg.Append(unsafe.Slice((*byte)(unsafe.Pointer(&cmd)), int(unsafe.Sizeof(cmd))))
+	outMsg.Append(data)
+
+	outMsg.OutHeader().Error = fusekernel.NotifyCodeStore
+	outMsg.OutHeader().Len = uint32(outMsg.Len())
+	return c.writeOutMessage(outMsg)
+}
+
 func (n *Notifier) notify(c *Connection, terminate <-chan struct{}) {
 	for {
 		select {
@@ -108,6 +147,8 @@ func (n *Notifier) notify(c *Connection, terminate <-chan struct{}) {
 			i.done <- serviceInodeInvalidation(c, i.inode, i.offset, i.length)
 		case e := <-n.dentryInvalidations:
 			e.done <- serviceEntryInval(c, e.parent, e.name)
+		case s := <-n.stores:
+			s.done <- serviceStore(c, s.nodeid, s.offset, s.data)
 		case <-terminate:
 			return
 		}
