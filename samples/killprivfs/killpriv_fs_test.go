@@ -24,6 +24,7 @@
 package killprivfs_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -70,6 +71,7 @@ func (t *KillPrivFSTest) TestMountWithKillPrivV2() {
 
 func (t *KillPrivFSTest) TestCreateFileInSetgidDir() {
 	if syscall.Getuid() != 0 {
+		fmt.Println("Skipping TestCreateFileInSetgidDir: requires root")
 		return
 	}
 
@@ -98,6 +100,7 @@ func (t *KillPrivFSTest) TestCreateFileInSetgidDir() {
 
 func (t *KillPrivFSTest) TestOpenSetuidFileForWrite() {
 	if syscall.Getuid() != 0 {
+		fmt.Println("Skipping TestOpenSetuidFileForWrite: requires root")
 		return
 	}
 
@@ -126,6 +129,7 @@ func (t *KillPrivFSTest) TestOpenSetuidFileForWrite() {
 
 func (t *KillPrivFSTest) TestWriteToSetuidFile() {
 	if syscall.Getuid() != 0 {
+		fmt.Println("Skipping TestWriteToSetuidFile: requires root")
 		return
 	}
 
@@ -154,6 +158,7 @@ func (t *KillPrivFSTest) TestWriteToSetuidFile() {
 
 func (t *KillPrivFSTest) TestSetuidBitWithChown() {
 	if syscall.Getuid() != 0 {
+		fmt.Println("Skipping TestSetuidBitWithChown: requires root")
 		return
 	}
 
@@ -174,6 +179,7 @@ func (t *KillPrivFSTest) TestSetuidBitWithChown() {
 
 func (t *KillPrivFSTest) TestTruncateSetuidFile() {
 	if syscall.Getuid() != 0 {
+		fmt.Println("Skipping TestTruncateSetuidFile: requires root")
 		return
 	}
 
@@ -208,6 +214,7 @@ func (t *KillPrivFSTest) TestNoKillSuidgidFlagsOnNormalOperations() {
 
 func (t *KillPrivFSTest) TestChownNormalFile() {
 	if syscall.Getuid() != 0 {
+		fmt.Println("Skipping TestChownNormalFile: requires root")
 		return
 	}
 
@@ -225,6 +232,7 @@ func (t *KillPrivFSTest) TestChownNormalFile() {
 
 func (t *KillPrivFSTest) TestRootWriteToSetuidFile() {
 	if syscall.Getuid() != 0 {
+		fmt.Println("Skipping TestRootWriteToSetuidFile: requires root")
 		return
 	}
 
