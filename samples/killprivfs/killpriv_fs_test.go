@@ -245,9 +245,3 @@ func (t *KillPrivFSTest) TestRootWriteToSetuidFile() {
 	_, _, writeFlag, _ := t.fs.GetFlags()
 	ExpectFalse(writeFlag, "WriteKillSuidgid flag should NOT be set when root (with CAP_FSETID) writes to setuid file")
 }
-
-func (t *KillPrivFSTest) TestBasicOperationsStillWork() {
-	// This simple test verifies the filesystem is functional
-	// More comprehensive tests are in the killpriv-specific tests above
-	ExpectThat(t.Dir, Not(Equals("")))
-}
