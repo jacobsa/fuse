@@ -232,6 +232,15 @@ type MountConfig struct {
 	// capabilities when a file is written, truncated, or its owner is changed.
 	// Unlike V1, caps are always cleared on write/truncate, while suid/sgid
 	// clearing on write/truncate depends on whether the caller has CAP_FSETID.
+	//
+	// When enabled, the kernel sets KillSuidgid flags on operations:
+	// - WriteFileOp: when a non-privileged user (without CAP_FSETID) writes to
+	//   a file with setuid/setgid bits set
+	// - SetInodeAttributesOp: when changing file attributes (size, owner) on a
+	//   file with setuid/setgid bits, if the caller lacks CAP_FSETID
+	// - CreateFileOp/OpenFileOp: when opening for write a file with setuid/setgid
+	//   bits, or creating a file in a directory with setgid bit
+	//
 	// Ref: https://github.com/torvalds/linux/commit/63f9909ff602082597849f684655e93336c50b11
 	EnableHandleKillprivV2 bool
 }
