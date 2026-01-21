@@ -196,6 +196,56 @@ func (t *KillPrivFSTest) TestTruncateSetuidFile() {
 	ExpectTrue(setattrFlag, "SetattrKillSuidgid flag should be set when non-root truncates setuid file")
 }
 
+func (t *KillPrivFSTest) TestNoKillSuidgidFlagsOnNormalOperations() {
+	// This test verifies that KillSuidgid flags are NOT set for normal operations
+	// without setuid/setgid bits. We simply check the flags remain false after mount.
+	createFlag, openFlag, writeFlag, setattrFlag := t.fs.GetFlags()
+	ExpectFalse(createFlag, "CreateKillSuidgid should be false initially")
+	ExpectFalse(openFlag, "OpenKillSuidgid should be false initially")
+	ExpectFalse(writeFlag, "WriteKillSuidgid should be false initially")
+	ExpectFalse(setattrFlag, "SetattrKillSuidgid should be false initially")
+}
+
+func (t *KillPrivFSTest) TestChownNormalFile() {
+	if syscall.Getuid() != 0 {
+		return
+	}
+
+	filePath := path.Join(t.Dir, "normal_chown.txt")
+
+	err := ioutil.WriteFile(filePath, []byte("test"), 0644)
+	AssertEq(nil, err)
+
+	err = os.Chown(filePath, 1000, 1000)
+	AssertEq(nil, err)
+
+	_, _, _, setattrFlag := t.fs.GetFlags()
+	ExpectFalse(setattrFlag, "SetattrKillSuidgid flag should NOT be set when chown on normal file")
+}
+
+func (t *KillPrivFSTest) TestRootWriteToSetuidFile() {
+	if syscall.Getuid() != 0 {
+		return
+	}
+
+	filePath := path.Join(t.Dir, "setuid_root_write.txt")
+
+	err := ioutil.WriteFile(filePath, []byte("initial"), 0644)
+	AssertEq(nil, err)
+
+	err = os.Chmod(filePath, 04755)
+	AssertEq(nil, err)
+
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
+	AssertEq(nil, err)
+	_, err = f.Write([]byte("root write"))
+	AssertEq(nil, err)
+	f.Close()
+
+	_, _, writeFlag, _ := t.fs.GetFlags()
+	ExpectFalse(writeFlag, "WriteKillSuidgid flag should NOT be set when root (with CAP_FSETID) writes to setuid file")
+}
+
 func (t *KillPrivFSTest) TestBasicOperationsStillWork() {
 	// This simple test verifies the filesystem is functional
 	// More comprehensive tests are in the killpriv-specific tests above
