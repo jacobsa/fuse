@@ -150,6 +150,11 @@ func (c *Connection) Init() error {
 		c.protocol = initOp.Kernel
 	}
 
+	if c.debugLogger != nil {
+		c.debugLogger.Printf("Kernel protocol version major: %v, minor: %v\n", initOp.Kernel.Major, initOp.Kernel.Minor)
+		c.debugLogger.Printf("Protocol version major: %v, minor: %v\n", c.protocol.Major, c.protocol.Minor)
+	}
+
 	cacheSymlinks := initOp.Flags&fusekernel.InitCacheSymlinks > 0
 	noOpenSupport := initOp.Flags&fusekernel.InitNoOpenSupport > 0
 	noOpendirSupport := initOp.Flags&fusekernel.InitNoOpendirSupport > 0
@@ -212,6 +217,14 @@ func (c *Connection) Init() error {
 			// Enable adaptive Readdirplus, allowing the kernel to choose between Readdirplus and Readdir
 			initOp.Flags |= fusekernel.InitReaddirplusAuto
 		}
+	}
+
+	if c.cfg.EnableHandleKillpriv {
+		initOp.Flags |= fusekernel.InitHandleKillpriv
+	}
+
+	if c.cfg.EnableHandleKillprivV2 {
+		initOp.Flags |= fusekernel.InitHandleKillprivV2
 	}
 
 	return c.Reply(ctx, nil)

@@ -222,6 +222,18 @@ type MountConfig struct {
 	// If EnableReaddirplus is true and this flag is false, the kernel will always
 	// use ReaddirPlus for directory listing.
 	EnableAutoReaddirplus bool
+
+	// When enabled, the filesystem is responsible for clearing setuid/setgid bits
+	// when a file is written, truncated, or its owner is changed.
+	EnableHandleKillpriv bool
+
+	// V2 of FUSE_HANDLE_KILLPRIV that provides Linux VFS-consistent behavior.
+	// The filesystem is responsible for clearing setuid/setgid bits and security
+	// capabilities when a file is written, truncated, or its owner is changed.
+	// Unlike V1, caps are always cleared on write/truncate, while suid/sgid
+	// clearing on write/truncate depends on whether the caller has CAP_FSETID.
+	// Ref: https://github.com/torvalds/linux/commit/63f9909ff602082597849f684655e93336c50b11
+	EnableHandleKillprivV2 bool
 }
 
 type FUSEImpl uint8

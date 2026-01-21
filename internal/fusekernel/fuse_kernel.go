@@ -274,9 +274,11 @@ const (
 	InitWritebackCache   InitFlags = 1 << 16
 	InitNoOpenSupport    InitFlags = 1 << 17
 	InitParallelDirOps   InitFlags = 1 << 18
+	InitHandleKillpriv   InitFlags = 1 << 19
 	InitMaxPages         InitFlags = 1 << 22
 	InitCacheSymlinks    InitFlags = 1 << 23
 	InitNoOpendirSupport InitFlags = 1 << 24
+	InitHandleKillprivV2 InitFlags = 1 << 28
 
 	InitCaseSensitive InitFlags = 1 << 29 // OS X only
 	InitVolRename     InitFlags = 1 << 30 // OS X only
@@ -310,6 +312,8 @@ var initFlagNames = []flagName{
 	{uint32(InitNoOpenSupport), "InitNoOpenSupport"},
 	{uint32(InitCacheSymlinks), "InitCacheSymlinks"},
 	{uint32(InitNoOpendirSupport), "InitNoOpendirSupport"},
+	{uint32(InitHandleKillpriv), "InitHandleKillpriv"},
+	{uint32(InitHandleKillprivV2), "InitHandleKillprivV2"},
 
 	{uint32(InitCaseSensitive), "InitCaseSensitive"},
 	{uint32(InitVolRename), "InitVolRename"},
