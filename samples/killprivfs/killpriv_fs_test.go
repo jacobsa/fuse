@@ -29,6 +29,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -40,6 +42,43 @@ import (
 )
 
 func TestKillPrivFS(t *testing.T) { RunTests(t) }
+
+// kernelSupportsKillprivV2 checks if the Linux kernel is >= 5.12,
+// which is when HANDLE_KILLPRIV_V2 support was added.
+func kernelSupportsKillprivV2() bool {
+	var uname syscall.Utsname
+	if err := syscall.Uname(&uname); err != nil {
+		return false
+	}
+
+	// Convert release string to Go string (it's a [65]int8)
+	releaseBytes := make([]byte, 0, 65)
+	for _, b := range uname.Release {
+		if b == 0 {
+			break
+		}
+		releaseBytes = append(releaseBytes, byte(b))
+	}
+	release := string(releaseBytes)
+
+	// Parse version numbers (e.g., "5.12.0-generic" -> major=5, minor=12)
+	parts := strings.Split(release, ".")
+	if len(parts) < 2 {
+		return false
+	}
+
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return false
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return false
+	}
+
+	// HANDLE_KILLPRIV_V2 was added in Linux 5.12
+	return major > 5 || (major == 5 && minor >= 12)
+}
 
 ////////////////////////////////////////////////////////////////////////
 // Boilerplate
@@ -56,7 +95,20 @@ func (t *KillPrivFSTest) SetUp(ti *TestInfo) {
 	t.fs = killprivfs.NewKillPrivFS()
 	t.Server = fuseutil.NewFileSystemServer(t.fs)
 	t.MountConfig.EnableHandleKillprivV2 = true
+	t.MountConfig.DisableDefaultPermissions = true
+
+	// Allow other users to access the filesystem (required for su nobody tests)
+	if t.MountConfig.Options == nil {
+		t.MountConfig.Options = make(map[string]string)
+	}
+	t.MountConfig.Options["allow_other"] = ""
+
 	t.SampleTest.SetUp(ti)
+
+	// Make mount point accessible to all users so tests with `su nobody` work
+	err := os.Chmod(t.Dir, 0755)
+	AssertEq(nil, err, "Failed to chmod mount point")
+
 	t.fs.ResetFlags()
 }
 
@@ -74,19 +126,19 @@ func (t *KillPrivFSTest) TestCreateFileInSetgidDir() {
 		fmt.Println("Skipping TestCreateFileInSetgidDir: requires root")
 		return
 	}
+	if !kernelSupportsKillprivV2() {
+		fmt.Println("Skipping TestCreateFileInSetgidDir: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+		return
+	}
+
+	// Directly add a directory with setgid bit to the filesystem
+	// Use 02777 so nobody user can create files in it
+	t.fs.AddTestDir("setgid_dir", 02777)
 
 	dirPath := path.Join(t.Dir, "setgid_dir")
-	err := os.Mkdir(dirPath, 0755)
-	AssertEq(nil, err)
-
-	err = os.Chmod(dirPath, 02755)
-	AssertEq(nil, err)
-
-	stat, err := os.Stat(dirPath)
-	AssertEq(nil, err)
-	ExpectTrue((stat.Mode() & os.ModeSetgid) != 0, "setgid bit should be set on directory")
-
 	filePath := path.Join(dirPath, "newfile.txt")
+
+	// As nobody user, create a file in the setgid directory
 	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
 		"touch "+filePath)
 	output, err := cmd.CombinedOutput()
@@ -103,19 +155,18 @@ func (t *KillPrivFSTest) TestOpenSetuidFileForWrite() {
 		fmt.Println("Skipping TestOpenSetuidFileForWrite: requires root")
 		return
 	}
+	if !kernelSupportsKillprivV2() {
+		fmt.Println("Skipping TestOpenSetuidFileForWrite: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+		return
+	}
+
+	// Directly add a file with setuid bit to the filesystem
+	// Use 04666 so nobody user can write to it
+	t.fs.AddTestFile("setuid_open_test.txt", 04666)
 
 	filePath := path.Join(t.Dir, "setuid_open_test.txt")
 
-	err := ioutil.WriteFile(filePath, []byte("initial"), 0644)
-	AssertEq(nil, err)
-
-	err = os.Chmod(filePath, 04755)
-	AssertEq(nil, err)
-
-	stat, err := os.Stat(filePath)
-	AssertEq(nil, err)
-	ExpectTrue((stat.Mode() & os.ModeSetuid) != 0, "setuid bit should be set")
-
+	// As nobody user, open the setuid file for write
 	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
 		"echo 'new data' > "+filePath)
 	output, err := cmd.CombinedOutput()
@@ -132,19 +183,18 @@ func (t *KillPrivFSTest) TestWriteToSetuidFile() {
 		fmt.Println("Skipping TestWriteToSetuidFile: requires root")
 		return
 	}
+	if !kernelSupportsKillprivV2() {
+		fmt.Println("Skipping TestWriteToSetuidFile: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+		return
+	}
+
+	// Directly add a file with setuid bit to the filesystem
+	// Use 04666 so nobody user can write to it
+	t.fs.AddTestFile("setuid_test.txt", 04666)
 
 	filePath := path.Join(t.Dir, "setuid_test.txt")
 
-	err := ioutil.WriteFile(filePath, []byte("initial"), 0644)
-	AssertEq(nil, err)
-
-	err = os.Chmod(filePath, 04755)
-	AssertEq(nil, err)
-
-	stat, err := os.Stat(filePath)
-	AssertEq(nil, err)
-	ExpectTrue((stat.Mode() & os.ModeSetuid) != 0, "setuid bit should be set")
-
+	// As nobody user, write to the setuid file
 	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
 		"echo 'test data' >> "+filePath)
 	output, err := cmd.CombinedOutput()
@@ -162,19 +212,17 @@ func (t *KillPrivFSTest) TestSetuidBitWithChown() {
 		return
 	}
 
+	// Directly add a file with setuid bit to the filesystem
+	t.fs.AddTestFile("chown_test.txt", 04755)
+
 	filePath := path.Join(t.Dir, "chown_test.txt")
 
-	err := ioutil.WriteFile(filePath, []byte("test"), 0644)
-	AssertEq(nil, err)
-
-	err = os.Chmod(filePath, 04755)
-	AssertEq(nil, err)
-
-	err = os.Chown(filePath, 1000, 1000)
+	err := os.Chown(filePath, 1000, 1000)
 	AssertEq(nil, err)
 
 	_, _, _, setattrFlag := t.fs.GetFlags()
-	ExpectTrue(setattrFlag, "SetattrKillSuidgid flag should be set when changing ownership of setuid file")
+	// Root has CAP_FSETID, so the flag should NOT be set when root does chown
+	ExpectFalse(setattrFlag, "SetattrKillSuidgid flag should NOT be set when root (with CAP_FSETID) changes ownership")
 }
 
 func (t *KillPrivFSTest) TestTruncateSetuidFile() {
@@ -182,15 +230,18 @@ func (t *KillPrivFSTest) TestTruncateSetuidFile() {
 		fmt.Println("Skipping TestTruncateSetuidFile: requires root")
 		return
 	}
+	if !kernelSupportsKillprivV2() {
+		fmt.Println("Skipping TestTruncateSetuidFile: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+		return
+	}
+
+	// Directly add a file with setuid bit to the filesystem
+	// Use 04666 so nobody user can write to it
+	t.fs.AddTestFile("truncate_test.txt", 04666)
 
 	filePath := path.Join(t.Dir, "truncate_test.txt")
 
-	err := ioutil.WriteFile(filePath, []byte("test data here"), 0644)
-	AssertEq(nil, err)
-
-	err = os.Chmod(filePath, 04755)
-	AssertEq(nil, err)
-
+	// As nobody user, truncate the setuid file
 	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
 		"truncate -s 5 "+filePath)
 	output, err := cmd.CombinedOutput()
@@ -236,13 +287,10 @@ func (t *KillPrivFSTest) TestRootWriteToSetuidFile() {
 		return
 	}
 
+	// Directly add a file with setuid bit to the filesystem
+	t.fs.AddTestFile("setuid_root_write.txt", 04755)
+
 	filePath := path.Join(t.Dir, "setuid_root_write.txt")
-
-	err := ioutil.WriteFile(filePath, []byte("initial"), 0644)
-	AssertEq(nil, err)
-
-	err = os.Chmod(filePath, 04755)
-	AssertEq(nil, err)
 
 	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
 	AssertEq(nil, err)

@@ -18,6 +18,7 @@ import (
 	"context"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
@@ -74,9 +75,66 @@ func (fs *KillPrivFS) ResetFlags() {
 	fs.setattrWithKillSuidgid = false
 }
 
+// AddTestFile adds a file with specific mode bits for testing (bypasses normal FUSE operations)
+func (fs *KillPrivFS) AddTestFile(name string, mode os.FileMode) fuseops.InodeID {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	inodeID := fs.nextInode
+	fs.nextInode++
+
+	fs.inodes[inodeID] = inodeInfo{
+		mode:   mode,
+		parent: 1, // root
+		name:   name,
+	}
+
+	rootInfo := fs.inodes[1]
+	rootInfo.children[name] = inodeID
+	fs.inodes[1] = rootInfo
+
+	return fuseops.InodeID(inodeID)
+}
+
+// AddTestDir adds a directory with specific mode bits for testing (bypasses normal FUSE operations)
+func (fs *KillPrivFS) AddTestDir(name string, mode os.FileMode) fuseops.InodeID {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	inodeID := fs.nextInode
+	fs.nextInode++
+
+	fs.inodes[inodeID] = inodeInfo{
+		mode:     mode | os.ModeDir,
+		parent:   1, // root
+		name:     name,
+		children: make(map[string]uint64),
+	}
+
+	rootInfo := fs.inodes[1]
+	rootInfo.children[name] = inodeID
+	fs.inodes[1] = rootInfo
+
+	return fuseops.InodeID(inodeID)
+}
+
 func (fs *KillPrivFS) StatFS(
 	ctx context.Context,
 	op *fuseops.StatFSOp) error {
+	return nil
+}
+
+func (fs *KillPrivFS) OpenDir(
+	ctx context.Context,
+	op *fuseops.OpenDirOp) error {
+	op.Handle = 1
+	return nil
+}
+
+func (fs *KillPrivFS) ReadDir(
+	ctx context.Context,
+	op *fuseops.ReadDirOp) error {
+	// Return empty directory listing for simplicity
 	return nil
 }
 
@@ -96,10 +154,16 @@ func (fs *KillPrivFS) GetInodeAttributes(
 		size = uint64(len(fs.fileData))
 	}
 
+	now := time.Now()
 	op.Attributes = fuseops.InodeAttributes{
 		Mode:  info.mode,
 		Nlink: 1,
 		Size:  size,
+		Uid:   0,
+		Gid:   0,
+		Atime: now,
+		Mtime: now,
+		Ctime: now,
 	}
 	return nil
 }
@@ -126,11 +190,17 @@ func (fs *KillPrivFS) LookUpInode(
 		size = uint64(len(fs.fileData))
 	}
 
+	now := time.Now()
 	op.Entry.Child = fuseops.InodeID(childInode)
 	op.Entry.Attributes = fuseops.InodeAttributes{
 		Mode:  childInfo.mode,
 		Nlink: 1,
 		Size:  size,
+		Uid:   0,
+		Gid:   0,
+		Atime: now,
+		Mtime: now,
+		Ctime: now,
 	}
 	return nil
 }
@@ -159,10 +229,16 @@ func (fs *KillPrivFS) MkDir(
 	parentInfo.children[op.Name] = newInode
 	fs.inodes[uint64(op.Parent)] = parentInfo
 
+	now := time.Now()
 	op.Entry.Child = fuseops.InodeID(newInode)
 	op.Entry.Attributes = fuseops.InodeAttributes{
 		Mode:  op.Mode | os.ModeDir,
 		Nlink: 1,
+		Uid:   0,
+		Gid:   0,
+		Atime: now,
+		Mtime: now,
+		Ctime: now,
 	}
 	return nil
 }
@@ -200,11 +276,17 @@ func (fs *KillPrivFS) CreateFile(
 	fs.inodes[uint64(op.Parent)] = parentInfo
 	fs.mu.Unlock()
 
+	now := time.Now()
 	op.Entry.Child = fuseops.InodeID(newInode)
 	op.Entry.Attributes = fuseops.InodeAttributes{
 		Mode:  mode,
 		Nlink: 1,
 		Size:  0,
+		Uid:   0,
+		Gid:   0,
+		Atime: now,
+		Mtime: now,
+		Ctime: now,
 	}
 	op.Handle = 1
 	return nil
@@ -276,15 +358,24 @@ func (fs *KillPrivFS) SetInodeAttributes(
 		}
 	}
 
+	// Re-fetch to ensure we return the updated attributes
+	info = fs.inodes[uint64(op.Inode)]
+
 	size := uint64(0)
 	if info.mode.IsRegular() {
 		size = uint64(len(fs.fileData))
 	}
 
+	now := time.Now()
 	op.Attributes = fuseops.InodeAttributes{
 		Mode:  info.mode,
 		Nlink: 1,
 		Size:  size,
+		Uid:   0,
+		Gid:   0,
+		Atime: now,
+		Mtime: now,
+		Ctime: now,
 	}
 	return nil
 }
