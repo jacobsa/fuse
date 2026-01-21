@@ -251,7 +251,7 @@ func convertInMessage(
 			},
 		}
 
-		if fusekernel.OpenRequestFlags(in.Flags)&fusekernel.OpenKillSuidgid != 0 {
+		if fusekernel.OpenRequestFlags(in.OpenFlags)&fusekernel.OpenKillSuidgid != 0 {
 			createOp.KillSuidgid = true
 		}
 
@@ -377,7 +377,7 @@ func convertInMessage(
 			},
 		}
 
-		if fusekernel.OpenRequestFlags(in.Flags)&fusekernel.OpenKillSuidgid != 0 {
+		if fusekernel.OpenRequestFlags(in.OpenFlags)&fusekernel.OpenKillSuidgid != 0 {
 			openOp.KillSuidgid = true
 		}
 

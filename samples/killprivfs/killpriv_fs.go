@@ -33,12 +33,30 @@ type KillPrivFS struct {
 	openWithKillSuidgid    bool
 	writeWithKillSuidgid   bool
 	setattrWithKillSuidgid bool
-	fileData               []byte // Simple in-memory file storage
+	fileData               []byte              // Simple in-memory file storage
+	inodes                 map[uint64]inodeInfo // inode storage
+	nextInode              uint64
+}
+
+type inodeInfo struct {
+	mode     os.FileMode
+	parent   uint64
+	name     string
+	children map[string]uint64
 }
 
 // NewKillPrivFS creates a new KillPrivFS.
 func NewKillPrivFS() *KillPrivFS {
-	return &KillPrivFS{}
+	fs := &KillPrivFS{
+		inodes:    make(map[uint64]inodeInfo),
+		nextInode: 2, // Start after root (inode 1)
+	}
+	// Initialize root directory
+	fs.inodes[1] = inodeInfo{
+		mode:     os.ModeDir | 0755,
+		children: make(map[string]uint64),
+	}
+	return fs
 }
 
 func (fs *KillPrivFS) GetFlags() (create, open, write, setattr bool) {
@@ -65,44 +83,88 @@ func (fs *KillPrivFS) StatFS(
 func (fs *KillPrivFS) GetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.GetInodeAttributesOp) error {
-	if op.Inode == fuseops.RootInodeID {
-		op.Attributes = fuseops.InodeAttributes{
-			Mode:  os.ModeDir | 0755,
-			Nlink: 1,
-		}
-		return nil
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	info, ok := fs.inodes[uint64(op.Inode)]
+	if !ok {
+		return fuse.ENOENT
 	}
 
-	if op.Inode == 2 {
-		fs.mu.Lock()
-		size := uint64(len(fs.fileData))
-		fs.mu.Unlock()
-
-		op.Attributes = fuseops.InodeAttributes{
-			Mode:  0666, // Allow all permissions for testing
-			Nlink: 1,
-			Size:  size,
-		}
-		return nil
+	size := uint64(0)
+	if info.mode.IsRegular() {
+		size = uint64(len(fs.fileData))
 	}
 
-	return fuse.ENOENT
+	op.Attributes = fuseops.InodeAttributes{
+		Mode:  info.mode,
+		Nlink: 1,
+		Size:  size,
+	}
+	return nil
 }
 
 func (fs *KillPrivFS) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) error {
-	if op.Parent == fuseops.RootInodeID {
-		op.Entry.Child = 2
-		op.Entry.Attributes = fuseops.InodeAttributes{
-			Mode:  0666,
-			Nlink: 1,
-			Size:  0,
-		}
-		return nil
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	parentInfo, ok := fs.inodes[uint64(op.Parent)]
+	if !ok {
+		return fuse.ENOENT
 	}
 
-	return fuse.ENOENT
+	childInode, ok := parentInfo.children[op.Name]
+	if !ok {
+		return fuse.ENOENT
+	}
+
+	childInfo := fs.inodes[childInode]
+	size := uint64(0)
+	if childInfo.mode.IsRegular() {
+		size = uint64(len(fs.fileData))
+	}
+
+	op.Entry.Child = fuseops.InodeID(childInode)
+	op.Entry.Attributes = fuseops.InodeAttributes{
+		Mode:  childInfo.mode,
+		Nlink: 1,
+		Size:  size,
+	}
+	return nil
+}
+
+func (fs *KillPrivFS) MkDir(
+	ctx context.Context,
+	op *fuseops.MkDirOp) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	parentInfo, ok := fs.inodes[uint64(op.Parent)]
+	if !ok {
+		return fuse.ENOENT
+	}
+
+	newInode := fs.nextInode
+	fs.nextInode++
+
+	fs.inodes[newInode] = inodeInfo{
+		mode:     op.Mode | os.ModeDir,
+		parent:   uint64(op.Parent),
+		name:     op.Name,
+		children: make(map[string]uint64),
+	}
+
+	parentInfo.children[op.Name] = newInode
+	fs.inodes[uint64(op.Parent)] = parentInfo
+
+	op.Entry.Child = fuseops.InodeID(newInode)
+	op.Entry.Attributes = fuseops.InodeAttributes{
+		Mode:  op.Mode | os.ModeDir,
+		Nlink: 1,
+	}
+	return nil
 }
 
 func (fs *KillPrivFS) CreateFile(
@@ -112,12 +174,35 @@ func (fs *KillPrivFS) CreateFile(
 	if op.KillSuidgid {
 		fs.createWithKillSuidgid = true
 	}
+
+	parentInfo, ok := fs.inodes[uint64(op.Parent)]
+	if !ok {
+		fs.mu.Unlock()
+		return fuse.ENOENT
+	}
+
+	newInode := fs.nextInode
+	fs.nextInode++
+
+	// Ensure mode has at least user read/write permissions
+	mode := op.Mode
+	if mode&0600 == 0 {
+		mode |= 0600
+	}
+
+	fs.inodes[newInode] = inodeInfo{
+		mode:   mode,
+		parent: uint64(op.Parent),
+		name:   op.Name,
+	}
+
+	parentInfo.children[op.Name] = newInode
+	fs.inodes[uint64(op.Parent)] = parentInfo
 	fs.mu.Unlock()
 
-	// Return a new inode
-	op.Entry.Child = 2
+	op.Entry.Child = fuseops.InodeID(newInode)
 	op.Entry.Attributes = fuseops.InodeAttributes{
-		Mode:  op.Mode,
+		Mode:  mode,
 		Nlink: 1,
 		Size:  0,
 	}
@@ -164,22 +249,40 @@ func (fs *KillPrivFS) SetInodeAttributes(
 	ctx context.Context,
 	op *fuseops.SetInodeAttributesOp) error {
 	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
 	if op.KillSuidgid {
 		fs.setattrWithKillSuidgid = true
 	}
-	fs.mu.Unlock()
 
-	mode := os.FileMode(0666)
-	if op.Mode != nil {
-		mode = *op.Mode
+	info, ok := fs.inodes[uint64(op.Inode)]
+	if !ok {
+		return fuse.ENOENT
 	}
-	size := uint64(0)
+
+	if op.Mode != nil {
+		info.mode = *op.Mode
+		fs.inodes[uint64(op.Inode)] = info
+	}
+
 	if op.Size != nil {
-		size = *op.Size
+		// Handle file truncation
+		if *op.Size < uint64(len(fs.fileData)) {
+			fs.fileData = fs.fileData[:*op.Size]
+		} else if *op.Size > uint64(len(fs.fileData)) {
+			newData := make([]byte, *op.Size)
+			copy(newData, fs.fileData)
+			fs.fileData = newData
+		}
+	}
+
+	size := uint64(0)
+	if info.mode.IsRegular() {
+		size = uint64(len(fs.fileData))
 	}
 
 	op.Attributes = fuseops.InodeAttributes{
-		Mode:  mode,
+		Mode:  info.mode,
 		Nlink: 1,
 		Size:  size,
 	}

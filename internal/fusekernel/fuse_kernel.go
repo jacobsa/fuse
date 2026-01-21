@@ -549,8 +549,8 @@ type setattrInCommon struct {
 }
 
 type OpenIn struct {
-	Flags  uint32
-	Unused uint32
+	Flags     uint32 // User-space O_RDONLY/O_WRONLY/etc flags
+	OpenFlags uint32 // Kernel FUSE_OPEN_* flags (e.g., FUSE_OPEN_KILL_SUIDGID)
 }
 
 type OpenOut struct {
@@ -560,16 +560,16 @@ type OpenOut struct {
 }
 
 type CreateIn struct {
-	Flags   uint32
-	Mode    uint32
-	Umask   uint32
-	padding uint32
+	Flags     uint32 // User-space O_RDONLY/O_WRONLY/etc flags
+	Mode      uint32
+	Umask     uint32
+	OpenFlags uint32 // Kernel FUSE_OPEN_* flags (e.g., FUSE_OPEN_KILL_SUIDGID)
 }
 
 // OpenRequestFlags are kernel-level flags sent from the kernel to the filesystem
-// in OpenIn.Flags or CreateIn.Flags (not to be confused with OpenFlags which are
-// user-space O_RDONLY/O_WRONLY/etc flags, or OpenResponseFlags which are returned
-// by the filesystem in OpenOut).
+// in OpenIn.OpenFlags or CreateIn.OpenFlags (not to be confused with the Flags
+// field which contains user-space O_RDONLY/O_WRONLY/etc flags, or OpenResponseFlags
+// which are returned by the filesystem in OpenOut).
 type OpenRequestFlags uint32
 
 const (
