@@ -174,6 +174,10 @@ type SetInodeAttributesOp struct {
 	Atime *time.Time
 	Mtime *time.Time
 
+	// When HANDLE_KILLPRIV_V2 is enabled, this indicates whether the kernel
+	// requests the filesystem to clear setuid/setgid bits.
+	KillSuidgid bool
+
 	// Set by the file system: the new attributes for the inode, and the time at
 	// which they should expire. See notes on
 	// ChildInodeEntry.AttributesExpiration for more.
@@ -339,6 +343,10 @@ type CreateFileOp struct {
 	// The name of the child to create, and the mode with which to create it.
 	Name string
 	Mode os.FileMode
+
+	// When HANDLE_KILLPRIV_V2 is enabled, this indicates whether the kernel
+	// requests the filesystem to clear setuid/setgid bits when creating the file.
+	KillSuidgid bool
 
 	// Set by the file system: information about the inode that was created.
 	//
@@ -683,6 +691,10 @@ type OpenFileOp struct {
 
 	OpenFlags fusekernel.OpenFlags
 
+	// When HANDLE_KILLPRIV_V2 is enabled, this indicates whether the kernel
+	// requests the filesystem to clear setuid/setgid bits when opening the file.
+	KillSuidgid bool
+
 	OpContext OpContext
 }
 
@@ -788,7 +800,12 @@ type WriteFileOp struct {
 	// be written, except on error (https://tinyurl.com/yuruk5tx). This appears
 	// to be because it uses file mmapping machinery
 	// (https://tinyurl.com/avxy3dvm) to write a page at a time.
-	Data      []byte
+	Data []byte
+
+	// When HANDLE_KILLPRIV_V2 is enabled, this indicates whether the kernel
+	// requests the filesystem to clear setuid/setgid bits during this write.
+	KillSuidgid bool
+
 	OpContext OpContext
 
 	// If set, this function will be invoked after the operation response has been
