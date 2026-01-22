@@ -95,9 +95,13 @@ func (t *KillPrivFSTest) SetUp(ti *TestInfo) {
 	t.fs = killprivfs.NewKillPrivFS()
 	t.Server = fuseutil.NewFileSystemServer(t.fs)
 	t.MountConfig.EnableHandleKillprivV2 = true
-	t.MountConfig.DisableDefaultPermissions = true
 
-	// Allow other users to access the filesystem (required for su nobody tests)
+	// IMPORTANT: DisableWritebackCaching must be true for KILLPRIV_V2 to work correctly.
+	// With writeback caching enabled, the kernel buffers writes in the page cache and
+	// KillSuidgid flags don't reach the filesystem until much later (if at all).
+	t.MountConfig.DisableWritebackCaching = true
+
+	// Allow other users to access the filesystem (required for privilege dropping tests)
 	if t.MountConfig.Options == nil {
 		t.MountConfig.Options = make(map[string]string)
 	}
@@ -105,7 +109,6 @@ func (t *KillPrivFSTest) SetUp(ti *TestInfo) {
 
 	t.SampleTest.SetUp(ti)
 
-	// Make mount point accessible to all users so tests with `su nobody` work
 	err := os.Chmod(t.Dir, 0755)
 	AssertEq(nil, err, "Failed to chmod mount point")
 
@@ -117,7 +120,6 @@ func (t *KillPrivFSTest) SetUp(ti *TestInfo) {
 ////////////////////////////////////////////////////////////////////////
 
 func (t *KillPrivFSTest) TestMountWithKillPrivV2() {
-	// Verify filesystem mounts successfully with HANDLE_KILLPRIV_V2 enabled
 	ExpectThat(t.Dir, Not(Equals("")))
 }
 
@@ -131,51 +133,48 @@ func (t *KillPrivFSTest) TestCreateFileInSetgidDir() {
 		return
 	}
 
-	// Directly add a directory with setgid bit to the filesystem
-	// Use 02777 so nobody user can create files in it
+	// Shell > redirection uses O_CREAT|O_TRUNC (without O_EXCL), which triggers
+	// the kernel to set KillSuidgid when creating in a setgid directory
 	t.fs.AddTestDir("setgid_dir", 02777)
 
 	dirPath := path.Join(t.Dir, "setgid_dir")
 	filePath := path.Join(dirPath, "newfile.txt")
 
-	// As nobody user, create a file in the setgid directory
 	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
-		"touch "+filePath)
+		"echo data > "+filePath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		AssertEq(nil, err, "su command failed: %s", string(output))
 	}
 
 	createFlag, _, _, _ := t.fs.GetFlags()
-	ExpectTrue(createFlag, "CreateKillSuidgid flag should be set when creating file in setgid directory")
+	ExpectTrue(createFlag, "CreateKillSuidgid flag should be set when creating file in setgid directory with O_TRUNC")
 }
 
-func (t *KillPrivFSTest) TestOpenSetuidFileForWrite() {
+func (t *KillPrivFSTest) TestOpenWithTruncateSetuidFile() {
 	if syscall.Getuid() != 0 {
-		fmt.Println("Skipping TestOpenSetuidFileForWrite: requires root")
+		fmt.Println("Skipping TestOpenWithTruncateSetuidFile: requires root")
 		return
 	}
 	if !kernelSupportsKillprivV2() {
-		fmt.Println("Skipping TestOpenSetuidFileForWrite: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+		fmt.Println("Skipping TestOpenWithTruncateSetuidFile: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
 		return
 	}
 
-	// Directly add a file with setuid bit to the filesystem
-	// Use 04666 so nobody user can write to it
+	// When opening with O_TRUNC, the kernel splits it into OpenFile + SetInodeAttributes(size=0).
+	// The KillSuidgid flag is set on SetInodeAttributes, not OpenFile.
 	t.fs.AddTestFile("setuid_open_test.txt", 04666)
-
 	filePath := path.Join(t.Dir, "setuid_open_test.txt")
 
-	// As nobody user, open the setuid file for write
 	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
-		"echo 'new data' > "+filePath)
+		"echo data > "+filePath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		AssertEq(nil, err, "su command failed: %s", string(output))
 	}
 
-	_, openFlag, _, _ := t.fs.GetFlags()
-	ExpectTrue(openFlag, "OpenKillSuidgid flag should be set when opening setuid file for write")
+	_, _, _, setattrFlag := t.fs.GetFlags()
+	ExpectTrue(setattrFlag, "SetattrKillSuidgid flag should be set when truncating setuid file via O_TRUNC")
 }
 
 func (t *KillPrivFSTest) TestWriteToSetuidFile() {
@@ -188,13 +187,9 @@ func (t *KillPrivFSTest) TestWriteToSetuidFile() {
 		return
 	}
 
-	// Directly add a file with setuid bit to the filesystem
-	// Use 04666 so nobody user can write to it
 	t.fs.AddTestFile("setuid_test.txt", 04666)
-
 	filePath := path.Join(t.Dir, "setuid_test.txt")
 
-	// As nobody user, write to the setuid file
 	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
 		"echo 'test data' >> "+filePath)
 	output, err := cmd.CombinedOutput()
@@ -211,18 +206,21 @@ func (t *KillPrivFSTest) TestSetuidBitWithChown() {
 		fmt.Println("Skipping TestSetuidBitWithChown: requires root")
 		return
 	}
+	if !kernelSupportsKillprivV2() {
+		fmt.Println("Skipping TestSetuidBitWithChown: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+		return
+	}
 
-	// Directly add a file with setuid bit to the filesystem
+	// The kernel always sets KillSuidgid=true for setattr operations.
+	// The filesystem must check OpContext.Uid and file mode to decide if bits should clear.
 	t.fs.AddTestFile("chown_test.txt", 04755)
-
 	filePath := path.Join(t.Dir, "chown_test.txt")
 
 	err := os.Chown(filePath, 1000, 1000)
 	AssertEq(nil, err)
 
 	_, _, _, setattrFlag := t.fs.GetFlags()
-	// Root has CAP_FSETID, so the flag should NOT be set when root does chown
-	ExpectFalse(setattrFlag, "SetattrKillSuidgid flag should NOT be set when root (with CAP_FSETID) changes ownership")
+	ExpectTrue(setattrFlag, "SetattrKillSuidgid flag should be set for setattr (chown) operation")
 }
 
 func (t *KillPrivFSTest) TestTruncateSetuidFile() {
@@ -235,13 +233,9 @@ func (t *KillPrivFSTest) TestTruncateSetuidFile() {
 		return
 	}
 
-	// Directly add a file with setuid bit to the filesystem
-	// Use 04666 so nobody user can write to it
 	t.fs.AddTestFile("truncate_test.txt", 04666)
-
 	filePath := path.Join(t.Dir, "truncate_test.txt")
 
-	// As nobody user, truncate the setuid file
 	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
 		"truncate -s 5 "+filePath)
 	output, err := cmd.CombinedOutput()
@@ -254,8 +248,6 @@ func (t *KillPrivFSTest) TestTruncateSetuidFile() {
 }
 
 func (t *KillPrivFSTest) TestNoKillSuidgidFlagsOnNormalOperations() {
-	// This test verifies that KillSuidgid flags are NOT set for normal operations
-	// without setuid/setgid bits. We simply check the flags remain false after mount.
 	createFlag, openFlag, writeFlag, setattrFlag := t.fs.GetFlags()
 	ExpectFalse(createFlag, "CreateKillSuidgid should be false initially")
 	ExpectFalse(openFlag, "OpenKillSuidgid should be false initially")
@@ -268,7 +260,13 @@ func (t *KillPrivFSTest) TestChownNormalFile() {
 		fmt.Println("Skipping TestChownNormalFile: requires root")
 		return
 	}
+	if !kernelSupportsKillprivV2() {
+		fmt.Println("Skipping TestChownNormalFile: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+		return
+	}
 
+	// The kernel sets KillSuidgid=true even on normal files (without privilege bits).
+	// The filesystem must check the file mode to decide if any action is needed.
 	filePath := path.Join(t.Dir, "normal_chown.txt")
 
 	err := ioutil.WriteFile(filePath, []byte("test"), 0644)
@@ -278,7 +276,7 @@ func (t *KillPrivFSTest) TestChownNormalFile() {
 	AssertEq(nil, err)
 
 	_, _, _, setattrFlag := t.fs.GetFlags()
-	ExpectFalse(setattrFlag, "SetattrKillSuidgid flag should NOT be set when chown on normal file")
+	ExpectTrue(setattrFlag, "SetattrKillSuidgid flag should be set for setattr (chown) operation")
 }
 
 func (t *KillPrivFSTest) TestRootWriteToSetuidFile() {
@@ -287,9 +285,7 @@ func (t *KillPrivFSTest) TestRootWriteToSetuidFile() {
 		return
 	}
 
-	// Directly add a file with setuid bit to the filesystem
 	t.fs.AddTestFile("setuid_root_write.txt", 04755)
-
 	filePath := path.Join(t.Dir, "setuid_root_write.txt")
 
 	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
