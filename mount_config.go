@@ -244,12 +244,12 @@ type MountConfig struct {
 	// - CreateFileOp/OpenFileOp: when opening for write a file with setuid/setgid
 	//   bits, or creating a file in a directory with setgid bit
 	//
-	// IMPORTANT: KILLPRIV_V2 relies on WriteFileOp reaching the server to clear
+	// Note: KILLPRIV_V2 relies on WriteFileOp reaching the server to clear
 	// privilege bits. When writeback caching is enabled, writes are buffered in
 	// the kernel page cache and WriteFileOp may not be sent immediately (or at all
 	// until flush/fsync). Therefore, using EnableHandleKillprivV2 with writeback
-	// caching enabled is NOT recommended and may result in privilege bits not being
-	// cleared when they should be. Set DisableWritebackCaching=true when using this.
+	// caching enabled is not recommended and may result in privilege bits not being
+	// cleared when they should be.
 	//
 	// Ref: https://github.com/torvalds/linux/commit/63f9909ff602082597849f684655e93336c50b11
 	EnableHandleKillprivV2 bool
