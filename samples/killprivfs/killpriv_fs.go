@@ -34,8 +34,7 @@ type KillPrivFS struct {
 	openWithKillSuidgid    bool
 	writeWithKillSuidgid   bool
 	setattrWithKillSuidgid bool
-	fileData               []byte              // Simple in-memory file storage
-	inodes                 map[uint64]inodeInfo // inode storage
+	inodes                 map[uint64]*inodeInfo
 	nextInode              uint64
 }
 
@@ -44,15 +43,15 @@ type inodeInfo struct {
 	parent   uint64
 	name     string
 	children map[string]uint64
+	data     []byte // Per-inode data storage
 }
 
 func NewKillPrivFS() *KillPrivFS {
 	fs := &KillPrivFS{
-		inodes:    make(map[uint64]inodeInfo),
+		inodes:    make(map[uint64]*inodeInfo),
 		nextInode: 2, // Start after root (inode 1)
 	}
-	// Initialize root directory
-	fs.inodes[1] = inodeInfo{
+	fs.inodes[1] = &inodeInfo{
 		mode:     os.ModeDir | 0755,
 		children: make(map[string]uint64),
 	}
@@ -82,16 +81,13 @@ func (fs *KillPrivFS) AddTestFile(name string, mode os.FileMode) fuseops.InodeID
 	inodeID := fs.nextInode
 	fs.nextInode++
 
-	fs.inodes[inodeID] = inodeInfo{
+	fs.inodes[inodeID] = &inodeInfo{
 		mode:   mode,
-		parent: 1, // root
+		parent: 1,
 		name:   name,
 	}
 
-	rootInfo := fs.inodes[1]
-	rootInfo.children[name] = inodeID
-	fs.inodes[1] = rootInfo
-
+	fs.inodes[1].children[name] = inodeID
 	return fuseops.InodeID(inodeID)
 }
 
@@ -103,17 +99,14 @@ func (fs *KillPrivFS) AddTestDir(name string, mode os.FileMode) fuseops.InodeID 
 	inodeID := fs.nextInode
 	fs.nextInode++
 
-	fs.inodes[inodeID] = inodeInfo{
+	fs.inodes[inodeID] = &inodeInfo{
 		mode:     mode | os.ModeDir,
-		parent:   1, // root
+		parent:   1,
 		name:     name,
 		children: make(map[string]uint64),
 	}
 
-	rootInfo := fs.inodes[1]
-	rootInfo.children[name] = inodeID
-	fs.inodes[1] = rootInfo
-
+	fs.inodes[1].children[name] = inodeID
 	return fuseops.InodeID(inodeID)
 }
 
@@ -150,7 +143,7 @@ func (fs *KillPrivFS) GetInodeAttributes(
 
 	size := uint64(0)
 	if info.mode.IsRegular() {
-		size = uint64(len(fs.fileData))
+		size = uint64(len(info.data))
 	}
 
 	now := time.Now()
@@ -186,7 +179,7 @@ func (fs *KillPrivFS) LookUpInode(
 	childInfo := fs.inodes[childInode]
 	size := uint64(0)
 	if childInfo.mode.IsRegular() {
-		size = uint64(len(fs.fileData))
+		size = uint64(len(childInfo.data))
 	}
 
 	now := time.Now()
@@ -218,7 +211,7 @@ func (fs *KillPrivFS) MkDir(
 	newInode := fs.nextInode
 	fs.nextInode++
 
-	fs.inodes[newInode] = inodeInfo{
+	fs.inodes[newInode] = &inodeInfo{
 		mode:     op.Mode | os.ModeDir,
 		parent:   uint64(op.Parent),
 		name:     op.Name,
@@ -226,7 +219,6 @@ func (fs *KillPrivFS) MkDir(
 	}
 
 	parentInfo.children[op.Name] = newInode
-	fs.inodes[uint64(op.Parent)] = parentInfo
 
 	now := time.Now()
 	op.Entry.Child = fuseops.InodeID(newInode)
@@ -265,14 +257,13 @@ func (fs *KillPrivFS) CreateFile(
 		mode |= 0600
 	}
 
-	fs.inodes[newInode] = inodeInfo{
+	fs.inodes[newInode] = &inodeInfo{
 		mode:   mode,
 		parent: uint64(op.Parent),
 		name:   op.Name,
 	}
 
 	parentInfo.children[op.Name] = newInode
-	fs.inodes[uint64(op.Parent)] = parentInfo
 	fs.mu.Unlock()
 
 	now := time.Now()
@@ -314,14 +305,18 @@ func (fs *KillPrivFS) WriteFile(
 		fs.writeWithKillSuidgid = true
 	}
 
-	if op.Offset+int64(len(op.Data)) > int64(len(fs.fileData)) {
-		// Extend file
+	info, ok := fs.inodes[uint64(op.Inode)]
+	if !ok {
+		return fuse.ENOENT
+	}
+
+	if op.Offset+int64(len(op.Data)) > int64(len(info.data)) {
 		newSize := op.Offset + int64(len(op.Data))
 		newData := make([]byte, newSize)
-		copy(newData, fs.fileData)
-		fs.fileData = newData
+		copy(newData, info.data)
+		info.data = newData
 	}
-	copy(fs.fileData[op.Offset:], op.Data)
+	copy(info.data[op.Offset:], op.Data)
 
 	return nil
 }
@@ -343,26 +338,21 @@ func (fs *KillPrivFS) SetInodeAttributes(
 
 	if op.Mode != nil {
 		info.mode = *op.Mode
-		fs.inodes[uint64(op.Inode)] = info
 	}
 
 	if op.Size != nil {
-		// Handle file truncation
-		if *op.Size < uint64(len(fs.fileData)) {
-			fs.fileData = fs.fileData[:*op.Size]
-		} else if *op.Size > uint64(len(fs.fileData)) {
+		if *op.Size < uint64(len(info.data)) {
+			info.data = info.data[:*op.Size]
+		} else if *op.Size > uint64(len(info.data)) {
 			newData := make([]byte, *op.Size)
-			copy(newData, fs.fileData)
-			fs.fileData = newData
+			copy(newData, info.data)
+			info.data = newData
 		}
 	}
 
-	// Re-fetch to ensure we return the updated attributes
-	info = fs.inodes[uint64(op.Inode)]
-
 	size := uint64(0)
 	if info.mode.IsRegular() {
-		size = uint64(len(fs.fileData))
+		size = uint64(len(info.data))
 	}
 
 	now := time.Now()
@@ -385,13 +375,17 @@ func (fs *KillPrivFS) ReadFile(
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	// Handle read beyond file size
-	if op.Offset >= int64(len(fs.fileData)) {
+	info, ok := fs.inodes[uint64(op.Inode)]
+	if !ok {
+		return fuse.ENOENT
+	}
+
+	if op.Offset >= int64(len(info.data)) {
 		op.BytesRead = 0
 		return nil
 	}
 
-	n := copy(op.Dst, fs.fileData[op.Offset:])
+	n := copy(op.Dst, info.data[op.Offset:])
 	op.BytesRead = n
 	return nil
 }
