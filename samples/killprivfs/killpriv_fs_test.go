@@ -43,8 +43,7 @@ import (
 
 func TestKillPrivFS(t *testing.T) { RunTests(t) }
 
-// kernelSupportsKillprivV2 checks if the Linux kernel is >= 5.12,
-// which is when HANDLE_KILLPRIV_V2 support was added.
+// kernelSupportsKillprivV2 returns whether the kernel is >= 5.12 (when HANDLE_KILLPRIV_V2 was added).
 func kernelSupportsKillprivV2() bool {
 	var uname syscall.Utsname
 	if err := syscall.Uname(&uname); err != nil {
@@ -91,7 +90,6 @@ type KillPrivFSTest struct {
 
 func init() { RegisterTestSuite(&KillPrivFSTest{}) }
 
-// skipIfNotRoot skips the test if not running as root.
 func skipIfNotRoot(testName string) bool {
 	if syscall.Getuid() != 0 {
 		fmt.Printf("Skipping %s: requires root\n", testName)
@@ -100,7 +98,6 @@ func skipIfNotRoot(testName string) bool {
 	return false
 }
 
-// skipIfKernelTooOld skips the test if kernel doesn't support KILLPRIV_V2.
 func skipIfKernelTooOld(testName string) bool {
 	if !kernelSupportsKillprivV2() {
 		fmt.Printf("Skipping %s: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support\n", testName)
@@ -109,7 +106,6 @@ func skipIfKernelTooOld(testName string) bool {
 	return false
 }
 
-// runAsNobody executes a shell command as the nobody user.
 func runAsNobody(command string) error {
 	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c", command)
 	output, err := cmd.CombinedOutput()

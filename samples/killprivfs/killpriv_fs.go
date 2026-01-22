@@ -46,7 +46,6 @@ type inodeInfo struct {
 	children map[string]uint64
 }
 
-// NewKillPrivFS creates a new KillPrivFS.
 func NewKillPrivFS() *KillPrivFS {
 	fs := &KillPrivFS{
 		inodes:    make(map[uint64]inodeInfo),
@@ -75,7 +74,7 @@ func (fs *KillPrivFS) ResetFlags() {
 	fs.setattrWithKillSuidgid = false
 }
 
-// AddTestFile adds a file with specific mode bits for testing (bypasses normal FUSE operations)
+// AddTestFile bypasses normal FUSE operations to create test files with specific mode bits.
 func (fs *KillPrivFS) AddTestFile(name string, mode os.FileMode) fuseops.InodeID {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -96,7 +95,7 @@ func (fs *KillPrivFS) AddTestFile(name string, mode os.FileMode) fuseops.InodeID
 	return fuseops.InodeID(inodeID)
 }
 
-// AddTestDir adds a directory with specific mode bits for testing (bypasses normal FUSE operations)
+// AddTestDir bypasses normal FUSE operations to create test directories with specific mode bits.
 func (fs *KillPrivFS) AddTestDir(name string, mode os.FileMode) fuseops.InodeID {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
