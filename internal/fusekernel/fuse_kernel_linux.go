@@ -1,6 +1,9 @@
 package fusekernel
 
-import "time"
+import (
+	"syscall"
+	"time"
+)
 
 type Attr struct {
 	Ino       uint64
@@ -49,16 +52,18 @@ func (in *SetattrIn) Flags() uint32 {
 	return 0
 }
 
-func openFlags(flags uint32) OpenFlags {
-	// on amd64, the 32-bit O_LARGEFILE flag is always seen;
-	// on i386, the flag probably depends on the app
-	// requesting, but in any case should be utterly
-	// uninteresting to us here; our kernel protocol messages
-	// are not directly related to the client app's kernel
-	// API/ABI
-	flags &^= 0x8000
+const OpenDirect OpenFlags = syscall.O_DIRECT
 
-	return OpenFlags(flags)
+// Return true if OpenDirect is set.
+func (fl OpenFlags) IsDirect() bool {
+	return fl&OpenDirect != 0
+}
+
+func init() {
+	openFlagNames = append(openFlagNames, flagName{
+		bit:  uint32(OpenDirect),
+		name: "OpenDirect",
+	})
 }
 
 type GetxattrIn struct {

@@ -249,6 +249,7 @@ func convertInMessage(
 				Pid:    inMsg.Header().Pid,
 				Uid:    inMsg.Header().Uid,
 			},
+			OpenFlags: fusekernel.OpenFlags(in.Flags),
 		}
 
 		if fusekernel.OpenRequestFlags(in.OpenFlags)&fusekernel.OpenKillSuidgid != 0 {
@@ -410,11 +411,8 @@ func convertInMessage(
 				Uid:    inMsg.Header().Uid,
 			},
 		}
-		if !config.UseVectoredRead {
-			// Use part of the incoming message storage as the read buffer
-			// For vectored zero-copy reads, don't allocate any buffers
-			to.Dst = inMsg.GetFree(int(in.Size))
-		}
+		// Use part of the incoming message storage as the read buffer.
+		to.Dst = inMsg.GetFree(int(in.Size))
 		o = to
 
 	case fusekernel.OpReaddir:
@@ -955,10 +953,10 @@ func (c *Connection) kernelResponseForOp(
 		}
 
 	case *fuseops.ReadFileOp:
-		if o.Dst != nil {
-			m.Append(o.Dst)
-		} else {
+		if o.Data != nil {
 			m.Append(o.Data...)
+		} else {
+			m.Append(o.Dst)
 		}
 		m.ShrinkTo(buffer.OutMessageHeaderSize + o.BytesRead)
 

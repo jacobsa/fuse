@@ -1919,6 +1919,44 @@ func (t *MemFSTest) RemoveXAttr() {
 	AssertEq(fuse.ENOATTR, err)
 }
 
+func (t *MemFSTest) NonVectoredRead() {
+	var err error
+	const contents = "taco"
+	const fileName = "foo"
+	filePath := path.Join(t.Dir, fileName)
+
+	// Create a file.
+	err = ioutil.WriteFile(filePath, []byte(contents), 0600)
+	AssertEq(nil, err)
+
+	// Read the file. This will be a non-vectored read by default.
+	readContents, err := ioutil.ReadFile(filePath)
+	AssertEq(nil, err)
+
+	ExpectEq(contents, string(readContents))
+}
+
+func (t *MemFSTest) VectoredRead() {
+	var err error
+	const contents = "taco"
+	const fileName = "foo"
+	filePath := path.Join(t.Dir, fileName)
+
+	// Create a file.
+	err = ioutil.WriteFile(filePath, []byte(contents), 0600)
+	AssertEq(nil, err)
+
+	// Enable vectored reads for memfs for this file.
+	err = unix.Setxattr(filePath, memfs.EnableVectoredReadXattrName, []byte("true"), 0)
+	AssertEq(nil, err)
+
+	// Read the file.
+	readContents, err := ioutil.ReadFile(filePath)
+	AssertEq(nil, err)
+
+	ExpectEq(contents, string(readContents))
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Mknod
 ////////////////////////////////////////////////////////////////////////

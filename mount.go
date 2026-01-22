@@ -80,6 +80,7 @@ func Mount(
 		cfgCopy,
 		config.DebugLogger,
 		config.ErrorLogger,
+		config.WireLogger,
 		dev)
 	if err != nil {
 		return nil, fmt.Errorf("newConnection: %v", err)

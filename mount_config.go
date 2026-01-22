@@ -17,6 +17,7 @@ package fuse
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"runtime"
 	"strings"
@@ -46,6 +47,10 @@ type MountConfig struct {
 	// A logger to use for logging debug information. If nil, no debug logging is
 	// performed.
 	DebugLogger *log.Logger
+
+	// A logger to use for logging fuse wire requests. If nil, no wire logging is
+	// performed.
+	WireLogger io.Writer
 
 	// Linux only. OS X always behaves as if writeback caching is disabled.
 	//
@@ -157,13 +162,6 @@ type MountConfig struct {
 	// actually utilise any form of qualifiable UNIX permissions.
 	DisableDefaultPermissions bool
 
-	// Use vectored reads.
-	// Vectored read allows file systems to avoid memory copying overhead if
-	// the data is already in memory when they return it to FUSE.
-	// When turned on, ReadFileOp.Dst is always nil and the FS must return data
-	// being read from the file as a list of slices in ReadFileOp.Data.
-	UseVectoredRead bool
-
 	// OS X only.
 	//
 	// The name of the mounted volume, as displayed in the Finder. If empty, a
@@ -222,6 +220,27 @@ type MountConfig struct {
 	// If EnableReaddirplus is true and this flag is false, the kernel will always
 	// use ReaddirPlus for directory listing.
 	EnableAutoReaddirplus bool
+
+	// UseVectoredRead is a legacy flag kept for backward compatibility. It is now a no-op.
+	//
+	// The term vectored read was a misnomer for this flag. Its actual meaning was that
+	// the file system would allocate its own buffers for read operations.
+	//
+	// When this flag was disabled, the FUSE library provided a buffer
+	// in ReadFileOp.Dst. This buffer utilized unused space within the
+	// incoming kernel request message's buffer (InMessage.storage), which is
+	// sized to hold a page plus the maximum write size. Since read requests are
+	// small, there is ample room for read responses.
+	//
+	// Conversely, when this flag was enabled, ReadFileOp.Dst was always nil.
+	// This allowed file systems to avoid memory copying overhead if the data was
+	// already in memory, by requiring them to return the data as a list of slices
+	// in ReadFileOp.Data.
+	//
+	// Currently, both the read mechanisms can coexist. The library's behavior is
+	// to always provide ReadFileOp.Dst. If the file system populates ReadFileOp.Data,
+	// that data will be used for a vectored read, irrespective of this flag's value.
+	UseVectoredRead bool
 
 	// When enabled, the filesystem is responsible for clearing setuid/setgid bits
 	// when a file is written, truncated, or its owner is changed.

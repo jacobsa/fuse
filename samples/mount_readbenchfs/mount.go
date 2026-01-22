@@ -4,12 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/jacobsa/fuse"
-	"github.com/jacobsa/fuse/samples/readbenchfs"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+
+	"github.com/jacobsa/fuse"
+	"github.com/jacobsa/fuse/samples/readbenchfs"
 )
 
 var fMountPoint = flag.String("mount_point", "", "Path to mount point.")
@@ -38,8 +39,7 @@ func main() {
 	}
 
 	cfg := &fuse.MountConfig{
-		ReadOnly:        *fReadOnly,
-		UseVectoredRead: *fVectored,
+		ReadOnly: *fReadOnly,
 	}
 
 	if *fDebug {

@@ -59,10 +59,6 @@ func (in *SetattrIn) Flags() uint32 {
 	return in.Flags_
 }
 
-func openFlags(flags uint32) OpenFlags {
-	return OpenFlags(flags)
-}
-
 type GetxattrIn struct {
 	getxattrInCommon
 

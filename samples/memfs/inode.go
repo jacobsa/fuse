@@ -322,6 +322,29 @@ func (in *inode) ReadAt(p []byte, off int64) (int, error) {
 	return n, nil
 }
 
+// Perform a vectored read from the file's contents.
+//
+// REQUIRES: in.isFile()
+func (in *inode) VectoredReadAt(op *fuseops.ReadFileOp) (bytesRead int, err error) {
+	if !in.isFile() {
+		panic("VectoredReadAt called on non-file.")
+	}
+
+	// For testing, split the file into 1-byte chunks for the vectored read.
+	op.Data = make([][]byte, 0, len(in.contents))
+	for i := int64(0); i < int64(len(in.contents)); i++ {
+		if i >= op.Offset && op.BytesRead < int(op.Size) {
+			op.Data = append(op.Data, in.contents[i:i+1])
+			bytesRead++
+		}
+	}
+
+	if bytesRead < int(op.Size) {
+		err = io.EOF
+	}
+	return bytesRead, err
+}
+
 // Write to the file's contents. See documentation for ioutil.WriterAt.
 //
 // REQUIRES: in.isFile()

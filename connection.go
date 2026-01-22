@@ -62,6 +62,7 @@ type Connection struct {
 	cfg         MountConfig
 	debugLogger *log.Logger
 	errorLogger *log.Logger
+	wireLogger  io.Writer
 
 	// The device through which we're talking to the kernel, and the protocol
 	// version that we're using to talk to it.
@@ -87,6 +88,18 @@ type opState struct {
 	inMsg  *buffer.InMessage
 	outMsg *buffer.OutMessage
 	op     interface{}
+	wlog   *WireLogRecord
+}
+
+// Return the current wirelog record from the context if the MountConfig
+// contained a non-nil wireLogger, nil otherwise.
+func GetWirelog(ctx context.Context) *WireLogRecord {
+	val := ctx.Value(contextKey)
+	state, ok := val.(opState)
+	if ok {
+		return state.wlog
+	}
+	return nil
 }
 
 // Create a connection wrapping the supplied file descriptor connected to the
@@ -97,11 +110,13 @@ func newConnection(
 	cfg MountConfig,
 	debugLogger *log.Logger,
 	errorLogger *log.Logger,
+	wireLogger io.Writer,
 	dev *os.File) (*Connection, error) {
 	c := &Connection{
 		cfg:         cfg,
 		debugLogger: debugLogger,
 		errorLogger: errorLogger,
+		wireLogger:  wireLogger,
 		dev:         dev,
 		cancelFuncs: make(map[uint64]func()),
 	}
@@ -474,7 +489,11 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 
 		// Set up a context that remembers information about this op.
 		ctx := c.beginOp(inMsg.Header().Opcode, inMsg.Header().Unique)
-		ctx = context.WithValue(ctx, contextKey, opState{inMsg, outMsg, op})
+		var wlog *WireLogRecord
+		if c.wireLogger != nil {
+			wlog = NewWireLogRecord()
+		}
+		ctx = context.WithValue(ctx, contextKey, opState{inMsg, outMsg, op, wlog})
 
 		// Return the op to the user.
 		return ctx, op, nil
@@ -584,6 +603,13 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 			return fmt.Errorf(writeErrMsg)
 		}
 		outMsg.Sglist = nil
+	}
+
+	if c.wireLogger != nil {
+		entry, err := formatWireLogEntry(op, opErr, state.wlog)
+		if err == nil {
+			c.wireLogger.Write(entry)
+		}
 	}
 
 	return nil
