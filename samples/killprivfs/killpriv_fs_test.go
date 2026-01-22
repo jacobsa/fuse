@@ -91,6 +91,34 @@ type KillPrivFSTest struct {
 
 func init() { RegisterTestSuite(&KillPrivFSTest{}) }
 
+// skipIfNotRoot skips the test if not running as root.
+func skipIfNotRoot(testName string) bool {
+	if syscall.Getuid() != 0 {
+		fmt.Printf("Skipping %s: requires root\n", testName)
+		return true
+	}
+	return false
+}
+
+// skipIfKernelTooOld skips the test if kernel doesn't support KILLPRIV_V2.
+func skipIfKernelTooOld(testName string) bool {
+	if !kernelSupportsKillprivV2() {
+		fmt.Printf("Skipping %s: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support\n", testName)
+		return true
+	}
+	return false
+}
+
+// runAsNobody executes a shell command as the nobody user.
+func runAsNobody(command string) error {
+	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c", command)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("command failed: %s", string(output))
+	}
+	return nil
+}
+
 func (t *KillPrivFSTest) SetUp(ti *TestInfo) {
 	t.fs = killprivfs.NewKillPrivFS()
 	t.Server = fuseutil.NewFileSystemServer(t.fs)
@@ -124,40 +152,24 @@ func (t *KillPrivFSTest) TestMountWithKillPrivV2() {
 }
 
 func (t *KillPrivFSTest) TestCreateFileInSetgidDir() {
-	if syscall.Getuid() != 0 {
-		fmt.Println("Skipping TestCreateFileInSetgidDir: requires root")
-		return
-	}
-	if !kernelSupportsKillprivV2() {
-		fmt.Println("Skipping TestCreateFileInSetgidDir: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+	if skipIfNotRoot("TestCreateFileInSetgidDir") || skipIfKernelTooOld("TestCreateFileInSetgidDir") {
 		return
 	}
 
 	// Shell > redirection uses O_CREAT|O_TRUNC (without O_EXCL), which triggers
 	// the kernel to set KillSuidgid when creating in a setgid directory
 	t.fs.AddTestDir("setgid_dir", 02777)
+	filePath := path.Join(t.Dir, "setgid_dir", "newfile.txt")
 
-	dirPath := path.Join(t.Dir, "setgid_dir")
-	filePath := path.Join(dirPath, "newfile.txt")
-
-	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
-		"echo data > "+filePath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		AssertEq(nil, err, "su command failed: %s", string(output))
-	}
+	err := runAsNobody("echo data > " + filePath)
+	AssertEq(nil, err)
 
 	createFlag, _, _, _ := t.fs.GetFlags()
 	ExpectTrue(createFlag, "CreateKillSuidgid flag should be set when creating file in setgid directory with O_TRUNC")
 }
 
 func (t *KillPrivFSTest) TestOpenWithTruncateSetuidFile() {
-	if syscall.Getuid() != 0 {
-		fmt.Println("Skipping TestOpenWithTruncateSetuidFile: requires root")
-		return
-	}
-	if !kernelSupportsKillprivV2() {
-		fmt.Println("Skipping TestOpenWithTruncateSetuidFile: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+	if skipIfNotRoot("TestOpenWithTruncateSetuidFile") || skipIfKernelTooOld("TestOpenWithTruncateSetuidFile") {
 		return
 	}
 
@@ -166,48 +178,30 @@ func (t *KillPrivFSTest) TestOpenWithTruncateSetuidFile() {
 	t.fs.AddTestFile("setuid_open_test.txt", 04666)
 	filePath := path.Join(t.Dir, "setuid_open_test.txt")
 
-	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
-		"echo data > "+filePath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		AssertEq(nil, err, "su command failed: %s", string(output))
-	}
+	err := runAsNobody("echo data > " + filePath)
+	AssertEq(nil, err)
 
 	_, _, _, setattrFlag := t.fs.GetFlags()
 	ExpectTrue(setattrFlag, "SetattrKillSuidgid flag should be set when truncating setuid file via O_TRUNC")
 }
 
 func (t *KillPrivFSTest) TestWriteToSetuidFile() {
-	if syscall.Getuid() != 0 {
-		fmt.Println("Skipping TestWriteToSetuidFile: requires root")
-		return
-	}
-	if !kernelSupportsKillprivV2() {
-		fmt.Println("Skipping TestWriteToSetuidFile: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+	if skipIfNotRoot("TestWriteToSetuidFile") || skipIfKernelTooOld("TestWriteToSetuidFile") {
 		return
 	}
 
 	t.fs.AddTestFile("setuid_test.txt", 04666)
 	filePath := path.Join(t.Dir, "setuid_test.txt")
 
-	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
-		"echo 'test data' >> "+filePath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		AssertEq(nil, err, "su command failed: %s", string(output))
-	}
+	err := runAsNobody("echo 'test data' >> " + filePath)
+	AssertEq(nil, err)
 
 	_, _, writeFlag, _ := t.fs.GetFlags()
 	ExpectTrue(writeFlag, "WriteKillSuidgid flag should be set when non-root writes to setuid file")
 }
 
 func (t *KillPrivFSTest) TestSetuidBitWithChown() {
-	if syscall.Getuid() != 0 {
-		fmt.Println("Skipping TestSetuidBitWithChown: requires root")
-		return
-	}
-	if !kernelSupportsKillprivV2() {
-		fmt.Println("Skipping TestSetuidBitWithChown: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+	if skipIfNotRoot("TestSetuidBitWithChown") || skipIfKernelTooOld("TestSetuidBitWithChown") {
 		return
 	}
 
@@ -224,24 +218,15 @@ func (t *KillPrivFSTest) TestSetuidBitWithChown() {
 }
 
 func (t *KillPrivFSTest) TestTruncateSetuidFile() {
-	if syscall.Getuid() != 0 {
-		fmt.Println("Skipping TestTruncateSetuidFile: requires root")
-		return
-	}
-	if !kernelSupportsKillprivV2() {
-		fmt.Println("Skipping TestTruncateSetuidFile: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+	if skipIfNotRoot("TestTruncateSetuidFile") || skipIfKernelTooOld("TestTruncateSetuidFile") {
 		return
 	}
 
 	t.fs.AddTestFile("truncate_test.txt", 04666)
 	filePath := path.Join(t.Dir, "truncate_test.txt")
 
-	cmd := exec.Command("su", "-s", "/bin/sh", "nobody", "-c",
-		"truncate -s 5 "+filePath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		AssertEq(nil, err, "truncate command failed: %s", string(output))
-	}
+	err := runAsNobody("truncate -s 5 " + filePath)
+	AssertEq(nil, err)
 
 	_, _, _, setattrFlag := t.fs.GetFlags()
 	ExpectTrue(setattrFlag, "SetattrKillSuidgid flag should be set when non-root truncates setuid file")
@@ -256,12 +241,7 @@ func (t *KillPrivFSTest) TestNoKillSuidgidFlagsOnNormalOperations() {
 }
 
 func (t *KillPrivFSTest) TestChownNormalFile() {
-	if syscall.Getuid() != 0 {
-		fmt.Println("Skipping TestChownNormalFile: requires root")
-		return
-	}
-	if !kernelSupportsKillprivV2() {
-		fmt.Println("Skipping TestChownNormalFile: requires Linux kernel >= 5.12 for HANDLE_KILLPRIV_V2 support")
+	if skipIfNotRoot("TestChownNormalFile") || skipIfKernelTooOld("TestChownNormalFile") {
 		return
 	}
 
@@ -280,8 +260,7 @@ func (t *KillPrivFSTest) TestChownNormalFile() {
 }
 
 func (t *KillPrivFSTest) TestRootWriteToSetuidFile() {
-	if syscall.Getuid() != 0 {
-		fmt.Println("Skipping TestRootWriteToSetuidFile: requires root")
+	if skipIfNotRoot("TestRootWriteToSetuidFile") {
 		return
 	}
 
