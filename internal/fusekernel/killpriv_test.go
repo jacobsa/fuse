@@ -157,40 +157,40 @@ func TestOpenRequestFlagsKillSuidgid(t *testing.T) {
 // TestInitFlagsKillPriv tests InitFlags for KILLPRIV support
 func TestInitFlagsKillPriv(t *testing.T) {
 	tests := []struct {
-		name      string
-		flags     InitFlags
-		hasV1     bool
-		hasV2     bool
+		name  string
+		flags InitFlags
+		hasV1 bool
+		hasV2 bool
 	}{
 		{
-			name:      "V1 only",
-			flags:     InitHandleKillpriv,
-			hasV1:     true,
-			hasV2:     false,
+			name:  "V1 only",
+			flags: InitHandleKillpriv,
+			hasV1: true,
+			hasV2: false,
 		},
 		{
-			name:      "V2 only",
-			flags:     InitHandleKillprivV2,
-			hasV1:     false,
-			hasV2:     true,
+			name:  "V2 only",
+			flags: InitHandleKillprivV2,
+			hasV1: false,
+			hasV2: true,
 		},
 		{
-			name:      "Both V1 and V2",
-			flags:     InitHandleKillpriv | InitHandleKillprivV2,
-			hasV1:     true,
-			hasV2:     true,
+			name:  "Both V1 and V2",
+			flags: InitHandleKillpriv | InitHandleKillprivV2,
+			hasV1: true,
+			hasV2: true,
 		},
 		{
-			name:      "Neither",
-			flags:     InitAsyncRead | InitFileOps,
-			hasV1:     false,
-			hasV2:     false,
+			name:  "Neither",
+			flags: InitAsyncRead | InitFileOps,
+			hasV1: false,
+			hasV2: false,
 		},
 		{
-			name:      "No flags",
-			flags:     0,
-			hasV1:     false,
-			hasV2:     false,
+			name:  "No flags",
+			flags: 0,
+			hasV1: false,
+			hasV2: false,
 		},
 	}
 

@@ -103,9 +103,9 @@ const (
 	SetattrHandle SetattrValid = 1 << 6
 
 	// Linux only(?)
-	SetattrAtimeNow  SetattrValid = 1 << 7
-	SetattrMtimeNow  SetattrValid = 1 << 8
-	SetattrLockOwner SetattrValid = 1 << 9  // http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg27852.html
+	SetattrAtimeNow    SetattrValid = 1 << 7
+	SetattrMtimeNow    SetattrValid = 1 << 8
+	SetattrLockOwner   SetattrValid = 1 << 9  // http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg27852.html
 	SetattrKillSuidgid SetattrValid = 1 << 11 // Clear setuid/setgid bits (used with HANDLE_KILLPRIV_V2)
 
 	// OS X only
@@ -115,10 +115,10 @@ const (
 	SetattrFlags    SetattrValid = 1 << 31
 )
 
-func (fl SetattrValid) Mode() bool      { return fl&SetattrMode != 0 }
-func (fl SetattrValid) Uid() bool       { return fl&SetattrUid != 0 }
-func (fl SetattrValid) Gid() bool       { return fl&SetattrGid != 0 }
-func (fl SetattrValid) Size() bool      { return fl&SetattrSize != 0 }
+func (fl SetattrValid) Mode() bool        { return fl&SetattrMode != 0 }
+func (fl SetattrValid) Uid() bool         { return fl&SetattrUid != 0 }
+func (fl SetattrValid) Gid() bool         { return fl&SetattrGid != 0 }
+func (fl SetattrValid) Size() bool        { return fl&SetattrSize != 0 }
 func (fl SetattrValid) Atime() bool       { return fl&SetattrAtime != 0 }
 func (fl SetattrValid) Mtime() bool       { return fl&SetattrMtime != 0 }
 func (fl SetattrValid) Handle() bool      { return fl&SetattrHandle != 0 }
@@ -671,8 +671,8 @@ type WriteOut struct {
 type WriteFlags uint32
 
 const (
-	WriteCache     WriteFlags = 1 << 0
-	WriteLockOwner WriteFlags = 1 << 1 // LockOwner field is valid
+	WriteCache       WriteFlags = 1 << 0
+	WriteLockOwner   WriteFlags = 1 << 1 // LockOwner field is valid
 	WriteKillSuidgid WriteFlags = 1 << 2 // Clear setuid/setgid bits (used with HANDLE_KILLPRIV_V2)
 )
 
