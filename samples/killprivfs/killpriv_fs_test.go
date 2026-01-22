@@ -169,8 +169,8 @@ func (t *KillPrivFSTest) TestOpenWithTruncateSetuidFile() {
 		return
 	}
 
-	// When opening with O_TRUNC, the kernel splits it into OpenFile + SetInodeAttributes(size=0).
-	// The KillSuidgid flag is set on SetInodeAttributes, not OpenFile.
+	// By default (without EnableAtomicTrunc), the kernel splits O_TRUNC into
+	// OpenFile + SetInodeAttributes(size=0). KillSuidgid is set on SetInodeAttributes.
 	t.fs.AddTestFile("setuid_open_test.txt", 04666)
 	filePath := path.Join(t.Dir, "setuid_open_test.txt")
 
@@ -271,4 +271,55 @@ func (t *KillPrivFSTest) TestRootWriteToSetuidFile() {
 
 	_, _, writeFlag, _ := t.fs.GetFlags()
 	ExpectFalse(writeFlag, "WriteKillSuidgid flag should NOT be set when root (with CAP_FSETID) writes to setuid file")
+}
+
+////////////////////////////////////////////////////////////////////////
+// Atomic Trunc Tests
+////////////////////////////////////////////////////////////////////////
+
+type KillPrivFSAtomicTruncTest struct {
+	samples.SampleTest
+	fs *killprivfs.KillPrivFS
+}
+
+func init() { RegisterTestSuite(&KillPrivFSAtomicTruncTest{}) }
+
+func (t *KillPrivFSAtomicTruncTest) SetUp(ti *TestInfo) {
+	t.fs = killprivfs.NewKillPrivFS()
+	t.Server = fuseutil.NewFileSystemServer(t.fs)
+	t.MountConfig.EnableHandleKillprivV2 = true
+	t.MountConfig.DisableWritebackCaching = true
+
+	// EnableAtomicTrunc makes O_TRUNC send a single OpenFile operation with
+	// O_TRUNC flag set, instead of splitting into OpenFile + SetInodeAttributes.
+	t.MountConfig.EnableAtomicTrunc = true
+
+	if t.MountConfig.Options == nil {
+		t.MountConfig.Options = make(map[string]string)
+	}
+	t.MountConfig.Options["allow_other"] = ""
+
+	t.SampleTest.SetUp(ti)
+
+	err := os.Chmod(t.Dir, 0755)
+	AssertEq(nil, err, "Failed to chmod mount point")
+
+	t.fs.ResetFlags()
+}
+
+func (t *KillPrivFSAtomicTruncTest) TestOpenWithTruncateSetuidFile_AtomicTrunc() {
+	if skipIfNotRoot("TestOpenWithTruncateSetuidFile_AtomicTrunc") || skipIfKernelTooOld("TestOpenWithTruncateSetuidFile_AtomicTrunc") {
+		return
+	}
+
+	// With EnableAtomicTrunc, O_TRUNC is sent in a single OpenFile operation.
+	// KillSuidgid should be set on OpenFile, not SetInodeAttributes.
+	t.fs.AddTestFile("setuid_atomic_trunc.txt", 04666)
+	filePath := path.Join(t.Dir, "setuid_atomic_trunc.txt")
+
+	err := runAsNobody("echo data > " + filePath)
+	AssertEq(nil, err)
+
+	_, openFlag, _, _ := t.fs.GetFlags()
+	ExpectTrue(openFlag, "OpenKillSuidgid flag should be set when truncating setuid file with EnableAtomicTrunc")
 }
