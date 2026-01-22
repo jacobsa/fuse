@@ -236,8 +236,8 @@ type MountConfig struct {
 	// When enabled, the kernel sets KillSuidgid flags on operations:
 	// - WriteFileOp: when a non-privileged user (without CAP_FSETID) writes to
 	//   a file with setuid/setgid bits set
-	// - SetInodeAttributesOp: when changing file attributes (size, owner) on a
-	//   file with setuid/setgid bits, if the caller lacks CAP_FSETID
+	// - SetInodeAttributesOp: always set (filesystem must check OpContext.Uid
+	//   and file mode to decide whether to clear privilege bits)
 	// - CreateFileOp/OpenFileOp: when opening for write a file with setuid/setgid
 	//   bits, or creating a file in a directory with setgid bit
 	//
