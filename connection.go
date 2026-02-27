@@ -185,7 +185,13 @@ func (c *Connection) Init() error {
 
 	// kernel 4.20 increases the max from 32 -> 256
 	initOp.Flags |= fusekernel.InitMaxPages
-	initOp.MaxPages = 256
+
+	// MaxPages is the maximum size, in hardware pages, of the FUSE message
+	// payload. It applies to both requests and replies, and does not include
+	// the extra 1 page for the FUSE header and the "args" struct. We set it to
+	// the max of our message in/out payload sizes.
+	maxPayload := max(buffer.MaxReadSize, buffer.MaxWriteSize)
+	initOp.MaxPages = uint16(maxPayload / buffer.GetPageSize())
 
 	// Enable writeback caching if the user hasn't asked us not to.
 	if !c.cfg.DisableWritebackCaching {

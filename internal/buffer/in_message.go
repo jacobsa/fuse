@@ -37,6 +37,12 @@ func init() {
 	bufSize = pageSize + MaxWriteSize
 }
 
+// Return the hardware page size. Note that this is not always 4KiB! Notably
+// it's larger (e.g. 64KiB) on some ARM64 architectures.
+func GetPageSize() int {
+	return pageSize
+}
+
 // An incoming message from the kernel, including leading fusekernel.InHeader
 // struct. Provides storage for messages and convenient access to their
 // contents.
