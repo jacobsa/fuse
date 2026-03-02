@@ -241,6 +241,37 @@ type MountConfig struct {
 	// to always provide ReadFileOp.Dst. If the file system populates ReadFileOp.Data,
 	// that data will be used for a vectored read, irrespective of this flag's value.
 	UseVectoredRead bool
+
+	// When enabled, the filesystem is responsible for clearing setuid/setgid bits
+	// when a file is written, truncated, or its owner is changed.
+	EnableHandleKillpriv bool
+
+	// V2 of FUSE_HANDLE_KILLPRIV that provides Linux VFS-consistent behavior.
+	// The filesystem is responsible for clearing setuid/setgid bits and security
+	// capabilities when a file is written, truncated, or its owner is changed.
+	//
+	// Behavior (consistent with Linux VFS):
+	// - security.capability: always cleared on chown/write/truncate
+	// - setuid: always cleared on chown; on write/truncate only if caller lacks CAP_FSETID
+	// - setgid: always cleared on chown; on write/truncate only if caller lacks CAP_FSETID
+	//   AND file has group execute permission
+	//
+	// When enabled, the kernel sets KillSuidgid flags on operations:
+	// - WriteFileOp: when caller lacks CAP_FSETID and file has privilege bits
+	// - SetInodeAttributesOp: always set (filesystem must check OpContext.Uid
+	//   and file mode to decide whether to clear privilege bits)
+	// - CreateFileOp/OpenFileOp: when opening for write a file with setuid/setgid
+	//   bits, or creating a file in a directory with setgid bit
+	//
+	// Note: KILLPRIV_V2 relies on WriteFileOp reaching the server to clear
+	// privilege bits. When writeback caching is enabled, writes are buffered in
+	// the kernel page cache and WriteFileOp may not be sent immediately (or at all
+	// until flush/fsync). Therefore, using EnableHandleKillprivV2 with writeback
+	// caching enabled is not recommended and may result in privilege bits not being
+	// cleared when they should be.
+	//
+	// Ref: https://github.com/torvalds/linux/commit/63f9909ff602082597849f684655e93336c50b11
+	EnableHandleKillprivV2 bool
 }
 
 type FUSEImpl uint8

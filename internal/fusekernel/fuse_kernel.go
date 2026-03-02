@@ -103,9 +103,10 @@ const (
 	SetattrHandle SetattrValid = 1 << 6
 
 	// Linux only(?)
-	SetattrAtimeNow  SetattrValid = 1 << 7
-	SetattrMtimeNow  SetattrValid = 1 << 8
-	SetattrLockOwner SetattrValid = 1 << 9 // http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg27852.html
+	SetattrAtimeNow    SetattrValid = 1 << 7
+	SetattrMtimeNow    SetattrValid = 1 << 8
+	SetattrLockOwner   SetattrValid = 1 << 9  // http://www.mail-archive.com/git-commits-head@vger.kernel.org/msg27852.html
+	SetattrKillSuidgid SetattrValid = 1 << 11 // Clear setuid/setgid bits (used with HANDLE_KILLPRIV_V2)
 
 	// OS X only
 	SetattrCrtime   SetattrValid = 1 << 28
@@ -114,20 +115,21 @@ const (
 	SetattrFlags    SetattrValid = 1 << 31
 )
 
-func (fl SetattrValid) Mode() bool      { return fl&SetattrMode != 0 }
-func (fl SetattrValid) Uid() bool       { return fl&SetattrUid != 0 }
-func (fl SetattrValid) Gid() bool       { return fl&SetattrGid != 0 }
-func (fl SetattrValid) Size() bool      { return fl&SetattrSize != 0 }
-func (fl SetattrValid) Atime() bool     { return fl&SetattrAtime != 0 }
-func (fl SetattrValid) Mtime() bool     { return fl&SetattrMtime != 0 }
-func (fl SetattrValid) Handle() bool    { return fl&SetattrHandle != 0 }
-func (fl SetattrValid) AtimeNow() bool  { return fl&SetattrAtimeNow != 0 }
-func (fl SetattrValid) MtimeNow() bool  { return fl&SetattrMtimeNow != 0 }
-func (fl SetattrValid) LockOwner() bool { return fl&SetattrLockOwner != 0 }
-func (fl SetattrValid) Crtime() bool    { return fl&SetattrCrtime != 0 }
-func (fl SetattrValid) Chgtime() bool   { return fl&SetattrChgtime != 0 }
-func (fl SetattrValid) Bkuptime() bool  { return fl&SetattrBkuptime != 0 }
-func (fl SetattrValid) Flags() bool     { return fl&SetattrFlags != 0 }
+func (fl SetattrValid) Mode() bool        { return fl&SetattrMode != 0 }
+func (fl SetattrValid) Uid() bool         { return fl&SetattrUid != 0 }
+func (fl SetattrValid) Gid() bool         { return fl&SetattrGid != 0 }
+func (fl SetattrValid) Size() bool        { return fl&SetattrSize != 0 }
+func (fl SetattrValid) Atime() bool       { return fl&SetattrAtime != 0 }
+func (fl SetattrValid) Mtime() bool       { return fl&SetattrMtime != 0 }
+func (fl SetattrValid) Handle() bool      { return fl&SetattrHandle != 0 }
+func (fl SetattrValid) AtimeNow() bool    { return fl&SetattrAtimeNow != 0 }
+func (fl SetattrValid) MtimeNow() bool    { return fl&SetattrMtimeNow != 0 }
+func (fl SetattrValid) LockOwner() bool   { return fl&SetattrLockOwner != 0 }
+func (fl SetattrValid) KillSuidgid() bool { return fl&SetattrKillSuidgid != 0 }
+func (fl SetattrValid) Crtime() bool      { return fl&SetattrCrtime != 0 }
+func (fl SetattrValid) Chgtime() bool     { return fl&SetattrChgtime != 0 }
+func (fl SetattrValid) Bkuptime() bool    { return fl&SetattrBkuptime != 0 }
+func (fl SetattrValid) Flags() bool       { return fl&SetattrFlags != 0 }
 
 func (fl SetattrValid) String() string {
 	return flagString(uint32(fl), setattrValidNames)
@@ -144,6 +146,7 @@ var setattrValidNames = []flagName{
 	{uint32(SetattrAtimeNow), "SetattrAtimeNow"},
 	{uint32(SetattrMtimeNow), "SetattrMtimeNow"},
 	{uint32(SetattrLockOwner), "SetattrLockOwner"},
+	{uint32(SetattrKillSuidgid), "SetattrKillSuidgid"},
 	{uint32(SetattrCrtime), "SetattrCrtime"},
 	{uint32(SetattrChgtime), "SetattrChgtime"},
 	{uint32(SetattrBkuptime), "SetattrBkuptime"},
@@ -274,9 +277,11 @@ const (
 	InitWritebackCache   InitFlags = 1 << 16
 	InitNoOpenSupport    InitFlags = 1 << 17
 	InitParallelDirOps   InitFlags = 1 << 18
+	InitHandleKillpriv   InitFlags = 1 << 19
 	InitMaxPages         InitFlags = 1 << 22
 	InitCacheSymlinks    InitFlags = 1 << 23
 	InitNoOpendirSupport InitFlags = 1 << 24
+	InitHandleKillprivV2 InitFlags = 1 << 28
 
 	InitCaseSensitive InitFlags = 1 << 29 // OS X only
 	InitVolRename     InitFlags = 1 << 30 // OS X only
@@ -310,6 +315,8 @@ var initFlagNames = []flagName{
 	{uint32(InitNoOpenSupport), "InitNoOpenSupport"},
 	{uint32(InitCacheSymlinks), "InitCacheSymlinks"},
 	{uint32(InitNoOpendirSupport), "InitNoOpendirSupport"},
+	{uint32(InitHandleKillpriv), "InitHandleKillpriv"},
+	{uint32(InitHandleKillprivV2), "InitHandleKillprivV2"},
 
 	{uint32(InitCaseSensitive), "InitCaseSensitive"},
 	{uint32(InitVolRename), "InitVolRename"},
@@ -542,8 +549,8 @@ type setattrInCommon struct {
 }
 
 type OpenIn struct {
-	Flags  uint32
-	Unused uint32
+	Flags     uint32 // User-space O_RDONLY/O_WRONLY/etc flags
+	OpenFlags uint32 // Kernel FUSE_OPEN_* flags (e.g., FUSE_OPEN_KILL_SUIDGID)
 }
 
 type OpenOut struct {
@@ -553,10 +560,29 @@ type OpenOut struct {
 }
 
 type CreateIn struct {
-	Flags   uint32
-	Mode    uint32
-	Umask   uint32
-	padding uint32
+	Flags     uint32 // User-space O_RDONLY/O_WRONLY/etc flags
+	Mode      uint32
+	Umask     uint32
+	OpenFlags uint32 // Kernel FUSE_OPEN_* flags (e.g., FUSE_OPEN_KILL_SUIDGID)
+}
+
+// OpenRequestFlags are kernel-level flags sent from the kernel to the filesystem
+// in OpenIn.OpenFlags or CreateIn.OpenFlags (not to be confused with the Flags
+// field which contains user-space O_RDONLY/O_WRONLY/etc flags, or OpenResponseFlags
+// which are returned by the filesystem in OpenOut).
+type OpenRequestFlags uint32
+
+const (
+	// Clear setuid/setgid bits when opening file (used with HANDLE_KILLPRIV_V2)
+	OpenKillSuidgid OpenRequestFlags = 1 << 0
+)
+
+var openRequestFlagNames = []flagName{
+	{uint32(OpenKillSuidgid), "OpenKillSuidgid"},
+}
+
+func (fl OpenRequestFlags) String() string {
+	return flagString(uint32(fl), openRequestFlagNames)
 }
 
 func CreateInSize(p Protocol) uintptr {
@@ -645,14 +671,15 @@ type WriteOut struct {
 type WriteFlags uint32
 
 const (
-	WriteCache WriteFlags = 1 << 0
-	// LockOwner field is valid.
-	WriteLockOwner WriteFlags = 1 << 1
+	WriteCache       WriteFlags = 1 << 0
+	WriteLockOwner   WriteFlags = 1 << 1 // LockOwner field is valid
+	WriteKillSuidgid WriteFlags = 1 << 2 // Clear setuid/setgid bits (used with HANDLE_KILLPRIV_V2)
 )
 
 var writeFlagNames = []flagName{
 	{uint32(WriteCache), "WriteCache"},
 	{uint32(WriteLockOwner), "WriteLockOwner"},
+	{uint32(WriteKillSuidgid), "WriteKillSuidgid"},
 }
 
 func (fl WriteFlags) String() string {

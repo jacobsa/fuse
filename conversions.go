@@ -120,6 +120,10 @@ func convertInMessage(
 			to.Handle = &t
 		}
 
+		if valid.KillSuidgid() {
+			to.KillSuidgid = true
+		}
+
 	case fusekernel.OpForget:
 		type input fusekernel.ForgetIn
 		in := (*input)(inMsg.Consume(unsafe.Sizeof(input{})))
@@ -236,7 +240,7 @@ func convertInMessage(
 		}
 		name = name[:i]
 
-		o = &fuseops.CreateFileOp{
+		createOp := &fuseops.CreateFileOp{
 			Parent: fuseops.InodeID(inMsg.Header().Nodeid),
 			Name:   string(name),
 			Mode:   ConvertFileMode(in.Mode),
@@ -247,6 +251,12 @@ func convertInMessage(
 			},
 			OpenFlags: fusekernel.OpenFlags(in.Flags),
 		}
+
+		if fusekernel.OpenRequestFlags(in.OpenFlags)&fusekernel.OpenKillSuidgid != 0 {
+			createOp.KillSuidgid = true
+		}
+
+		o = createOp
 
 	case fusekernel.OpSymlink:
 		// The message is "newName\0target\0".
@@ -358,7 +368,7 @@ func convertInMessage(
 			return nil, errors.New("Corrupt OpOpen")
 		}
 
-		o = &fuseops.OpenFileOp{
+		openOp := &fuseops.OpenFileOp{
 			Inode:     fuseops.InodeID(inMsg.Header().Nodeid),
 			OpenFlags: fusekernel.OpenFlags(in.Flags),
 			OpContext: fuseops.OpContext{
@@ -367,6 +377,12 @@ func convertInMessage(
 				Uid:    inMsg.Header().Uid,
 			},
 		}
+
+		if fusekernel.OpenRequestFlags(in.OpenFlags)&fusekernel.OpenKillSuidgid != 0 {
+			openOp.KillSuidgid = true
+		}
+
+		o = openOp
 
 	case fusekernel.OpOpendir:
 		o = &fuseops.OpenDirOp{
@@ -503,7 +519,7 @@ func convertInMessage(
 			return nil, errors.New("Corrupt OpWrite")
 		}
 
-		o = &fuseops.WriteFileOp{
+		writeOp := &fuseops.WriteFileOp{
 			Inode:  fuseops.InodeID(inMsg.Header().Nodeid),
 			Handle: fuseops.HandleID(in.Fh),
 			Data:   buf,
@@ -514,6 +530,12 @@ func convertInMessage(
 				Uid:    inMsg.Header().Uid,
 			},
 		}
+
+		if fusekernel.WriteFlags(in.WriteFlags)&fusekernel.WriteKillSuidgid != 0 {
+			writeOp.KillSuidgid = true
+		}
+
+		o = writeOp
 
 	case fusekernel.OpFsync, fusekernel.OpFsyncdir:
 		type input fusekernel.FsyncIn
