@@ -252,7 +252,8 @@ var openResponseFlagNames = []flagName{
 }
 
 // The InitFlags are used in the Init exchange.
-type InitFlags uint32
+type InitFlags uint32  // first 32 bit flags
+type InitFlags2 uint32 // second 32-bit flags, used when InitExt is set in the first 32 bits
 
 const (
 	InitAsyncRead        InitFlags = 1 << 0
@@ -277,10 +278,13 @@ const (
 	InitMaxPages         InitFlags = 1 << 22
 	InitCacheSymlinks    InitFlags = 1 << 23
 	InitNoOpendirSupport InitFlags = 1 << 24
+	InitExt              InitFlags = 1 << 30
 
 	InitCaseSensitive InitFlags = 1 << 29 // OS X only
 	InitVolRename     InitFlags = 1 << 30 // OS X only
 	InitXtimes        InitFlags = 1 << 31 // OS X only
+
+	InitDirectIOAllowMmap InitFlags2 = 1 << 4
 )
 
 type flagName struct {
@@ -738,6 +742,7 @@ type InitIn struct {
 	Minor        uint32
 	MaxReadahead uint32
 	Flags        uint32
+	Flags2       uint32
 }
 
 const InitInSize = int(unsafe.Sizeof(InitIn{}))
@@ -753,7 +758,8 @@ type InitOut struct {
 	TimeGran            uint32
 	MaxPages            uint16
 	MapAlignment        uint16
-	Unused              [8]uint32
+	Flags2              uint32
+	Unused              [7]uint32
 }
 
 type InterruptIn struct {

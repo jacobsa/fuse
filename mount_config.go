@@ -221,6 +221,9 @@ type MountConfig struct {
 	// use ReaddirPlus for directory listing.
 	EnableAutoReaddirplus bool
 
+	// Flag to allow mmap() with MAP_SHARED for files opened with OpenDirectIO
+	AllowDirectIOMmap bool
+
 	// UseVectoredRead is a legacy flag kept for backward compatibility. It is now a no-op.
 	//
 	// The term vectored read was a misnomer for this flag. Its actual meaning was that
