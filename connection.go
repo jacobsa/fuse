@@ -61,6 +61,7 @@ const maxReadahead = 1 << 20
 type Connection struct {
 	cfg         MountConfig
 	debugLogger *log.Logger
+	infoLogger  *log.Logger
 	errorLogger *log.Logger
 	wireLogger  io.Writer
 
@@ -109,12 +110,14 @@ func GetWirelog(ctx context.Context) *WireLogRecord {
 func newConnection(
 	cfg MountConfig,
 	debugLogger *log.Logger,
+	infoLogger *log.Logger,
 	errorLogger *log.Logger,
 	wireLogger io.Writer,
 	dev *os.File) (*Connection, error) {
 	c := &Connection{
 		cfg:         cfg,
 		debugLogger: debugLogger,
+		infoLogger:  infoLogger,
 		errorLogger: errorLogger,
 		wireLogger:  wireLogger,
 		dev:         dev,

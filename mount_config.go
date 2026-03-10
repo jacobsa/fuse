@@ -48,6 +48,10 @@ type MountConfig struct {
 	// performed.
 	DebugLogger *log.Logger
 
+	// A logger to use for logging info information. If nil, no info logging is
+	// performed.
+	InfoLogger *log.Logger
+
 	// A logger to use for logging fuse wire requests. If nil, no wire logging is
 	// performed.
 	WireLogger io.Writer
