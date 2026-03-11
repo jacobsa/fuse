@@ -87,8 +87,8 @@ func Mount(
 	if err != nil {
 		return nil, fmt.Errorf("newConnection: %v", err)
 	}
-	if config.DebugLogger != nil {
-		config.DebugLogger.Println("Successfully created the connection")
+	if infoDebugFallbackLogger != nil {
+		infoDebugFallbackLogger.Println("Successfully created the connection")
 	}
 
 	// Serve the connection in the background. When done, set the join status.
