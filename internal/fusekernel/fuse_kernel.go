@@ -803,6 +803,7 @@ const (
 	NotifyCodePoll       int32 = 1
 	NotifyCodeInvalInode int32 = 2
 	NotifyCodeInvalEntry int32 = 3
+	NotifyCodeStore      int32 = 4
 )
 
 type NotifyInvalInodeOut struct {
@@ -814,6 +815,13 @@ type NotifyInvalInodeOut struct {
 type NotifyInvalEntryOut struct {
 	Parent  uint64
 	Namelen uint32
+	padding uint32
+}
+
+type NotifyStoreOut struct {
+	NodeID  uint64
+	Offset  int64
+	Size    uint32
 	padding uint32
 }
 
