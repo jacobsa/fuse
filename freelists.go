@@ -15,8 +15,6 @@
 package fuse
 
 import (
-	"unsafe"
-
 	"github.com/jacobsa/fuse/internal/buffer"
 )
 
@@ -24,47 +22,23 @@ import (
 // buffer.InMessage
 ////////////////////////////////////////////////////////////////////////
 
-// LOCKS_EXCLUDED(c.mu)
 func (c *Connection) getInMessage() *buffer.InMessage {
-	c.mu.Lock()
-	x := (*buffer.InMessage)(c.inMessages.Get())
-	c.mu.Unlock()
-
-	if x == nil {
-		x = buffer.NewInMessage()
-	}
-
-	return x
+	return c.inMessages.Get().(*buffer.InMessage)
 }
 
-// LOCKS_EXCLUDED(c.mu)
 func (c *Connection) putInMessage(x *buffer.InMessage) {
-	c.mu.Lock()
-	c.inMessages.Put(unsafe.Pointer(x))
-	c.mu.Unlock()
+	c.inMessages.Put(x)
 }
 
 ////////////////////////////////////////////////////////////////////////
 // buffer.OutMessage
 ////////////////////////////////////////////////////////////////////////
 
-// LOCKS_EXCLUDED(c.mu)
 func (c *Connection) getOutMessage() *buffer.OutMessage {
-	c.mu.Lock()
-	x := (*buffer.OutMessage)(c.outMessages.Get())
-	c.mu.Unlock()
-
-	if x == nil {
-		x = new(buffer.OutMessage)
-	}
-	x.Reset()
-
-	return x
+	return c.outMessages.Get().(*buffer.OutMessage)
 }
 
-// LOCKS_EXCLUDED(c.mu)
 func (c *Connection) putOutMessage(x *buffer.OutMessage) {
-	c.mu.Lock()
-	c.outMessages.Put(unsafe.Pointer(x))
-	c.mu.Unlock()
+	x.Reset()
+	c.outMessages.Put(x)
 }
