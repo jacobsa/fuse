@@ -397,6 +397,9 @@ func convertInMessage(
 		}
 		// Use part of the incoming message storage as the read buffer.
 		to.Dst = inMsg.GetFree(int(in.Size))
+		if int(in.Size) > 0 && to.Dst == nil {
+			return nil, fmt.Errorf("cannot allocate read buffer for %d bytes", in.Size)
+		}
 		o = to
 
 	case fusekernel.OpReaddir:
