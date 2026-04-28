@@ -241,6 +241,10 @@ type MountConfig struct {
 	// to always provide ReadFileOp.Dst. If the file system populates ReadFileOp.Data,
 	// that data will be used for a vectored read, irrespective of this flag's value.
 	UseVectoredRead bool
+
+	// The maximum size of a FUSE message (in bytes) that the daemon is
+	// prepared to read or write. If not set, defaults to 1 MiB.
+	MaxMessageSize uint32
 }
 
 type FUSEImpl uint8
