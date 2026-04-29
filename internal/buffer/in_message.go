@@ -28,13 +28,8 @@ import (
 // this.
 var pageSize int
 
-// We size the buffer to have enough room for a fuse request plus data
-// associated with a write request.
-var bufSize int
-
 func init() {
 	pageSize = syscall.Getpagesize()
-	bufSize = pageSize + MaxWriteSize
 }
 
 // Return the hardware page size. Note that this is not always 4KiB! Notably
@@ -53,9 +48,9 @@ type InMessage struct {
 }
 
 // NewInMessage creates a new InMessage with its storage initialized.
-func NewInMessage() *InMessage {
+func NewInMessage(size int) *InMessage {
 	return &InMessage{
-		storage: make([]byte, bufSize),
+		storage: make([]byte, size),
 	}
 }
 
