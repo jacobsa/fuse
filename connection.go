@@ -168,6 +168,7 @@ func (c *Connection) Init() error {
 	cacheSymlinks := initOp.Flags&fusekernel.InitCacheSymlinks > 0
 	noOpenSupport := initOp.Flags&fusekernel.InitNoOpenSupport > 0
 	noOpendirSupport := initOp.Flags&fusekernel.InitNoOpendirSupport > 0
+	asyncDIO := initOp.Flags&fusekernel.InitAsyncDIO > 0
 
 	// Respond to the init op.
 	initOp.Library = c.protocol
@@ -181,6 +182,10 @@ func (c *Connection) Init() error {
 
 	if c.cfg.EnableAsyncReads {
 		initOp.Flags |= fusekernel.InitAsyncRead
+	}
+
+	if c.cfg.EnableAsyncDIO && asyncDIO {
+		initOp.Flags |= fusekernel.InitAsyncDIO
 	}
 
 	// kernel 4.20 increases the max from 32 -> 256
