@@ -121,16 +121,15 @@ func newConnection(
 		cancelFuncs: make(map[uint64]func()),
 	}
 
-	const defaultMaxThreads = 100000
 	const hardMaxThreads = 100000
 
-	if c.cfg.MaxThreads <= 0 {
-		c.cfg.MaxThreads = defaultMaxThreads
+	if c.cfg.MaxThreads < 0 {
+		c.cfg.MaxThreads = 0
 	} else if c.cfg.MaxThreads > hardMaxThreads {
 		if errorLogger != nil {
 			errorLogger.Printf("fuse: max_threads %d is beyond the hard limit of %d, ignoring configuration", c.cfg.MaxThreads, hardMaxThreads)
 		}
-		c.cfg.MaxThreads = defaultMaxThreads
+		c.cfg.MaxThreads = 0
 	}
 
 	// Initialize.

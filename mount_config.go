@@ -243,7 +243,7 @@ type MountConfig struct {
 	UseVectoredRead bool
 
 	// The maximum number of concurrent worker goroutines that can handle FUSE
-	// requests. If not set (or 0), defaults to 100,000.
+	// requests. If not set (or 0), defaults to unlimited (no capping).
 	MaxThreads int
 }
 

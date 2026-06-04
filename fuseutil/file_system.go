@@ -105,7 +105,10 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 	}()
 
 	maxThreads := c.MaxThreads()
-	sem := make(chan struct{}, maxThreads)
+	var sem chan struct{}
+	if maxThreads > 0 {
+		sem = make(chan struct{}, maxThreads)
+	}
 
 	for {
 		ctx, op, err := c.ReadOp()
@@ -125,13 +128,17 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 			// cheap for the file system to handle
 			s.handleOp(c, ctx, op)
 		} else {
-			sem <- struct{}{}
-			go func(ctx context.Context, op interface{}) {
-				defer func() {
-					<-sem
-				}()
-				s.handleOp(c, ctx, op)
-			}(ctx, op)
+			if sem != nil {
+				sem <- struct{}{}
+				go func(ctx context.Context, op interface{}) {
+					defer func() {
+						<-sem
+					}()
+					s.handleOp(c, ctx, op)
+				}(ctx, op)
+			} else {
+				go s.handleOp(c, ctx, op)
+			}
 		}
 	}
 }
