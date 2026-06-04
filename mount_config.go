@@ -243,6 +243,10 @@ type MountConfig struct {
 	// to always provide ReadFileOp.Dst. If the file system populates ReadFileOp.Data,
 	// that data will be used for a vectored read, irrespective of this flag's value.
 	UseVectoredRead bool
+
+	// The maximum number of concurrent worker goroutines that can handle FUSE
+	// requests. If not set (or 0), defaults to unlimited (no capping).
+	MaxThreads uint32
 }
 
 type FUSEImpl uint8

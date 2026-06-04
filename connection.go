@@ -121,6 +121,15 @@ func newConnection(
 		cancelFuncs: make(map[uint64]func()),
 	}
 
+	const hardMaxThreads = 100000
+
+	if c.cfg.MaxThreads > hardMaxThreads {
+		if errorLogger != nil {
+			errorLogger.Printf("fuse: max_threads %d is beyond the hard limit of %d, ignoring configuration", c.cfg.MaxThreads, hardMaxThreads)
+		}
+		c.cfg.MaxThreads = 0
+	}
+
 	// Initialize.
 	if err := c.Init(); err != nil {
 		c.close()
@@ -621,6 +630,12 @@ func (c *Connection) callbackForOp(op interface{}) func() {
 		return o.Callback
 	}
 	return nil
+}
+
+// MaxThreads returns the maximum number of concurrent worker goroutines
+// configured for this connection.
+func (c *Connection) MaxThreads() uint32 {
+	return c.cfg.MaxThreads
 }
 
 // Close the connection. Must not be called until operations that were read
