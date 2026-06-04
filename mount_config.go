@@ -244,7 +244,7 @@ type MountConfig struct {
 
 	// The maximum number of concurrent worker goroutines that can handle FUSE
 	// requests. If not set (or 0), defaults to unlimited (no capping).
-	MaxThreads int
+	MaxThreads uint32
 }
 
 type FUSEImpl uint8

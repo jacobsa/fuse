@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -102,9 +101,7 @@ func TestNonexistentMountPoint(t *testing.T) {
 
 type blockingFS struct {
 	fuseutil.NotImplementedFileSystem
-	mu        sync.Mutex
-	activeOps int
-	maxActive int
+	enteredCh chan string
 	releaseCh chan struct{}
 }
 
@@ -129,19 +126,7 @@ func (fs *blockingFS) GetInodeAttributes(
 func (fs *blockingFS) LookUpInode(
 	ctx context.Context,
 	op *fuseops.LookUpInodeOp) error {
-
-	fs.mu.Lock()
-	fs.activeOps++
-	if fs.activeOps > fs.maxActive {
-		fs.maxActive = fs.activeOps
-	}
-	fs.mu.Unlock()
-
-	defer func() {
-		fs.mu.Lock()
-		fs.activeOps--
-		fs.mu.Unlock()
-	}()
+	fs.enteredCh <- op.Name
 
 	// Block until released.
 	<-fs.releaseCh
@@ -171,13 +156,15 @@ func TestMaxThreads(t *testing.T) {
 
 	// Mount with MaxThreads = 2.
 	fs := &blockingFS{
+		enteredCh: make(chan string, 3),
 		releaseCh: make(chan struct{}),
 	}
 	mfs, err := fuse.Mount(
 		dir,
 		fuseutil.NewFileSystemServer(fs),
 		&fuse.MountConfig{
-			MaxThreads: 2,
+			MaxThreads:           2,
+			EnableParallelDirOps: true,
 		})
 	if err != nil {
 		t.Fatalf("fuse.Mount: %v", err)
@@ -210,16 +197,8 @@ func TestMaxThreads(t *testing.T) {
 	// and never reach LookUpInode.
 	time.Sleep(100 * time.Millisecond)
 
-	fs.mu.Lock()
-	active := fs.activeOps
-	maxActive := fs.maxActive
-	fs.mu.Unlock()
-
-	if active > 2 {
-		t.Errorf("activeOps was %d, expected <= 2", active)
-	}
-	if maxActive > 2 {
-		t.Errorf("maxActive was %d, expected <= 2", maxActive)
+	if got := len(fs.enteredCh); got != 2 {
+		t.Errorf("enteredOps was %d, expected 2", got)
 	}
 
 	// Release one operation.
@@ -228,12 +207,8 @@ func TestMaxThreads(t *testing.T) {
 	// Give the 3rd operation time to enter.
 	time.Sleep(100 * time.Millisecond)
 
-	fs.mu.Lock()
-	active = fs.activeOps
-	fs.mu.Unlock()
-
-	if active > 2 {
-		t.Errorf("activeOps after one release was %d, expected <= 2", active)
+	if got := len(fs.enteredCh); got != 3 {
+		t.Errorf("enteredOps after one release was %d, expected 3", got)
 	}
 
 	// Release the other two.
