@@ -27,7 +27,6 @@ import (
 
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/internal/buffer"
-	"github.com/jacobsa/fuse/internal/freelist"
 	"github.com/jacobsa/fuse/internal/fusekernel"
 )
 
@@ -77,9 +76,9 @@ type Connection struct {
 	// GUARDED_BY(mu)
 	cancelFuncs map[uint64]func()
 
-	// Freelists, serviced by freelists.go.
-	inMessages  freelist.Freelist // GUARDED_BY(mu)
-	outMessages freelist.Freelist // GUARDED_BY(mu)
+	// Message pools.
+	inMessages  sync.Pool
+	outMessages sync.Pool
 }
 
 // State that is maintained for each in-flight op. This is stuffed into the
@@ -119,6 +118,16 @@ func newConnection(
 		wireLogger:  wireLogger,
 		dev:         dev,
 		cancelFuncs: make(map[uint64]func()),
+		inMessages: sync.Pool{
+			New: func() any {
+				return buffer.NewInMessage()
+			},
+		},
+		outMessages: sync.Pool{
+			New: func() any {
+				return new(buffer.OutMessage)
+			},
+		},
 	}
 
 	// Initialize.
