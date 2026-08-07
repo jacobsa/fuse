@@ -209,7 +209,7 @@ func callMountCommFD(
 	env = append(env, "_FUSE_COMMVERS=2")
 	argv = append(argv, dir)
 
-	return fusermount(bin, argv, env, false, cfg.DebugLogger)
+	return fusermount(bin, argv, env, false, cfg.DebugLogger, cfg.InfoLogger)
 }
 
 // Begin the process of mounting at the given directory, returning a connection
@@ -298,9 +298,11 @@ func startFuseTServer(binary string, argv []string,
 	additionalEnv []string,
 	wait bool,
 	debugLogger *log.Logger,
+	infoLogger *log.Logger,
 	ready chan<- error) (*os.File, error) {
-	if debugLogger != nil {
-		debugLogger.Println("Creating a socket pair")
+	infoDebugFallbackLogger := FirstLogger(infoLogger, debugLogger)
+	if infoDebugFallbackLogger != nil {
+		infoDebugFallbackLogger.Println("Creating a socket pair")
 	}
 
 	var err error
@@ -319,12 +321,12 @@ func startFuseTServer(binary string, argv []string,
 	syscall.CloseOnExec(int(local.Fd()))
 	syscall.CloseOnExec(int(local_mon.Fd()))
 
-	if debugLogger != nil {
-		debugLogger.Println("Creating files to wrap the sockets")
+	if infoDebugFallbackLogger != nil {
+		infoDebugFallbackLogger.Println("Creating files to wrap the sockets")
 	}
 
-	if debugLogger != nil {
-		debugLogger.Println("Starting fusermount/os mount")
+	if infoDebugFallbackLogger != nil {
+		infoDebugFallbackLogger.Println("Starting fusermount/os mount")
 	}
 	// Start fusermount/mount_macfuse/mount_osxfuse.
 	cmd := exec.Command(binary, argv...)
@@ -346,16 +348,16 @@ func startFuseTServer(binary string, argv []string,
 		return nil, fmt.Errorf("running %v: %v", binary, err)
 	}
 
-	if debugLogger != nil {
-		debugLogger.Println("Wrapping socket pair in a connection")
+	if infoDebugFallbackLogger != nil {
+		infoDebugFallbackLogger.Println("Wrapping socket pair in a connection")
 	}
 
-	if debugLogger != nil {
-		debugLogger.Println("Checking that we have a unix domain socket")
+	if infoDebugFallbackLogger != nil {
+		infoDebugFallbackLogger.Println("Checking that we have a unix domain socket")
 	}
 
-	if debugLogger != nil {
-		debugLogger.Println("Read a message from socket")
+	if infoDebugFallbackLogger != nil {
+		infoDebugFallbackLogger.Println("Read a message from socket")
 	}
 
 	go func() {
@@ -373,8 +375,8 @@ func startFuseTServer(binary string, argv []string,
 		close(ready)
 	}()
 
-	if debugLogger != nil {
-		debugLogger.Println("Successfully read the socket message.")
+	if infoDebugFallbackLogger != nil {
+		infoDebugFallbackLogger.Println("Successfully read the socket message.")
 	}
 
 	return local, nil
@@ -406,7 +408,7 @@ func mountFuset(
 	env = append(env, "_FUSE_COMMVERS=2")
 	argv = append(argv, dir)
 
-	return startFuseTServer(fuseTBin, argv, env, false, cfg.DebugLogger, ready)
+	return startFuseTServer(fuseTBin, argv, env, false, cfg.DebugLogger, cfg.InfoLogger, ready)
 }
 
 func mount(
