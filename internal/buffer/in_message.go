@@ -115,6 +115,11 @@ func (m *InMessage) Init(r io.Reader) error {
 	return nil
 }
 
+// Bytes returns the complete message read by the most recent call to Init.
+func (m *InMessage) Bytes() []byte {
+	return m.storage[:m.size]
+}
+
 // Return a reference to the header read in the most recent call to Init.
 func (m *InMessage) Header() *fusekernel.InHeader {
 	return (*fusekernel.InHeader)(unsafe.Pointer(&m.storage[0]))

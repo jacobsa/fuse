@@ -15,11 +15,38 @@
 package fuse
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/jacobsa/fuse/internal/buffer"
 )
+
+func TestMalformedMessageError(t *testing.T) {
+	inner := errors.New("Corrupt OpLookup")
+	msg := []byte{0x00, 0x01, 0x02, 0xff}
+	err := &MalformedMessageError{Err: inner, Message: msg}
+
+	if got, want := err.Error(), "convertInMessage: Corrupt OpLookup"; got != want {
+		t.Errorf("Error() = %q, want %q", got, want)
+	}
+
+	// The error unwraps to the underlying conversion error and is recoverable
+	// via errors.As even when wrapped.
+	if !errors.Is(err, inner) {
+		t.Errorf("errors.Is(err, inner) = false, want true")
+	}
+
+	var target *MalformedMessageError
+	if !errors.As(fmt.Errorf("read op: %w", err), &target) {
+		t.Fatalf("errors.As failed to recover *MalformedMessageError")
+	}
+	if !bytes.Equal(target.Message, msg) {
+		t.Errorf("Message = %v, want %v", target.Message, msg)
+	}
+}
 
 func TestSanitizeMaxPagesAndWrite(t *testing.T) {
 	pageSize := uint32(buffer.GetPageSize())
