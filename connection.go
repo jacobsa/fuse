@@ -94,6 +94,22 @@ type opState struct {
 	wlog   *WireLogRecord
 }
 
+// MalformedMessageError reports a FUSE message that could not be converted to
+// an operation. Message holds a copy of the raw bytes of the offending
+// message, which callers can log to diagnose the corruption.
+type MalformedMessageError struct {
+	Err     error
+	Message []byte
+}
+
+func (e *MalformedMessageError) Error() string {
+	return fmt.Sprintf("convertInMessage: %v", e.Err)
+}
+
+func (e *MalformedMessageError) Unwrap() error {
+	return e.Err
+}
+
 // Return the current wirelog record from the context if the MountConfig
 // contained a non-nil wireLogger, nil otherwise.
 func GetWirelog(ctx context.Context) *WireLogRecord {
@@ -477,8 +493,15 @@ func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
 		outMsg := c.getOutMessage()
 		op, err = convertInMessage(&c.cfg, inMsg, outMsg, c.protocol)
 		if err != nil {
+			// Copy the raw message before recycling the buffer so that the
+			// caller can log the bytes that failed to convert.
+			message := append([]byte(nil), inMsg.Bytes()...)
+			c.putInMessage(inMsg)
 			c.putOutMessage(outMsg)
-			return nil, nil, fmt.Errorf("convertInMessage: %v", err)
+			return nil, nil, &MalformedMessageError{
+				Err:     err,
+				Message: message,
+			}
 		}
 
 		// Choose an ID for this operation for the purposes of logging, and log it.
