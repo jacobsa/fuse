@@ -613,7 +613,8 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 	if !noResponse {
 		err := c.writeOutMessage(outMsg)
 		// The kernel answers a reply to a request it no longer tracks with
-		// ENOENT. libfuse treats that as benign, and so does Reply.
+		// ENOENT. libfuse leaves it out of its error output, and Reply neither
+		// logs nor returns it.
 		if err != nil && !errors.Is(err, syscall.ENOENT) {
 			writeErrMsg := fmt.Sprintf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
 			if c.errorLogger != nil {
