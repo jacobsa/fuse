@@ -16,13 +16,12 @@ package fuse
 
 import (
 	"encoding/json"
-	"errors"
 	"reflect"
 	"slices"
-	"syscall"
 	"time"
 
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/internal/operror"
 )
 
 // NewWireLogRecord creates a new empty WireLogRecord.
@@ -58,10 +57,9 @@ func formatWireLogEntry(op any, opErr error, wlog *WireLogRecord) ([]byte, error
 	wlog.Duration = time.Since(wlog.StartTime)
 
 	// Result of the operation
-	var errno syscall.Errno
 	if opErr == nil {
 		wlog.Status = 0
-	} else if errors.As(opErr, &errno) {
+	} else if errno, ok := operror.Errno(opErr); ok {
 		wlog.Status = int(errno)
 	}
 

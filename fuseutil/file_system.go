@@ -21,6 +21,7 @@ import (
 
 	"github.com/jacobsa/fuse"
 	"github.com/jacobsa/fuse/fuseops"
+	"github.com/jacobsa/fuse/internal/operror"
 )
 
 // An interface with a method for each op type in the fuseops package. This can
@@ -155,20 +156,7 @@ func (s *fileSystemServer) handleOp(
 		err = s.fs.ForgetInode(ctx, typed)
 
 	case *fuseops.BatchForgetOp:
-		err = s.fs.BatchForget(ctx, typed)
-		if err == fuse.ENOSYS {
-			// Handle as a series of single-inode forget operations
-			for _, entry := range typed.Entries {
-				err = s.fs.ForgetInode(ctx, &fuseops.ForgetInodeOp{
-					Inode:     entry.Inode,
-					N:         entry.N,
-					OpContext: typed.OpContext,
-				})
-				if err != nil {
-					break
-				}
-			}
-		}
+		err = s.batchForget(ctx, typed)
 
 	case *fuseops.MkDirOp:
 		err = s.fs.MkDir(ctx, typed)
@@ -247,4 +235,24 @@ func (s *fileSystemServer) handleOp(
 	}
 
 	c.Reply(ctx, err)
+}
+
+func (s *fileSystemServer) batchForget(
+	ctx context.Context,
+	op *fuseops.BatchForgetOp) error {
+	err := s.fs.BatchForget(ctx, op)
+	if errno, _ := operror.Errno(err); errno == fuse.ENOSYS {
+		// Handle as a series of single-inode forget operations
+		for _, entry := range op.Entries {
+			err = s.fs.ForgetInode(ctx, &fuseops.ForgetInodeOp{
+				Inode:     entry.Inode,
+				N:         entry.N,
+				OpContext: op.OpContext,
+			})
+			if err != nil {
+				break
+			}
+		}
+	}
+	return err
 }

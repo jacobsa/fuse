@@ -27,6 +27,7 @@ import (
 	"github.com/jacobsa/fuse/fuseops"
 	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/fusekernel"
+	"github.com/jacobsa/fuse/internal/operror"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -805,7 +806,7 @@ func (c *Connection) kernelResponse(
 
 		if !handled {
 			m.OutHeader().Error = -int32(syscall.EIO)
-			if errno, ok := opErr.(syscall.Errno); ok {
+			if errno, ok := operror.Errno(opErr); ok {
 				m.OutHeader().Error = -int32(errno)
 			}
 

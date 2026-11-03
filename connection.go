@@ -16,6 +16,7 @@ package fuse
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -29,6 +30,7 @@ import (
 	"github.com/jacobsa/fuse/internal/buffer"
 	"github.com/jacobsa/fuse/internal/freelist"
 	"github.com/jacobsa/fuse/internal/fusekernel"
+	"github.com/jacobsa/fuse/internal/operror"
 )
 
 type contextKeyType uint64
@@ -438,10 +440,13 @@ func (c *Connection) writeOutMessage(outMsg *buffer.OutMessage) error {
 	return err
 }
 
+// syscallWrite is syscall.Write. Tests replace it to make a reply write fail.
+var syscallWrite = syscall.Write
+
 // Write the supplied message to the kernel.
 func (c *Connection) writeMessage(msg []byte) error {
 	// Avoid the retry loop in os.File.Write.
-	n, err := syscall.Write(int(c.dev.Fd()), msg)
+	n, err := syscallWrite(int(c.dev.Fd()), msg)
 	if err != nil {
 		return err
 	}
@@ -519,21 +524,24 @@ func (c *Connection) shouldLogError(
 		return false
 	}
 
+	// Judge the errno that kernelResponse sends, not any errno in the chain.
+	errno, _ := operror.Errno(err)
+
 	switch op.(type) {
 	case *fuseops.LookUpInodeOp:
 		// It is totally normal for the kernel to ask to look up an inode by name
 		// and find the name doesn't exist. For example, this happens when linking
 		// a new file.
-		if err == syscall.ENOENT {
+		if errno == syscall.ENOENT {
 			return false
 		}
 	case *fuseops.GetXattrOp, *fuseops.ListXattrOp:
-		if err == syscall.ENOSYS || err == syscall.ENODATA || err == syscall.ERANGE {
+		if errno == syscall.ENOSYS || errno == syscall.ENODATA || errno == syscall.ERANGE {
 			return false
 		}
 	case *unknownOp:
 		// Don't bother the user with methods we intentionally don't support.
-		if err == syscall.ENOSYS {
+		if errno == syscall.ENOSYS {
 			return false
 		}
 	}
@@ -545,6 +553,10 @@ var writeLock sync.Mutex
 
 // Reply replies to an op previously read using ReadOp, with the supplied error
 // (or nil if successful). The context must be the context returned by ReadOp.
+//
+// The kernel receives the first syscall.Errno in opErr's chain, or EIO when
+// the chain has none. A reply the kernel refuses with ENOENT, because the
+// request is gone, is not an error.
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) Reply(ctx context.Context, opErr error) error {
@@ -585,7 +597,7 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 			c.debugLog(fuseID, 1, "-> %s", describeResponse(op))
 		} else {
 			if !logError {
-				c.debugLog(fuseID, 1, "-> Error: %q", opErr.Error())
+				c.debugLog(fuseID, 1, "-> Error: %q", opErr)
 			}
 		}
 	}
@@ -600,7 +612,10 @@ func (c *Connection) Reply(ctx context.Context, opErr error) error {
 
 	if !noResponse {
 		err := c.writeOutMessage(outMsg)
-		if err != nil {
+		// The kernel answers a reply to a request it no longer tracks with
+		// ENOENT. libfuse leaves it out of its error output, and Reply neither
+		// logs nor returns it.
+		if err != nil && !errors.Is(err, syscall.ENOENT) {
 			writeErrMsg := fmt.Sprintf("writeMessage: %v %v", err, outMsg.OutHeaderBytes())
 			if c.errorLogger != nil {
 				c.errorLogger.Print(writeErrMsg)
