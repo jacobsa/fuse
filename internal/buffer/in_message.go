@@ -17,6 +17,7 @@ package buffer
 import (
 	"fmt"
 	"io"
+	"os"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -88,7 +89,11 @@ func (m *InMessage) Init(r io.Reader) error {
 	if fusekernel.IsPlatformFuseT {
 		n, err = m.ReadSingle(r)
 	} else {
-		n, err = r.Read(m.storage[:])
+		if f, ok := r.(*os.File); ok {
+			n, err = syscall.Read(int(f.Fd()), m.storage[:])
+		} else {
+			n, err = r.Read(m.storage[:])
+		}
 	}
 
 	if err != nil {
