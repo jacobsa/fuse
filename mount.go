@@ -133,7 +133,7 @@ func fusermount(binary string, argv []string, additionalEnv []string, wait bool,
 		debugLogger.Println("Creating a socket pair")
 	}
 	// Create a socket pair.
-	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	fds, err := cloexecSocketpair()
 	if err != nil {
 		return nil, fmt.Errorf("Socketpair: %v", err)
 	}
@@ -143,7 +143,6 @@ func fusermount(binary string, argv []string, additionalEnv []string, wait bool,
 	}
 	// Wrap the sockets into os.File objects that we will pass off to fusermount.
 	writeFile := os.NewFile(uintptr(fds[0]), "fusermount-child-writes")
-	defer writeFile.Close()
 
 	readFile := os.NewFile(uintptr(fds[1]), "fusermount-parent-reads")
 	defer readFile.Close()
@@ -164,8 +163,15 @@ func fusermount(binary string, argv []string, additionalEnv []string, wait bool,
 	} else {
 		err = cmd.Start()
 	}
+	// Close our copy of the helper's end, so that the read below ends once
+	// the helper exits, even when it passes no device.
+	writeFile.Close()
 	if err != nil {
 		return nil, fmt.Errorf("running %v: %v", binary, err)
+	}
+	if !wait {
+		// Nothing else waits for the helper. Reap it once it exits.
+		go cmd.Wait()
 	}
 
 	if debugLogger != nil {
@@ -230,4 +236,19 @@ func fusermount(binary string, argv []string, additionalEnv []string, wait bool,
 	}
 	// Turn the FD into an os.File.
 	return os.NewFile(uintptr(gotFds[0]), "/dev/fuse"), nil
+}
+
+// cloexecSocketpair returns a connected pair of Unix stream sockets that a
+// child process inherits only when it is passed one explicitly. It holds
+// syscall.ForkLock so that no fork in between inherits them.
+func cloexecSocketpair() ([2]int, error) {
+	syscall.ForkLock.RLock()
+	defer syscall.ForkLock.RUnlock()
+	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		return fds, err
+	}
+	syscall.CloseOnExec(fds[0])
+	syscall.CloseOnExec(fds[1])
+	return fds, nil
 }
