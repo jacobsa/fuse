@@ -383,6 +383,10 @@ func (c *Connection) handleInterrupt(fuseID uint64) {
 	cancel()
 }
 
+// initInMessage is (*buffer.InMessage).Init. Tests replace it to make a read
+// from the device fail.
+var initInMessage = (*buffer.InMessage).Init
+
 // Read the next message from the kernel. The message must later be destroyed
 // using destroyInMessage.
 func (c *Connection) readMessage() (*buffer.InMessage, error) {
@@ -392,11 +396,16 @@ func (c *Connection) readMessage() (*buffer.InMessage, error) {
 	// Loop past transient errors.
 	for {
 		// Attempt a read.
-		err := m.Init(c.dev)
+		err := initInMessage(m, c.dev)
 
 		// Special cases:
 		//
 		//  *  ENODEV means fuse has hung up.
+		//
+		//  *  On Linux, ECONNABORTED does too. fuse_dev_do_read returns it when
+		//     the connection is aborted, as an unmount does, after the read
+		//     took a request off the pending list
+		//     (https://github.com/torvalds/linux/blob/v6.12/fs/fuse/dev.c#L1332-L1340).
 		//
 		//  *  EINTR means we should try again. (This seems to happen often on
 		//     OS X, cf. http://golang.org/issue/11180)
@@ -405,6 +414,11 @@ func (c *Connection) readMessage() (*buffer.InMessage, error) {
 			switch pe.Err {
 			case syscall.ENODEV:
 				err = io.EOF
+
+			case syscall.ECONNABORTED:
+				if runtime.GOOS == "linux" {
+					err = io.EOF
+				}
 
 			case syscall.EINTR:
 				err = nil
