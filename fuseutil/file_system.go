@@ -104,30 +104,43 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 		s.fs.Destroy()
 	}()
 
-	const numReaders = 8
+	numReaders := c.NumReaders()
+	if numReaders == 1 {
+		s.readOps(c)
+		return
+	}
+
 	var readers sync.WaitGroup
 	for range numReaders {
 		readers.Add(1)
 		go func() {
 			defer readers.Done()
-			for {
-				ctx, op, err := c.ReadOp()
-				if err == io.EOF {
-					return
-				}
-				if err != nil {
-					panic(err)
-				}
-				s.opsInFlight.Add(1)
-				if _, ok := op.(*fuseops.ForgetInodeOp); ok {
-					s.handleOp(c, ctx, op)
-				} else {
-					go s.handleOp(c, ctx, op)
-				}
-			}
+			s.readOps(c)
 		}()
 	}
 	readers.Wait()
+}
+
+func (s *fileSystemServer) readOps(c *fuse.Connection) {
+	for {
+		ctx, op, err := c.ReadOp()
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			panic(err)
+		}
+		s.opsInFlight.Add(1)
+		if _, ok := op.(*fuseops.ForgetInodeOp); ok {
+			// Special case: call in this goroutine for
+			// forget inode ops, which may come in a
+			// flurry from the kernel and are generally
+			// cheap for the file system to handle
+			s.handleOp(c, ctx, op)
+		} else {
+			go s.handleOp(c, ctx, op)
+		}
+	}
 }
 
 func (s *fileSystemServer) handleOp(

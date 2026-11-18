@@ -276,6 +276,15 @@ type MountConfig struct {
 	// If unset, a default value of 1 MiB is used (or less if MaxPages is set
 	// to a value smaller than 256 pages).
 	MaxWrite uint32
+
+	// Number of concurrent goroutines reading ops from /dev/fuse in
+	// fuseutil.NewFileSystemServer (and available to custom Server
+	// implementations via Connection.NumReaders).
+	//
+	// If unset or <= 0, defaults to 1. Values > 1 can improve multi-core
+	// throughput on Linux, but allow concurrent ForgetInode calls, pin one
+	// InMessage buffer per reader, and may dispatch ops out of arrival order.
+	NumReaders int
 }
 
 type FUSEImpl uint8

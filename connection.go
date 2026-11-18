@@ -455,6 +455,15 @@ func (c *Connection) writeMessage(msg []byte) error {
 	return nil
 }
 
+// NumReaders returns the configured number of concurrent goroutines that should
+// read ops from /dev/fuse, defaulting to 1 if unset or non-positive.
+func (c *Connection) NumReaders() int {
+	if c.cfg.NumReaders <= 0 {
+		return 1
+	}
+	return c.cfg.NumReaders
+}
+
 // ReadOp consumes the next op from the kernel process, returning the op and a
 // context that should be used for work related to the op. It returns io.EOF if
 // the kernel has closed the connection.
