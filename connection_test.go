@@ -142,3 +142,29 @@ func TestSanitizeMaxPagesAndWrite(t *testing.T) {
 		})
 	}
 }
+
+func TestConnectionNumReaders(t *testing.T) {
+	tests := []struct {
+		name  string
+		input int
+		want  int
+	}{
+		{name: "unset defaults to 1", input: 0, want: 1},
+		{name: "negative defaults to 1", input: -4, want: 1},
+		{name: "explicit 1", input: 1, want: 1},
+		{name: "explicit 8", input: 8, want: 8},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &Connection{
+				cfg: MountConfig{
+					NumReaders: tc.input,
+				},
+			}
+			if got := c.NumReaders(); got != tc.want {
+				t.Errorf("NumReaders() = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
