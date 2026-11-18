@@ -64,6 +64,39 @@ func TestSuccessfulMount(t *testing.T) {
 	defer fuse.Unmount(mfs.Dir())
 }
 
+func TestSuccessfulMountWithMultipleReaders(t *testing.T) {
+	ctx := context.Background()
+
+	// Set up a temporary directory.
+	dir, err := ioutil.TempDir("", "mount_test")
+	if err != nil {
+		t.Fatalf("ioutil.TempDir: %v", err)
+	}
+
+	defer os.RemoveAll(dir)
+
+	// Mount with multiple readers.
+	fs := &minimalFS{}
+	mfs, err := fuse.Mount(
+		dir,
+		fuseutil.NewFileSystemServer(fs),
+		&fuse.MountConfig{
+			NumReaders: 8,
+		})
+
+	if err != nil {
+		t.Fatalf("fuse.Mount: %v", err)
+	}
+
+	defer func() {
+		if err := mfs.Join(ctx); err != nil {
+			t.Errorf("Joining: %v", err)
+		}
+	}()
+
+	defer fuse.Unmount(mfs.Dir())
+}
+
 func TestNonexistentMountPoint(t *testing.T) {
 	ctx := context.Background()
 

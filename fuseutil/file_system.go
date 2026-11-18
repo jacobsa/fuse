@@ -104,16 +104,32 @@ func (s *fileSystemServer) ServeOps(c *fuse.Connection) {
 		s.fs.Destroy()
 	}()
 
+	numReaders := c.NumReaders()
+	if numReaders == 1 {
+		s.readOps(c)
+		return
+	}
+
+	var readers sync.WaitGroup
+	for range numReaders {
+		readers.Add(1)
+		go func() {
+			defer readers.Done()
+			s.readOps(c)
+		}()
+	}
+	readers.Wait()
+}
+
+func (s *fileSystemServer) readOps(c *fuse.Connection) {
 	for {
 		ctx, op, err := c.ReadOp()
 		if err == io.EOF {
-			break
+			return
 		}
-
 		if err != nil {
 			panic(err)
 		}
-
 		s.opsInFlight.Add(1)
 		if _, ok := op.(*fuseops.ForgetInodeOp); ok {
 			// Special case: call in this goroutine for

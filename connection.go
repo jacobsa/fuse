@@ -401,15 +401,17 @@ func (c *Connection) readMessage() (*buffer.InMessage, error) {
 		//  *  EINTR means we should try again. (This seems to happen often on
 		//     OS X, cf. http://golang.org/issue/11180)
 		//
+		var errno error = err
 		if pe, ok := err.(*os.PathError); ok {
-			switch pe.Err {
-			case syscall.ENODEV:
-				err = io.EOF
+			errno = pe.Err
+		}
+		switch errno {
+		case syscall.ENODEV, syscall.EBADF:
+			err = io.EOF
 
-			case syscall.EINTR:
-				err = nil
-				continue
-			}
+		case syscall.EINTR:
+			err = nil
+			continue
 		}
 
 		if err != nil {
@@ -453,6 +455,15 @@ func (c *Connection) writeMessage(msg []byte) error {
 	return nil
 }
 
+// NumReaders returns the configured number of concurrent goroutines that should
+// read ops from /dev/fuse, defaulting to 1 if unset or non-positive.
+func (c *Connection) NumReaders() int {
+	if c.cfg.NumReaders <= 0 {
+		return 1
+	}
+	return c.cfg.NumReaders
+}
+
 // ReadOp consumes the next op from the kernel process, returning the op and a
 // context that should be used for work related to the op. It returns io.EOF if
 // the kernel has closed the connection.
@@ -460,8 +471,9 @@ func (c *Connection) writeMessage(msg []byte) error {
 // If err != nil, the user is responsible for later calling c.Reply with the
 // returned context.
 //
-// This function delivers ops in exactly the order they are received from
-// /dev/fuse. It must not be called multiple times concurrently.
+// ReadOp is safe to be called concurrently by multiple goroutines. Note that
+// concurrent callers may receive ops out of the order in which they were
+// delivered by /dev/fuse.
 //
 // LOCKS_EXCLUDED(c.mu)
 func (c *Connection) ReadOp() (_ context.Context, op interface{}, _ error) {
